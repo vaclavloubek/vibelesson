@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import LessonActions from './LessonActions';
+import SyllonautMark from '@/components/SyllonautMark';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 
@@ -42,7 +43,7 @@ export default async function LessonsPage() {
   return (
     <main className="shell lessons-shell">
       <header className="brand lessons-brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
         <nav className="main-nav"><Link href="/">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
         <div className="lessons-user">{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : 'Přihlášený učitel'}</div>
       </header>
@@ -60,9 +61,10 @@ export default async function LessonsPage() {
 
       {!error && lessons.length === 0 ? (
         <section className="lessons-empty panel">
+          <span className="eyebrow">Začátek trasy</span>
           <h2>Zatím tu nic není</h2>
-          <p>Připrav první lekci. Jakmile ji AI dokončí, uloží se sem automaticky.</p>
-          <Link href="/" className="primary button-link">Připravit první lekci</Link>
+          <p>Vytvoř první lekci. Jakmile ji Syllonaut dokončí, uloží se sem automaticky.</p>
+          <Link href="/" className="primary button-link">Vytvořit první lekci</Link>
         </section>
       ) : null}
 
