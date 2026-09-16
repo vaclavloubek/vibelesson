@@ -128,7 +128,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               <div className="actions" style={{ marginTop: 0 }}><button className="secondary" disabled={busy || activeIndex <= 0} onClick={() => void act('previous')}>← Předchozí</button><button className="primary" disabled={busy || activeIndex >= session.lessonSnapshot.blocks.length - 1} onClick={() => void act('next')}>Další →</button><button className="secondary" disabled={busy} onClick={() => void act('end')}>Ukončit hodinu</button></div>
             </div>
           </section>
-          {activeBlock ? <LiveBlock block={activeBlock} teacherMode /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
+          {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
           {activeBlock ? <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} /> : null}
           <section className="panel"><span className="eyebrow">Připojení studenti</span><p className="muted-copy">{session.participants.map((participant) => participant.displayName).join(', ') || 'Zatím nikdo.'}</p></section>
         </div>
