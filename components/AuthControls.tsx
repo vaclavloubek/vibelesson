@@ -142,7 +142,7 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
       {open ? (
         <div className="auth-popover">
           <strong>Přihlášení do Syllonautu</strong>
-          <p>Účet je potřeba jen pro AI funkce. Ukázkovou misi můžeš používat bez přihlášení.</p>
+          <p>Účet je potřeba jen pro AI funkce. Ukázkovou lekci můžeš používat bez přihlášení.</p>
           <form onSubmit={signIn}>
             <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
             <label>Heslo<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required /></label>
