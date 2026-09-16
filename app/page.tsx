@@ -1,5 +1,5 @@
-import LessonWorkspace from '@/components/LessonWorkspace';
+import LandingPage from '@/components/LandingPage';
 
 export default function Home() {
-  return <LessonWorkspace />;
+  return <LandingPage />;
 }
