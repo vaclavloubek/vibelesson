@@ -44,7 +44,7 @@ export default async function LessonsPage() {
     <main className="shell lessons-shell">
       <header className="brand lessons-brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
-        <nav className="main-nav"><Link href="/">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
+        <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
         <div className="lessons-user">{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : 'Přihlášený učitel'}</div>
       </header>
 
@@ -54,7 +54,7 @@ export default async function LessonsPage() {
           <h1>Moje lekce</h1>
           <p>Všechny připravené lekce se sem ukládají automaticky.</p>
         </div>
-        <Link href="/" className="primary button-link">+ Nová lekce</Link>
+        <Link href="/new" className="primary button-link">+ Nová lekce</Link>
       </section>
 
       {error ? <div className="error">Lekce se nepodařilo načíst. Zkus stránku obnovit.</div> : null}
@@ -64,7 +64,7 @@ export default async function LessonsPage() {
           <span className="eyebrow">Začátek trasy</span>
           <h2>Zatím tu nic není</h2>
           <p>Vytvoř první lekci. Jakmile ji Syllonaut dokončí, uloží se sem automaticky.</p>
-          <Link href="/" className="primary button-link">Vytvořit první lekci</Link>
+          <Link href="/new" className="primary button-link">Vytvořit první lekci</Link>
         </section>
       ) : null}
 
