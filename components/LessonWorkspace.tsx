@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
 import LessonPreview from '@/components/LessonPreview';
 import SyllonautMark from '@/components/SyllonautMark';
 import { demoLesson } from '@/lib/demo';
@@ -18,6 +19,11 @@ type LessonApiResponse = {
   lessonId?: string | null;
   error?: string;
 };
+
+type GenerationStreamEvent =
+  | { type: 'progress'; stage: Exclude<GenerationStage, 'requesting'> }
+  | { type: 'result'; lesson: Lesson; lessonId: string }
+  | { type: 'error'; error: string };
 
 type RecoverySnapshot = {
   ownerId: string;
@@ -53,6 +59,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(initialLessonId ? 'saved' : 'idle');
   const [quotaRefreshKey, setQuotaRefreshKey] = useState(0);
   const [recovery, setRecovery] = useState<RecoverySnapshot | null>(null);
+  const [generationStage, setGenerationStage] = useState<GenerationStage | null>(null);
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
 
@@ -128,25 +136,79 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   async function generate(e: FormEvent) {
     e.preventDefault();
     if (!requireAuth()) return;
+
     setBusy(true);
     setError('');
     setUndoLesson(null);
     setSelectedBlockId(null);
+    setGenerationStartedAt(Date.now());
+    setGenerationStage('requesting');
+
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, audience, duration, groupSize, tone }),
       });
-      const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || 'Generování selhalo.');
-      applyLessonResponse(data);
+
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!res.ok || !contentType.includes('application/x-ndjson')) {
+        const data = await res.json() as LessonApiResponse;
+        if (!res.ok) throw new Error(data.error || 'Generování selhalo.');
+        applyLessonResponse(data);
+        setQuotaRefreshKey((value) => value + 1);
+        if (data.lessonId) router.replace(`/lessons/${data.lessonId}`);
+        return;
+      }
+
+      if (!res.body) throw new Error('Server nevrátil průběh generování.');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let resultLesson: Lesson | null = null;
+      let resultLessonId: string | null = null;
+
+      const handleLine = (line: string) => {
+        if (!line.trim()) return;
+        const event = JSON.parse(line) as GenerationStreamEvent;
+        if (event.type === 'progress') {
+          setGenerationStage(event.stage);
+          return;
+        }
+        if (event.type === 'error') throw new Error(event.error);
+        if (event.type === 'result') {
+          resultLesson = LessonSchema.parse(event.lesson);
+          resultLessonId = event.lessonId;
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) handleLine(line);
+      }
+
+      buffer += decoder.decode();
+      if (buffer.trim()) handleLine(buffer);
+      if (!resultLesson || !resultLessonId) throw new Error('Generování skončilo bez hotové lekce.');
+
+      applyLessonResponse({ lesson: resultLesson, lessonId: resultLessonId });
       setQuotaRefreshKey((value) => value + 1);
-      if (data.lessonId) router.replace(`/lessons/${data.lessonId}`);
+      router.replace(`/lessons/${resultLessonId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generování selhalo.');
+      const rawMessage = err instanceof Error ? err.message : '';
+      const isTransportError = /string did not match|failed to fetch|load failed|network|connection/i.test(rawMessage);
+      setError(isTransportError
+        ? 'Spojení se během generování přerušilo. Pokud se lekce stihla dokončit, najdeš ji v Moje lekce; jinak to zkus znovu.'
+        : rawMessage || 'Generování selhalo.');
     } finally {
       setBusy(false);
+      setGenerationStage(null);
+      setGenerationStartedAt(null);
     }
   }
 
@@ -281,7 +343,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   <label>Velikost týmu<input value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
                   <label>Tón<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
                 </div>
-                <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" onClick={loadDemo}>Ukázková lekce</button></div>
+                <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>Ukázková lekce</button></div>
                 {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
               </form>
             </div>
@@ -295,7 +357,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={duration} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>
