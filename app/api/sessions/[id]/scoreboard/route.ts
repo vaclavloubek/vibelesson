@@ -134,8 +134,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
       if (block.type === 'quiz') {
         const raw = responseByParticipantBlock.get(`${participant.id}:${block.id}`);
         const parsed = StudentAnswerSchema.safeParse(raw);
-        const answered = parsed.success && 'choice' in parsed.data;
-        const points = answered && parsed.data.choice === block.correctAnswer ? maxPoints : 0;
+        const choice = parsed.success && 'choice' in parsed.data ? parsed.data.choice : null;
+        const points = choice !== null && choice === block.correctAnswer ? maxPoints : 0;
         score += points;
         breakdown.push({
           blockId: block.id,
@@ -143,7 +143,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
           blockType: block.type,
           points,
           maxPoints,
-          source: answered ? 'quiz' : 'missing',
+          source: choice !== null ? 'quiz' : 'missing',
         });
         continue;
       }
