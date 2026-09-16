@@ -311,7 +311,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     <main className="shell">
       <header className="brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
-        <nav className="main-nav"><Link href="/">Nová lekce</Link><Link href="/lessons">Moje lekce</Link></nav>
+        <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons">Moje lekce</Link></nav>
         <div className="brand-side"><p className="brand-tagline">AI navigátor pro interaktivní výuku.</p><AuthControls onAuthChange={setAuthUser} quotaRefreshKey={quotaRefreshKey} /></div>
       </header>
 
@@ -329,7 +329,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">Uložená lekce</span>
               <h1>{lesson.title}</h1>
               <p className="muted-copy">Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.</p>
-              <div className="actions"><Link href="/lessons" className="secondary button-link">← Moje lekce</Link><Link href="/" className="primary button-link">+ Nová lekce</Link></div>
+              <div className="actions"><Link href="/lessons" className="secondary button-link">← Moje lekce</Link><Link href="/new" className="primary button-link">+ Nová lekce</Link></div>
             </div>
           ) : (
             <div className="panel">
