@@ -26,22 +26,63 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const parsedLesson = LessonSchema.safeParse(session.lesson_snapshot);
   if (!parsedLesson.success) return NextResponse.json({ error: 'Snapshot lekce je neplatný.' }, { status: 500 });
 
-  const { data: participants, error: participantError } = await supabase
-    .from('participants')
-    .select('id, display_name, joined_at')
-    .eq('session_id', id)
-    .order('joined_at', { ascending: true });
+  const [{ data: participants, error: participantError }, { data: teams, error: teamsError }] = await Promise.all([
+    supabase
+      .from('participants')
+      .select('id, display_name, joined_at, team_id')
+      .eq('session_id', id)
+      .order('joined_at', { ascending: true }),
+    supabase
+      .from('teams')
+      .select('id, name, sort_order')
+      .eq('session_id', id)
+      .order('sort_order', { ascending: true }),
+  ]);
 
   if (participantError) {
     console.error('participants load failed', participantError);
     return NextResponse.json({ error: 'Účastníky se nepodařilo načíst.' }, { status: 500 });
   }
+  if (teamsError) {
+    console.error('teams load failed', teamsError);
+    return NextResponse.json({ error: 'Týmy se nepodařilo načíst.' }, { status: 500 });
+  }
 
   const participantRows = participants ?? [];
   const participantNames = new Map(participantRows.map((participant) => [participant.id as string, participant.display_name as string]));
   const responses: Array<{ participantId: string; displayName: string; answer: unknown; updatedAt: string }> = [];
+  const teamResponses: Array<{ teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string }> = [];
 
-  if (session.active_block_id) {
+  const activeBlock = session.active_block_id
+    ? parsedLesson.data.blocks.find((block) => block.id === session.active_block_id) ?? null
+    : null;
+
+  if (session.active_block_id && activeBlock?.type === 'team_task') {
+    const { data: teamResponseRows, error: teamResponseError } = await supabase
+      .from('team_responses')
+      .select('team_id, answer, updated_by_participant_id, updated_at')
+      .eq('session_id', id)
+      .eq('block_id', session.active_block_id)
+      .order('updated_at', { ascending: true });
+
+    if (teamResponseError) {
+      console.error('team responses load failed', teamResponseError);
+      return NextResponse.json({ error: 'Týmové odpovědi se nepodařilo načíst.' }, { status: 500 });
+    }
+
+    for (const response of teamResponseRows ?? []) {
+      const parsedAnswer = StudentAnswerSchema.safeParse(response.answer);
+      if (!parsedAnswer.success || !('text' in parsedAnswer.data)) continue;
+      const updaterId = response.updated_by_participant_id as string | null;
+      teamResponses.push({
+        teamId: response.team_id as string,
+        text: parsedAnswer.data.text,
+        updatedByParticipantId: updaterId,
+        updatedByDisplayName: updaterId ? participantNames.get(updaterId) ?? 'Student' : null,
+        updatedAt: response.updated_at as string,
+      });
+    }
+  } else if (session.active_block_id) {
     const { data: responseRows, error: responseError } = await supabase
       .from('responses')
       .select('participant_id, answer, updated_at')
@@ -78,12 +119,19 @@ export async function GET(_req: Request, { params }: RouteContext) {
       createdAt: session.created_at,
       startedAt: session.started_at,
       endedAt: session.ended_at,
+      teams: (teams ?? []).map((team) => ({
+        id: team.id,
+        name: team.name,
+        sortOrder: team.sort_order,
+      })),
       participants: participantRows.map((participant) => ({
         id: participant.id,
         displayName: participant.display_name,
         joinedAt: participant.joined_at,
+        teamId: participant.team_id,
       })),
       responses,
+      teamResponses,
     },
   });
 }
