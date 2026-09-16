@@ -9,6 +9,7 @@ export const maxDuration = 60;
 const InputSchema = z.object({
   instruction: z.string().min(2).max(3000),
   lesson: LessonSchema,
+  lessonId: z.string().uuid(),
 });
 
 export async function POST(req: Request) {
@@ -18,9 +19,10 @@ export async function POST(req: Request) {
   }
 
   let requestId: string | null = null;
+  let costUsd: number | null = null;
 
   try {
-    const { instruction, lesson } = InputSchema.parse(await req.json());
+    const { instruction, lesson, lessonId } = InputSchema.parse(await req.json());
 
     const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_revision_operation', { p_action: 'revise_lesson' });
     if (quotaError) {
@@ -36,31 +38,49 @@ export async function POST(req: Request) {
     }
 
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
-    const { lesson: revised, costUsd } = await reviseLesson(lesson, instruction);
+    const revisedResult = await reviseLesson(lesson, instruction);
+    const revised = revisedResult.lesson;
+    costUsd = revisedResult.costUsd;
+
+    const { data: savedLesson, error: saveError } = await supabase
+      .from('lessons')
+      .update({
+        title: revised.title,
+        lesson: revised,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', lessonId)
+      .eq('owner_id', userId)
+      .select('id')
+      .single();
+
+    if (saveError || !savedLesson?.id) {
+      throw saveError ?? new Error('Revised lesson was not persisted.');
+    }
 
     if (requestId) {
       const { error: finishError } = await supabase.rpc('finish_generation_request', {
         p_request_id: requestId,
         p_status: 'succeeded',
         p_cost_usd: costUsd,
-        p_lesson_id: null,
+        p_lesson_id: lessonId,
       });
       if (finishError) console.error('finish revision request failed', finishError);
     }
 
-    return NextResponse.json(revised);
+    return NextResponse.json({ lesson: revised, lessonId });
   } catch (error) {
     if (requestId) {
       const { error: finishError } = await supabase.rpc('finish_generation_request', {
         p_request_id: requestId,
         p_status: 'failed',
-        p_cost_usd: null,
+        p_cost_usd: costUsd,
         p_lesson_id: null,
       });
       if (finishError) console.error('fail revision request cleanup failed', finishError);
     }
 
     console.error('revise lesson failed', error);
-    return NextResponse.json({ error: 'Úprava lekce se nepodařila. Zkus formulovat změnu jinak.' }, { status: 500 });
+    return NextResponse.json({ error: 'Úprava lekce se nepodařila bezpečně uložit. Zkus formulovat změnu jinak.' }, { status: 500 });
   }
 }
