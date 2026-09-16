@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import LiveBlock from '@/components/LiveBlock';
-import type { SessionAction, SessionStatus } from '@/lib/live';
+import TeacherResponses from '@/components/TeacherResponses';
+import type { SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
 
 type Participant = { id: string; displayName: string; joinedAt: string };
+type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string };
 type TeacherSessionData = {
   id: string;
   lessonId: string | null;
@@ -20,6 +22,7 @@ type TeacherSessionData = {
   startedAt: string | null;
   endedAt: string | null;
   participants: Participant[];
+  responses: LiveResponse[];
 };
 
 export default function TeacherSession({ sessionId }: { sessionId: string }) {
@@ -126,6 +129,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             </div>
           </section>
           {activeBlock ? <LiveBlock block={activeBlock} teacherMode /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
+          {activeBlock ? <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} /> : null}
           <section className="panel"><span className="eyebrow">Připojení studenti</span><p className="muted-copy">{session.participants.map((participant) => participant.displayName).join(', ') || 'Zatím nikdo.'}</p></section>
         </div>
       ) : null}
