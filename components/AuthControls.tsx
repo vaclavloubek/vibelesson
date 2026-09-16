@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 
 type Props = {
   onAuthChange: (user: User | null) => void;
+  quotaRefreshKey?: number;
 };
 
 type Quota = {
@@ -19,7 +20,7 @@ type Quota = {
   revision_unlimited: boolean;
 };
 
-export default function AuthControls({ onAuthChange }: Props) {
+export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
@@ -69,6 +70,10 @@ export default function AuthControls({ onAuthChange }: Props) {
       listener.subscription.unsubscribe();
     };
   }, [onAuthChange, supabase]);
+
+  useEffect(() => {
+    if (user) void loadQuota(user);
+  }, [quotaRefreshKey, user]);
 
   async function signIn(e: FormEvent) {
     e.preventDefault();
