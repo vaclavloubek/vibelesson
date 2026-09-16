@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 
@@ -22,6 +22,14 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
   const [text, setText] = useState(initialText);
   const [ranking, setRanking] = useState<string[]>(initialRanking);
   const [rankingText, setRankingText] = useState(initialRankingText);
+  const [recentlyMoved, setRecentlyMoved] = useState<string | null>(null);
+  const [moveStatus, setMoveStatus] = useState('');
+
+  useEffect(() => {
+    if (!recentlyMoved) return;
+    const timer = window.setTimeout(() => setRecentlyMoved(null), 650);
+    return () => window.clearTimeout(timer);
+  }, [recentlyMoved]);
 
   const rankingChanged = useMemo(() => {
     if (!(response && 'ranking' in response)) return true;
@@ -75,7 +83,7 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
             ))}
           </div>
         ) : <div className="error">Tento blok nemá žádné možnosti odpovědi.</div>}
-        {saved ? <p className="muted-copy" style={{ margin: 0 }}>Odpověď je uložená.</p> : null}
+        {saved ? <p className="student-save-success">✓ Odpověď je uložená.</p> : null}
         {error ? <div className="error">{error}</div> : null}
       </section>
     );
@@ -85,11 +93,14 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
     function move(index: number, delta: -1 | 1) {
       const target = index + delta;
       if (target < 0 || target >= ranking.length) return;
+      const movedItem = ranking[index];
       setRanking((current) => {
         const next = [...current];
         [next[index], next[target]] = [next[target], next[index]];
         return next;
       });
+      setRecentlyMoved(movedItem);
+      setMoveStatus(`${movedItem} je teď na ${target + 1}. místě.`);
       setSaved(false);
     }
 
@@ -100,24 +111,34 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
       void save({ ranking, text: explanation });
     }
 
+    const sourceItems = block.items ?? [];
+
     return (
       <section className="panel">
         <span className="eyebrow">Tvoje pořadí</span>
-        <p className="muted-copy">Seřaď všechny položky od 1. místa dolů a potom krátce zdůvodni své pořadí. Odpověď můžeš měnit, dokud učitel nepřejde dál.</p>
+        <p className="muted-copy">Seřaď všechny položky od 1. místa dolů. Každá má vlastní jemný odstín, takže ji můžeš při přesouvání snadno sledovat.</p>
         {ranking.length >= 2 ? (
           <form onSubmit={submitRanking} style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-            <div style={{ display: 'grid', gap: 9 }}>
-              {ranking.map((item, index) => (
-                <div className="item" key={item} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto', gap: 10, alignItems: 'center' }}>
-                  <strong style={{ fontSize: 18, textAlign: 'center' }}>{index + 1}.</strong>
-                  <span style={{ lineHeight: 1.35 }}>{item}</span>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button type="button" className="secondary" aria-label={`Posunout ${item} nahoru`} disabled={busy || index === 0} onClick={() => move(index, -1)} style={{ padding: '8px 10px' }}>↑</button>
-                    <button type="button" className="secondary" aria-label={`Posunout ${item} dolů`} disabled={busy || index === ranking.length - 1} onClick={() => move(index, 1)} style={{ padding: '8px 10px' }}>↓</button>
+            <div className="ranking-list">
+              {ranking.map((item, index) => {
+                const sourceIndex = sourceItems.indexOf(item);
+                const tone = (sourceIndex >= 0 ? sourceIndex : index) % 5;
+                return (
+                  <div
+                    className={`ranking-item ranking-item-tone-${tone}${recentlyMoved === item ? ' ranking-item--moved' : ''}`}
+                    key={item}
+                  >
+                    <strong className="ranking-position">{index + 1}.</strong>
+                    <span className="ranking-copy">{item}</span>
+                    <div className="ranking-controls">
+                      <button type="button" className="secondary" aria-label={`Posunout ${item} nahoru`} disabled={busy || index === 0} onClick={() => move(index, -1)}>↑</button>
+                      <button type="button" className="secondary" aria-label={`Posunout ${item} dolů`} disabled={busy || index === ranking.length - 1} onClick={() => move(index, 1)}>↓</button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+            <p className="ranking-move-status" aria-live="polite">{moveStatus}</p>
             <label>
               Krátké zdůvodnění (povinné)
               <textarea
@@ -134,7 +155,7 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
             </div>
           </form>
         ) : <div className="error" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
-        {saved ? <p className="muted-copy" style={{ marginBottom: 0 }}>Pořadí i zdůvodnění jsou uložené.</p> : null}
+        {saved ? <p className="student-save-success">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
         {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
@@ -164,7 +185,7 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
             <button type="submit" className="primary" disabled={busy || !text.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat odpověď'}</button>
           </div>
         </form>
-        {saved ? <p className="muted-copy" style={{ marginBottom: 0 }}>Odpověď je uložená. Můžeš ji ještě upravit, dokud učitel nepřejde dál.</p> : null}
+        {saved ? <p className="student-save-success">✓ Odpověď je uložená. Můžeš ji ještě upravit, dokud učitel nepřejde dál.</p> : null}
         {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
