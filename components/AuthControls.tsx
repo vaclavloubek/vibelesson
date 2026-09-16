@@ -9,10 +9,14 @@ type Props = {
 };
 
 type Quota = {
-  used: number;
-  monthly_limit: number | null;
-  remaining: number | null;
-  is_unlimited: boolean;
+  lesson_used: number;
+  lesson_limit: number | null;
+  lesson_remaining: number | null;
+  revision_used: number;
+  revision_limit: number | null;
+  revision_remaining: number | null;
+  lesson_unlimited: boolean;
+  revision_unlimited: boolean;
 };
 
 export default function AuthControls({ onAuthChange }: Props) {
@@ -31,7 +35,7 @@ export default function AuthControls({ onAuthChange }: Props) {
       return;
     }
 
-    const { data, error } = await supabase.rpc('get_lesson_quota');
+    const { data, error } = await supabase.rpc('get_ai_quota');
     if (error) {
       console.error('load quota failed', error);
       setQuota(null);
@@ -104,16 +108,22 @@ export default function AuthControls({ onAuthChange }: Props) {
   }
 
   if (user) {
-    const quotaText = quota?.is_unlimited
-      ? 'AI lekce: neomezeně'
-      : quota && quota.monthly_limit !== null
-        ? `AI lekce: zbývá ${quota.remaining ?? 0} z ${quota.monthly_limit}`
-        : 'AI lekce: načítám limit…';
+    const lessonText = quota?.lesson_unlimited
+      ? 'lekce neomezeně'
+      : quota && quota.lesson_limit !== null
+        ? `lekce ${quota.lesson_remaining ?? 0}/${quota.lesson_limit}`
+        : 'lekce načítám';
+
+    const revisionText = quota?.revision_unlimited
+      ? 'úpravy neomezeně'
+      : quota && quota.revision_limit !== null
+        ? `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`
+        : 'úpravy načítám';
 
     return (
       <div className="auth-signed-in">
         <span title={user.email ?? ''}>{user.email}</span>
-        <span className="auth-quota">{quotaText}</span>
+        <span className="auth-quota">AI: {lessonText} · {revisionText}</span>
         <button type="button" className="auth-link" onClick={signOut} disabled={busy}>Odhlásit</button>
       </div>
     );
