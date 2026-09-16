@@ -14,7 +14,7 @@ Dlouhodobý produktový tok:
 2. **AI návrh** — EduPilot vytvoří strukturovanou lekci z ověřených typů aktivit.
 3. **Úpravy** — učitel mění celou lekci nebo jednu aktivitu přirozeným jazykem.
 4. **Uložení** — lekce je navázaná na učitelský účet a lze se k ní vracet.
-5. **Publikování** — učitel spustí živou session a získá kód/QR.
+5. **Publikování / spuštění** — učitel spustí živou session a získá kód/QR.
 6. **Výuka** — studenti se připojí z mobilů bez registrace a plní aktivity.
 7. **Řízení** — učitel vidí odpovědi, postup, čas a týmové skóre.
 8. **Vyhodnocení** — po hodině dostane souhrn výsledků a může lekci upravit pro příště.
@@ -81,7 +81,7 @@ Později lze repository ručně přejmenovat na `vaclavloubek/edupilot`, ale dok
 - Vercel AI Gateway
 - Supabase Auth
 - Supabase Postgres + RLS
-- budoucí živá výuka: Supabase Realtime
+- pro živou výuku plánovaný Supabase Realtime
 
 AI model:
 
@@ -158,15 +158,23 @@ Endpoint `/api/generate` přijímá:
 
 AI vrací validovaný `Lesson` objekt.
 
+Nově se úspěšně vygenerovaná lekce **automaticky uloží do Supabase ještě před odpovědí prohlížeči**. Uživatel tedy po úspěšném generování vždy dostane už uloženou lekci se stabilním `lesson_id`.
+
+`generation_requests` u úspěšného generování dostává skutečné `lesson_id`.
+
 ### 7.2 AI úprava celé lekce
 
 Endpoint `/api/revise` dostane existující lekci a instrukci učitele. AI má zachovat vše, co instrukce nemění.
+
+Pokud jde o uloženou lekci, úspěšná AI úprava se automaticky zapíše do stejného řádku `lessons`, aktualizuje `updated_at` a vrátí uloženou verzi do UI.
 
 ### 7.3 AI úprava jedné aktivity
 
 Endpoint `/api/revise-block` upraví pouze jeden vybraný blok a zachová jeho `id`.
 
 To je důležitý produktový princip: učitel musí mít možnost jemně ladit lekci bez zničení již připravené struktury.
+
+Stejně jako u úpravy celé lekce se změna uloží do stejné lekce a aktualizuje `updated_at`.
 
 ### 7.4 Učitelský a studentský náhled
 
@@ -180,6 +188,8 @@ Studentský režim je zatím pouze náhled stejné lekce, nikoli samostatná ži
 ### 7.5 Demo lekce
 
 Aplikace obsahuje demo „Mediální mise“ pro mediální gramotnost. Základ UI je díky tomu testovatelný i bez AI.
+
+Demo zůstává záměrně neserverová ukázka. Lze ji prohlížet bez přihlášení; po přihlášení ji lze AI upravovat, ale sama o sobě se automaticky nezařazuje do knihovny „Moje lekce“.
 
 ### 7.6 Přihlášení a registrace
 
@@ -215,6 +225,8 @@ Aktuální hlavní účet uživatele je nastaven jako admin. Globální Vercel b
 
 Kvóty jsou vynucené serverově přes databázovou rezervaci, ne pouze v UI. Paralelní požadavky tedy nemají jednoduše obejít limit. Neúspěšný AI request se označí jako `failed` a do měsíční kvóty se nepočítá.
 
+Po úspěšné AI operaci se zobrazená kvóta v UI znovu načte, takže uživatel nemusí refreshovat stránku nebo se znovu přihlásit.
+
 ### 7.8 Evidence AI provozu a skutečných nákladů
 
 Tabulka `generation_requests` eviduje:
@@ -223,6 +235,7 @@ Tabulka `generation_requests` eviduje:
 - typ operace (`generate_lesson`, `revise_lesson`, `revise_block`);
 - stav `pending` / `succeeded` / `failed`;
 - čas;
+- vazbu na lekci, pokud existuje;
 - skutečnou cenu z `providerMetadata.gateway.cost` v USD.
 
 Naměřené reprezentativní ceny dne 2026-09-16:
@@ -254,9 +267,38 @@ Nákladové pojistky:
 
 Před širším veřejným provozem znovu ověřit reset period budgetů ve Vercelu a zda mají platit oba limity, nebo pouze projekt/API-key limit.
 
-## 8. Databáze — aktuální základ
+### 7.10 Účet jako pracovní prostor — Milník A.1
 
-V Supabase už existuje databázový základ pro účty a budoucí knihovnu lekcí.
+Přihlášený učitel má nyní skutečný pracovní prostor.
+
+Implementováno:
+
+- automatické uložení každé nové AI lekce;
+- stabilní URL lekce `/lessons/<id>`;
+- stránka **Moje lekce** na `/lessons`;
+- seznam vlastních lekcí řazený podle poslední změny;
+- otevření a pokračování v uložené lekci;
+- autosave po AI úpravě celé lekce;
+- autosave po AI úpravě jednoho bloku;
+- stav **Ukládám změny… / ✓ Uloženo**;
+- přejmenování lekce;
+- duplikace lekce;
+- smazání lekce s potvrzením;
+- jednoduché jednokrokové **Undo poslední AI změny** bez spotřeby další AI kvóty;
+- lokální recovery snapshot poslední uložené lekce;
+- ochrana před zavřením stránky během probíhajícího ukládání;
+- okamžité obnovení zobrazené AI kvóty po operaci.
+
+Produktové rozhodnutí:
+
+- **běžná AI lekce se ukládá automaticky; nepoužívá se explicitní tlačítko Save**;
+- serverová uložená lekce je zdroj pravdy;
+- lokální snapshot je pouze pojistka / recovery vrstva;
+- demo lekce se automaticky do knihovny neukládá.
+
+Tento tok byl 2026-09-16 ručně end-to-end otestován na produkci: generování → Moje lekce → refresh → AI úprava → Undo → přejmenování → duplikace → smazání kopie. Test proběhl úspěšně.
+
+## 8. Databáze — aktuální stav
 
 ### `profiles`
 
@@ -269,13 +311,34 @@ V Supabase už existuje databázový základ pro účty a budoucí knihovnu lekc
 
 ### `lessons`
 
-Tabulka je vytvořená jako základ pro lekce navázané na uživatele.
+Aktuální sloupce:
 
-**Důležité:** aplikace do ní zatím v běžném UX automaticky neukládá vygenerované ani upravené lekce. Databázová tabulka tedy existuje, ale produktová funkce „Moje lekce“ ještě není implementovaná.
+- `id uuid`
+- `owner_id uuid`
+- `title text`
+- `source_prompt text?`
+- `lesson jsonb`
+- `created_at timestamptz`
+- `updated_at timestamptz`
+
+Tabulka je nyní aktivně používaná běžným UX.
+
+RLS je zapnuté a ověřené pro všechny čtyři operace:
+
+- SELECT — pouze vlastní lekce;
+- INSERT — pouze s vlastním `owner_id`;
+- UPDATE — pouze vlastní lekce a `owner_id` nelze převést na jiného uživatele;
+- DELETE — pouze vlastní lekce.
+
+Všechny politiky používají vazbu `(select auth.uid()) = owner_id` pro roli `authenticated`.
+
+**Důležitý bezpečnostní princip:** platformní role `admin` sama o sobě nedává přístup k cizím lekcím. Admin má v současnosti výjimku pro AI kvóty, nikoli pro obsah ostatních uživatelů.
+
+Serverové operace nad jednotlivou lekcí navíc explicitně filtrují podle `owner_id = userId`; RLS tedy není jedinou obrannou vrstvou.
 
 ### `generation_requests`
 
-Interní evidence AI operací, kvót, výsledků a ceny.
+Interní evidence AI operací, kvót, výsledků, vazby na lekci a ceny.
 
 ### Quota RPC
 
@@ -301,34 +364,50 @@ System prompt aktuálně vyžaduje zejména:
 
 ## 10. Co zatím NENÍ hotové
 
-Nejbližší chybějící produktové funkce:
+### Živá výuka — nejbližší priorita
 
-- automatické uložení / ruční uložení vytvořené lekce k uživatelskému účtu;
-- obrazovka **Moje lekce**;
-- otevření a pokračování v dříve uložené lekci;
-- přejmenování, duplikace a smazání lekce;
-- historie/verzování lekcí;
-- sdílení lekce mezi učiteli;
-- profil a nastavení uživatele;
-- self-service smazání účtu / export dat;
-- případné organizace/týmy/školní účty.
+Zatím není implementováno:
 
-Živá výuka zatím není implementovaná:
-
+- tlačítko **Spustit hodinu**;
+- vytvoření živé session z uložené lekce;
 - veřejná studentská URL;
-- QR kód / session code;
-- současné připojení více studentů;
-- živé odpovědi;
-- živé hlasování;
-- scoreboard;
-- časovač řízený učitelem napříč telefony;
+- krátký session code;
+- QR kód;
+- anonymní vstup studenta bez účtu;
+- lobby / seznam připojených studentů;
 - řízení aktuálního bloku učitelem;
-- výsledky a report po lekci.
+- Supabase Realtime synchronizace;
+- živé odpovědi;
+- poll výsledky v reálném čase;
+- týmová jména;
+- scoreboard;
+- časovač řízený učitelem napříč zařízeními;
+- ukončení session;
+- výsledky a report po lekci;
+- historie proběhlých sessions.
 
-Další pozdější funkce:
+### Účet — pozdější rozšíření
+
+Zatím odloženo, protože to není potřeba pro první funkční výuku:
+
+- koš místo okamžitého smazání;
+- trvalé verzování a historie změn;
+- víceúrovňové undo;
+- sdílení lekce mezi učiteli;
+- veřejný read-only odkaz;
+- šablony;
+- oblíbené / připnuté lekce;
+- pokročilé vyhledávání a třídění;
+- profil a výukové preference;
+- historie AI spotřeby v samostatné obrazovce;
+- export vlastních dat;
+- self-service smazání účtu;
+- organizace / týmy / školní účty;
+- sdílené knihovny lekcí.
+
+### Další pozdější funkce
 
 - práce se soubory/sylaby jako zdrojem pro generování;
-- šablony;
 - analytika využití;
 - export výsledků;
 - moderace nebo schvalování AI obsahu před publikováním.
@@ -358,48 +437,58 @@ Cíl: učitel si otevře EduPilot na normální URL, přihlásí se a může bez
 - [x] $10 spend ochrana
 - [x] evidence skutečné ceny všech tří AI operací
 
-Stav: **funkční veřejná alfa / základní AI workflow hotové**.
-
-Dočasný public-alpha GitHub Actions smoke workflow byl po dokončení testů odstraněn.
+Stav: **100 % základní veřejné alfy / AI workflow hotové**.
 
 ### Milník A.1 — účet jako skutečný pracovní prostor
 
 Cíl: přihlášení není jen vstupenkou k AI, ale účet drží uživatelovu práci.
 
-Priorita:
+- [x] automaticky uložit vytvořenou AI lekci k uživateli
+- [x] knihovna **Moje lekce**
+- [x] otevřít / pokračovat v úpravách
+- [x] stabilní URL `/lessons/<id>`
+- [x] autosave AI úprav
+- [x] stav uložení v UI
+- [x] přejmenovat
+- [x] duplikovat
+- [x] smazat s potvrzením
+- [x] jednokrokové Undo poslední AI změny
+- [x] recovery snapshot poslední uložené lekce
+- [x] zachovat RLS tak, aby každý uživatel viděl pouze své lekce
+- [x] platformní admin nemá automatický přístup k cizím lekcím
+- [x] produkční end-to-end test celého toku
 
-1. uložit vytvořenou lekci k uživateli;
-2. knihovna **Moje lekce**;
-3. otevřít / pokračovat v úpravách;
-4. přejmenovat;
-5. duplikovat;
-6. smazat;
-7. rozhodnout autosave vs explicitní Save;
-8. později verzování a sdílení.
-
-Stav: **databázový základ existuje, produktová vrstva zatím není zapojená**.
+Stav: **MVP Milníku A.1 dokončeno a produkčně ověřeno 2026-09-16**.
 
 ### Milník B — živá hodina
 
-Cíl: učitel klikne na „Spustit hodinu“ a studenti se připojí přes kód nebo QR.
+Cíl: učitel otevře uloženou lekci, klikne na **Spustit hodinu** a studenti se připojí přes krátký kód nebo QR bez registrace.
 
-Plán:
+Navržené pořadí vývoje:
 
-- datový model sessions, participants, responses;
-- anonymní vstup studenta pomocí session code;
-- učitel ovládá aktuální blok;
-- Supabase Realtime synchronizace;
-- sběr odpovědí;
-- poll výsledky v reálném čase;
-- týmová jména;
-- scoreboard;
-- ukončení session.
+1. produktově přesně vymezit MVP živé session;
+2. navrhnout a vytvořit bezpečný datový model `sessions`, `participants`, `responses`;
+3. navrhnout RLS a bezpečný anonymní studentský vstup;
+4. vytvořit session z uložené lekce;
+5. teacher lobby + studentský join přes kód;
+6. Supabase Realtime pro stav session a aktuální blok;
+7. učitel ovládá postup mezi bloky;
+8. studenti odesílají odpovědi podle typu aktivity;
+9. živé výsledky pro poll/quiz/open text podle potřeb MVP;
+10. ukončení session a základní souhrn.
 
-Stav: **0–5 %**; Supabase základ existuje, session vrstva ne.
+Důležitý produktový princip:
+
+- jedna uložená lekce může mít v čase mnoho sessions;
+- session nesmí být závislá pouze na aktuálním obsahu `lessons.lesson`;
+- při spuštění je potřeba uchovat **snapshot lekce**, která se skutečně odučila, případně později odkaz na konkrétní verzi;
+- pokud učitel přípravu po hodině upraví, historická session musí stále reprezentovat původní obsah.
+
+Stav: **0–5 %**; Supabase a uložené lekce existují, session vrstva zatím není implementovaná.
 
 ### Milník C — produkt pro opakované a týmové používání
 
-- verzování lekcí;
+- trvalé verzování lekcí;
 - historie sessions;
 - export výsledků;
 - sdílení lekce s jiným učitelem;
@@ -415,51 +504,78 @@ Stav: **0–5 %**; Supabase základ existuje, session vrstva ne.
 2. Přirozený jazyk je primární způsob tvorby a úprav.
 3. Ruční editace musí být možná tam, kde je rychlejší než prompt.
 4. Učitel musí vždy před spuštěním vidět, co studenti uvidí.
-5. Student se ideálně připojuje bez registrace.
+5. Student se připojuje ideálně bez registrace a s minimem kroků.
 6. Mobilní studentské UI má být jednodušší než učitelské UI.
 7. Zadání aktivit musí být samostatně pochopitelné — učitel je nemá opakovat.
 8. AI nesmí potichu změnit jiné části lekce při lokální úpravě.
 9. Generování nesmí produkovat falešné studie, citace a faktická tvrzení prezentovaná jako skutečná.
 10. Interaktivita má sloužit didaktickému cíli, ne být samoúčelná gamifikace.
 11. Přihlášení nemá překážet prvnímu seznámení s produktem — veřejné demo může zůstat anonymní.
-12. Práce přihlášeného učitele se nesmí ztratit při refreshi nebo zavření prohlížeče, jakmile zavedeme ukládání lekcí.
+12. Práce přihlášeného učitele se nesmí ztratit při refreshi nebo zavření prohlížeče.
 13. Uživatel musí jasně rozumět své AI kvótě a tomu, co se do ní počítá.
 14. Destruktivní akce jako smazání lekce nebo účtu vyžadují jednoznačné potvrzení.
+15. U živé hodiny má být učitel vždy autorita nad postupem session; student nesmí měnit stav celé hodiny.
+16. Studentský vstup do session nesmí vyžadovat plnohodnotný účet.
+17. Studentské zařízení musí po refreshi pokud možno obnovit vazbu na stejnou session/participant identitu.
+18. Historická session musí zachovat obsah, který byl skutečně použit při výuce.
 
 ## 13. Doporučený datový model pro živou výuku
 
-Budoucí návrh navazuje na již existující `profiles` a `lessons`.
+Toto je výchozí návrh před implementací; konkrétní podobu je potřeba ověřit proti MVP toku a RLS.
 
 ### `sessions`
 
-- `id`
-- `lesson_id`
-- `teacher_id`
-- `join_code`
-- `status` (`draft`, `live`, `ended`)
-- `active_block_id`
-- `started_at`
-- `ended_at`
+Doporučená pole:
+
+- `id uuid`
+- `lesson_id uuid`
+- `teacher_id uuid`
+- `join_code text`
+- `status` (`lobby`, `live`, `ended`)
+- `active_block_id text?`
+- `lesson_snapshot jsonb`
+- `created_at`
+- `started_at?`
+- `ended_at?`
+
+`lesson_snapshot` uchovává podobu lekce při spuštění session.
 
 ### `participants`
 
-- `id`
-- `session_id`
-- `display_name`
-- `team_name?`
+Doporučená pole:
+
+- `id uuid`
+- `session_id uuid`
+- `display_name text`
+- `team_name text?`
+- `participant_token_hash` nebo jiný bezpečný mechanismus pro obnovení anonymní identity
 - `joined_at`
+- `last_seen_at?`
+
+Student se zatím nepřihlašuje přes Supabase Auth.
 
 ### `responses`
 
-- `id`
-- `session_id`
-- `block_id`
-- `participant_id`
+Doporučená pole:
+
+- `id uuid`
+- `session_id uuid`
+- `block_id text`
+- `participant_id uuid`
 - `payload jsonb`
 - `points?`
 - `created_at`
+- případně `updated_at`, pokud mají být některé odpovědi měnitelné.
 
-Před implementací živých sessions je potřeba navrhnout RLS a bezpečný anonymní studentský vstup bez plnohodnotného účtu.
+### Bezpečnostní hranice pro Milník B
+
+- učitel může vytvářet a ovládat pouze sessions ke svým lekcím;
+- učitel může číst účastníky a odpovědi pouze svých sessions;
+- student bez účtu nesmí dostat obecný anonymní SELECT/UPDATE přístup k celé tabulce;
+- join přes `join_code` musí být řešen úzkým serverovým API/RPC tokem, ne širokou RLS politikou typu „anon může číst sessions“;
+- participant musí získat omezenou identitu/token pouze pro svou konkrétní session;
+- student nesmí měnit `status`, `active_block_id`, `lesson_snapshot`, `teacher_id` ani jiné teacher-controlled hodnoty;
+- veřejný studentský payload nesmí obsahovat `teacherNote`, správné odpovědi ani jiná data určená pouze učiteli, pokud je student nemá v daném okamžiku vidět.
 
 ## 14. Repo a důležité soubory
 
@@ -469,13 +585,17 @@ Aktuální repository:
 
 Hlavní soubory:
 
-- `app/page.tsx` — hlavní builder UI;
+- `app/page.tsx` — vstup do tvorby nové lekce;
+- `app/lessons/page.tsx` — knihovna **Moje lekce**;
+- `app/lessons/[id]/page.tsx` — serverové načtení konkrétní vlastní lekce a předání do workspace;
 - `app/layout.tsx` — metadata;
-- `app/api/generate/route.ts` — generování lekce + auth + lesson quota + cost tracking;
-- `app/api/revise/route.ts` — úprava lekce + auth + revision quota + cost tracking;
-- `app/api/revise-block/route.ts` — úprava jednoho bloku + auth + revision quota + cost tracking;
+- `app/api/generate/route.ts` — generování + auth + quota + cost tracking + automatické uložení nové lekce;
+- `app/api/revise/route.ts` — AI úprava celé lekce + quota + cost tracking + autosave;
+- `app/api/revise-block/route.ts` — AI úprava jednoho bloku + quota + cost tracking + autosave;
+- `app/api/lessons/[id]/route.ts` — přejmenování, duplikace, smazání a uložení návratu pro Undo;
+- `components/LessonWorkspace.tsx` — hlavní klientský pracovní prostor pro novou i uloženou lekci, autosave stav, recovery a Undo;
 - `components/LessonPreview.tsx` — teacher/student render lekce;
-- `components/AuthControls.tsx` — přihlášení, registrace, odhlášení, zobrazení kvót;
+- `components/AuthControls.tsx` — přihlášení, registrace, odhlášení, zobrazení a refresh kvót;
 - `lib/schema.ts` — přísný Zod datový model lekce;
 - `lib/ai.ts` — AI pravidla, provider-facing schema, OpenAI routing a cost metadata;
 - `lib/auth.ts` — serverové získání autentizovaného uživatele;
@@ -489,29 +609,35 @@ Hlavní soubory:
 
 - Před změnami vždy načíst aktuální `PROJECT.md` a relevantní soubory z `vaclavloubek/vibelesson`.
 - Postupovat po malých ověřitelných krocích: **TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ**.
+- U delších úkolů průběžně hlásit dokončení dílčích kroků, aby bylo zřejmé, kde práce právě je.
 - Nedělat zbytečné refaktory mimo řešený problém.
 - AI nikdy nesmí generovat a spouštět libovolný klientský kód.
 - Všechny kvóty a oprávnění vynucovat serverově, ne jen přes UI.
 - Tajné klíče nikdy neposílat do repository ani do klientského JavaScriptu.
 - Po změnách ověřovat teacher i student režim; student mobile-first.
+- RLS navrhovat podle skutečného access modelu; nepoužívat široké politiky jen kvůli rychlosti implementace.
+- Platformní `profiles.role = admin` nepoužívat jako univerzální právo ke čtení cizího obsahu.
+- Budoucí školní role `owner/admin/member` musí být oddělené od platformní role admina.
 - `PROJECT.md` aktualizovat pouze na výslovný pokyn uživatele.
 
 ## 16. Bezprostřední další krok
 
-Další práce se má zaměřit na **možnosti uživatelského účtu a ukládání práce**.
+Další práce se má zaměřit na **Milník B — první skutečnou živou session**.
 
-Nejdřív produktově rozhodnout:
+Nezačínat scoreboardem ani komplexní analytikou. První vertikální řez má dokázat celý základní tok:
 
-- jak vypadá knihovna „Moje lekce“;
-- zda se nová lekce ukládá automaticky po úspěšném generování, nebo až explicitním tlačítkem;
-- zda úpravy autosavovat;
-- jak řešit koncept / publikovanou verzi;
-- přejmenování, duplikaci a mazání;
-- verzování / undo historii;
-- sdílení mezi učiteli;
-- profil a preference;
-- zobrazení kvót a historie spotřeby;
-- export a smazání účtu;
-- zda a kdy přidat školní/organizační účty.
+1. učitel otevře svou uloženou lekci;
+2. klikne na **Spustit hodinu**;
+3. server vytvoří session se snapshotem lekce a unikátním krátkým `join_code`;
+4. učitel vidí lobby a studentský odkaz / kód;
+5. student otevře veřejnou join stránku bez registrace;
+6. zadá kód a zobrazované jméno;
+7. objeví se v teacher lobby;
+8. učitel zahájí session;
+9. teacher a student UI vidí stejný `active_block_id` přes Realtime;
+10. učitel přejde na další blok a student se okamžitě synchronizuje;
+11. učitel session ukončí.
 
-Teprve po schválení produktového modelu implementovat první MVP řez: **uložení lekce + Moje lekce + otevření uložené lekce**, s RLS tak, aby běžný uživatel viděl pouze své lekce a admin neměl nechtěně plošný přístup k cizímu obsahu.
+Teprve po spolehlivém ověření tohoto řezu přidávat odesílání odpovědí, výsledky poll/quiz, týmové body a scoreboard.
+
+Před první databázovou změnou pro Milník B nejdřív produktově potvrdit konkrétní MVP tok, datový model, RLS a mechanismus anonymní participant identity.
