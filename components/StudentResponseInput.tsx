@@ -25,7 +25,7 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
 
   const rankingChanged = useMemo(() => {
     if (!(response && 'ranking' in response)) return true;
-    return response.ranking.join('\u0000') !== ranking.join('\u0000') || (response.text ?? '') !== rankingText;
+    return response.ranking.join('\u0000') !== ranking.join('\u0000') || response.text !== rankingText;
   }, [ranking, rankingText, response]);
 
   async function save(answer: StudentAnswer) {
@@ -95,16 +95,15 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
 
     function submitRanking(event: FormEvent) {
       event.preventDefault();
-      const answer: StudentAnswer = rankingText.trim()
-        ? { ranking, text: rankingText.trim() }
-        : { ranking };
-      void save(answer);
+      const explanation = rankingText.trim();
+      if (!explanation) return;
+      void save({ ranking, text: explanation });
     }
 
     return (
       <section className="panel">
         <span className="eyebrow">Tvoje pořadí</span>
-        <p className="muted-copy">Seřaď položky od 1. místa dolů. Pořadí můžeš měnit, dokud učitel nepřejde dál.</p>
+        <p className="muted-copy">Seřaď všechny položky od 1. místa dolů a potom krátce zdůvodni své pořadí. Odpověď můžeš měnit, dokud učitel nepřejde dál.</p>
         {ranking.length >= 2 ? (
           <form onSubmit={submitRanking} style={{ display: 'grid', gap: 12, marginTop: 14 }}>
             <div style={{ display: 'grid', gap: 9 }}>
@@ -120,22 +119,22 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
               ))}
             </div>
             <label>
-              Zdůvodnění (pokud ho zadání vyžaduje)
+              Krátké zdůvodnění (povinné)
               <textarea
                 value={rankingText}
                 onChange={(event) => { setRankingText(event.target.value); setSaved(false); }}
                 maxLength={2000}
                 rows={4}
-                placeholder="Krátce vysvětli své pořadí…"
+                placeholder="Jednou až dvěma větami vysvětli, proč je první volba silnější nebo relevantnější než poslední…"
                 disabled={busy}
               />
             </label>
             <div className="actions" style={{ marginTop: 0 }}>
-              <button type="submit" className="primary" disabled={busy || !rankingChanged}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat pořadí'}</button>
+              <button type="submit" className="primary" disabled={busy || !rankingChanged || !rankingText.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat pořadí'}</button>
             </div>
           </form>
         ) : <div className="error" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
-        {saved ? <p className="muted-copy" style={{ marginBottom: 0 }}>Pořadí je uložené.</p> : null}
+        {saved ? <p className="muted-copy" style={{ marginBottom: 0 }}>Pořadí i zdůvodnění jsou uložené.</p> : null}
         {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
