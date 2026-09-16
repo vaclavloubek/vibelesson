@@ -36,13 +36,13 @@ export async function POST(req: Request) {
     }
 
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
-    const revised = await reviseLesson(lesson, instruction);
+    const { lesson: revised, costUsd } = await reviseLesson(lesson, instruction);
 
     if (requestId) {
       const { error: finishError } = await supabase.rpc('finish_generation_request', {
         p_request_id: requestId,
         p_status: 'succeeded',
-        p_cost_usd: null,
+        p_cost_usd: costUsd,
         p_lesson_id: null,
       });
       if (finishError) console.error('finish revision request failed', finishError);
