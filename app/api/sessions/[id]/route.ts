@@ -2,17 +2,30 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
 import { SessionActionSchema, StudentAnswerSchema } from '@/lib/live';
-import { LessonSchema } from '@/lib/schema';
+import { LessonSchema, type LessonBlock } from '@/lib/schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
+type SupabaseClient = Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase'];
+type TimerStatus = 'idle' | 'running' | 'paused';
 
-async function loadOwnedSession(id: string, userId: string, supabase: Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase']) {
+async function loadOwnedSession(id: string, userId: string, supabase: SupabaseClient) {
   return supabase
     .from('sessions')
-    .select('id, lesson_id, teacher_id, join_code, status, active_block_id, lesson_snapshot, realtime_key, created_at, started_at, ended_at')
+    .select('id, lesson_id, teacher_id, join_code, status, active_block_id, lesson_snapshot, realtime_key, created_at, started_at, ended_at, revealed_block_ids, timer_status, timer_started_at, timer_remaining_seconds')
     .eq('id', id)
     .eq('teacher_id', userId)
     .single();
+}
+
+function defaultTimerSeconds(block: LessonBlock | null) {
+  return block?.type === 'timer' ? block.durationMinutes * 60 : null;
+}
+
+function effectiveTimerRemaining(session: { timer_status: string; timer_started_at: string | null; timer_remaining_seconds: number | null }, nowMs = Date.now()) {
+  const base = Math.max(0, session.timer_remaining_seconds ?? 0);
+  if (session.timer_status !== 'running' || !session.timer_started_at) return base;
+  const elapsed = Math.max(0, Math.floor((nowMs - Date.parse(session.timer_started_at)) / 1000));
+  return Math.max(0, base - elapsed);
 }
 
 export async function GET(_req: Request, { params }: RouteContext) {
@@ -99,6 +112,15 @@ export async function GET(_req: Request, { params }: RouteContext) {
     }
   }
 
+  const syncedAt = new Date().toISOString();
+  const timer = activeBlock?.type === 'timer'
+    ? {
+        status: session.timer_status as TimerStatus,
+        remainingSeconds: effectiveTimerRemaining(session, Date.parse(syncedAt)),
+        syncedAt,
+      }
+    : null;
+
   return NextResponse.json({
     session: {
       id: session.id,
@@ -111,6 +133,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
       createdAt: session.created_at,
       startedAt: session.started_at,
       endedAt: session.ended_at,
+      resultsRevealed: Boolean(activeBlock && (session.revealed_block_ids ?? []).includes(activeBlock.id)),
+      timer,
       teams: (teams ?? []).map((team) => ({ id: team.id, name: team.name, sortOrder: team.sort_order })),
       participants: participantRows.map((participant) => ({
         id: participant.id,
@@ -136,7 +160,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     const lesson = LessonSchema.parse(session.lesson_snapshot);
     const now = new Date().toISOString();
-    let update: Record<string, string | null> = {};
+    const activeBlock = lesson.blocks.find((block) => block.id === session.active_block_id) ?? null;
+    let update: Record<string, string | number | boolean | string[] | null> = {};
 
     if (action.action === 'start') {
       if (session.status !== 'lobby') return NextResponse.json({ error: 'Hodinu lze zahájit pouze z lobby.' }, { status: 409 });
@@ -150,10 +175,46 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           return NextResponse.json({ error: 'Lekce obsahuje týmový úkol. Před zahájením vytvoř alespoň 2 týmy.' }, { status: 409 });
         }
       }
-      update = { status: 'live', active_block_id: lesson.blocks[0].id, started_at: now };
+      const firstBlock = lesson.blocks[0];
+      update = {
+        status: 'live',
+        active_block_id: firstBlock.id,
+        started_at: now,
+        timer_status: 'idle',
+        timer_started_at: null,
+        timer_remaining_seconds: defaultTimerSeconds(firstBlock),
+      };
     } else if (action.action === 'end') {
       if (session.status === 'ended') return NextResponse.json({ ok: true, status: 'ended', activeBlockId: session.active_block_id });
-      update = { status: 'ended', ended_at: now };
+      update = { status: 'ended', ended_at: now, timer_status: 'idle', timer_started_at: null };
+    } else if (action.action === 'reveal_results') {
+      if (session.status !== 'live') return NextResponse.json({ error: 'Výsledky lze zveřejnit pouze během živé hodiny.' }, { status: 409 });
+      if (!activeBlock || (activeBlock.type !== 'poll' && activeBlock.type !== 'quiz')) {
+        return NextResponse.json({ error: 'Výsledky lze zveřejnit pouze u hlasování nebo kvízu.' }, { status: 409 });
+      }
+      const revealedBlockIds = (session.revealed_block_ids ?? []) as string[];
+      if (revealedBlockIds.includes(activeBlock.id)) return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id });
+      update = { revealed_block_ids: [...revealedBlockIds, activeBlock.id] };
+    } else if (action.action === 'timer_start' || action.action === 'timer_pause' || action.action === 'timer_reset') {
+      if (session.status !== 'live') return NextResponse.json({ error: 'Timer lze ovládat pouze během živé hodiny.' }, { status: 409 });
+      if (!activeBlock || activeBlock.type !== 'timer') return NextResponse.json({ error: 'Aktuální blok není timer.' }, { status: 409 });
+      const fullDuration = activeBlock.durationMinutes * 60;
+      const currentRemaining = session.timer_remaining_seconds ?? fullDuration;
+
+      if (action.action === 'timer_reset') {
+        update = { timer_status: 'idle', timer_started_at: null, timer_remaining_seconds: fullDuration };
+      } else if (action.action === 'timer_pause') {
+        if (session.timer_status !== 'running') return NextResponse.json({ error: 'Timer právě neběží.' }, { status: 409 });
+        update = {
+          timer_status: 'paused',
+          timer_started_at: null,
+          timer_remaining_seconds: effectiveTimerRemaining(session),
+        };
+      } else {
+        if (session.timer_status === 'running') return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id });
+        if (currentRemaining <= 0) return NextResponse.json({ error: 'Čas vypršel. Nejdřív timer resetuj.' }, { status: 409 });
+        update = { timer_status: 'running', timer_started_at: now, timer_remaining_seconds: currentRemaining };
+      }
     } else {
       if (session.status !== 'live') return NextResponse.json({ error: 'Blok lze měnit pouze během živé hodiny.' }, { status: 409 });
       const currentIndex = lesson.blocks.findIndex((block) => block.id === session.active_block_id);
@@ -162,7 +223,13 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       if (nextIndex < 0 || nextIndex >= lesson.blocks.length) {
         return NextResponse.json({ error: action.action === 'next' ? 'Jsi na posledním bloku.' : 'Jsi na prvním bloku.' }, { status: 409 });
       }
-      update = { active_block_id: lesson.blocks[nextIndex].id };
+      const targetBlock = lesson.blocks[nextIndex];
+      update = {
+        active_block_id: targetBlock.id,
+        timer_status: 'idle',
+        timer_started_at: null,
+        timer_remaining_seconds: defaultTimerSeconds(targetBlock),
+      };
     }
 
     const { data: updated, error: updateError } = await supabase

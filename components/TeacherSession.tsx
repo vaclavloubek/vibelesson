@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import LiveBlock from '@/components/LiveBlock';
+import LiveTimer from '@/components/LiveTimer';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeacherResponses from '@/components/TeacherResponses';
-import type { SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
+import type { LiveTimerState, SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
 
@@ -24,6 +25,8 @@ type TeacherSessionData = {
   createdAt: string;
   startedAt: string | null;
   endedAt: string | null;
+  resultsRevealed: boolean;
+  timer: LiveTimerState | null;
   participants: Participant[];
   teams: Team[];
   responses: LiveResponse[];
@@ -73,6 +76,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   async function act(action: SessionAction['action']) {
     if (busy) return;
     if (action === 'end' && !window.confirm('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.')) return;
+    if (action === 'reveal_results' && !window.confirm('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.')) return;
     setBusy(true);
     setError('');
     try {
@@ -139,6 +143,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   }
 
   const unassigned = session?.participants.filter((participant) => !participant.teamId) ?? [];
+  const canRevealResults = activeBlock?.type === 'poll' || activeBlock?.type === 'quiz';
 
   return (
     <main className="shell teacher-live-shell">
@@ -222,8 +227,42 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               </div>
             </div>
           </section>
+
           {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
+
+          {activeBlock?.type === 'timer' && session.timer ? (
+            <>
+              <LiveTimer timer={session.timer} label="Synchronizovaný timer" />
+              <section className="panel">
+                <span className="eyebrow">Ovládání timeru</span>
+                <div className="actions" style={{ marginTop: 12 }}>
+                  {session.timer.status === 'running' && session.timer.remainingSeconds > 0 ? (
+                    <button className="primary" disabled={busy} onClick={() => void act('timer_pause')}>Pozastavit</button>
+                  ) : session.timer.remainingSeconds > 0 ? (
+                    <button className="primary" disabled={busy} onClick={() => void act('timer_start')}>{session.timer.status === 'paused' ? 'Pokračovat' : 'Spustit odpočet'}</button>
+                  ) : null}
+                  <button className="secondary" disabled={busy} onClick={() => void act('timer_reset')}>Resetovat</button>
+                </div>
+                <p className="muted-copy" style={{ marginBottom: 0 }}>Studenti vidí stejný čas. Start, pauza i reset se synchronizují přes session stav.</p>
+              </section>
+            </>
+          ) : null}
+
           {activeBlock ? <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} teams={session.teams ?? []} teamResponses={session.teamResponses ?? []} /> : null}
+
+          {canRevealResults ? (
+            <section className="panel">
+              <span className="eyebrow">Výsledky pro studenty</span>
+              {session.resultsRevealed ? (
+                <p className="muted-copy" style={{ marginBottom: 0 }}>Výsledky jsou zveřejněné. Studentské odpovědi na tento blok jsou uzamčené.</p>
+              ) : (
+                <>
+                  <p className="muted-copy">Učitel vidí průběžné výsledky už teď. Studentům je zveřejni až ve chvíli, kdy už nemají měnit odpověď.</p>
+                  <div className="actions"><button className="primary" disabled={busy} onClick={() => void act('reveal_results')}>Zveřejnit výsledky</button></div>
+                </>
+              )}
+            </section>
+          ) : null}
 
           {session.teams.length ? (
             <section className="panel">
