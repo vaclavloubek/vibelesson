@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SessionReportBlock, SessionReportData } from '@/lib/session-report';
 
 const TYPE_LABELS: Record<SessionReportBlock['type'], string> = {
@@ -117,6 +117,7 @@ function downloadCsv(report: SessionReportData) {
 export default function SessionReport({ sessionId }: { sessionId: string }) {
   const [report, setReport] = useState<SessionReportData | null>(null);
   const [error, setError] = useState('');
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,11 +150,19 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    if (!report && !error) return;
+    const frame = window.requestAnimationFrame(() => {
+      rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [report, error]);
+
   if (!report && !error) return null;
 
   if (error) {
     return (
-      <div className="shell teacher-live-shell" style={{ paddingTop: 0 }}>
+      <div ref={rootRef} className="shell teacher-live-shell" style={{ paddingTop: 0 }}>
         <div className="error">{error}</div>
       </div>
     );
@@ -162,7 +171,7 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
   if (!report) return null;
 
   return (
-    <div className="shell teacher-live-shell" style={{ paddingTop: 0 }}>
+    <div ref={rootRef} className="shell teacher-live-shell" style={{ paddingTop: 0 }}>
       <div style={{ display: 'grid', gap: 14 }}>
         <section className="panel">
           <span className="eyebrow">Výsledky mise</span>
