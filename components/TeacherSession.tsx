@@ -144,6 +144,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
   const unassigned = session?.participants.filter((participant) => !participant.teamId) ?? [];
   const canRevealResults = activeBlock?.type === 'poll' || activeBlock?.type === 'quiz';
+  const hasResponsePanel = Boolean(activeBlock && ['poll', 'quiz', 'open_text', 'ranking', 'exit_ticket', 'team_task'].includes(activeBlock.type));
+  const liveProgress = session?.lessonSnapshot.blocks.length
+    ? Math.max(0, Math.min(100, ((activeIndex + 1) / session.lessonSnapshot.blocks.length) * 100))
+    : 0;
 
   return (
     <main className="shell teacher-live-shell">
@@ -226,40 +230,51 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                 <button className="secondary live-end" disabled={busy} onClick={() => void act('end')}>Ukončit hodinu</button>
               </div>
             </div>
+            <div className="live-session-progress" aria-label={`Průběh hodiny: blok ${activeIndex + 1} z ${session.lessonSnapshot.blocks.length}`}>
+              <div className="live-session-progress-fill" style={{ width: `${liveProgress}%` }} />
+            </div>
           </section>
 
-          {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
+          <div className={hasResponsePanel ? 'live-main-grid' : 'live-main-grid live-main-grid-single'}>
+            <div className="live-current-column">
+              {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
 
-          {activeBlock?.type === 'timer' && session.timer ? (
-            <>
-              <LiveTimer timer={session.timer} label="Synchronizovaný timer" />
-              <section className="panel">
-                <span className="eyebrow">Ovládání timeru</span>
-                <div className="actions" style={{ marginTop: 12 }}>
-                  {session.timer.status === 'running' && session.timer.remainingSeconds > 0 ? (
-                    <button className="primary" disabled={busy} onClick={() => void act('timer_pause')}>Pozastavit</button>
-                  ) : session.timer.remainingSeconds > 0 ? (
-                    <button className="primary" disabled={busy} onClick={() => void act('timer_start')}>{session.timer.status === 'paused' ? 'Pokračovat' : 'Spustit odpočet'}</button>
-                  ) : null}
-                  <button className="secondary" disabled={busy} onClick={() => void act('timer_reset')}>Resetovat</button>
-                </div>
-                <p className="muted-copy" style={{ marginBottom: 0 }}>Studenti vidí stejný čas. Start, pauza i reset se synchronizují přes session stav.</p>
-              </section>
-            </>
-          ) : null}
+              {activeBlock?.type === 'timer' && session.timer ? (
+                <>
+                  <LiveTimer timer={session.timer} label="Synchronizovaný timer" />
+                  <section className="panel">
+                    <span className="eyebrow">Ovládání timeru</span>
+                    <div className="actions" style={{ marginTop: 12 }}>
+                      {session.timer.status === 'running' && session.timer.remainingSeconds > 0 ? (
+                        <button className="primary" disabled={busy} onClick={() => void act('timer_pause')}>Pozastavit</button>
+                      ) : session.timer.remainingSeconds > 0 ? (
+                        <button className="primary" disabled={busy} onClick={() => void act('timer_start')}>{session.timer.status === 'paused' ? 'Pokračovat' : 'Spustit odpočet'}</button>
+                      ) : null}
+                      <button className="secondary" disabled={busy} onClick={() => void act('timer_reset')}>Resetovat</button>
+                    </div>
+                    <p className="muted-copy" style={{ marginBottom: 0 }}>Studenti vidí stejný čas. Start, pauza i reset se synchronizují přes session stav.</p>
+                  </section>
+                </>
+              ) : null}
+            </div>
 
-          {activeBlock ? <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} teams={session.teams ?? []} teamResponses={session.teamResponses ?? []} /> : null}
+            {hasResponsePanel && activeBlock ? (
+              <div className="live-response-column">
+                <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} teams={session.teams ?? []} teamResponses={session.teamResponses ?? []} />
+              </div>
+            ) : null}
+          </div>
 
           {canRevealResults ? (
-            <section className="panel">
+            <section className="panel live-results-action">
               <span className="eyebrow">Výsledky pro studenty</span>
               {session.resultsRevealed ? (
                 <p className="muted-copy" style={{ marginBottom: 0 }}>Výsledky jsou zveřejněné. Studentské odpovědi na tento blok jsou uzamčené.</p>
               ) : (
-                <>
+                <div className="live-results-action-row">
                   <p className="muted-copy">Učitel vidí průběžné výsledky už teď. Studentům je zveřejni až ve chvíli, kdy už nemají měnit odpověď.</p>
-                  <div className="actions"><button className="primary" disabled={busy} onClick={() => void act('reveal_results')}>Zveřejnit výsledky</button></div>
-                </>
+                  <button className="primary" disabled={busy} onClick={() => void act('reveal_results')}>Zveřejnit výsledky</button>
+                </div>
               )}
             </section>
           ) : null}
