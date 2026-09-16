@@ -222,25 +222,34 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
       <div className="workspace">
         <section className="builder">
-          <div className="panel">
-            <span className="eyebrow">1 · Vytvoř lekci</span>
-            <h1>Co mají studenti dnes zažít?</h1>
-            <form onSubmit={generate}>
-              <label>Volný popis hodiny<textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" required /></label>
-              <div className="form-grid">
-                <label>Cílovka<input value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
-                <label>Délka v minutách<input type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
-                <label>Velikost týmu<input value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
-                <label>Tón<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
-              </div>
-              <div className="actions"><button className="primary" disabled={busy}>{busy ? 'AI přemýšlí…' : 'Vygenerovat hodinu'}</button><button type="button" className="secondary" onClick={loadDemo}>Ukázková lekce</button></div>
-              {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
-            </form>
-          </div>
+          {lessonId && lesson ? (
+            <div className="panel current-lesson-panel">
+              <span className="eyebrow">Uložená lekce</span>
+              <h1>{lesson.title}</h1>
+              <p className="muted-copy">Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.</p>
+              <div className="actions"><Link href="/lessons" className="secondary button-link">← Moje lekce</Link><Link href="/" className="primary button-link">+ Nová lekce</Link></div>
+            </div>
+          ) : (
+            <div className="panel">
+              <span className="eyebrow">Vytvoř lekci</span>
+              <h1>Co mají studenti dnes zažít?</h1>
+              <form onSubmit={generate}>
+                <label>Volný popis hodiny<textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" required /></label>
+                <div className="form-grid">
+                  <label>Cílovka<input value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
+                  <label>Délka v minutách<input type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
+                  <label>Velikost týmu<input value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
+                  <label>Tón<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
+                </div>
+                <div className="actions"><button className="primary" disabled={busy}>{busy ? 'AI přemýšlí…' : 'Vygenerovat hodinu'}</button><button type="button" className="secondary" onClick={loadDemo}>Ukázková lekce</button></div>
+                {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
+              </form>
+            </div>
+          )}
 
           {lesson ? <>
-            <div className="panel vibe-editor"><span className="eyebrow">2 · AI úprava celé lekce</span><h2>Řekni, co chceš změnit</h2><form onSubmit={revise}><textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button></form><div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div></div>
-            <div className="panel block-editor"><span className="eyebrow">3 · AI úprava jedné aktivity</span><h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>{selectedBlock ? <form onSubmit={reviseSelectedBlock}><textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}</div>
+            <div className="panel vibe-editor"><span className="eyebrow">AI úprava celé lekce</span><h2>Řekni, co chceš změnit</h2><form onSubmit={revise}><textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button></form><div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div></div>
+            <div className="panel block-editor"><span className="eyebrow">AI úprava jedné aktivity</span><h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>{selectedBlock ? <form onSubmit={reviseSelectedBlock}><textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}</div>
           </> : null}
           {error ? <div className="error">{error}</div> : null}
         </section>
