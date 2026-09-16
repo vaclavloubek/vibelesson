@@ -19,6 +19,17 @@ export async function POST(req: Request) {
     return NextResponse.json(lesson);
   } catch (error) {
     console.error('generate lesson failed', error);
-    return NextResponse.json({ error: 'Lekci se nepodařilo vygenerovat. Zkus to prosím znovu.' }, { status: 500 });
+    const name = error instanceof Error ? error.name : 'UnknownError';
+    const message = error instanceof Error ? error.message.slice(0, 300) : 'Unknown error';
+    return NextResponse.json({
+      error: 'Lekci se nepodařilo vygenerovat. Zkus to prosím znovu.',
+      debug: {
+        name,
+        message,
+        hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
+        hasOidcToken: Boolean(process.env.VERCEL_OIDC_TOKEN),
+        model: process.env.AI_MODEL || 'openai/gpt-5.6-sol',
+      },
+    }, { status: 500 });
   }
 }
