@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 
 type Props = {
@@ -14,7 +15,7 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
-  const [text, setText] = useState('text' in (response ?? {}) ? (response as { text: string }).text : '');
+  const [text, setText] = useState(response && 'text' in response ? response.text : '');
 
   async function save(answer: StudentAnswer) {
     if (busy) return;
@@ -86,7 +87,7 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
             rows={6}
             placeholder="Napiš svou odpověď…"
             disabled={busy}
-            style={{ width: '100%', resize: 'vertical', minHeight: 130, padding: 14, borderRadius: 12, border: '1px solid var(--border)', font: 'inherit' }}
+            style={{ width: '100%', resize: 'vertical', minHeight: 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
           />
           <div className="actions" style={{ marginTop: 0 }}>
             <button type="submit" className="primary" disabled={busy || !text.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat odpověď'}</button>
