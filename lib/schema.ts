@@ -1,0 +1,32 @@
+import { z } from 'zod';
+
+export const BlockTypeSchema = z.enum([
+  'intro', 'team_task', 'poll', 'quiz', 'open_text', 'ranking', 'reveal', 'timer', 'exit_ticket',
+]);
+
+export const LessonBlockSchema = z.object({
+  id: z.string().min(1),
+  type: BlockTypeSchema,
+  title: z.string().min(1),
+  durationMinutes: z.number().int().min(1).max(60),
+  instructions: z.string().min(1),
+  options: z.array(z.string()).max(10).optional(),
+  items: z.array(z.string()).max(12).optional(),
+  correctAnswer: z.string().optional(),
+  revealText: z.string().optional(),
+  teacherNote: z.string().optional(),
+  points: z.number().int().min(0).max(20).optional(),
+});
+
+export const LessonSchema = z.object({
+  title: z.string().min(1),
+  subtitle: z.string().optional(),
+  audience: z.string().min(1),
+  totalMinutes: z.number().int().min(10).max(360),
+  groupSize: z.string().min(1),
+  learningObjectives: z.array(z.string()).min(2).max(6),
+  blocks: z.array(LessonBlockSchema).min(3).max(16),
+});
+
+export type Lesson = z.infer<typeof LessonSchema>;
+export type LessonBlock = z.infer<typeof LessonBlockSchema>;
