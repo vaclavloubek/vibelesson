@@ -13,6 +13,13 @@ const model = process.env.AI_MODEL || 'openai/gpt-5.6-sol';
 // Provider-facing schemas intentionally avoid JSON Schema keywords that are not
 // accepted by every AI Gateway provider for structured outputs. Application
 // constraints remain enforced afterwards by LessonSchema/LessonBlockSchema.
+const AIGradingCriterionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  maxPoints: z.number().int(),
+});
+
 const AILessonBlockSchema = z.object({
   id: z.string(),
   type: BlockTypeSchema,
@@ -25,6 +32,7 @@ const AILessonBlockSchema = z.object({
   revealText: z.string().nullable(),
   teacherNote: z.string().nullable(),
   points: z.number().int().nullable(),
+  gradingRubric: z.array(AIGradingCriterionSchema).nullable(),
 });
 
 const AILessonSchema = z.object({
@@ -52,7 +60,12 @@ Pravidla:
 - U ranking bloku vyplň items a v instructions vždy výslovně požaduj dvě části odpovědi: seřazení všech položek a krátké zdůvodnění pořadí (1–2 věty). Studentský formulář obě části vyžaduje.
 - U otevřených odpovědí a exit ticketu formuluj jednu konkrétní otázku.
 - teacherNote používej pro stručnou metodickou poznámku, řešení nebo debrief; student ji nevidí.
-- points přidávej tam, kde dává smysl týmová soutěž.
+- points používej jen tam, kde je výsledek smysluplně hodnotitelný. Quiz může mít points bez gradingRubric, protože se vyhodnotí deterministicky podle correctAnswer.
+- Pokud mají open_text, exit_ticket nebo team_task kladné points, MUSÍ mít také gradingRubric. Rubrika má mít 2–4 konkrétní pozorovatelná kritéria. Každé kritérium má stabilní stručné id, krátký title, přesný description a maxPoints. Součet maxPoints MUSÍ přesně odpovídat points bloku.
+- gradingRubric je interní hodnoticí metadata pro učitele a AI. Neodkazuj na ni ve studentském zadání, pokud uživatel výslovně nechce studentům kritéria ukázat.
+- U rubrik preferuj věcnou správnost, splnění zadání, kvalitu argumentu nebo použití požadovaných prvků. Jazykový styl nebo gramatiku neboduj, pokud to není výslovně cílem aktivity.
+- Pokud otevřená nebo týmová aktivita není vhodná pro férové bodování, nastav points i gradingRubric na null.
+- Pro intro, poll, ranking, reveal a timer nastav gradingRubric na null.
 - Nevymýšlej faktické údaje, studie ani citace, pokud nejsou součástí uživatelova zadání. Když je aktivita potřebuje, použij zjevně fiktivní scénář.
 - Celkový součet durationMinutes má co nejpřesněji odpovídat požadované délce.
 - Jazyk výstupu je čeština, není-li výslovně požadováno jinak.
@@ -84,6 +97,7 @@ function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock
     revealText: block.revealText ?? undefined,
     teacherNote: block.teacherNote ?? undefined,
     points: block.points ?? undefined,
+    gradingRubric: block.gradingRubric ?? undefined,
   });
 }
 
