@@ -61,18 +61,18 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   return (
     <main className="shell" style={{ maxWidth: 680 }}>
       <header className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">E</span><strong>EduPilot</strong></Link><span className="beta">STUDENT</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
       </header>
 
       {error ? <div className="error"><p style={{ marginTop: 0 }}>{error}</p><Link href="/join" className="secondary button-link">Připojit se znovu</Link></div> : null}
-      {!state && !error ? <div className="panel"><p className="muted-copy">Připojuji k hodině…</p></div> : null}
+      {!state && !error ? <div className="panel"><p className="muted-copy">Navazuji spojení s hodinou…</p></div> : null}
 
       {state?.status === 'lobby' ? (
         <div style={{ display: 'grid', gap: 12 }}>
           <section className="panel" style={{ textAlign: 'center' }}>
-            <span className="eyebrow">Čekárna</span>
+            <span className="eyebrow">Startovní zóna</span>
             <h1>{state.title}</h1>
-            <p className="muted-copy">Jsi připojen jako <strong>{state.participantDisplayName}</strong>. Čekáme, až učitel hodinu zahájí.</p>
+            <p className="muted-copy">Jsi připojen jako <strong>{state.participantDisplayName}</strong>. Čekáme, až učitel hodinu odstartuje.</p>
           </section>
           <TeamPicker
             sessionId={sessionId}
@@ -138,7 +138,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
 
       {state?.status === 'ended' ? (
         <section className="panel" style={{ textAlign: 'center' }}>
-          <span className="eyebrow">Hotovo</span>
+          <span className="eyebrow">Mise dokončena</span>
           <h1>Hodina skončila</h1>
           <p className="muted-copy">Díky za účast, {state.participantDisplayName}.</p>
         </section>
