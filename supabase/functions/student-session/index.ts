@@ -38,7 +38,7 @@ function makeParticipantToken() {
 
 type LessonBlockLike = Record<string, unknown>;
 type LessonLike = { title?: unknown; blocks?: unknown };
-type StudentAnswer = { choice: string } | { text: string } | { ranking: string[]; text?: string };
+type StudentAnswer = { choice: string } | { text: string } | { ranking: string[]; text: string };
 
 function lessonBlocks(snapshot: unknown) {
   const lesson = (snapshot ?? {}) as LessonLike;
@@ -80,8 +80,8 @@ function normalizeAnswer(block: LessonBlockLike, raw: unknown): { answer?: Stude
       return { error: "Pořadí musí obsahovat všechny položky právě jednou.", status: 400 };
     }
     const text = typeof value.text === "string" ? value.text.trim() : "";
-    if (text.length > 2000) return { error: "Zdůvodnění může mít nejvýše 2000 znaků.", status: 400 };
-    return { answer: text ? { ranking, text } : { ranking } };
+    if (text.length < 1 || text.length > 2000) return { error: "Ke svému pořadí přidej krátké zdůvodnění.", status: 400 };
+    return { answer: { ranking, text } };
   }
 
   return { error: "Tento blok zatím odpověď nepřijímá.", status: 409 };
