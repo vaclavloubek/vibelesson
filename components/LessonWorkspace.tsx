@@ -40,6 +40,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [tone, setTone] = useState('živý, praktický a lehce vtipný');
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
+  const [undoLesson, setUndoLesson] = useState<Lesson | null>(null);
   const [revision, setRevision] = useState('');
   const [blockRevision, setBlockRevision] = useState('');
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     if (!requireAuth()) return;
     setBusy(true);
     setError('');
+    setUndoLesson(null);
     setSelectedBlockId(null);
     try {
       const res = await fetch('/api/generate', {
@@ -141,6 +143,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   async function revise(e: FormEvent) {
     e.preventDefault();
     if (!lesson || !requireAuth()) return;
+    const before = lesson;
     setBusy(true);
     setError('');
     if (lessonId) setSaveStatus('saving');
@@ -153,6 +156,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(data.error || 'Úprava selhala.');
       applyLessonResponse(data);
+      setUndoLesson(data.lessonId ? before : null);
       setRevision('');
       setQuotaRefreshKey((value) => value + 1);
     } catch (err) {
@@ -166,6 +170,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   async function reviseSelectedBlock(e: FormEvent) {
     e.preventDefault();
     if (!lesson || !selectedBlock || !requireAuth()) return;
+    const before = lesson;
     setBusy(true);
     setError('');
     if (lessonId) setSaveStatus('saving');
@@ -178,6 +183,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(data.error || 'Úprava aktivity selhala.');
       applyLessonResponse(data);
+      setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
       setQuotaRefreshKey((value) => value + 1);
     } catch (err) {
@@ -188,9 +194,33 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     }
   }
 
+  async function undoLastChange() {
+    if (!lessonId || !undoLesson || busy) return;
+    setBusy(true);
+    setError('');
+    setSaveStatus('saving');
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lesson: undoLesson }),
+      });
+      const data = await res.json() as LessonApiResponse;
+      if (!res.ok) throw new Error(data.error || 'Předchozí verzi se nepodařilo obnovit.');
+      applyLessonResponse(data);
+      setUndoLesson(null);
+    } catch (err) {
+      setSaveStatus('saved');
+      setError(err instanceof Error ? err.message : 'Předchozí verzi se nepodařilo obnovit.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function loadDemo() {
     setLesson(demoLesson);
     setLessonId(null);
+    setUndoLesson(null);
     setSaveStatus('idle');
     setSelectedBlockId(null);
     setError('');
@@ -255,7 +285,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : <div className="empty"><div className="empty-icon">✦</div><h2>Tady vznikne hodina</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmové mise</span><span>hlasování</span><span>kvízy</span><span>odhalování stop</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : <div className="empty"><div className="empty-icon">✦</div><h2>Tady vznikne hodina</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmové mise</span><span>hlasování</span><span>kvízy</span><span>odhalování stop</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>
