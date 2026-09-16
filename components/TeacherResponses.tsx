@@ -7,7 +7,6 @@ type LiveResponse = {
   answer: StudentAnswer;
   updatedAt: string;
 };
-
 type Team = { id: string; name: string };
 type TeamResponse = {
   teamId: string;
@@ -25,21 +24,31 @@ type Props = {
   teamResponses?: TeamResponse[];
 };
 
+function ResponseProgress({ count, total, label = 'odpovědí' }: { count: number; total: number; label?: string }) {
+  const percent = total > 0 ? Math.min(100, Math.max(0, (count / total) * 100)) : 0;
+  return (
+    <div className="teacher-response-progress">
+      <div className="teacher-response-progress-copy"><strong>{count} z {total}</strong><span>{label}</span></div>
+      <div className="teacher-response-progress-track"><div className="teacher-response-progress-fill" style={{ width: `${percent}%` }} /></div>
+    </div>
+  );
+}
+
 export default function TeacherResponses({ block, responses, participantCount, teams = [], teamResponses = [] }: Props) {
   if (!['poll', 'quiz', 'open_text', 'ranking', 'exit_ticket', 'team_task'].includes(block.type)) return null;
 
   if (block.type === 'team_task') {
     return (
-      <section className="panel">
+      <section className="panel teacher-responses-panel">
         <span className="eyebrow">Týmové odpovědi</span>
-        <h2 style={{ marginBottom: 8 }}>{teamResponses.length} z {teams.length} týmů</h2>
+        <ResponseProgress count={teamResponses.length} total={teams.length} label="týmů hotovo" />
         <p className="muted-copy">Každý tým má jednu společnou odpověď. Kdokoli z jeho členů ji může během aktivního bloku upravit.</p>
-        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+        <div className="teacher-response-list">
           {teams.map((team) => {
             const response = teamResponses.find((item) => item.teamId === team.id);
             return (
-              <div className="item" key={team.id}>
-                <strong>{team.name}</strong>
+              <div className={`item teacher-response-item${response ? ' answered' : ''}`} key={team.id}>
+                <div className="teacher-response-item-head"><strong>{team.name}</strong><span>{response ? 'Hotovo' : 'Čeká'}</span></div>
                 {response ? (
                   <>
                     <p style={{ marginBottom: 6, whiteSpace: 'pre-wrap' }}>{response.text}</p>
@@ -57,21 +66,22 @@ export default function TeacherResponses({ block, responses, participantCount, t
   if (block.type === 'poll' || block.type === 'quiz') {
     const options = block.options ?? [];
     return (
-      <section className="panel">
+      <section className="panel teacher-responses-panel">
         <span className="eyebrow">Průběžné odpovědi</span>
-        <h2 style={{ marginBottom: 8 }}>{responses.length} z {participantCount}</h2>
+        <ResponseProgress count={responses.length} total={participantCount} />
         <p className="muted-copy">Výsledky se aktualizují průběžně. Student může svou volbu změnit, dokud nepřejdeš na další blok.</p>
-        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+        <div className="teacher-choice-results">
           {options.map((option) => {
             const count = responses.filter((response) => 'choice' in response.answer && response.answer.choice === option).length;
+            const share = responses.length ? Math.round((count / responses.length) * 100) : 0;
             const isCorrect = block.type === 'quiz' && block.correctAnswer === option;
             return (
-              <div className="item" key={option} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                <div>
-                  <strong>{option}</strong>
-                  {isCorrect ? <div className="muted-copy" style={{ marginTop: 4 }}>Správná odpověď</div> : null}
+              <div className={`teacher-choice-result${isCorrect ? ' correct' : ''}`} key={option}>
+                <div className="teacher-choice-result-head">
+                  <div><strong>{option}</strong>{isCorrect ? <span>Správná odpověď</span> : null}</div>
+                  <strong>{count}</strong>
                 </div>
-                <strong style={{ fontSize: 22 }}>{count}</strong>
+                <div className="teacher-choice-result-track"><div style={{ width: `${share}%` }} /></div>
               </div>
             );
           })}
@@ -83,36 +93,36 @@ export default function TeacherResponses({ block, responses, participantCount, t
   if (block.type === 'ranking') {
     const rankingResponses = responses.filter((response) => 'ranking' in response.answer);
     const items = block.items ?? [];
-    const averages = items.map((item) => {
+    const averages = items.map((item, sourceIndex) => {
       const positions = rankingResponses
         .map((response) => 'ranking' in response.answer ? response.answer.ranking.indexOf(item) : -1)
         .filter((position) => position >= 0)
         .map((position) => position + 1);
       const average = positions.length ? positions.reduce((sum, position) => sum + position, 0) / positions.length : null;
-      return { item, average };
+      return { item, average, sourceIndex };
     }).sort((a, b) => (a.average ?? Number.POSITIVE_INFINITY) - (b.average ?? Number.POSITIVE_INFINITY));
 
     return (
-      <section className="panel">
+      <section className="panel teacher-responses-panel">
         <span className="eyebrow">Průběžné pořadí</span>
-        <h2 style={{ marginBottom: 8 }}>{rankingResponses.length} z {participantCount}</h2>
-        <p className="muted-copy">Položky jsou seřazené podle průměrné pozice ve studentských odpovědích. Nižší průměr znamená vyšší pořadí.</p>
-        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-          {averages.map(({ item, average }, index) => (
-            <div className="item" key={item} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto', gap: 10, alignItems: 'center' }}>
-              <strong style={{ fontSize: 18, textAlign: 'center' }}>{index + 1}.</strong>
-              <strong>{item}</strong>
-              <span className="muted-copy">{average === null ? '—' : `Ø ${average.toFixed(1)}`}</span>
+        <ResponseProgress count={rankingResponses.length} total={participantCount} />
+        <p className="muted-copy">Stejné odstíny jako na studentských telefonech pomáhají sledovat položky i po změně pořadí. Nižší průměr znamená vyšší pozici.</p>
+        <div className="teacher-ranking-results">
+          {averages.map(({ item, average, sourceIndex }, index) => (
+            <div className={`ranking-item ranking-item-tone-${sourceIndex % 5}`} key={item}>
+              <strong className="ranking-position">{index + 1}.</strong>
+              <strong className="ranking-copy">{item}</strong>
+              <span className="teacher-ranking-average">{average === null ? '—' : `Ø ${average.toFixed(1)}`}</span>
             </div>
           ))}
         </div>
         {rankingResponses.length ? (
-          <div style={{ marginTop: 18 }}>
+          <div className="teacher-ranking-reasons">
             <span className="eyebrow">Zdůvodnění</span>
-            <div className="items" style={{ marginTop: 10 }}>
+            <div className="teacher-response-list">
               {rankingResponses.map((response) => (
                 'ranking' in response.answer ? (
-                  <div className="item" key={response.participantId}>
+                  <div className="item teacher-response-item answered" key={response.participantId}>
                     <strong>{response.displayName}</strong>
                     <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p>
                   </div>
@@ -126,13 +136,13 @@ export default function TeacherResponses({ block, responses, participantCount, t
   }
 
   return (
-    <section className="panel">
+    <section className="panel teacher-responses-panel">
       <span className="eyebrow">Průběžné odpovědi</span>
-      <h2 style={{ marginBottom: 8 }}>{responses.length} z {participantCount}</h2>
+      <ResponseProgress count={responses.length} total={participantCount} />
       {responses.length ? (
-        <div className="items" style={{ marginTop: 16 }}>
+        <div className="teacher-response-list">
           {responses.map((response) => (
-            <div className="item" key={response.participantId}>
+            <div className="item teacher-response-item answered" key={response.participantId}>
               <strong>{response.displayName}</strong>
               {'text' in response.answer ? <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p> : null}
             </div>
