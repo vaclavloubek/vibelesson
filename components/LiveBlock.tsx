@@ -13,7 +13,15 @@ const labels: Record<LessonBlock['type'], string> = {
   exit_ticket: 'Exit ticket',
 };
 
-export default function LiveBlock({ block, teacherMode = false }: { block: LessonBlock | PublicLessonBlock; teacherMode?: boolean }) {
+export default function LiveBlock({
+  block,
+  teacherMode = false,
+  hideOptions = false,
+}: {
+  block: LessonBlock | PublicLessonBlock;
+  teacherMode?: boolean;
+  hideOptions?: boolean;
+}) {
   const teacherBlock = teacherMode ? block as LessonBlock : null;
   return (
     <article className="lesson-block">
@@ -23,7 +31,7 @@ export default function LiveBlock({ block, teacherMode = false }: { block: Lesso
       </div>
       <p className="instructions">{block.instructions}</p>
       {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
-      {block.options?.length ? <div className="options">{block.options.map((option) => <div className="option" key={option}>{option}</div>)}</div> : null}
+      {!hideOptions && block.options?.length ? <div className="options">{block.options.map((option) => <div className="option" key={option}>{option}</div>)}</div> : null}
       {block.revealText ? <div className="reveal">{block.revealText}</div> : null}
       {teacherBlock?.correctAnswer ? <div className="reveal">Správná odpověď: <strong>{teacherBlock.correctAnswer}</strong></div> : null}
       {teacherBlock?.teacherNote ? <details open><summary>Poznámka pro učitele</summary><p>{teacherBlock.teacherNote}</p></details> : null}
