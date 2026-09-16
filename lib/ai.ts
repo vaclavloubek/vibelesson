@@ -4,7 +4,7 @@ import { LessonSchema, type Lesson, LessonBlockSchema, type LessonBlock } from '
 const model = process.env.AI_MODEL || 'openai/gpt-5.6-sol';
 
 const baseRules = `
-Jsi expert na didaktiku a interaktivní výuku. Tvoříš lekce pro aplikaci VibeLesson.
+Jsi expert na didaktiku a interaktivní výuku. Tvoříš lekce pro aplikaci EduPilot.
 Výstup MUSÍ být prakticky použitelný bez dalšího přepisování učitelem.
 
 Pravidla:
