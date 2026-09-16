@@ -43,7 +43,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
   const latestTextRef = useRef(serverText);
   const lastSavedTextRef = useRef(serverText);
   const debounceRef = useRef<number | null>(null);
-  const savingRef = useRef(false);
+  const savePromiseRef = useRef<Promise<boolean> | null>(null);
   const claimPromiseRef = useRef<Promise<boolean> | null>(null);
 
   const setLock = useCallback((next: LockInfo) => {
@@ -114,48 +114,54 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
 
   const saveNow = useCallback(async (): Promise<boolean> => {
     if (!dirtyRef.current) return true;
-    if (savingRef.current) return false;
+    if (savePromiseRef.current) return savePromiseRef.current;
 
-    const value = latestTextRef.current.trim();
-    if (!value) {
-      setError('Společná týmová odpověď nemůže zůstat prázdná.');
-      return false;
-    }
-
-    const acquired = await ensureLock();
-    if (!acquired) return false;
-
-    savingRef.current = true;
-    setSaveState('saving');
-    setError('');
-    try {
-      const result = await request('save', value);
-      if (result.lock !== undefined) setLock(result.lock ?? null);
-      if (!result.responseOk) {
-        if (result.status === 409 && result.lock && !result.lock.mine) {
-          resetToServer(`Odpověď právě upravuje ${result.lock.holderDisplayName}.`);
-        } else {
-          setError(result.error || 'Týmovou odpověď se nepodařilo uložit.');
-          setSaveState('dirty');
-        }
+    const operation = (async () => {
+      const value = latestTextRef.current.trim();
+      if (!value) {
+        setError('Společná týmová odpověď nemůže zůstat prázdná.');
         return false;
       }
 
-      lastSavedTextRef.current = value;
-      if (latestTextRef.current.trim() === value) {
-        dirtyRef.current = false;
-        setSaveState('saved');
-      } else {
+      const acquired = await ensureLock();
+      if (!acquired) return false;
+
+      setSaveState('saving');
+      setError('');
+      try {
+        const result = await request('save', value);
+        if (result.lock !== undefined) setLock(result.lock ?? null);
+        if (!result.responseOk) {
+          if (result.status === 409 && result.lock && !result.lock.mine) {
+            resetToServer(`Odpověď právě upravuje ${result.lock.holderDisplayName}.`);
+          } else {
+            setError(result.error || 'Týmovou odpověď se nepodařilo uložit.');
+            setSaveState('dirty');
+          }
+          return false;
+        }
+
+        lastSavedTextRef.current = value;
+        if (latestTextRef.current.trim() === value) {
+          dirtyRef.current = false;
+          setSaveState('saved');
+        } else {
+          setSaveState('dirty');
+        }
+        onSaved();
+        return true;
+      } catch {
+        setError('Týmovou odpověď se nepodařilo uložit.');
         setSaveState('dirty');
+        return false;
       }
-      onSaved();
-      return true;
-    } catch {
-      setError('Týmovou odpověď se nepodařilo uložit.');
-      setSaveState('dirty');
-      return false;
+    })();
+
+    savePromiseRef.current = operation;
+    try {
+      return await operation;
     } finally {
-      savingRef.current = false;
+      savePromiseRef.current = null;
     }
   }, [ensureLock, onSaved, request, resetToServer, setLock]);
 
@@ -164,7 +170,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null;
       void saveNow().then(() => {
-        if (dirtyRef.current && latestTextRef.current.trim()) scheduleSave();
+        if (dirtyRef.current && latestTextRef.current.trim() && focusedRef.current) scheduleSave();
       });
     }, 800);
   }, [saveNow]);
@@ -185,13 +191,16 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       try {
         const result = await request('status');
         if (cancelled || !result.responseOk) return;
+        const previous = lockRef.current;
         const next = result.lock ?? null;
         setLock(next);
         if (next && !next.mine && dirtyRef.current) {
           resetToServer(`Odpověď právě upravuje ${next.holderDisplayName}.`);
+        } else if ((!next || next.mine) && previous && !previous.mine) {
+          setError('');
         }
       } catch {
-        // Polling is only a fallback; Realtime and lock expiry continue to protect writes.
+        // Polling is only a fallback; the server lock still protects writes.
       }
     }
 
@@ -248,6 +257,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       debounceRef.current = null;
     }
 
+    if (savePromiseRef.current) await savePromiseRef.current;
     if (dirtyRef.current) {
       const saved = await saveNow();
       if (!saved && !latestTextRef.current.trim()) resetToServer();
