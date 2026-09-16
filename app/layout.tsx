@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'EduPilot',
-  description: 'AI kopilot pro interaktivní výuku.',
+  title: 'Syllonaut',
+  description: 'AI navigátor pro interaktivní výuku.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
