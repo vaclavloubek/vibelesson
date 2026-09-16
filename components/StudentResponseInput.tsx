@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 
@@ -12,10 +12,21 @@ type Props = {
 };
 
 export default function StudentResponseInput({ sessionId, block, response, onSaved }: Props) {
+  const initialText = response && 'text' in response ? response.text ?? '' : '';
+  const initialRanking = response && 'ranking' in response ? response.ranking : (block.items ?? []);
+  const initialRankingText = response && 'ranking' in response ? response.text ?? '' : '';
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
-  const [text, setText] = useState(response && 'text' in response ? response.text : '');
+  const [text, setText] = useState(initialText);
+  const [ranking, setRanking] = useState<string[]>(initialRanking);
+  const [rankingText, setRankingText] = useState(initialRankingText);
+
+  const rankingChanged = useMemo(() => {
+    if (!(response && 'ranking' in response)) return true;
+    return response.ranking.join('\u0000') !== ranking.join('\u0000') || (response.text ?? '') !== rankingText;
+  }, [ranking, rankingText, response]);
 
   async function save(answer: StudentAnswer) {
     if (busy) return;
@@ -70,24 +81,85 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
     );
   }
 
-  if (block.type === 'open_text') {
+  if (block.type === 'ranking') {
+    function move(index: number, delta: -1 | 1) {
+      const target = index + delta;
+      if (target < 0 || target >= ranking.length) return;
+      setRanking((current) => {
+        const next = [...current];
+        [next[index], next[target]] = [next[target], next[index]];
+        return next;
+      });
+      setSaved(false);
+    }
+
+    function submitRanking(event: FormEvent) {
+      event.preventDefault();
+      const answer: StudentAnswer = rankingText.trim()
+        ? { ranking, text: rankingText.trim() }
+        : { ranking };
+      void save(answer);
+    }
+
+    return (
+      <section className="panel">
+        <span className="eyebrow">Tvoje pořadí</span>
+        <p className="muted-copy">Seřaď položky od 1. místa dolů. Pořadí můžeš měnit, dokud učitel nepřejde dál.</p>
+        {ranking.length >= 2 ? (
+          <form onSubmit={submitRanking} style={{ display: 'grid', gap: 12, marginTop: 14 }}>
+            <div style={{ display: 'grid', gap: 9 }}>
+              {ranking.map((item, index) => (
+                <div className="item" key={item} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto', gap: 10, alignItems: 'center' }}>
+                  <strong style={{ fontSize: 18, textAlign: 'center' }}>{index + 1}.</strong>
+                  <span style={{ lineHeight: 1.35 }}>{item}</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" className="secondary" aria-label={`Posunout ${item} nahoru`} disabled={busy || index === 0} onClick={() => move(index, -1)} style={{ padding: '8px 10px' }}>↑</button>
+                    <button type="button" className="secondary" aria-label={`Posunout ${item} dolů`} disabled={busy || index === ranking.length - 1} onClick={() => move(index, 1)} style={{ padding: '8px 10px' }}>↓</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <label>
+              Zdůvodnění (pokud ho zadání vyžaduje)
+              <textarea
+                value={rankingText}
+                onChange={(event) => { setRankingText(event.target.value); setSaved(false); }}
+                maxLength={2000}
+                rows={4}
+                placeholder="Krátce vysvětli své pořadí…"
+                disabled={busy}
+              />
+            </label>
+            <div className="actions" style={{ marginTop: 0 }}>
+              <button type="submit" className="primary" disabled={busy || !rankingChanged}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat pořadí'}</button>
+            </div>
+          </form>
+        ) : <div className="error" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
+        {saved ? <p className="muted-copy" style={{ marginBottom: 0 }}>Pořadí je uložené.</p> : null}
+        {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
+      </section>
+    );
+  }
+
+  if (block.type === 'open_text' || block.type === 'exit_ticket') {
     function submit(event: FormEvent) {
       event.preventDefault();
       void save({ text: text.trim() });
     }
 
+    const isExit = block.type === 'exit_ticket';
     return (
       <section className="panel">
-        <span className="eyebrow">Tvoje odpověď</span>
+        <span className="eyebrow">{isExit ? 'Tvoje závěrečná odpověď' : 'Tvoje odpověď'}</span>
         <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginTop: 10 }}>
           <textarea
             value={text}
             onChange={(event) => { setText(event.target.value); setSaved(false); }}
             maxLength={2000}
-            rows={6}
-            placeholder="Napiš svou odpověď…"
+            rows={isExit ? 4 : 6}
+            placeholder={isExit ? 'Napiš krátkou závěrečnou odpověď…' : 'Napiš svou odpověď…'}
             disabled={busy}
-            style={{ width: '100%', resize: 'vertical', minHeight: 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
+            style={{ width: '100%', resize: 'vertical', minHeight: isExit ? 100 : 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
           />
           <div className="actions" style={{ marginTop: 0 }}>
             <button type="submit" className="primary" disabled={busy || !text.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat odpověď'}</button>
