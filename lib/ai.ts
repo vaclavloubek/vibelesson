@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { LessonSchema, type Lesson, LessonBlockSchema, type LessonBlock } from './schema';
 
 const model = process.env.AI_MODEL || 'openai/gpt-5.6-sol';
@@ -31,33 +31,33 @@ export async function createLesson(input: {
   groupSize: string;
   tone: string;
 }) {
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
-    schema: LessonSchema,
+    output: Output.object({ schema: LessonSchema }),
     system: baseRules,
     prompt: `Vytvoř interaktivní lekci podle tohoto zadání:\n\n${input.prompt}\n\nCílová skupina: ${input.audience}\nPožadovaná délka: ${input.duration} minut\nVelikost týmu: ${input.groupSize}\nTón: ${input.tone}\n\nLekce má působit jako hotová interaktivní aplikace, ne jako osnovy pro učitele.`,
   });
 
-  return LessonSchema.parse({ ...object, totalMinutes: object.blocks.reduce((sum, b) => sum + b.durationMinutes, 0) });
+  return LessonSchema.parse({ ...output, totalMinutes: output.blocks.reduce((sum, b) => sum + b.durationMinutes, 0) });
 }
 
 export async function reviseLesson(lesson: Lesson, instruction: string) {
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
-    schema: LessonSchema,
+    output: Output.object({ schema: LessonSchema }),
     system: baseRules,
     prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění.\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
   });
 
-  return LessonSchema.parse({ ...object, totalMinutes: object.blocks.reduce((sum, b) => sum + b.durationMinutes, 0) });
+  return LessonSchema.parse({ ...output, totalMinutes: output.blocks.reduce((sum, b) => sum + b.durationMinutes, 0) });
 }
 
 export async function reviseBlock(block: LessonBlock, instruction: string, lessonContext: Pick<Lesson, 'title' | 'audience' | 'groupSize' | 'learningObjectives'>) {
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model,
-    schema: LessonBlockSchema,
+    output: Output.object({ schema: LessonBlockSchema }),
     system: baseRules,
     prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
   });
-  return LessonBlockSchema.parse({ ...object, id: block.id });
+  return LessonBlockSchema.parse({ ...output, id: block.id });
 }
