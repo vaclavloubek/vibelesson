@@ -3,11 +3,13 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import LiveBlock from '@/components/LiveBlock';
+import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
+import StudentRevealedResults from '@/components/StudentRevealedResults';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
-import type { PublicLessonBlock, SessionStatus, StudentAnswer } from '@/lib/live';
+import type { LiveTimerState, PublicLessonBlock, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
 
 type Team = { id: string; name: string; memberCount: number };
@@ -21,6 +23,9 @@ type StudentState = {
   totalBlocks: number;
   realtimeKey: string;
   myResponse: StudentAnswer | null;
+  resultsRevealed: boolean;
+  revealedResults: RevealedChoiceResults | null;
+  timer: LiveTimerState | null;
   teams: Team[];
   myTeam: Team | null;
   myTeamResponse: { text: string; updatedByParticipantId: string | null } | null;
@@ -63,6 +68,9 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   const progress = state?.status === 'live' && state.totalBlocks > 0
     ? Math.min(100, Math.max(0, (currentBlockNumber / state.totalBlocks) * 100))
     : 0;
+  const choiceResultsLocked = Boolean(
+    state?.resultsRevealed && state.activeBlock && (state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'),
+  );
 
   return (
     <main className="shell student-shell">
@@ -120,6 +128,9 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                 hideOptions={state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'}
                 hideItems={state.activeBlock.type === 'ranking'}
               />
+
+              {state.activeBlock.type === 'timer' && state.timer ? <LiveTimer timer={state.timer} label="Společný čas" /> : null}
+
               {state.activeBlock.type === 'team_task' ? (
                 state.myTeam ? (
                   <TeamTaskResponseInput
@@ -133,6 +144,8 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                 ) : (
                   <div className="error">Pro týmový úkol si nejdřív vyber tým.</div>
                 )
+              ) : choiceResultsLocked ? (
+                state.revealedResults ? <StudentRevealedResults results={state.revealedResults} /> : <div className="panel"><p className="muted-copy">Výsledky byly zveřejněné. Načítám je…</p></div>
               ) : (
                 <StudentResponseInput
                   key={state.activeBlock.id}

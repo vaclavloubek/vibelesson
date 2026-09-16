@@ -4,11 +4,33 @@ import { LessonBlockSchema } from '@/lib/schema';
 export const SessionStatusSchema = z.enum(['lobby', 'live', 'ended']);
 export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 
+export const TimerStatusSchema = z.enum(['idle', 'running', 'paused']);
+export type TimerStatus = z.infer<typeof TimerStatusSchema>;
+
+export type LiveTimerState = {
+  status: TimerStatus;
+  remainingSeconds: number;
+  syncedAt: string;
+};
+
+export type RevealedChoiceResults = {
+  type: 'poll' | 'quiz';
+  counts: Array<{ option: string; count: number }>;
+  total: number;
+  correctAnswer?: string;
+  myAnswer?: string | null;
+  isCorrect?: boolean | null;
+};
+
 export const SessionActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('start') }),
   z.object({ action: z.literal('next') }),
   z.object({ action: z.literal('previous') }),
   z.object({ action: z.literal('end') }),
+  z.object({ action: z.literal('reveal_results') }),
+  z.object({ action: z.literal('timer_start') }),
+  z.object({ action: z.literal('timer_pause') }),
+  z.object({ action: z.literal('timer_reset') }),
 ]);
 export type SessionAction = z.infer<typeof SessionActionSchema>;
 
