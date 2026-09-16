@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createLesson } from '@/lib/ai';
+import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 
 // Longer lessons can legitimately take more than one minute to generate.
@@ -22,6 +22,11 @@ type ReservationRow = {
   monthly_limit: number | null;
 };
 
+type ProgressEvent =
+  | { type: 'progress'; stage: LessonGenerationStage | 'saving' }
+  | { type: 'result'; lesson: unknown; lessonId: string }
+  | { type: 'error'; error: string };
+
 export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) {
@@ -29,7 +34,6 @@ export async function POST(req: Request) {
   }
 
   let requestId: string | null = null;
-  let costUsd: number | null = null;
 
   try {
     const input = InputSchema.parse(await req.json());
@@ -54,48 +58,99 @@ export async function POST(req: Request) {
     requestId = reservation.request_id;
     if (!requestId) throw new Error('Quota reservation is missing request id.');
 
-    const generated = await createLesson(input);
-    const lesson = generated.lesson;
-    costUsd = generated.costUsd;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let streamClosed = false;
 
-    const { data: savedLesson, error: saveError } = await supabase
-      .from('lessons')
-      .insert({
-        owner_id: userId,
-        title: lesson.title,
-        source_prompt: input.prompt,
-        lesson,
-      })
-      .select('id')
-      .single();
+        const send = (event: ProgressEvent) => {
+          if (streamClosed) return;
+          try {
+            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+          } catch {
+            streamClosed = true;
+          }
+        };
 
-    if (saveError || !savedLesson?.id) {
-      throw saveError ?? new Error('Generated lesson was not persisted.');
-    }
+        const close = () => {
+          if (streamClosed) return;
+          streamClosed = true;
+          try {
+            controller.close();
+          } catch {
+            // The client may have disconnected while generation continued.
+          }
+        };
 
-    const lessonId = savedLesson.id as string;
+        void (async () => {
+          let costUsd: number | null = null;
+          try {
+            const generated = await createLesson(input, (stage) => send({ type: 'progress', stage }));
+            const lesson = generated.lesson;
+            costUsd = generated.costUsd;
 
-    const { error: finishError } = await supabase.rpc('finish_generation_request', {
-      p_request_id: requestId,
-      p_status: 'succeeded',
-      p_cost_usd: costUsd,
-      p_lesson_id: lessonId,
+            send({ type: 'progress', stage: 'saving' });
+            const { data: savedLesson, error: saveError } = await supabase
+              .from('lessons')
+              .insert({
+                owner_id: userId,
+                title: lesson.title,
+                source_prompt: input.prompt,
+                lesson,
+              })
+              .select('id')
+              .single();
+
+            if (saveError || !savedLesson?.id) {
+              throw saveError ?? new Error('Generated lesson was not persisted.');
+            }
+
+            const lessonId = savedLesson.id as string;
+            const { error: finishError } = await supabase.rpc('finish_generation_request', {
+              p_request_id: requestId,
+              p_status: 'succeeded',
+              p_cost_usd: costUsd,
+              p_lesson_id: lessonId,
+            });
+            if (finishError) console.error('finish generation request failed', finishError);
+
+            send({ type: 'result', lesson, lessonId });
+          } catch (error) {
+            const { error: finishError } = await supabase.rpc('finish_generation_request', {
+              p_request_id: requestId,
+              p_status: 'failed',
+              p_cost_usd: costUsd,
+              p_lesson_id: null,
+            });
+            if (finishError) console.error('mark generation request failed', finishError);
+
+            console.error('generate lesson failed', error);
+            send({ type: 'error', error: 'Lekci se nepodařilo vygenerovat a bezpečně uložit. Zkus to prosím znovu.' });
+          } finally {
+            close();
+          }
+        })();
+      },
     });
-    if (finishError) console.error('finish generation request failed', finishError);
 
-    return NextResponse.json({ lesson, lessonId });
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+      },
+    });
   } catch (error) {
     if (requestId) {
       const { error: finishError } = await supabase.rpc('finish_generation_request', {
         p_request_id: requestId,
         p_status: 'failed',
-        p_cost_usd: costUsd,
+        p_cost_usd: null,
         p_lesson_id: null,
       });
       if (finishError) console.error('mark generation request failed', finishError);
     }
 
-    console.error('generate lesson failed', error);
-    return NextResponse.json({ error: 'Lekci se nepodařilo vygenerovat a bezpečně uložit. Zkus to prosím znovu.' }, { status: 500 });
+    console.error('prepare lesson generation failed', error);
+    return NextResponse.json({ error: 'Generování se nepodařilo spustit. Zkus to prosím znovu.' }, { status: 500 });
   }
 }
