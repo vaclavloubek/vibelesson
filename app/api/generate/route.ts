@@ -74,6 +74,22 @@ export async function POST(req: Request) {
     }
 
     console.error('generate lesson failed', error);
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile?.role === 'admin') {
+      const name = error instanceof Error ? error.name : 'UnknownError';
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      const message = rawMessage.slice(0, 700);
+      return NextResponse.json({
+        error: `Lekci se nepodařilo vygenerovat. Diagnostika: ${name}: ${message}`,
+      }, { status: 500 });
+    }
+
     return NextResponse.json({ error: 'Lekci se nepodařilo vygenerovat. Zkus to prosím znovu.' }, { status: 500 });
   }
 }
