@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import LiveBlock from '@/components/LiveBlock';
+import SyllonautMark from '@/components/SyllonautMark';
 import TeacherResponses from '@/components/TeacherResponses';
 import type { SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
@@ -140,11 +141,11 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const unassigned = session?.participants.filter((participant) => !participant.teamId) ?? [];
 
   return (
-    <main className="shell" style={{ maxWidth: 1100 }}>
+    <main className="shell teacher-live-shell">
       <header className="brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
         <nav className="main-nav"><Link href="/lessons">Moje lekce</Link></nav>
-        <p className="brand-tagline">Řídicí centrum živé hodiny</p>
+        <p className="brand-tagline">Řídicí centrum</p>
       </header>
 
       {error ? <div className="error" style={{ marginBottom: 14 }}>{error}</div> : null}
@@ -156,7 +157,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <span className="eyebrow">Startovní zóna</span>
             <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
             <p className="muted-copy">Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.</p>
-            <div style={{ margin: '24px 0 10px', fontSize: 46, fontWeight: 900, letterSpacing: '.12em' }}>{session.joinCode}</div>
+            <div className="live-code">{session.joinCode}</div>
             <p className="muted-copy" style={{ wordBreak: 'break-all' }}>{joinUrl || `/join/${session.joinCode}`}</p>
             {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Tato lekce obsahuje týmový úkol. Před startem vytvoř alespoň 2 týmy.</p> : null}
             <div className="actions">
@@ -207,10 +208,18 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
       {session?.status === 'live' ? (
         <div style={{ display: 'grid', gap: 14 }}>
-          <section className="panel">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div><span className="eyebrow">Mise probíhá</span><h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1><p className="muted-copy">Blok {activeIndex + 1} z {session.lessonSnapshot.blocks.length} · {session.participants.length} studentů</p></div>
-              <div className="actions" style={{ marginTop: 0 }}><button className="secondary" disabled={busy || activeIndex <= 0} onClick={() => void act('previous')}>← Předchozí</button><button className="primary" disabled={busy || activeIndex >= session.lessonSnapshot.blocks.length - 1} onClick={() => void act('next')}>Další →</button><button className="secondary" disabled={busy} onClick={() => void act('end')}>Ukončit hodinu</button></div>
+          <section className="panel live-control-bar">
+            <div className="live-control-layout">
+              <div>
+                <span className="eyebrow"><span className="live-status-dot" />Mise probíhá</span>
+                <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
+                <p className="muted-copy">Blok {activeIndex + 1} z {session.lessonSnapshot.blocks.length} · {session.participants.length} studentů</p>
+              </div>
+              <div className="live-control-actions">
+                <button className="secondary" disabled={busy || activeIndex <= 0} onClick={() => void act('previous')}>← Předchozí</button>
+                <button className="primary" disabled={busy || activeIndex >= session.lessonSnapshot.blocks.length - 1} onClick={() => void act('next')}>Další →</button>
+                <button className="secondary live-end" disabled={busy} onClick={() => void act('end')}>Ukončit hodinu</button>
+              </div>
             </div>
           </section>
           {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
