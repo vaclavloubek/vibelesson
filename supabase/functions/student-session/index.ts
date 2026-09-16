@@ -38,7 +38,7 @@ function makeParticipantToken() {
 
 type LessonBlockLike = Record<string, unknown>;
 type LessonLike = { title?: unknown; blocks?: unknown };
-type StudentAnswer = { choice: string } | { text: string };
+type StudentAnswer = { choice: string } | { text: string } | { ranking: string[]; text?: string };
 
 function lessonBlocks(snapshot: unknown) {
   const lesson = (snapshot ?? {}) as LessonLike;
@@ -66,10 +66,22 @@ function normalizeAnswer(block: LessonBlockLike, raw: unknown): { answer?: Stude
     return { answer: { choice } };
   }
 
-  if (block.type === "open_text") {
+  if (block.type === "open_text" || block.type === "exit_ticket") {
     const text = typeof value.text === "string" ? value.text.trim() : "";
     if (text.length < 1 || text.length > 2000) return { error: "Odpověď musí mít 1 až 2000 znaků.", status: 400 };
     return { answer: { text } };
+  }
+
+  if (block.type === "ranking") {
+    const items = Array.isArray(block.items) ? block.items.filter((item): item is string => typeof item === "string") : [];
+    const ranking = Array.isArray(value.ranking) ? value.ranking.filter((item): item is string => typeof item === "string") : [];
+    if (items.length < 2) return { error: "Tento blok nemá dost položek k seřazení.", status: 409 };
+    if (ranking.length !== items.length || new Set(ranking).size !== items.length || items.some((item) => !ranking.includes(item))) {
+      return { error: "Pořadí musí obsahovat všechny položky právě jednou.", status: 400 };
+    }
+    const text = typeof value.text === "string" ? value.text.trim() : "";
+    if (text.length > 2000) return { error: "Zdůvodnění může mít nejvýše 2000 znaků.", status: 400 };
+    return { answer: text ? { ranking, text } : { ranking } };
   }
 
   return { error: "Tento blok zatím odpověď nepřijímá.", status: 409 };
