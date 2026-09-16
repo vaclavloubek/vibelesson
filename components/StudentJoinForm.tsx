@@ -33,7 +33,7 @@ export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
   return (
     <main className="shell" style={{ maxWidth: 560 }}>
       <header className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">E</span><strong>EduPilot</strong></Link><span className="beta">STUDENT</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
       </header>
       <section className="panel">
         <span className="eyebrow">Kód {joinCode}</span>
