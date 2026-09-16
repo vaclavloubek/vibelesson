@@ -17,8 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.syllonaut.com'),
   title: 'Syllonaut — AI navigátor pro interaktivní výuku',
   description: 'Z nápadu do živé interaktivní hodiny. Syllonaut připraví, upraví a pomůže vést výuku se studenty v reálném čase.',
+  applicationName: 'Syllonaut',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
