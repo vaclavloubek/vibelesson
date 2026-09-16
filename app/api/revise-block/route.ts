@@ -4,7 +4,8 @@ import { LessonSchema } from '@/lib/schema';
 import { reviseBlock } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 
-export const maxDuration = 60;
+// Keep the same ceiling across AI endpoints; complex block edits can still be slow.
+export const maxDuration = 300;
 
 const InputSchema = z.object({
   instruction: z.string().min(2).max(2000),
