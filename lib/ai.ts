@@ -38,7 +38,7 @@ const AILessonSchema = z.object({
 });
 
 const baseRules = `
-Jsi expert na didaktiku a interaktivní výuku. Tvoříš lekce pro aplikaci EduPilot.
+Jsi expert na didaktiku a interaktivní výuku. Tvoříš lekce pro aplikaci Syllonaut.
 Výstup MUSÍ být prakticky použitelný bez dalšího přepisování učitelem.
 
 Pravidla:
