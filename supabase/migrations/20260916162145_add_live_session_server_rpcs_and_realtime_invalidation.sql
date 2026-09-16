@@ -1,0 +1,7 @@
+-- Historical migration marker.
+-- This migration temporarily added SECURITY DEFINER RPC fallbacks and database-triggered
+-- Realtime invalidation while the anonymous join architecture was being evaluated.
+-- The functions/triggers were removed immediately by
+-- 20260916162417_remove_unused_live_session_rpc_fallbacks.sql after the existing
+-- student-session Edge Function was verified as the preferred server boundary.
+-- Fresh environments intentionally do not recreate the temporary objects.
