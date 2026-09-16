@@ -5,22 +5,32 @@
 }
 
 .scrollCue {
-  width: fit-content;
-  margin: -18px auto 24px;
+  position: absolute;
+  top: calc(100svh - 54px);
+  left: 50%;
+  z-index: 10;
+  width: max-content;
+  margin: 0;
+  padding: 6px 9px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  border-radius: 999px;
+  background: rgba(246,245,241,.76);
+  backdrop-filter: blur(8px);
   color: #777a83;
   text-decoration: none;
   font-size: 11px;
   font-weight: 680;
   letter-spacing: .01em;
-  transition: color .16s ease, transform .16s ease;
+  transform: translateX(-50%);
+  transition: color .16s ease, transform .16s ease, background .16s ease;
 }
 
 .scrollCue:hover {
   color: #151721;
-  transform: translateY(2px);
+  background: rgba(255,255,255,.88);
+  transform: translate(-50%, 2px);
 }
 
 .scrollArrow {
@@ -30,7 +40,7 @@
   place-items: center;
   border: 1px solid #d8d7d2;
   border-radius: 999px;
-  background: rgba(255,255,255,.58);
+  background: rgba(255,255,255,.72);
   color: #5b57e8;
   font-size: 14px;
   line-height: 1;
@@ -38,7 +48,8 @@
 
 @media (max-width: 720px) {
   .scrollCue {
-    margin-top: -8px;
+    top: calc(100svh - 50px);
+    font-size: 10px;
   }
 }
 
