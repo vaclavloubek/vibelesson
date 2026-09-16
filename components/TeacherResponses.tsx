@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
 import type { StudentAnswer } from '@/lib/live';
 import type { LessonBlock } from '@/lib/schema';
 
@@ -132,7 +131,7 @@ function EvaluationCard({
   const scoreByCriterion = new Map(evaluation.criterionScores.map((item) => [item.criterionId, item]));
 
   async function saveReview(score: number, note: string) {
-    if (saving) return;
+    if (saving || !sessionId) return;
     setSaving(true);
     setReviewError('');
     try {
@@ -244,12 +243,16 @@ function EvaluationCard({
 }
 
 export default function TeacherResponses({ block, responses, participantCount, teams = [], teamResponses = [] }: Props) {
-  const params = useParams<{ id: string }>();
-  const sessionId = typeof params?.id === 'string' ? params.id : '';
+  const [sessionId, setSessionId] = useState('');
   const gradingConfigured = isAIGradingConfigured(block);
   const brokenGradingConfig = hasBrokenAIGradingConfig(block);
   const [evaluations, setEvaluations] = useState<LiveEvaluation[]>([]);
   const [evaluationError, setEvaluationError] = useState('');
+
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/sessions\/([^/]+)/);
+    setSessionId(match ? decodeURIComponent(match[1]) : '');
+  }, []);
 
   useEffect(() => {
     if (!gradingConfigured || !sessionId) {
