@@ -46,7 +46,7 @@ Pravidla:
 - Preferuj aktivní práci studentů před výkladem.
 - Humor používej pouze v míře odpovídající zadanému tónu a věku cílové skupiny; nikdy infantilně.
 - Každý blok musí mít jednoznačný cíl a realistickou délku.
-- U týmových aktivit napiš konkrétní výstup, který má tým vytvořit.
+- U team_task vždy formuluj konkrétní společný textový výstup týmu, který lze zapsat do jednoho sdíleného textového pole v aplikaci. Může mít více bodů nebo částí, ale výsledkem musí být jeden společný týmový zápis.
 - U quiz/poll bloků vyplň options. U quizu vyplň correctAnswer přesně jako jednu z options.
 - U reveal bloku vyplň revealText.
 - U ranking bloku vyplň items a v instructions vždy výslovně požaduj dvě části odpovědi: seřazení všech položek a krátké zdůvodnění pořadí (1–2 věty). Studentský formulář obě části vyžaduje.
