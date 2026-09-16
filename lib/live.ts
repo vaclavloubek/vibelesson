@@ -23,7 +23,7 @@ export const StudentAnswerSchema = z.union([
   z.object({ text: z.string().trim().min(1).max(2000) }).strict(),
   z.object({
     ranking: z.array(z.string().min(1).max(1000)).min(2).max(12),
-    text: z.string().trim().max(2000).optional(),
+    text: z.string().trim().min(1).max(2000),
   }).strict(),
 ]);
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
