@@ -33,6 +33,19 @@ export const StudentResponseSubmissionSchema = z.object({
   answer: StudentAnswerSchema,
 });
 
+export const TeamCreateSchema = z.object({
+  count: z.number().int().min(2).max(12),
+});
+
+export const StudentTeamChoiceSchema = z.object({
+  teamId: z.string().uuid(),
+});
+
+export const TeamResponseSubmissionSchema = z.object({
+  blockId: z.string().min(1).max(200),
+  text: z.string().trim().min(1).max(4000),
+});
+
 export function participantCookieName(sessionId: string) {
   return `ep_participant_${sessionId.replaceAll('-', '')}`;
 }
