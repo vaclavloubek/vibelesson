@@ -60,17 +60,14 @@ Pravidla:
 
 function getGatewayCost(providerMetadata: unknown): number | null {
   if (!providerMetadata || typeof providerMetadata !== 'object') return null;
-
   const gateway = (providerMetadata as Record<string, unknown>).gateway;
   if (!gateway || typeof gateway !== 'object') return null;
-
   const rawCost = (gateway as Record<string, unknown>).cost;
   const parsed = typeof rawCost === 'number'
     ? rawCost
     : typeof rawCost === 'string'
       ? Number(rawCost)
       : Number.NaN;
-
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
@@ -103,13 +100,19 @@ function normalizeLesson(output: z.infer<typeof AILessonSchema>): Lesson {
   });
 }
 
-export async function createLesson(input: {
-  prompt: string;
-  audience: string;
-  duration: number;
-  groupSize: string;
-  tone: string;
-}) {
+export type LessonGenerationStage = 'generating' | 'validating';
+
+export async function createLesson(
+  input: {
+    prompt: string;
+    audience: string;
+    duration: number;
+    groupSize: string;
+    tone: string;
+  },
+  onProgress?: (stage: LessonGenerationStage) => void,
+) {
+  onProgress?.('generating');
   const { output, providerMetadata } = await generateText({
     model,
     output: Output.object({ schema: AILessonSchema }),
@@ -118,6 +121,7 @@ export async function createLesson(input: {
     prompt: `Vytvoř interaktivní lekci podle tohoto zadání:\n\n${input.prompt}\n\nCílová skupina: ${input.audience}\nPožadovaná délka: ${input.duration} minut\nVelikost týmu: ${input.groupSize}\nTón: ${input.tone}\n\nLekce má působit jako hotová interaktivní aplikace, ne jako osnovy pro učitele.`,
   });
 
+  onProgress?.('validating');
   return { lesson: normalizeLesson(output), costUsd: getGatewayCost(providerMetadata) };
 }
 
