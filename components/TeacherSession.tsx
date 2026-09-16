@@ -8,8 +8,10 @@ import type { SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
 
-type Participant = { id: string; displayName: string; joinedAt: string };
+type Participant = { id: string; displayName: string; joinedAt: string; teamId: string | null };
+type Team = { id: string; name: string; sortOrder: number };
 type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string };
+type TeamResponse = { teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string };
 type TeacherSessionData = {
   id: string;
   lessonId: string | null;
@@ -22,12 +24,15 @@ type TeacherSessionData = {
   startedAt: string | null;
   endedAt: string | null;
   participants: Participant[];
+  teams: Team[];
   responses: LiveResponse[];
+  teamResponses: TeamResponse[];
 };
 
 export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [session, setSession] = useState<TeacherSessionData | null>(null);
   const [busy, setBusy] = useState(false);
+  const [teamCount, setTeamCount] = useState(4);
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
 
@@ -85,11 +90,54 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     }
   }
 
+  async function createTeams() {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/teams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: teamCount }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || 'Týmy se nepodařilo vytvořit.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Týmy se nepodařilo vytvořit.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resetTeams() {
+    if (busy || !window.confirm('Resetovat týmy? Dosavadní volby studentů v lobby se zruší.')) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/teams`, { method: 'DELETE' });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || 'Týmy se nepodařilo resetovat.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Týmy se nepodařilo resetovat.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const activeIndex = useMemo(() => {
     if (!session?.activeBlockId) return -1;
     return session.lessonSnapshot.blocks.findIndex((block) => block.id === session.activeBlockId);
   }, [session]);
   const activeBlock = activeIndex >= 0 && session ? session.lessonSnapshot.blocks[activeIndex] : null;
+  const hasTeamTasks = session?.lessonSnapshot.blocks.some((block) => block.type === 'team_task') ?? false;
+
+  function teamMembers(teamId: string) {
+    return session?.participants.filter((participant) => participant.teamId === teamId) ?? [];
+  }
+
+  const unassigned = session?.participants.filter((participant) => !participant.teamId) ?? [];
 
   return (
     <main className="shell" style={{ maxWidth: 1100 }}>
@@ -110,8 +158,45 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <p className="muted-copy">Studenti se mohou připojit i po zahájení hodiny. Kód přestane fungovat až po jejím ukončení.</p>
             <div style={{ margin: '24px 0 10px', fontSize: 46, fontWeight: 900, letterSpacing: '.12em' }}>{session.joinCode}</div>
             <p className="muted-copy" style={{ wordBreak: 'break-all' }}>{joinUrl || `/join/${session.joinCode}`}</p>
-            <div className="actions"><button className="primary" disabled={busy} onClick={() => void act('start')}>{busy ? 'Zahajuji…' : 'Zahájit hodinu'}</button></div>
+            {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Tato lekce obsahuje týmový úkol. Před zahájením vytvoř alespoň 2 týmy.</p> : null}
+            <div className="actions">
+              <button className="primary" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? 'Pracuji…' : 'Zahájit hodinu'}</button>
+            </div>
           </section>
+
+          {hasTeamTasks ? (
+            <section className="panel">
+              <span className="eyebrow">Týmy</span>
+              {!session.teams.length ? (
+                <>
+                  <h2>Vytvořit týmy</h2>
+                  <p className="muted-copy">Studenti si v lobby sami vyberou tým. Po zahájení se jejich volba zamkne.</p>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 14, flexWrap: 'wrap' }}>
+                    <label style={{ maxWidth: 160 }}>
+                      Počet týmů
+                      <input type="number" min={2} max={12} value={teamCount} onChange={(event) => setTeamCount(Math.max(2, Math.min(12, Number(event.target.value) || 2)))} />
+                    </label>
+                    <button className="primary" disabled={busy} onClick={() => void createTeams()}>Vytvořit týmy</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <h2 style={{ marginBottom: 0 }}>{session.teams.length} týmů</h2>
+                    <button className="secondary" disabled={busy} onClick={() => void resetTeams()}>Resetovat týmy</button>
+                  </div>
+                  <div className="items" style={{ marginTop: 14 }}>
+                    {session.teams.map((team) => {
+                      const members = teamMembers(team.id);
+                      return <div className="item" key={team.id}><strong>{team.name}</strong><p className="muted-copy" style={{ marginTop: 5 }}>{members.map((member) => member.displayName).join(', ') || 'Zatím bez členů'}</p></div>;
+                    })}
+                  </div>
+                  {unassigned.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Bez týmu: {unassigned.map((participant) => participant.displayName).join(', ')}</p> : null}
+                </>
+              )}
+            </section>
+          ) : null}
+
           <section className="panel">
             <span className="eyebrow">Připojení studenti</span>
             <h2>{session.participants.length}</h2>
@@ -129,8 +214,22 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             </div>
           </section>
           {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
-          {activeBlock ? <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} /> : null}
-          <section className="panel"><span className="eyebrow">Připojení studenti</span><p className="muted-copy">{session.participants.map((participant) => participant.displayName).join(', ') || 'Zatím nikdo.'}</p></section>
+          {activeBlock ? <TeacherResponses block={activeBlock} responses={session.responses ?? []} participantCount={session.participants.length} teams={session.teams ?? []} teamResponses={session.teamResponses ?? []} /> : null}
+
+          {session.teams.length ? (
+            <section className="panel">
+              <span className="eyebrow">Týmy</span>
+              <div className="items" style={{ marginTop: 12 }}>
+                {session.teams.map((team) => {
+                  const members = teamMembers(team.id);
+                  return <div className="item" key={team.id}><strong>{team.name}</strong><p className="muted-copy" style={{ marginTop: 5 }}>{members.map((member) => member.displayName).join(', ') || 'Bez členů'}</p></div>;
+                })}
+              </div>
+              {unassigned.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Bez týmu: {unassigned.map((participant) => participant.displayName).join(', ')}</p> : null}
+            </section>
+          ) : (
+            <section className="panel"><span className="eyebrow">Připojení studenti</span><p className="muted-copy">{session.participants.map((participant) => participant.displayName).join(', ') || 'Zatím nikdo.'}</p></section>
+          )}
         </div>
       ) : null}
 
@@ -139,7 +238,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
           <span className="eyebrow">Hodina ukončena</span>
           <h1>{session.lessonSnapshot.title}</h1>
           <p className="muted-copy">Session je uzavřená. Připojilo se {session.participants.length} studentů.</p>
-          <div className="actions"><Link href={`/lessons/${session.lessonId}`} className="primary button-link">Zpět k lekci</Link><Link href="/lessons" className="secondary button-link">Moje lekce</Link></div>
+          <div className="actions">{session.lessonId ? <Link href={`/lessons/${session.lessonId}`} className="primary button-link">Zpět k lekci</Link> : null}<Link href="/lessons" className="secondary button-link">Moje lekce</Link></div>
         </section>
       ) : null}
     </main>
