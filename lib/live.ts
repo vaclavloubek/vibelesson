@@ -46,6 +46,15 @@ export const TeamResponseSubmissionSchema = z.object({
   text: z.string().trim().min(1).max(4000),
 });
 
+export const TeamEditRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('status'), blockId: z.string().min(1).max(200) }),
+  z.object({ action: z.literal('claim'), blockId: z.string().min(1).max(200) }),
+  z.object({ action: z.literal('heartbeat'), blockId: z.string().min(1).max(200) }),
+  z.object({ action: z.literal('release'), blockId: z.string().min(1).max(200) }),
+  z.object({ action: z.literal('save'), blockId: z.string().min(1).max(200), text: z.string().trim().min(1).max(4000) }),
+]);
+export type TeamEditRequest = z.infer<typeof TeamEditRequestSchema>;
+
 export function participantCookieName(sessionId: string) {
   return `ep_participant_${sessionId.replaceAll('-', '')}`;
 }
