@@ -27,16 +27,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
   if (!parsedLesson.success) return NextResponse.json({ error: 'Snapshot lekce je neplatný.' }, { status: 500 });
 
   const [{ data: participants, error: participantError }, { data: teams, error: teamsError }] = await Promise.all([
-    supabase
-      .from('participants')
-      .select('id, display_name, joined_at, team_id')
-      .eq('session_id', id)
-      .order('joined_at', { ascending: true }),
-    supabase
-      .from('teams')
-      .select('id, name, sort_order')
-      .eq('session_id', id)
-      .order('sort_order', { ascending: true }),
+    supabase.from('participants').select('id, display_name, joined_at, team_id').eq('session_id', id).order('joined_at', { ascending: true }),
+    supabase.from('teams').select('id, name, sort_order').eq('session_id', id).order('sort_order', { ascending: true }),
   ]);
 
   if (participantError) {
@@ -119,11 +111,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
       createdAt: session.created_at,
       startedAt: session.started_at,
       endedAt: session.ended_at,
-      teams: (teams ?? []).map((team) => ({
-        id: team.id,
-        name: team.name,
-        sortOrder: team.sort_order,
-      })),
+      teams: (teams ?? []).map((team) => ({ id: team.id, name: team.name, sortOrder: team.sort_order })),
       participants: participantRows.map((participant) => ({
         id: participant.id,
         displayName: participant.display_name,
@@ -152,11 +140,17 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     if (action.action === 'start') {
       if (session.status !== 'lobby') return NextResponse.json({ error: 'Hodinu lze zahájit pouze z lobby.' }, { status: 409 });
-      update = {
-        status: 'live',
-        active_block_id: lesson.blocks[0].id,
-        started_at: now,
-      };
+      if (lesson.blocks.some((block) => block.type === 'team_task')) {
+        const { count, error: teamCountError } = await supabase
+          .from('teams')
+          .select('id', { count: 'exact', head: true })
+          .eq('session_id', id);
+        if (teamCountError) throw teamCountError;
+        if ((count ?? 0) < 2) {
+          return NextResponse.json({ error: 'Lekce obsahuje týmový úkol. Před zahájením vytvoř alespoň 2 týmy.' }, { status: 409 });
+        }
+      }
+      update = { status: 'live', active_block_id: lesson.blocks[0].id, started_at: now };
     } else if (action.action === 'end') {
       if (session.status === 'ended') return NextResponse.json({ ok: true, status: 'ended', activeBlockId: session.active_block_id });
       update = { status: 'ended', ended_at: now };
@@ -182,11 +176,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
     await broadcastSessionInvalidate(updated.realtime_key as string);
 
-    return NextResponse.json({
-      ok: true,
-      status: updated.status,
-      activeBlockId: updated.active_block_id,
-    });
+    return NextResponse.json({ ok: true, status: updated.status, activeBlockId: updated.active_block_id });
   } catch (error) {
     console.error('update session failed', error);
     return NextResponse.json({ error: 'Stav hodiny se nepodařilo změnit.' }, { status: 500 });
