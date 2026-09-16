@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from './LandingPage.module.css';
+import polish from './LandingPagePolish.module.css';
 
 const activities = ['Hlasování', 'Kvíz', 'Týmový úkol', 'Řazení', 'Otevřená odpověď', 'Odhalení', 'Timer'];
 
@@ -26,7 +27,7 @@ export default function LandingPage() {
         </nav>
         <div className={styles.headerActions}>
           <AuthControls onAuthChange={setUser} />
-          <Link href="/new" className={styles.headerCta}>Připravit hodinu</Link>
+          <Link href="/new" className={`${styles.headerCta} ${polish.headerCta}`}>Připravit hodinu</Link>
         </div>
       </header>
 
@@ -85,6 +86,11 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <a href="#jak-to-funguje" className={polish.scrollCue}>
+        <span>Pokračovat níže</span>
+        <span className={polish.scrollArrow} aria-hidden="true">↓</span>
+      </a>
 
       <section className={styles.trustStrip} aria-label="Hlavní schopnosti produktu">
         <span>Příprava</span><i />
