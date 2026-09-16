@@ -49,7 +49,7 @@ Pravidla:
 - U týmových aktivit napiš konkrétní výstup, který má tým vytvořit.
 - U quiz/poll bloků vyplň options. U quizu vyplň correctAnswer přesně jako jednu z options.
 - U reveal bloku vyplň revealText.
-- U ranking bloku vyplň items.
+- U ranking bloku vyplň items a v instructions vždy výslovně požaduj dvě části odpovědi: seřazení všech položek a krátké zdůvodnění pořadí (1–2 věty). Studentský formulář obě části vyžaduje.
 - U otevřených odpovědí a exit ticketu formuluj jednu konkrétní otázku.
 - teacherNote používej pro stručnou metodickou poznámku, řešení nebo debrief; student ji nevidí.
 - points přidávej tam, kde dává smysl týmová soutěž.
