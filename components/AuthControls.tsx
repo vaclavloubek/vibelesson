@@ -8,14 +8,39 @@ type Props = {
   onAuthChange: (user: User | null) => void;
 };
 
+type Quota = {
+  used: number;
+  monthly_limit: number | null;
+  remaining: number | null;
+  is_unlimited: boolean;
+};
+
 export default function AuthControls({ onAuthChange }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
+  const [quota, setQuota] = useState<Quota | null>(null);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+
+  async function loadQuota(nextUser: User | null) {
+    if (!nextUser) {
+      setQuota(null);
+      return;
+    }
+
+    const { data, error } = await supabase.rpc('get_lesson_quota');
+    if (error) {
+      console.error('load quota failed', error);
+      setQuota(null);
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    setQuota((row as Quota | undefined) ?? null);
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -24,12 +49,14 @@ export default function AuthControls({ onAuthChange }: Props) {
       if (!mounted) return;
       setUser(data.user);
       onAuthChange(data.user);
+      void loadQuota(data.user);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       onAuthChange(nextUser);
+      void loadQuota(nextUser);
       if (nextUser) setOpen(false);
     });
 
@@ -66,7 +93,7 @@ export default function AuthControls({ onAuthChange }: Props) {
 
     setMessage(data.session
       ? 'Účet je vytvořený a jsi přihlášený.'
-      : 'Účet je vytvořený. Potvrď registraci odkazem v e-mailu.');
+      : 'Účet je vytvořený. Potvrď registraci odkazem v e-mailu a potom se přihlas.');
   }
 
   async function signOut() {
@@ -77,9 +104,16 @@ export default function AuthControls({ onAuthChange }: Props) {
   }
 
   if (user) {
+    const quotaText = quota?.is_unlimited
+      ? 'AI lekce: neomezeně'
+      : quota && quota.monthly_limit !== null
+        ? `AI lekce: zbývá ${quota.remaining ?? 0} z ${quota.monthly_limit}`
+        : 'AI lekce: načítám limit…';
+
     return (
       <div className="auth-signed-in">
         <span title={user.email ?? ''}>{user.email}</span>
+        <span className="auth-quota">{quotaText}</span>
         <button type="button" className="auth-link" onClick={signOut} disabled={busy}>Odhlásit</button>
       </div>
     );
