@@ -22,11 +22,11 @@ export default function JoinCodeForm() {
   return (
     <main className="shell" style={{ maxWidth: 560 }}>
       <header className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">E</span><strong>EduPilot</strong></Link><span className="beta">STUDENT</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
       </header>
       <section className="panel">
-        <span className="eyebrow">Připojit se k hodině</span>
-        <h1>Zadej kód</h1>
+        <span className="eyebrow">Připojit se k misi</span>
+        <h1>Zadej kód hodiny</h1>
         <form onSubmit={submit}>
           <label>Kód hodiny<input value={code} onChange={(event) => setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7))} autoCapitalize="characters" autoCorrect="off" inputMode="text" placeholder="ABC7K3M" required /></label>
           <div className="actions"><button className="primary">Pokračovat</button></div>
