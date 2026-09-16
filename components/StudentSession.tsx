@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import ConnectionStatusBadge, { type StudentConnectionStatus } from '@/components/ConnectionStatusBadge';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
@@ -34,20 +35,38 @@ type StudentState = {
 export default function StudentSession({ sessionId }: { sessionId: string }) {
   const [state, setState] = useState<StudentState | null>(null);
   const [error, setError] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<StudentConnectionStatus>('connecting');
+  const hasLoadedRef = useRef(false);
+  const disconnectedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
       const response = await fetch(`/api/student/sessions/${sessionId}`, { cache: 'no-store' });
       const data = await response.json() as StudentState & { error?: string };
       if (!response.ok) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+
+      const recovered = disconnectedRef.current;
+      disconnectedRef.current = false;
+      hasLoadedRef.current = true;
       setState(data);
       setError('');
+      setConnectionStatus(recovered ? 'restored' : 'connected');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+      disconnectedRef.current = true;
+      setConnectionStatus('reconnecting');
+      if (!hasLoadedRef.current) {
+        setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+      }
     }
   }, [sessionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (connectionStatus !== 'restored') return;
+    const timer = window.setTimeout(() => setConnectionStatus('connected'), 2500);
+    return () => window.clearTimeout(timer);
+  }, [connectionStatus]);
 
   useEffect(() => {
     if (!state?.realtimeKey) return;
@@ -55,13 +74,42 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     const channel = supabase
       .channel(`session:${state.realtimeKey}`)
       .on('broadcast', { event: 'invalidate' }, () => { void refresh(); })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (disconnectedRef.current) void refresh();
+          return;
+        }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          disconnectedRef.current = true;
+          setConnectionStatus('reconnecting');
+        }
+      });
     return () => { void supabase.removeChannel(channel); };
   }, [state?.realtimeKey, refresh]);
 
   useEffect(() => {
     const timer = window.setInterval(() => { void refresh(); }, 15000);
     return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      disconnectedRef.current = true;
+      setConnectionStatus('reconnecting');
+    };
+    const handleOnline = () => { void refresh(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [refresh]);
 
   const currentBlockNumber = (state?.activeBlockIndex ?? 0) + 1;
@@ -76,9 +124,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     <main className="shell student-shell">
       <header className="brand student-brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
+        <ConnectionStatusBadge status={connectionStatus} />
       </header>
 
-      {error ? <div className="error"><p style={{ marginTop: 0 }}>{error}</p><Link href="/join" className="secondary button-link">Připojit se znovu</Link></div> : null}
+      {error ? <div className="error"><p style={{ marginTop: 0 }}>{error}</p><button className="secondary" type="button" onClick={() => void refresh()}>Zkusit znovu</button></div> : null}
       {!state && !error ? <div className="panel"><p className="muted-copy">Navazuji spojení s hodinou…</p></div> : null}
 
       {state?.status === 'lobby' ? (
@@ -110,6 +159,12 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               <div className="student-progress-fill" style={{ width: `${progress}%` }} />
             </div>
           </section>
+
+          {connectionStatus === 'reconnecting' ? (
+            <div className="panel" style={{ padding: 12 }}>
+              <p className="muted-copy" style={{ margin: 0 }}>Spojení se přerušilo. Poslední známý stav zůstává na obrazovce a Syllonaut se pokusí hodinu automaticky dosynchronizovat.</p>
+            </div>
+          ) : null}
 
           {!state.myTeam && (state.teams?.length ?? 0) > 0 ? (
             <TeamPicker

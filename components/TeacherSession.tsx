@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import JoinQrCode from '@/components/JoinQrCode';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import SyllonautMark from '@/components/SyllonautMark';
@@ -166,8 +167,14 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <span className="eyebrow">Startovní zóna</span>
             <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
             <p className="muted-copy">Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.</p>
-            <div className="live-code">{session.joinCode}</div>
-            <p className="muted-copy" style={{ wordBreak: 'break-all' }}>{joinUrl || `/join/${session.joinCode}`}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
+              <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                <span className="eyebrow">Kód pro studenty</span>
+                <div className="live-code">{session.joinCode}</div>
+                <p className="muted-copy" style={{ wordBreak: 'break-all', marginBottom: 0 }}>{joinUrl || `/join/${session.joinCode}`}</p>
+              </div>
+              {joinUrl ? <JoinQrCode value={joinUrl} /> : null}
+            </div>
             {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Tato lekce obsahuje týmový úkol. Před startem vytvoř alespoň 2 týmy.</p> : null}
             <div className="actions">
               <button className="primary" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? 'Připravuji start…' : 'Odstartovat hodinu'}</button>
@@ -234,6 +241,17 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               <div className="live-session-progress-fill" style={{ width: `${liveProgress}%` }} />
             </div>
           </section>
+
+          <details className="panel">
+            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Připojit další studenty · kód {session.joinCode}</summary>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22, alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
+              <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                <p className="muted-copy">Pozdní příchod je povolený i během probíhající hodiny. Student může zadat kód nebo naskenovat QR.</p>
+                <p className="muted-copy" style={{ wordBreak: 'break-all', marginBottom: 0 }}>{joinUrl || `/join/${session.joinCode}`}</p>
+              </div>
+              {joinUrl ? <JoinQrCode value={joinUrl} /> : null}
+            </div>
+          </details>
 
           <div className={hasResponsePanel ? 'live-main-grid' : 'live-main-grid live-main-grid-single'}>
             <div className="live-current-column">
