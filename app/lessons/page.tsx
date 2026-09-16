@@ -42,16 +42,16 @@ export default async function LessonsPage() {
   return (
     <main className="shell lessons-shell">
       <header className="brand lessons-brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">E</span><strong>EduPilot</strong></Link><span className="beta">BETA</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
         <nav className="main-nav"><Link href="/">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
         <div className="lessons-user">{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : 'Přihlášený učitel'}</div>
       </header>
 
       <section className="lessons-heading">
         <div>
-          <span className="eyebrow">Pracovní prostor</span>
+          <span className="eyebrow">Palubní deník</span>
           <h1>Moje lekce</h1>
-          <p>Všechny vygenerované lekce se sem ukládají automaticky.</p>
+          <p>Všechny připravené lekce se sem ukládají automaticky.</p>
         </div>
         <Link href="/" className="primary button-link">+ Nová lekce</Link>
       </section>
@@ -61,8 +61,8 @@ export default async function LessonsPage() {
       {!error && lessons.length === 0 ? (
         <section className="lessons-empty panel">
           <h2>Zatím tu nic není</h2>
-          <p>Vytvoř první lekci. Jakmile ji AI dokončí, uloží se sem automaticky.</p>
-          <Link href="/" className="primary button-link">Vytvořit první lekci</Link>
+          <p>Připrav první lekci. Jakmile ji AI dokončí, uloží se sem automaticky.</p>
+          <Link href="/" className="primary button-link">Připravit první lekci</Link>
         </section>
       ) : null}
 
