@@ -9,7 +9,7 @@ export const maxDuration = 60;
 const InputSchema = z.object({
   instruction: z.string().min(2).max(2000),
   lesson: LessonSchema,
-  lessonId: z.string().uuid(),
+  lessonId: z.string().uuid().nullable().optional(),
   blockId: z.string().min(1),
 });
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   let costUsd: number | null = null;
 
   try {
-    const { instruction, lesson, lessonId, blockId } = InputSchema.parse(await req.json());
+    const { instruction, lesson, lessonId = null, blockId } = InputSchema.parse(await req.json());
     const block = lesson.blocks.find((item) => item.id === blockId);
     if (!block) {
       return NextResponse.json({ error: 'Vybraná aktivita už v lekci není.' }, { status: 400 });
@@ -60,20 +60,22 @@ export async function POST(req: Request) {
       totalMinutes: blocks.reduce((sum, item) => sum + item.durationMinutes, 0),
     });
 
-    const { data: savedLesson, error: saveError } = await supabase
-      .from('lessons')
-      .update({
-        title: revisedLesson.title,
-        lesson: revisedLesson,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', lessonId)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
+    if (lessonId) {
+      const { data: savedLesson, error: saveError } = await supabase
+        .from('lessons')
+        .update({
+          title: revisedLesson.title,
+          lesson: revisedLesson,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', lessonId)
+        .eq('owner_id', userId)
+        .select('id')
+        .single();
 
-    if (saveError || !savedLesson?.id) {
-      throw saveError ?? new Error('Revised lesson block was not persisted.');
+      if (saveError || !savedLesson?.id) {
+        throw saveError ?? new Error('Revised lesson block was not persisted.');
+      }
     }
 
     if (requestId) {
@@ -99,6 +101,6 @@ export async function POST(req: Request) {
     }
 
     console.error('revise block failed', error);
-    return NextResponse.json({ error: 'Úprava aktivity se nepodařila bezpečně uložit.' }, { status: 500 });
+    return NextResponse.json({ error: 'Úprava aktivity se nepodařila bezpečně dokončit.' }, { status: 500 });
   }
 }
