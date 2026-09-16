@@ -10,6 +10,15 @@ import polish from './LandingPagePolish.module.css';
 
 const activities = ['Hlasování', 'Kvíz', 'Týmový úkol', 'Řazení', 'Otevřená odpověď', 'Odhalení', 'Timer'];
 
+function SectionCue({ href, label }: { href: string; label: string }) {
+  return (
+    <a href={href} className={polish.sectionCue}>
+      <span>{label}</span>
+      <span className={polish.scrollArrow} aria-hidden="true">↓</span>
+    </a>
+  );
+}
+
 export default function LandingPage() {
   const [user, setUser] = useState<User | null>(null);
 
@@ -99,7 +108,7 @@ export default function LandingPage() {
         <span>Studentské mobily</span>
       </section>
 
-      <section className={styles.how} id="jak-to-funguje">
+      <section className={`${styles.how} ${polish.guidedSection}`} id="jak-to-funguje">
         <div className={styles.sectionHeading}>
           <span className={styles.eyebrow}>Jeden souvislý tok</span>
           <h2>Od zadání až do učebny.</h2>
@@ -110,9 +119,10 @@ export default function LandingPage() {
           <article><span>02</span><h3>Upravujte běžnou řečí.</h3><p>Zkraťte úvod, změňte jedinou aktivitu nebo přidejte týmovou práci, aniž byste stavěli lekci znovu.</p></article>
           <article><span>03</span><h3>Spusťte živou hodinu.</h3><p>Studenti se připojí telefonem. Vy řídíte tempo a v Řídicím centru vidíte odpovědi i průběh.</p></article>
         </div>
+        <SectionCue href="#ziva-hodina" label="Podívat se na živou hodinu" />
       </section>
 
-      <section className={styles.notSlides}>
+      <section className={`${styles.notSlides} ${polish.guidedSection}`} id="ziva-hodina">
         <div className={styles.notSlidesCopy}>
           <span className={styles.eyebrow}>Ne další prezentace</span>
           <h2>Příprava, interakce a vedení hodiny v jednom nástroji.</h2>
@@ -136,17 +146,19 @@ export default function LandingPage() {
             <div className={styles.mcResponses}><span>Průběžné odpovědi</span><strong>14 z 18</strong><div><i style={{ width: '78%' }} /></div><small>78 % studentů odeslalo odpověď</small></div>
           </div>
         </div>
+        <SectionCue href="#aktivity" label="Prohlédnout typy aktivit" />
       </section>
 
-      <section className={styles.activities}>
+      <section className={`${styles.activities} ${polish.guidedSection}`} id="aktivity">
         <div>
           <span className={styles.eyebrow}>Stavebnice aktivit</span>
           <h2>AI vybírá formu. Vy určujete, co má výuka přinést.</h2>
         </div>
         <div className={styles.activityTags}>{activities.map((activity) => <span key={activity}>{activity}</span>)}</div>
+        <SectionCue href="#pripravit-hodinu" label="Připravit vlastní hodinu" />
       </section>
 
-      <section className={styles.finalCta}>
+      <section className={styles.finalCta} id="pripravit-hodinu">
         <SyllonautMark />
         <span className={styles.eyebrow}>Syllonaut</span>
         <h2>Připravte si další hodinu jinak.</h2>
