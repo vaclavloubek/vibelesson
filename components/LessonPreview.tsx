@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Lesson, LessonBlock } from '@/lib/schema';
 
 function label(type: LessonBlock['type']) {
   const labels: Record<LessonBlock['type'], string> = {
     intro: 'Úvod',
-    team_task: 'Týmová mise',
+    team_task: 'Týmová práce',
     poll: 'Hlasování',
     quiz: 'Kvíz',
     open_text: 'Otevřená odpověď',
@@ -18,7 +18,22 @@ function label(type: LessonBlock['type']) {
   return labels[type];
 }
 
-function Block({ block, index, teacherMode, selected, onSelect }: { block: LessonBlock; index: number; teacherMode: boolean; selected: boolean; onSelect: () => void }) {
+function shortLabel(type: LessonBlock['type']) {
+  const labels: Record<LessonBlock['type'], string> = {
+    intro: 'Úvod',
+    team_task: 'Tým',
+    poll: 'Poll',
+    quiz: 'Kvíz',
+    open_text: 'Text',
+    ranking: 'Řazení',
+    reveal: 'Reveal',
+    timer: 'Timer',
+    exit_ticket: 'Exit',
+  };
+  return labels[type];
+}
+
+function Block({ block, index, teacherMode, selected, onSelect, startMinute }: { block: LessonBlock; index: number; teacherMode: boolean; selected: boolean; onSelect: () => void; startMinute?: number }) {
   const [revealed, setRevealed] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [seconds, setSeconds] = useState(block.durationMinutes * 60);
@@ -39,10 +54,14 @@ function Block({ block, index, teacherMode, selected, onSelect }: { block: Lesso
   const ss = String(seconds % 60).padStart(2, '0');
 
   return (
-    <article className={`lesson-block ${selected ? 'selected-block' : ''}`}>
+    <article className={`lesson-block lesson-block-type-${block.type} ${selected ? 'selected-block' : ''}`}>
       {teacherMode ? <button type="button" className="edit-block" onClick={onSelect}>{selected ? 'Vybráno k úpravě' : 'Upravit blok'}</button> : null}
       <div className="block-head">
-        <div><span className="eyebrow">{index + 1}. {label(block.type)}</span><h3>{block.title}</h3></div>
+        <div>
+          <span className="eyebrow">{index + 1}. {label(block.type)}</span>
+          <h3>{block.title}</h3>
+          {teacherMode && typeof startMinute === 'number' ? <span className="block-time-range">{startMinute}–{startMinute + block.durationMinutes}. minuta</span> : null}
+        </div>
         <span className="duration">{block.durationMinutes} min</span>
       </div>
       <p className="instructions">{block.instructions}</p>
@@ -59,17 +78,74 @@ function Block({ block, index, teacherMode, selected, onSelect }: { block: Lesso
 }
 
 export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectBlock }: { lesson: Lesson; mode: 'teacher' | 'student'; selectedBlockId: string | null; onSelectBlock: (id: string) => void }) {
+  const [studentPreviewIndex, setStudentPreviewIndex] = useState(0);
   const sum = lesson.blocks.reduce((total, block) => total + block.durationMinutes, 0);
+  const starts = useMemo(() => lesson.blocks.map((_, index) => lesson.blocks.slice(0, index).reduce((total, block) => total + block.durationMinutes, 0)), [lesson.blocks]);
+
+  useEffect(() => {
+    setStudentPreviewIndex((current) => Math.min(current, Math.max(0, lesson.blocks.length - 1)));
+  }, [lesson.blocks.length]);
+
+  const studentBlock = lesson.blocks[studentPreviewIndex] ?? null;
+  const studentProgress = lesson.blocks.length ? ((studentPreviewIndex + 1) / lesson.blocks.length) * 100 : 0;
+
+  if (mode === 'student') {
+    return (
+      <div className="preview student-preview">
+        <div className="student-preview-toolbar">
+          <div>
+            <span className="eyebrow">Studentský náhled</span>
+            <p>Takto student uvidí vždy jen právě aktivní část hodiny.</p>
+          </div>
+          <span className="student-preview-counter">{studentPreviewIndex + 1} / {lesson.blocks.length}</span>
+        </div>
+
+        <div className="student-preview-device">
+          <div className="student-preview-device-head">
+            <div>
+              <span className="student-preview-name">Syllonaut</span>
+              <strong>{lesson.title}</strong>
+            </div>
+            <span>{studentPreviewIndex + 1}/{lesson.blocks.length}</span>
+          </div>
+          <div className="student-progress-track"><div className="student-progress-fill" style={{ width: `${studentProgress}%` }} /></div>
+          {studentBlock ? <Block block={studentBlock} index={studentPreviewIndex} teacherMode={false} selected={false} onSelect={() => {}} /> : null}
+          <div className="student-preview-nav">
+            <button type="button" className="secondary" disabled={studentPreviewIndex === 0} onClick={() => setStudentPreviewIndex((index) => Math.max(0, index - 1))}>← Předchozí</button>
+            <button type="button" className="primary" disabled={studentPreviewIndex >= lesson.blocks.length - 1} onClick={() => setStudentPreviewIndex((index) => Math.min(lesson.blocks.length - 1, index + 1))}>Další →</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="preview">
       <div className="preview-header">
-        <span className="eyebrow">{mode === 'teacher' ? 'Učitelský náhled' : 'Studentská aplikace'}</span>
+        <span className="eyebrow">Učitelský náhled</span>
         <h2>{lesson.title}</h2>
         {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
-        <div className="meta"><span>{lesson.audience}</span><span>{lesson.groupSize}</span><span>{sum} min</span></div>
+        <div className="meta"><span>{lesson.audience}</span><span>{lesson.groupSize}</span><span>{sum} min</span><span>{lesson.blocks.length} aktivit</span></div>
       </div>
-      {mode === 'teacher' ? <div className="objectives"><strong>Po lekci studenti zvládnou:</strong><ul>{lesson.learningObjectives.map((o) => <li key={o}>{o}</li>)}</ul></div> : null}
-      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode={mode === 'teacher'} selected={selectedBlockId === block.id} onSelect={() => onSelectBlock(block.id)} />)}</div>
+
+      <div className="lesson-route" aria-label="Průběh lekce">
+        {lesson.blocks.map((block, index) => (
+          <button
+            type="button"
+            key={block.id}
+            className={`lesson-route-stop lesson-route-stop-${block.type}${selectedBlockId === block.id ? ' active' : ''}`}
+            onClick={() => onSelectBlock(block.id)}
+            title={`${index + 1}. ${block.title} · ${block.durationMinutes} min`}
+          >
+            <span className="lesson-route-index">{index + 1}</span>
+            <span className="lesson-route-label">{shortLabel(block.type)}</span>
+            <span className="lesson-route-time">{block.durationMinutes}m</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="objectives"><strong>Po lekci studenti zvládnou:</strong><ul>{lesson.learningObjectives.map((o) => <li key={o}>{o}</li>)}</ul></div>
+      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} onSelect={() => onSelectBlock(block.id)} startMinute={starts[index]} />)}</div>
     </div>
   );
 }
