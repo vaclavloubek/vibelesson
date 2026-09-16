@@ -1,0 +1,47 @@
+.headerCta {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
+.scrollCue {
+  width: fit-content;
+  margin: -18px auto 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #777a83;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 680;
+  letter-spacing: .01em;
+  transition: color .16s ease, transform .16s ease;
+}
+
+.scrollCue:hover {
+  color: #151721;
+  transform: translateY(2px);
+}
+
+.scrollArrow {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8d7d2;
+  border-radius: 999px;
+  background: rgba(255,255,255,.58);
+  color: #5b57e8;
+  font-size: 14px;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .scrollCue {
+    margin-top: -8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrollCue { transition: none; }
+}
