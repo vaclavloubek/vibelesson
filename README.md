@@ -1,8 +1,10 @@
-# EduPilot beta
+# Syllonaut beta
 
-**EduPilot — AI kopilot pro interaktivní výuku.**
+**Syllonaut — AI navigátor pro interaktivní výuku.**
 
-EduPilot je aplikace pro učitele: učitel popíše hodinu přirozeným jazykem a dostane hotovou interaktivní lekci, kterou může dál upravovat stejným způsobem. Cílem není generovat osnovu nebo prezentaci, ale přímo použitelný scénář výuky s aktivitami pro studenty.
+Syllonaut je aplikace pro učitele: učitel popíše hodinu přirozeným jazykem a dostane hotovou interaktivní lekci, kterou může dál upravovat stejným způsobem. Cílem není generovat osnovu nebo prezentaci, ale přímo použitelný scénář výuky s aktivitami pro studenty.
+
+Název spojuje *syllabus* a *astronaut*. Kosmická metafora se v produktu používá střídmě: učitel připravuje výukovou misi, živou hodinu odstartuje a během ní má k dispozici řídicí centrum. Srozumitelnost má vždy přednost před metaforou.
 
 ## Co tato verze umí
 
@@ -12,8 +14,11 @@ EduPilot je aplikace pro učitele: učitel popíše hodinu přirozeným jazykem 
 - AI úprava celé lekce přirozeným jazykem;
 - AI úprava jedné vybrané aktivity bez přegenerování zbytku;
 - přepnutí učitelský / studentský náhled;
+- ukládání lekcí do pracovního prostoru učitele;
+- spuštění živé hodiny a studentské připojení přes krátký kód;
+- živé řízení postupu a sběr odpovědí;
 - demo lekce bez AI;
-- připraveno pro Vercel AI Gateway.
+- Vercel AI Gateway + Supabase.
 
 ## Lokální spuštění
 
@@ -31,20 +36,20 @@ AI generuje validovaný `Lesson` JSON podle Zod schématu. UI jej vykresluje pom
 
 ## Produktový směr
 
-EduPilot nemá zůstat jen generátorem příprav. Cílem je propojit tři fáze:
+Syllonaut propojuje tři fáze:
 
-1. **Tvorba** — učitel popíše, co chce studenty naučit a jak má hodina vypadat.
-2. **Vedení výuky** — lekce se spustí jako živá session a studenti se připojí přes kód/QR.
-3. **Vyhodnocení** — učitel vidí odpovědi, týmové skóre a výsledky aktivit.
+1. **Příprava mise** — učitel popíše, co chce studenty naučit a jak má hodina vypadat.
+2. **Start živé výuky** — lekce se odstartuje jako živá session a studenti se připojí přes kód/QR.
+3. **Řídicí centrum a vyhodnocení** — učitel vede tempo, vidí odpovědi a po hodině pracuje s výsledky.
 
-## Nejbližší iterace
+Kosmický slovník je vrstva značky, ne nový odborný žargon. V datovém modelu a technické architektuře zůstávají standardní pojmy `lesson`, `session`, `participant` a `response`.
 
-- nasadit stabilní veřejné preview;
-- publikování lekce přes session kód / QR;
-- studentské telefony bez registrace;
-- Supabase Auth + Postgres + Realtime;
-- sběr odpovědí a živý dashboard;
-- team scoreboard a řízení tempa učitelem;
-- knihovna lekcí, verze a sdílení.
+## Značka a doména
+
+- produkt: **Syllonaut**;
+- hlavní doména: **syllonaut.com**;
+- claim: **AI navigátor pro interaktivní výuku.**
+
+Autoritativní repository zůstává `vaclavloubek/vibelesson`, dokud nebude případně přejmenováno samostatným krokem.
 
 Podrobný stav, rozhodnutí a roadmapa jsou v `PROJECT.md`.
