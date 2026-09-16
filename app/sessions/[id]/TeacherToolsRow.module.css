@@ -1,0 +1,62 @@
+.shell {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+}
+
+.tools:not(:has(aside)) {
+  display: none;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 8px;
+}
+
+.heading p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.grid > aside {
+  position: static !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-width: 0;
+  z-index: auto !important;
+}
+
+.grid > aside > details {
+  box-shadow: none !important;
+}
+
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 600px) {
+  .shell {
+    padding: 0 16px 16px;
+  }
+}
