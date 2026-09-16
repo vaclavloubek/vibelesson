@@ -17,10 +17,12 @@ export default function LiveBlock({
   block,
   teacherMode = false,
   hideOptions = false,
+  hideItems = false,
 }: {
   block: LessonBlock | PublicLessonBlock;
   teacherMode?: boolean;
   hideOptions?: boolean;
+  hideItems?: boolean;
 }) {
   const teacherBlock = teacherMode ? block as LessonBlock : null;
   return (
@@ -30,7 +32,7 @@ export default function LiveBlock({
         <span className="duration">{block.durationMinutes} min</span>
       </div>
       <p className="instructions">{block.instructions}</p>
-      {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
+      {!hideItems && block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
       {!hideOptions && block.options?.length ? <div className="options">{block.options.map((option) => <div className="option" key={option}>{option}</div>)}</div> : null}
       {block.revealText ? <div className="reveal">{block.revealText}</div> : null}
       {teacherBlock?.correctAnswer ? <div className="reveal">Správná odpověď: <strong>{teacherBlock.correctAnswer}</strong></div> : null}
