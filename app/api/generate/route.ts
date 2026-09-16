@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { createLesson } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 
-export const maxDuration = 60;
+// Longer lessons can legitimately take more than one minute to generate.
+// Keep this below the stale-reservation cleanup window in the quota RPCs.
+export const maxDuration = 300;
 
 const InputSchema = z.object({
   prompt: z.string().min(5).max(5000),
