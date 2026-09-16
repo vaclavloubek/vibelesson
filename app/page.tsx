@@ -1,6 +1,8 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
+import AuthControls from '@/components/AuthControls';
 import LessonPreview from '@/components/LessonPreview';
 import { demoLesson } from '@/lib/demo';
 import type { Lesson } from '@/lib/schema';
@@ -18,11 +20,19 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<'teacher' | 'student'>('teacher');
+  const [authUser, setAuthUser] = useState<User | null>(null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
 
+  function requireAuth() {
+    if (authUser) return true;
+    setError('Pro AI funkce se nejdřív přihlas vpravo nahoře. Ukázková lekce funguje i bez účtu.');
+    return false;
+  }
+
   async function generate(e: FormEvent) {
     e.preventDefault();
+    if (!requireAuth()) return;
     setBusy(true); setError(''); setSelectedBlockId(null);
     try {
       const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, audience, duration, groupSize, tone }) });
@@ -35,7 +45,7 @@ export default function Home() {
 
   async function revise(e: FormEvent) {
     e.preventDefault();
-    if (!lesson) return;
+    if (!lesson || !requireAuth()) return;
     setBusy(true); setError('');
     try {
       const res = await fetch('/api/revise', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instruction: revision, lesson }) });
@@ -48,7 +58,7 @@ export default function Home() {
 
   async function reviseSelectedBlock(e: FormEvent) {
     e.preventDefault();
-    if (!lesson || !selectedBlock) return;
+    if (!lesson || !selectedBlock || !requireAuth()) return;
     setBusy(true); setError('');
     try {
       const res = await fetch('/api/revise-block', {
@@ -69,8 +79,8 @@ export default function Home() {
   return (
     <main className="shell">
       <header className="brand">
-        <div><span className="brand-mark">E</span><strong>EduPilot</strong><span className="beta">BETA</span></div>
-        <p>AI kopilot pro interaktivní výuku.</p>
+        <div className="brand-identity"><span className="brand-mark">E</span><strong>EduPilot</strong><span className="beta">BETA</span></div>
+        <div className="brand-side"><p className="brand-tagline">AI kopilot pro interaktivní výuku.</p><AuthControls onAuthChange={setAuthUser} /></div>
       </header>
 
       <div className="workspace">
@@ -87,6 +97,7 @@ export default function Home() {
                 <label>Tón<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
               </div>
               <div className="actions"><button className="primary" disabled={busy}>{busy ? 'AI přemýšlí…' : 'Vygenerovat hodinu'}</button><button type="button" className="secondary" onClick={loadDemo}>Ukázková lekce</button></div>
+              {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
             </form>
           </div>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson } from '@/lib/ai';
+import { getAuthenticatedUserId } from '@/lib/auth';
 
 export const maxDuration = 60;
 
@@ -13,6 +14,11 @@ const InputSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const { userId } = await getAuthenticatedUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Pro AI generování se nejdřív přihlas.' }, { status: 401 });
+  }
+
   try {
     const input = InputSchema.parse(await req.json());
     const lesson = await createLesson(input);
