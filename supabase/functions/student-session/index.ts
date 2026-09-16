@@ -40,6 +40,12 @@ type LessonBlockLike = Record<string, unknown>;
 type LessonLike = { title?: unknown; blocks?: unknown };
 type StudentAnswer = { choice: string } | { text: string } | { ranking: string[]; text: string };
 
+type VerifiedParticipant = {
+  id: string;
+  display_name?: string;
+  team_id?: string | null;
+};
+
 function lessonBlocks(snapshot: unknown) {
   const lesson = (snapshot ?? {}) as LessonLike;
   return Array.isArray(lesson.blocks)
@@ -99,6 +105,27 @@ async function broadcastInvalidate(realtimeKey: string) {
   }
 }
 
+async function verifyParticipant(sessionId: string, participantToken: string, select = "id, display_name, team_id") {
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || participantToken.length < 32 || participantToken.length > 128) {
+    return { response: json({ error: "Neplatná participant identita." }, 401) };
+  }
+
+  const participantTokenHash = await sha256(participantToken);
+  const { data: participant, error } = await admin
+    .from("participants")
+    .select(select)
+    .eq("session_id", sessionId)
+    .eq("participant_token_hash", participantTokenHash)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Participant lookup failed", error);
+    return { response: json({ error: "Účastníka se nepodařilo ověřit." }, 500) };
+  }
+  if (!participant) return { response: json({ error: "Účastník nebyl ověřen." }, 401) };
+  return { participant: participant as unknown as VerifiedParticipant };
+}
+
 async function joinSession(body: Record<string, unknown>) {
   const joinCode = typeof body.joinCode === "string" ? body.joinCode.trim().toUpperCase() : "";
   const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
@@ -132,22 +159,9 @@ async function joinSession(body: Record<string, unknown>) {
 async function getState(body: Record<string, unknown>) {
   const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
   const participantToken = typeof body.participantToken === "string" ? body.participantToken : "";
-  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || participantToken.length < 32 || participantToken.length > 128) {
-    return json({ error: "Neplatná participant identita." }, 401);
-  }
-
-  const participantTokenHash = await sha256(participantToken);
-  const { data: participant, error: participantError } = await admin
-    .from("participants")
-    .select("id, display_name")
-    .eq("session_id", sessionId)
-    .eq("participant_token_hash", participantTokenHash)
-    .maybeSingle();
-  if (participantError) {
-    console.error("Participant lookup failed", participantError);
-    return json({ error: "Účastníka se nepodařilo ověřit." }, 500);
-  }
-  if (!participant) return json({ error: "Účastník nebyl ověřen." }, 401);
+  const verified = await verifyParticipant(sessionId, participantToken);
+  if (verified.response) return verified.response;
+  const participant = verified.participant!;
 
   const { data: session, error: sessionError } = await admin
     .from("sessions")
@@ -163,10 +177,34 @@ async function getState(body: Record<string, unknown>) {
   const snapshot = (session.lesson_snapshot ?? {}) as LessonLike;
   const blocks = lessonBlocks(session.lesson_snapshot);
   const activeIndex = typeof session.active_block_id === "string" ? blocks.findIndex((block) => block.id === session.active_block_id) : -1;
-  const activeBlock = session.status === "live" && activeIndex >= 0 ? publicBlock(blocks[activeIndex]) : null;
+  const rawActiveBlock = session.status === "live" && activeIndex >= 0 ? blocks[activeIndex] : null;
+  const activeBlock = rawActiveBlock ? publicBlock(rawActiveBlock) : null;
+
+  const [{ data: teamRows, error: teamsError }, { data: memberRows, error: membersError }] = await Promise.all([
+    admin.from("teams").select("id, name, sort_order").eq("session_id", sessionId).order("sort_order", { ascending: true }),
+    admin.from("participants").select("team_id").eq("session_id", sessionId),
+  ]);
+  if (teamsError || membersError) {
+    console.error("Student teams load failed", teamsError ?? membersError);
+    return json({ error: "Týmy se nepodařilo načíst." }, 500);
+  }
+
+  const memberCounts = new Map<string, number>();
+  for (const member of memberRows ?? []) {
+    if (typeof member.team_id !== "string") continue;
+    memberCounts.set(member.team_id, (memberCounts.get(member.team_id) ?? 0) + 1);
+  }
+  const teams = (teamRows ?? []).map((team) => ({
+    id: team.id,
+    name: team.name,
+    memberCount: memberCounts.get(team.id as string) ?? 0,
+  }));
+  const myTeam = typeof participant.team_id === "string"
+    ? teams.find((team) => team.id === participant.team_id) ?? null
+    : null;
 
   let myResponse: StudentAnswer | null = null;
-  if (activeBlock && typeof session.active_block_id === "string") {
+  if (activeBlock && typeof session.active_block_id === "string" && rawActiveBlock?.type !== "team_task") {
     const { data: savedResponse, error: responseError } = await admin
       .from("responses")
       .select("answer")
@@ -181,6 +219,28 @@ async function getState(body: Record<string, unknown>) {
     myResponse = (savedResponse?.answer as StudentAnswer | undefined) ?? null;
   }
 
+  let myTeamResponse: { text: string; updatedByParticipantId: string | null } | null = null;
+  if (rawActiveBlock?.type === "team_task" && typeof participant.team_id === "string" && typeof session.active_block_id === "string") {
+    const { data: teamResponse, error: teamResponseError } = await admin
+      .from("team_responses")
+      .select("answer, updated_by_participant_id")
+      .eq("session_id", sessionId)
+      .eq("team_id", participant.team_id)
+      .eq("block_id", session.active_block_id)
+      .maybeSingle();
+    if (teamResponseError) {
+      console.error("Student team response lookup failed", teamResponseError);
+      return json({ error: "Týmovou odpověď se nepodařilo načíst." }, 500);
+    }
+    const answer = teamResponse?.answer as Record<string, unknown> | undefined;
+    if (answer && typeof answer.text === "string") {
+      myTeamResponse = {
+        text: answer.text,
+        updatedByParticipantId: teamResponse.updated_by_participant_id as string | null,
+      };
+    }
+  }
+
   return json({
     sessionId: session.id,
     status: session.status,
@@ -191,29 +251,58 @@ async function getState(body: Record<string, unknown>) {
     totalBlocks: blocks.length,
     realtimeKey: session.realtime_key,
     myResponse,
+    teams,
+    myTeam,
+    myTeamResponse,
   });
+}
+
+async function chooseTeam(body: Record<string, unknown>) {
+  const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+  const participantToken = typeof body.participantToken === "string" ? body.participantToken : "";
+  const teamId = typeof body.teamId === "string" ? body.teamId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(teamId)) return json({ error: "Neplatný tým." }, 400);
+
+  const verified = await verifyParticipant(sessionId, participantToken);
+  if (verified.response) return verified.response;
+  const participant = verified.participant!;
+
+  const [{ data: session, error: sessionError }, { data: team, error: teamError }] = await Promise.all([
+    admin.from("sessions").select("status, realtime_key").eq("id", sessionId).maybeSingle(),
+    admin.from("teams").select("id, name").eq("id", teamId).eq("session_id", sessionId).maybeSingle(),
+  ]);
+  if (sessionError || teamError) {
+    console.error("Choose team lookup failed", sessionError ?? teamError);
+    return json({ error: "Tým se nepodařilo načíst." }, 500);
+  }
+  if (!session) return json({ error: "Hodina neexistuje." }, 404);
+  if (!team) return json({ error: "Tým v této hodině neexistuje." }, 404);
+  if (session.status === "ended") return json({ error: "Tato hodina už skončila." }, 410);
+  if (session.status === "live" && participant.team_id && participant.team_id !== teamId) {
+    return json({ error: "Po zahájení hodiny už tým změnit nejde." }, 409);
+  }
+
+  const { error: updateError } = await admin.from("participants").update({ team_id: teamId }).eq("id", participant.id).eq("session_id", sessionId);
+  if (updateError) {
+    console.error("Choose team update failed", updateError);
+    return json({ error: "Tým se nepodařilo vybrat." }, 500);
+  }
+
+  await broadcastInvalidate(session.realtime_key as string);
+  return json({ ok: true, team: { id: team.id, name: team.name } });
 }
 
 async function submitResponse(body: Record<string, unknown>) {
   const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
   const participantToken = typeof body.participantToken === "string" ? body.participantToken : "";
   const blockId = typeof body.blockId === "string" ? body.blockId.trim() : "";
-  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || participantToken.length < 32 || participantToken.length > 128 || blockId.length < 1 || blockId.length > 200) {
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || blockId.length < 1 || blockId.length > 200) {
     return json({ error: "Neplatný požadavek na odpověď." }, 400);
   }
 
-  const participantTokenHash = await sha256(participantToken);
-  const { data: participant, error: participantError } = await admin
-    .from("participants")
-    .select("id")
-    .eq("session_id", sessionId)
-    .eq("participant_token_hash", participantTokenHash)
-    .maybeSingle();
-  if (participantError) {
-    console.error("Participant response auth failed", participantError);
-    return json({ error: "Účastníka se nepodařilo ověřit." }, 500);
-  }
-  if (!participant) return json({ error: "Účastník nebyl ověřen." }, 401);
+  const verified = await verifyParticipant(sessionId, participantToken, "id");
+  if (verified.response) return verified.response;
+  const participant = verified.participant!;
 
   const { data: session, error: sessionError } = await admin
     .from("sessions")
@@ -230,6 +319,7 @@ async function submitResponse(body: Record<string, unknown>) {
 
   const block = lessonBlocks(session.lesson_snapshot).find((candidate) => candidate.id === blockId);
   if (!block) return json({ error: "Aktivní blok nebyl nalezen ve snapshotu." }, 500);
+  if (block.type === "team_task") return json({ error: "Týmový úkol použij společnou týmovou odpověď." }, 409);
 
   const normalized = normalizeAnswer(block, body.answer);
   if (!normalized.answer) return json({ error: normalized.error ?? "Neplatná odpověď." }, normalized.status ?? 400);
@@ -254,13 +344,74 @@ async function submitResponse(body: Record<string, unknown>) {
   return json({ ok: true, blockId, answer: saved.answer, updatedAt: saved.updated_at });
 }
 
+async function submitTeamResponse(body: Record<string, unknown>) {
+  const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+  const participantToken = typeof body.participantToken === "string" ? body.participantToken : "";
+  const blockId = typeof body.blockId === "string" ? body.blockId.trim() : "";
+  const text = typeof body.text === "string" ? body.text.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || blockId.length < 1 || blockId.length > 200 || text.length < 1 || text.length > 4000) {
+    return json({ error: "Neplatná týmová odpověď." }, 400);
+  }
+
+  const verified = await verifyParticipant(sessionId, participantToken);
+  if (verified.response) return verified.response;
+  const participant = verified.participant!;
+  if (!participant.team_id) return json({ error: "Nejdřív si vyber tým." }, 409);
+
+  const { data: session, error: sessionError } = await admin
+    .from("sessions")
+    .select("status, active_block_id, lesson_snapshot, realtime_key")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (sessionError) {
+    console.error("Team response session lookup failed", sessionError);
+    return json({ error: "Hodinu se nepodařilo načíst." }, 500);
+  }
+  if (!session) return json({ error: "Hodina neexistuje." }, 404);
+  if (session.status !== "live") return json({ error: "Týmovou odpověď lze odeslat pouze během živé hodiny." }, 409);
+  if (session.active_block_id !== blockId) return json({ error: "Učitel už přešel na jiný blok." }, 409);
+
+  const block = lessonBlocks(session.lesson_snapshot).find((candidate) => candidate.id === blockId);
+  if (!block || block.type !== "team_task") return json({ error: "Aktivní blok není týmový úkol." }, 409);
+
+  const { data: team, error: teamError } = await admin
+    .from("teams")
+    .select("id")
+    .eq("id", participant.team_id)
+    .eq("session_id", sessionId)
+    .maybeSingle();
+  if (teamError || !team) return json({ error: "Tým se nepodařilo ověřit." }, teamError ? 500 : 409);
+
+  const { data: saved, error: saveError } = await admin
+    .from("team_responses")
+    .upsert({
+      session_id: sessionId,
+      team_id: participant.team_id,
+      block_id: blockId,
+      answer: { text },
+      updated_by_participant_id: participant.id,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "session_id,team_id,block_id" })
+    .select("answer, updated_at")
+    .single();
+  if (saveError || !saved) {
+    console.error("Team response save failed", saveError);
+    return json({ error: "Týmovou odpověď se nepodařilo uložit." }, 500);
+  }
+
+  await broadcastInvalidate(session.realtime_key as string);
+  return json({ ok: true, blockId, text, updatedAt: saved.updated_at });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
   try {
     const body = await req.json() as Record<string, unknown>;
     if (body.action === "join") return await joinSession(body);
     if (body.action === "state") return await getState(body);
+    if (body.action === "choose_team") return await chooseTeam(body);
     if (body.action === "respond") return await submitResponse(body);
+    if (body.action === "respond_team") return await submitTeamResponse(body);
     return json({ error: "Neznámá akce." }, 400);
   } catch (error) {
     console.error("student-session failed", error);
