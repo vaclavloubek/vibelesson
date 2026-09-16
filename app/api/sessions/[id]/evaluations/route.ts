@@ -25,6 +25,8 @@ const EvaluationRowSchema = z.object({
   rubric: z.array(GradingCriterionSchema).min(1).max(6),
   criterion_scores: z.array(CriterionScoreSchema).max(6),
   teacher_confirmed: z.boolean(),
+  teacher_reviewed_at: z.string().nullable(),
+  teacher_note: z.string().max(1000).nullable(),
   evaluated_at: z.string().nullable(),
 });
 
@@ -62,7 +64,7 @@ export async function GET(req: Request, { params }: RouteContext) {
 
   const { data: rows, error } = await supabase
     .from('response_evaluations')
-    .select('id, participant_id, team_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, evaluated_at')
+    .select('id, participant_id, team_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, evaluated_at')
     .eq('session_id', sessionId)
     .eq('block_id', blockId)
     .order('created_at', { ascending: true });
@@ -93,6 +95,8 @@ export async function GET(req: Request, { params }: RouteContext) {
       rubric: parsed.data.rubric,
       criterionScores: parsed.data.criterion_scores,
       teacherConfirmed: parsed.data.teacher_confirmed,
+      teacherReviewedAt: parsed.data.teacher_reviewed_at,
+      teacherNote: parsed.data.teacher_note,
       evaluatedAt: parsed.data.evaluated_at,
     });
   }

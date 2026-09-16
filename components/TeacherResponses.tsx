@@ -45,6 +45,8 @@ type LiveEvaluation = {
   rubric: EvaluationCriterion[];
   criterionScores: EvaluationCriterionScore[];
   teacherConfirmed: boolean;
+  teacherReviewedAt: string | null;
+  teacherNote: string | null;
   evaluatedAt: string | null;
 };
 
@@ -54,6 +56,14 @@ type Props = {
   participantCount: number;
   teams?: Team[];
   teamResponses?: TeamResponse[];
+};
+
+type ReviewPatch = {
+  evaluationId: string;
+  teacherScore: number;
+  teacherConfirmed: boolean;
+  teacherReviewedAt: string;
+  teacherNote: string | null;
 };
 
 function ResponseProgress({ count, total, label = 'odpovědí' }: { count: number; total: number; label?: string }) {
@@ -78,7 +88,29 @@ function hasBrokenAIGradingConfig(block: LessonBlock) {
   return !isAIGradingConfigured(block);
 }
 
-function EvaluationCard({ evaluation }: { evaluation: LiveEvaluation | null }) {
+function EvaluationCard({
+  evaluation,
+  sessionId,
+  onReviewed,
+}: {
+  evaluation: LiveEvaluation | null;
+  sessionId: string;
+  onReviewed: (patch: ReviewPatch) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [scoreInput, setScoreInput] = useState('');
+  const [noteInput, setNoteInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+
+  useEffect(() => {
+    if (!evaluation) return;
+    const effective = evaluation.teacherScore ?? evaluation.aiScore;
+    setScoreInput(effective === null ? '' : String(effective));
+    setNoteInput(evaluation.teacherNote ?? '');
+    setReviewError('');
+  }, [evaluation?.id, evaluation?.teacherScore, evaluation?.teacherNote, evaluation?.aiScore]);
+
   if (!evaluation) {
     return <p className="muted-copy" style={{ margin: '10px 0 0' }}>Připravuji AI hodnocení…</p>;
   }
@@ -99,16 +131,53 @@ function EvaluationCard({ evaluation }: { evaluation: LiveEvaluation | null }) {
   const confidence = evaluation.confidence === null ? null : Math.round(evaluation.confidence * 100);
   const scoreByCriterion = new Map(evaluation.criterionScores.map((item) => [item.criterionId, item]));
 
+  async function saveReview(score: number, note: string) {
+    if (saving) return;
+    setSaving(true);
+    setReviewError('');
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/evaluations/${evaluation.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, note }),
+      });
+      const data = await response.json() as (ReviewPatch & { error?: string });
+      if (!response.ok) throw new Error(data.error || 'Hodnocení se nepodařilo uložit.');
+      onReviewed(data);
+      setEditing(false);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Hodnocení se nepodařilo uložit.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function submitEditedReview() {
+    const score = Number(scoreInput);
+    if (!Number.isInteger(score) || score < 0 || score > evaluation.maxPoints) {
+      setReviewError(`Body musí být celé číslo od 0 do ${evaluation.maxPoints}.`);
+      return;
+    }
+    void saveReview(score, noteInput);
+  }
+
   return (
     <div className="item" style={{ marginTop: 10 }}>
       <div className="teacher-response-item-head">
-        <strong>{evaluation.status === 'needs_review' ? 'Ke kontrole' : evaluation.teacherScore !== null ? 'Skóre učitele' : 'AI návrh hodnocení'}</strong>
+        <strong>{evaluation.teacherConfirmed ? 'Potvrzené skóre' : evaluation.status === 'needs_review' ? 'Ke kontrole' : 'AI návrh hodnocení'}</strong>
         <strong>{effectiveScore === null ? '—' : `${effectiveScore} / ${evaluation.maxPoints}`}</strong>
       </div>
       <p className="muted-copy" style={{ margin: '6px 0 0' }}>
         {confidence === null ? 'Jistota AI není k dispozici.' : `Jistota AI: ${confidence} %.`}
-        {evaluation.status === 'needs_review' ? ' Výsledek má nízkou jistotu a měl by ho zkontrolovat učitel.' : ' AI skóre je návrh pro učitele.'}
+        {evaluation.teacherConfirmed
+          ? ' Výsledek zkontroloval učitel.'
+          : evaluation.status === 'needs_review'
+            ? ' Výsledek má nízkou jistotu a měl by ho zkontrolovat učitel.'
+            : ' AI skóre je návrh pro učitele.'}
       </p>
+      {evaluation.teacherConfirmed && evaluation.teacherNote ? (
+        <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}><strong>Poznámka učitele:</strong> {evaluation.teacherNote}</p>
+      ) : null}
       <details style={{ marginTop: 8 }}>
         <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Jak AI hodnotila</summary>
         {evaluation.rationale ? <p style={{ margin: '10px 0', whiteSpace: 'pre-wrap' }}>{evaluation.rationale}</p> : null}
@@ -128,6 +197,48 @@ function EvaluationCard({ evaluation }: { evaluation: LiveEvaluation | null }) {
           })}
         </div>
       </details>
+
+      {!editing ? (
+        <div className="actions" style={{ marginTop: 10 }}>
+          {!evaluation.teacherConfirmed && evaluation.aiScore !== null ? (
+            <button className="primary" disabled={saving} onClick={() => void saveReview(evaluation.aiScore!, noteInput)}>
+              {saving ? 'Ukládám…' : 'Potvrdit AI návrh'}
+            </button>
+          ) : null}
+          <button className="secondary" disabled={saving} onClick={() => setEditing(true)}>
+            {evaluation.teacherConfirmed ? 'Upravit hodnocení' : 'Změnit body'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+          <label>
+            Body učitele
+            <input
+              type="number"
+              min={0}
+              max={evaluation.maxPoints}
+              step={1}
+              value={scoreInput}
+              onChange={(event) => setScoreInput(event.target.value)}
+            />
+          </label>
+          <label>
+            Poznámka učitele <span className="muted-copy">(volitelná)</span>
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={noteInput}
+              onChange={(event) => setNoteInput(event.target.value)}
+              placeholder="Např. proč jsi body oproti AI změnil/a."
+            />
+          </label>
+          <div className="actions">
+            <button className="primary" disabled={saving} onClick={submitEditedReview}>{saving ? 'Ukládám…' : 'Uložit hodnocení'}</button>
+            <button className="secondary" disabled={saving} onClick={() => { setEditing(false); setReviewError(''); }}>Zrušit</button>
+          </div>
+        </div>
+      )}
+      {reviewError ? <p className="muted-copy" style={{ margin: '8px 0 0' }}>{reviewError}</p> : null}
     </div>
   );
 }
@@ -171,6 +282,20 @@ export default function TeacherResponses({ block, responses, participantCount, t
     };
   }, [block.id, gradingConfigured, sessionId]);
 
+  function applyReview(patch: ReviewPatch) {
+    setEvaluations((current) => current.map((evaluation) => (
+      evaluation.id === patch.evaluationId
+        ? {
+            ...evaluation,
+            teacherScore: patch.teacherScore,
+            teacherConfirmed: patch.teacherConfirmed,
+            teacherReviewedAt: patch.teacherReviewedAt,
+            teacherNote: patch.teacherNote,
+          }
+        : evaluation
+    )));
+  }
+
   const evaluationByParticipant = useMemo(() => {
     const map = new Map<string, LiveEvaluation>();
     for (const evaluation of evaluations) if (evaluation.participantId) map.set(evaluation.participantId, evaluation);
@@ -204,7 +329,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
                   <>
                     <p style={{ marginBottom: 6, whiteSpace: 'pre-wrap' }}>{response.text}</p>
                     <p className="muted-copy">Naposledy upravil/a: {response.updatedByDisplayName ?? 'člen týmu'}</p>
-                    {gradingConfigured ? <EvaluationCard evaluation={evaluation} /> : null}
+                    {gradingConfigured ? <EvaluationCard evaluation={evaluation} sessionId={sessionId} onReviewed={applyReview} /> : null}
                   </>
                 ) : <p className="muted-copy" style={{ marginBottom: 0 }}>Zatím bez odpovědi.</p>}
               </div>
@@ -299,7 +424,13 @@ export default function TeacherResponses({ block, responses, participantCount, t
             <div className="item teacher-response-item answered" key={response.participantId}>
               <strong>{response.displayName}</strong>
               {'text' in response.answer ? <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p> : null}
-              {gradingConfigured && 'text' in response.answer ? <EvaluationCard evaluation={evaluationByParticipant.get(response.participantId) ?? null} /> : null}
+              {gradingConfigured && 'text' in response.answer ? (
+                <EvaluationCard
+                  evaluation={evaluationByParticipant.get(response.participantId) ?? null}
+                  sessionId={sessionId}
+                  onReviewed={applyReview}
+                />
+              ) : null}
             </div>
           ))}
         </div>
