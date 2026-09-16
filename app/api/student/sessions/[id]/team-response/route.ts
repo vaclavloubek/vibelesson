@@ -17,11 +17,11 @@ export async function POST(req: Request, { params }: RouteContext) {
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
 
-    const edgeResponse = await fetch(`${url}/functions/v1/student-session`, {
+    const edgeResponse = await fetch(`${url}/functions/v1/team-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: key },
       body: JSON.stringify({
-        action: 'respond_team',
+        action: 'save',
         sessionId: id,
         participantToken,
         blockId: input.blockId,
