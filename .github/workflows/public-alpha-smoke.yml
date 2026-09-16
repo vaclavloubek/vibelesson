@@ -1,0 +1,104 @@
+name: Public alpha smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/public-alpha-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Test deployed public alpha
+        env:
+          BASE_URL: https://edupilot2.vercel.app
+        run: |
+          node <<'NODE'
+          const { chromium, request } = require('playwright');
+          const assert = require('node:assert/strict');
+
+          (async () => {
+            const base = process.env.BASE_URL;
+            const browser = await chromium.launch({ headless: true });
+
+            // Desktop: homepage + demo + teacher/student modes.
+            const desktop = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+            const page = await desktop.newPage();
+            const response = await page.goto(base, { waitUntil: 'networkidle', timeout: 60000 });
+            assert(response, 'Homepage returned no HTTP response');
+            assert.equal(response.status(), 200, `Homepage HTTP ${response.status()}`);
+            await page.getByText('EduPilot', { exact: true }).waitFor({ state: 'visible' });
+            await page.getByRole('button', { name: 'Ukázková lekce' }).click();
+            await page.getByRole('heading', { name: 'Mediální mise' }).waitFor({ state: 'visible' });
+
+            await page.getByRole('button', { name: 'Učitelský náhled' }).click();
+            await page.getByText('Po lekci studenti zvládnou:').waitFor({ state: 'visible' });
+            assert((await page.getByRole('button', { name: 'Upravit blok' }).count()) > 0, 'Teacher edit controls are missing');
+
+            await page.getByRole('button', { name: 'Studentský režim' }).click();
+            await page.getByText('Studentská aplikace').waitFor({ state: 'visible' });
+            assert.equal(await page.getByText('Po lekci studenti zvládnou:').count(), 0, 'Teacher objectives leaked into student mode');
+            assert.equal(await page.getByRole('button', { name: 'Upravit blok' }).count(), 0, 'Teacher edit controls leaked into student mode');
+            assert.equal(await page.getByText('Poznámka pro učitele').count(), 0, 'Teacher notes leaked into student mode');
+            console.log('PASS desktop homepage/demo/teacher/student');
+            await desktop.close();
+
+            // Mobile: student-first usability and horizontal overflow.
+            const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+            const m = await mobile.newPage();
+            const mobileResponse = await m.goto(base, { waitUntil: 'networkidle', timeout: 60000 });
+            assert(mobileResponse && mobileResponse.status() === 200, `Mobile homepage HTTP ${mobileResponse?.status()}`);
+            await m.getByRole('button', { name: 'Ukázková lekce' }).click();
+            await m.getByRole('button', { name: 'Studentský režim' }).click();
+            await m.getByText('Studentská aplikace').waitFor({ state: 'visible' });
+            const overflow = await m.evaluate(() => ({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+            assert(overflow.scrollWidth <= overflow.width + 1, `Horizontal overflow: viewport=${overflow.width}, scrollWidth=${overflow.scrollWidth}`);
+            const firstInteractive = m.locator('button.option').first();
+            if (await firstInteractive.count()) {
+              await firstInteractive.click();
+              assert((await firstInteractive.getAttribute('class') || '').includes('selected'), 'Student option could not be selected');
+            }
+            console.log(`PASS mobile layout ${overflow.width}px, scrollWidth=${overflow.scrollWidth}`);
+            await mobile.close();
+
+            // AI generation: pass if available; report auth/runtime unavailability without hiding it.
+            const api = await request.newContext({ baseURL: base });
+            const ai = await api.post('/api/generate', {
+              timeout: 75000,
+              data: {
+                prompt: 'Vytvoř krátkou interaktivní lekci o kritickém myšlení se třemi aktivitami.',
+                audience: 'vysokoškolští studenti',
+                duration: 30,
+                groupSize: '3–4 studenti',
+                tone: 'praktický a lehce vtipný'
+              }
+            });
+            const aiText = await ai.text();
+            if (ai.status() === 200) {
+              const lesson = JSON.parse(aiText);
+              assert(Array.isArray(lesson.blocks) && lesson.blocks.length >= 3, 'AI response is not a valid lesson');
+              console.log(`PASS AI generation: ${lesson.title} (${lesson.blocks.length} blocks)`);
+            } else {
+              console.log(`INFO AI generation unavailable: HTTP ${ai.status()} ${aiText.slice(0, 500)}`);
+            }
+            await api.dispose();
+            await browser.close();
+          })().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
