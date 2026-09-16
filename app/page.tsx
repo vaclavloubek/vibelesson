@@ -69,8 +69,8 @@ export default function Home() {
   return (
     <main className="shell">
       <header className="brand">
-        <div><span className="brand-mark">V</span><strong>VibeLesson</strong><span className="beta">BETA</span></div>
-        <p>Popiš hodinu. AI z ní udělá interaktivní výuku.</p>
+        <div><span className="brand-mark">E</span><strong>EduPilot</strong><span className="beta">BETA</span></div>
+        <p>AI kopilot pro interaktivní výuku.</p>
       </header>
 
       <div className="workspace">
@@ -91,8 +91,8 @@ export default function Home() {
           </div>
 
           {lesson ? <>
-            <div className="panel vibe-editor"><span className="eyebrow">2 · Vibe edit celé lekce</span><h2>Řekni, co chceš změnit</h2><form onSubmit={revise}><textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button></form><div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div></div>
-            <div className="panel block-editor"><span className="eyebrow">3 · Vibe edit jedné aktivity</span><h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>{selectedBlock ? <form onSubmit={reviseSelectedBlock}><textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}</div>
+            <div className="panel vibe-editor"><span className="eyebrow">2 · AI úprava celé lekce</span><h2>Řekni, co chceš změnit</h2><form onSubmit={revise}><textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button></form><div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div></div>
+            <div className="panel block-editor"><span className="eyebrow">3 · AI úprava jedné aktivity</span><h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>{selectedBlock ? <form onSubmit={reviseSelectedBlock}><textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}</div>
           </> : null}
           {error ? <div className="error">{error}</div> : null}
         </section>
