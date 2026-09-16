@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import LiveBlock from '@/components/LiveBlock';
 import StudentResponseInput from '@/components/StudentResponseInput';
+import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import type { PublicLessonBlock, SessionStatus, StudentAnswer } from '@/lib/live';
@@ -58,10 +59,15 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  const currentBlockNumber = (state?.activeBlockIndex ?? 0) + 1;
+  const progress = state?.status === 'live' && state.totalBlocks > 0
+    ? Math.min(100, Math.max(0, (currentBlockNumber / state.totalBlocks) * 100))
+    : 0;
+
   return (
-    <main className="shell" style={{ maxWidth: 680 }}>
-      <header className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
+    <main className="shell student-shell">
+      <header className="brand student-brand">
+        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
       </header>
 
       {error ? <div className="error"><p style={{ marginTop: 0 }}>{error}</p><Link href="/join" className="secondary button-link">Připojit se znovu</Link></div> : null}
@@ -86,10 +92,15 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
 
       {state?.status === 'live' ? (
         <div style={{ display: 'grid', gap: 12 }}>
-          <section className="panel">
-            <span className="eyebrow">{state.participantDisplayName}{state.myTeam ? ` · ${state.myTeam.name}` : ''}</span>
-            <h1 style={{ marginBottom: 8 }}>{state.title}</h1>
-            <p className="muted-copy">Blok {(state.activeBlockIndex ?? 0) + 1} z {state.totalBlocks}</p>
+          <section className="panel student-session-head">
+            <div className="student-session-kicker">
+              <span>{state.participantDisplayName}{state.myTeam ? ` · ${state.myTeam.name}` : ''}</span>
+              <strong>{currentBlockNumber} / {state.totalBlocks}</strong>
+            </div>
+            <h1 className="student-session-title">{state.title}</h1>
+            <div className="student-progress-track" aria-label={`Průběh hodiny: blok ${currentBlockNumber} z ${state.totalBlocks}`}>
+              <div className="student-progress-fill" style={{ width: `${progress}%` }} />
+            </div>
           </section>
 
           {!state.myTeam && (state.teams?.length ?? 0) > 0 ? (
