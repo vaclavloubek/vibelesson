@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import EvaluationBackgroundPump from '@/components/EvaluationBackgroundPump';
 import SessionReport from '@/components/SessionReport';
 import TeacherSession from '@/components/TeacherSession';
 import { createClient } from '@/lib/supabase/server';
@@ -24,6 +25,7 @@ export default async function TeacherSessionPage({ params }: Props) {
 
   return (
     <>
+      <EvaluationBackgroundPump sessionId={id} />
       <TeacherSession sessionId={id} />
       <SessionReport sessionId={id} />
     </>
