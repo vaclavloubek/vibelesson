@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SyllonautMark from '@/components/SyllonautMark';
 
 export default function JoinCodeForm() {
   const router = useRouter();
@@ -20,15 +21,15 @@ export default function JoinCodeForm() {
   }
 
   return (
-    <main className="shell" style={{ maxWidth: 560 }}>
-      <header className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
+    <main className="shell join-shell">
+      <header className="brand student-brand">
+        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
       </header>
-      <section className="panel">
-        <span className="eyebrow">Připojit se k misi</span>
+      <section className="panel join-card">
+        <span className="eyebrow">Připojit se k hodině</span>
         <h1>Zadej kód hodiny</h1>
         <form onSubmit={submit}>
-          <label>Kód hodiny<input value={code} onChange={(event) => setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7))} autoCapitalize="characters" autoCorrect="off" inputMode="text" placeholder="ABC7K3M" required /></label>
+          <label>Kód hodiny<input className="join-code-input" value={code} onChange={(event) => setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7))} autoCapitalize="characters" autoCorrect="off" inputMode="text" placeholder="ABC7K3M" required /></label>
           <div className="actions"><button className="primary">Pokračovat</button></div>
         </form>
         {error ? <div className="error" style={{ marginTop: 12 }}>{error}</div> : null}
