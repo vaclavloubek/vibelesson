@@ -50,6 +50,11 @@ export const StudentAnswerSchema = z.union([
 ]);
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
+export const TeamAnswerSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+}).strict();
+export type TeamAnswer = z.infer<typeof TeamAnswerSchema>;
+
 export const StudentResponseSubmissionSchema = z.object({
   blockId: z.string().min(1).max(200),
   answer: StudentAnswerSchema,

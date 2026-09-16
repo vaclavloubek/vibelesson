@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
-import { SessionActionSchema, StudentAnswerSchema } from '@/lib/live';
+import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -76,8 +76,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
     }
 
     for (const response of teamResponseRows ?? []) {
-      const parsedAnswer = StudentAnswerSchema.safeParse(response.answer);
-      if (!parsedAnswer.success || !('text' in parsedAnswer.data)) continue;
+      const parsedAnswer = TeamAnswerSchema.safeParse(response.answer);
+      if (!parsedAnswer.success) continue;
       const updaterId = response.updated_by_participant_id as string | null;
       teamResponses.push({
         teamId: response.team_id as string,
