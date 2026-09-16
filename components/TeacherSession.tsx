@@ -142,25 +142,25 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   return (
     <main className="shell" style={{ maxWidth: 1100 }}>
       <header className="brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">E</span><strong>EduPilot</strong></Link><span className="beta">LIVE</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
         <nav className="main-nav"><Link href="/lessons">Moje lekce</Link></nav>
-        <p className="brand-tagline">Řízení živé hodiny</p>
+        <p className="brand-tagline">Řídicí centrum živé hodiny</p>
       </header>
 
       {error ? <div className="error" style={{ marginBottom: 14 }}>{error}</div> : null}
-      {!session ? <div className="panel"><p className="muted-copy">Načítám hodinu…</p></div> : null}
+      {!session ? <div className="panel"><p className="muted-copy">Načítám řídicí centrum…</p></div> : null}
 
       {session?.status === 'lobby' ? (
         <div style={{ display: 'grid', gap: 14 }}>
           <section className="panel">
-            <span className="eyebrow">Lobby</span>
+            <span className="eyebrow">Startovní zóna</span>
             <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
-            <p className="muted-copy">Studenti se mohou připojit i po zahájení hodiny. Kód přestane fungovat až po jejím ukončení.</p>
+            <p className="muted-copy">Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.</p>
             <div style={{ margin: '24px 0 10px', fontSize: 46, fontWeight: 900, letterSpacing: '.12em' }}>{session.joinCode}</div>
             <p className="muted-copy" style={{ wordBreak: 'break-all' }}>{joinUrl || `/join/${session.joinCode}`}</p>
-            {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Tato lekce obsahuje týmový úkol. Před zahájením vytvoř alespoň 2 týmy.</p> : null}
+            {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Tato lekce obsahuje týmový úkol. Před startem vytvoř alespoň 2 týmy.</p> : null}
             <div className="actions">
-              <button className="primary" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? 'Pracuji…' : 'Zahájit hodinu'}</button>
+              <button className="primary" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? 'Připravuji start…' : 'Odstartovat hodinu'}</button>
             </div>
           </section>
 
@@ -170,7 +170,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               {!session.teams.length ? (
                 <>
                   <h2>Vytvořit týmy</h2>
-                  <p className="muted-copy">Studenti si v lobby sami vyberou tým. Po zahájení se jejich volba zamkne.</p>
+                  <p className="muted-copy">Studenti si ve startovní zóně sami vyberou tým. Po odstartování se jejich volba zamkne.</p>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 14, flexWrap: 'wrap' }}>
                     <label style={{ maxWidth: 160 }}>
                       Počet týmů
@@ -209,7 +209,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         <div style={{ display: 'grid', gap: 14 }}>
           <section className="panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div><span className="eyebrow">Živá hodina</span><h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1><p className="muted-copy">Blok {activeIndex + 1} z {session.lessonSnapshot.blocks.length} · {session.participants.length} studentů</p></div>
+              <div><span className="eyebrow">Mise probíhá</span><h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1><p className="muted-copy">Blok {activeIndex + 1} z {session.lessonSnapshot.blocks.length} · {session.participants.length} studentů</p></div>
               <div className="actions" style={{ marginTop: 0 }}><button className="secondary" disabled={busy || activeIndex <= 0} onClick={() => void act('previous')}>← Předchozí</button><button className="primary" disabled={busy || activeIndex >= session.lessonSnapshot.blocks.length - 1} onClick={() => void act('next')}>Další →</button><button className="secondary" disabled={busy} onClick={() => void act('end')}>Ukončit hodinu</button></div>
             </div>
           </section>
@@ -235,9 +235,9 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
       {session?.status === 'ended' ? (
         <section className="panel">
-          <span className="eyebrow">Hodina ukončena</span>
+          <span className="eyebrow">Mise dokončena</span>
           <h1>{session.lessonSnapshot.title}</h1>
-          <p className="muted-copy">Session je uzavřená. Připojilo se {session.participants.length} studentů.</p>
+          <p className="muted-copy">Hodina je uzavřená. Připojilo se {session.participants.length} studentů.</p>
           <div className="actions">{session.lessonId ? <Link href={`/lessons/${session.lessonId}`} className="primary button-link">Zpět k lekci</Link> : null}<Link href="/lessons" className="secondary button-link">Moje lekce</Link></div>
         </section>
       ) : null}
