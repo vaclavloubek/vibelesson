@@ -18,6 +18,17 @@ export const PublicLessonBlockSchema = LessonBlockSchema.omit({
 });
 export type PublicLessonBlock = z.infer<typeof PublicLessonBlockSchema>;
 
+export const StudentAnswerSchema = z.union([
+  z.object({ choice: z.string().min(1).max(1000) }).strict(),
+  z.object({ text: z.string().trim().min(1).max(2000) }).strict(),
+]);
+export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
+
+export const StudentResponseSubmissionSchema = z.object({
+  blockId: z.string().min(1).max(200),
+  answer: StudentAnswerSchema,
+});
+
 export function participantCookieName(sessionId: string) {
   return `ep_participant_${sessionId.replaceAll('-', '')}`;
 }
