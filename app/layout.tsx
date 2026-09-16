@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Syllonaut',
-  description: 'AI navigátor pro interaktivní výuku.',
+  title: 'Syllonaut — AI navigátor pro interaktivní výuku',
+  description: 'Z nápadu do živé interaktivní hodiny. Syllonaut připraví, upraví a pomůže vést výuku se studenty v reálném čase.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
