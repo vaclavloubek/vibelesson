@@ -4,7 +4,8 @@ import { LessonSchema } from '@/lib/schema';
 import { reviseLesson } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 
-export const maxDuration = 60;
+// Full-lesson revisions can be almost as expensive as initial generation.
+export const maxDuration = 300;
 
 const InputSchema = z.object({
   instruction: z.string().min(2).max(3000),
