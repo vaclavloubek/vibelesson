@@ -7,6 +7,10 @@ const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
 });
 
+const ReplaceLessonSchema = z.object({
+  lesson: LessonSchema,
+});
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
@@ -44,6 +48,30 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   } catch (error) {
     console.error('rename lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo přejmenovat.' }, { status: 500 });
+  }
+}
+
+export async function PUT(req: Request, { params }: RouteContext) {
+  const { supabase, userId } = await getAuthenticatedUserId();
+  if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+
+  try {
+    const { id } = await params;
+    const { lesson } = ReplaceLessonSchema.parse(await req.json());
+
+    const { data: updated, error: updateError } = await supabase
+      .from('lessons')
+      .update({ title: lesson.title, lesson, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('owner_id', userId)
+      .select('id')
+      .single();
+
+    if (updateError || !updated) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    return NextResponse.json({ lessonId: id, lesson });
+  } catch (error) {
+    console.error('replace lesson failed', error);
+    return NextResponse.json({ error: 'Předchozí verzi se nepodařilo obnovit.' }, { status: 500 });
   }
 }
 
