@@ -8,14 +8,51 @@ type LiveResponse = {
   updatedAt: string;
 };
 
+type Team = { id: string; name: string };
+type TeamResponse = {
+  teamId: string;
+  text: string;
+  updatedByParticipantId: string | null;
+  updatedByDisplayName: string | null;
+  updatedAt: string;
+};
+
 type Props = {
   block: LessonBlock;
   responses: LiveResponse[];
   participantCount: number;
+  teams?: Team[];
+  teamResponses?: TeamResponse[];
 };
 
-export default function TeacherResponses({ block, responses, participantCount }: Props) {
-  if (!['poll', 'quiz', 'open_text', 'ranking', 'exit_ticket'].includes(block.type)) return null;
+export default function TeacherResponses({ block, responses, participantCount, teams = [], teamResponses = [] }: Props) {
+  if (!['poll', 'quiz', 'open_text', 'ranking', 'exit_ticket', 'team_task'].includes(block.type)) return null;
+
+  if (block.type === 'team_task') {
+    return (
+      <section className="panel">
+        <span className="eyebrow">Týmové odpovědi</span>
+        <h2 style={{ marginBottom: 8 }}>{teamResponses.length} z {teams.length} týmů</h2>
+        <p className="muted-copy">Každý tým má jednu společnou odpověď. Kdokoli z jeho členů ji může během aktivního bloku upravit.</p>
+        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+          {teams.map((team) => {
+            const response = teamResponses.find((item) => item.teamId === team.id);
+            return (
+              <div className="item" key={team.id}>
+                <strong>{team.name}</strong>
+                {response ? (
+                  <>
+                    <p style={{ marginBottom: 6, whiteSpace: 'pre-wrap' }}>{response.text}</p>
+                    <p className="muted-copy">Naposledy upravil/a: {response.updatedByDisplayName ?? 'člen týmu'}</p>
+                  </>
+                ) : <p className="muted-copy" style={{ marginBottom: 0 }}>Zatím bez odpovědi.</p>}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
 
   if (block.type === 'poll' || block.type === 'quiz') {
     const options = block.options ?? [];
@@ -69,19 +106,18 @@ export default function TeacherResponses({ block, responses, participantCount }:
             </div>
           ))}
         </div>
-        {rankingResponses.some((response) => 'ranking' in response.answer && response.answer.text) ? (
+        {rankingResponses.length ? (
           <div style={{ marginTop: 18 }}>
             <span className="eyebrow">Zdůvodnění</span>
             <div className="items" style={{ marginTop: 10 }}>
-              {rankingResponses.map((response) => {
-                const explanation = 'ranking' in response.answer ? response.answer.text : undefined;
-                return explanation ? (
+              {rankingResponses.map((response) => (
+                'ranking' in response.answer ? (
                   <div className="item" key={response.participantId}>
                     <strong>{response.displayName}</strong>
-                    <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{explanation}</p>
+                    <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p>
                   </div>
-                ) : null;
-              })}
+                ) : null
+              ))}
             </div>
           </div>
         ) : null}
