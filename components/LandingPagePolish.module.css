@@ -1,14 +1,15 @@
+:global(html) {
+  scroll-behavior: smooth;
+}
+
 .headerCta {
   white-space: nowrap;
   flex: 0 0 auto;
   min-width: max-content;
 }
 
-.scrollCue {
-  position: absolute;
-  top: calc(100svh - 54px);
-  left: 50%;
-  z-index: 10;
+.scrollCue,
+.sectionCue {
   width: max-content;
   margin: 0;
   padding: 6px 9px;
@@ -23,11 +24,39 @@
   font-size: 11px;
   font-weight: 680;
   letter-spacing: .01em;
-  transform: translateX(-50%);
   transition: color .16s ease, transform .16s ease, background .16s ease;
 }
 
+.scrollCue {
+  position: absolute;
+  top: calc(100svh - 54px);
+  left: 50%;
+  z-index: 10;
+  transform: translateX(-50%);
+}
+
 .scrollCue:hover {
+  color: #151721;
+  background: rgba(255,255,255,.88);
+  transform: translate(-50%, 2px);
+}
+
+.guidedSection {
+  position: relative;
+  min-height: 100svh;
+  scroll-margin-top: 0;
+  padding-bottom: 92px !important;
+}
+
+.sectionCue {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 4;
+  transform: translateX(-50%);
+}
+
+.sectionCue:hover {
   color: #151721;
   background: rgba(255,255,255,.88);
   transform: translate(-50%, 2px);
@@ -51,8 +80,21 @@
     top: calc(100svh - 50px);
     font-size: 10px;
   }
+
+  .guidedSection {
+    min-height: 100svh;
+    padding-bottom: 86px !important;
+  }
+
+  .sectionCue {
+    bottom: 18px;
+    font-size: 10px;
+    max-width: calc(100% - 24px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scrollCue { transition: none; }
+  :global(html) { scroll-behavior: auto; }
+  .scrollCue,
+  .sectionCue { transition: none; }
 }
