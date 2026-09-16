@@ -1,7 +1,5 @@
-import { after, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-
-export const maxDuration = 120;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,7 +13,7 @@ function parseTime(value: unknown) {
   return Date.parse(value);
 }
 
-export async function POST(req: Request, { params }: RouteContext) {
+export async function POST(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
@@ -33,67 +31,31 @@ export async function POST(req: Request, { params }: RouteContext) {
   }
   if (!session) return NextResponse.json({ error: 'Hodina nebyla nalezena.' }, { status: 404 });
 
-  const origin = new URL(req.url).origin;
-  const cookie = req.headers.get('cookie') ?? '';
-  const authorization = req.headers.get('authorization') ?? '';
+  const { data: rows, error } = await supabase
+    .from('response_evaluations')
+    .select('id, status, source_updated_at, updated_at')
+    .eq('session_id', sessionId)
+    .in('status', ['pending', 'grading'])
+    .order('source_updated_at', { ascending: true })
+    .limit(CANDIDATE_LIMIT);
 
-  after(async () => {
-    try {
-      const now = Date.now();
-      const quietCutoff = now - QUIET_PERIOD_MS;
-      const staleCutoff = now - STALE_GRADING_MS;
+  if (error) {
+    console.error('background grading queue load failed', error);
+    return NextResponse.json({ error: 'Frontu AI hodnocení se nepodařilo načíst.' }, { status: 500 });
+  }
 
-      const { data: rows, error } = await supabase
-        .from('response_evaluations')
-        .select('id, status, source_updated_at, updated_at')
-        .eq('session_id', sessionId)
-        .in('status', ['pending', 'grading'])
-        .order('source_updated_at', { ascending: true })
-        .limit(CANDIDATE_LIMIT);
+  const now = Date.now();
+  const quietCutoff = now - QUIET_PERIOD_MS;
+  const staleCutoff = now - STALE_GRADING_MS;
+  const evaluationIds = (rows ?? [])
+    .filter((row) => {
+      const status = row.status as string;
+      if (status === 'pending') return parseTime(row.source_updated_at) <= quietCutoff;
+      if (status === 'grading') return parseTime(row.updated_at) <= staleCutoff;
+      return false;
+    })
+    .slice(0, MAX_GRADES_PER_WAKE)
+    .map((row) => row.id as string);
 
-      if (error) {
-        console.error('background grading queue load failed', error);
-        return;
-      }
-
-      const candidates = (rows ?? [])
-        .filter((row) => {
-          const status = row.status as string;
-          if (status === 'pending') return parseTime(row.source_updated_at) <= quietCutoff;
-          if (status === 'grading') return parseTime(row.updated_at) <= staleCutoff;
-          return false;
-        })
-        .slice(0, MAX_GRADES_PER_WAKE);
-
-      if (!candidates.length) return;
-
-      await Promise.allSettled(candidates.map(async (row) => {
-        const headers: Record<string, string> = {};
-        if (cookie) headers.cookie = cookie;
-        if (authorization) headers.authorization = authorization;
-
-        const response = await fetch(
-          `${origin}/api/sessions/${sessionId}/evaluations/${row.id}/grade`,
-          {
-            method: 'POST',
-            headers,
-            cache: 'no-store',
-          },
-        );
-
-        if (!response.ok && response.status !== 409) {
-          const body = await response.text().catch(() => '');
-          console.error('background evaluation grading request failed', {
-            evaluationId: row.id,
-            status: response.status,
-            body: body.slice(0, 500),
-          });
-        }
-      }));
-    } catch (error) {
-      console.error('background grading wake failed', error);
-    }
-  });
-
-  return NextResponse.json({ accepted: true }, { status: 202 });
+  return NextResponse.json({ evaluationIds });
 }
