@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SyllonautMark from '@/components/SyllonautMark';
 
 export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
   const router = useRouter();
@@ -31,11 +32,11 @@ export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
   }
 
   return (
-    <main className="shell" style={{ maxWidth: 560 }}>
-      <header className="brand" style={{ marginBottom: 18 }}>
-        <div className="brand-identity"><Link href="/" className="brand-home"><span className="brand-mark">S</span><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
+    <main className="shell join-shell">
+      <header className="brand student-brand">
+        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
       </header>
-      <section className="panel">
+      <section className="panel join-card">
         <span className="eyebrow">Kód {joinCode}</span>
         <h1>Jak ti máme říkat?</h1>
         <form onSubmit={submit}>
