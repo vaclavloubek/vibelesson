@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import LessonWorkspace from '@/components/LessonWorkspace';
+import StartSessionButton from '@/components/StartSessionButton';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 
@@ -29,10 +30,13 @@ export default async function LessonPage({ params }: Props) {
   if (!parsed.success) notFound();
 
   return (
-    <LessonWorkspace
-      initialLesson={parsed.data}
-      initialLessonId={row.id as string}
-      initialPrompt={(row.source_prompt as string | null) ?? null}
-    />
+    <>
+      <StartSessionButton lessonId={row.id as string} />
+      <LessonWorkspace
+        initialLesson={parsed.data}
+        initialLessonId={row.id as string}
+        initialPrompt={(row.source_prompt as string | null) ?? null}
+      />
+    </>
   );
 }
