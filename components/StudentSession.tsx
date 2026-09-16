@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import LiveBlock from '@/components/LiveBlock';
-import type { PublicLessonBlock, SessionStatus } from '@/lib/live';
+import StudentResponseInput from '@/components/StudentResponseInput';
+import type { PublicLessonBlock, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
 
 type StudentState = {
@@ -15,6 +16,7 @@ type StudentState = {
   activeBlockIndex: number | null;
   totalBlocks: number;
   realtimeKey: string;
+  myResponse: StudentAnswer | null;
 };
 
 export default function StudentSession({ sessionId }: { sessionId: string }) {
@@ -74,7 +76,18 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
             <h1 style={{ marginBottom: 8 }}>{state.title}</h1>
             <p className="muted-copy">Blok {(state.activeBlockIndex ?? 0) + 1} z {state.totalBlocks}</p>
           </section>
-          {state.activeBlock ? <LiveBlock block={state.activeBlock} /> : <div className="error">Čekám na aktivní blok…</div>}
+          {state.activeBlock ? (
+            <>
+              <LiveBlock block={state.activeBlock} hideOptions={state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'} />
+              <StudentResponseInput
+                key={state.activeBlock.id}
+                sessionId={sessionId}
+                block={state.activeBlock}
+                response={state.myResponse}
+                onSaved={(answer) => setState((current) => current ? { ...current, myResponse: answer } : current)}
+              />
+            </>
+          ) : <div className="error">Čekám na aktivní blok…</div>}
         </div>
       ) : null}
 
