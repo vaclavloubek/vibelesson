@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import SessionReport from '@/components/SessionReport';
 import TeacherSession from '@/components/TeacherSession';
 import { createClient } from '@/lib/supabase/server';
 
@@ -21,5 +22,10 @@ export default async function TeacherSessionPage({ params }: Props) {
     .maybeSingle();
   if (!session) notFound();
 
-  return <TeacherSession sessionId={id} />;
+  return (
+    <>
+      <TeacherSession sessionId={id} />
+      <SessionReport sessionId={id} />
+    </>
+  );
 }
