@@ -78,7 +78,11 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
           </section>
           {state.activeBlock ? (
             <>
-              <LiveBlock block={state.activeBlock} hideOptions={state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'} />
+              <LiveBlock
+                block={state.activeBlock}
+                hideOptions={state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'}
+                hideItems={state.activeBlock.type === 'ranking'}
+              />
               <StudentResponseInput
                 key={state.activeBlock.id}
                 sessionId={sessionId}
