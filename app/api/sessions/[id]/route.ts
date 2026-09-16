@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
-import { SessionActionSchema } from '@/lib/live';
+import { SessionActionSchema, StudentAnswerSchema } from '@/lib/live';
 import { LessonSchema } from '@/lib/schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -37,6 +37,35 @@ export async function GET(_req: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Účastníky se nepodařilo načíst.' }, { status: 500 });
   }
 
+  const participantRows = participants ?? [];
+  const participantNames = new Map(participantRows.map((participant) => [participant.id as string, participant.display_name as string]));
+  const responses: Array<{ participantId: string; displayName: string; answer: unknown; updatedAt: string }> = [];
+
+  if (session.active_block_id) {
+    const { data: responseRows, error: responseError } = await supabase
+      .from('responses')
+      .select('participant_id, answer, updated_at')
+      .eq('session_id', id)
+      .eq('block_id', session.active_block_id)
+      .order('updated_at', { ascending: true });
+
+    if (responseError) {
+      console.error('responses load failed', responseError);
+      return NextResponse.json({ error: 'Odpovědi se nepodařilo načíst.' }, { status: 500 });
+    }
+
+    for (const response of responseRows ?? []) {
+      const parsedAnswer = StudentAnswerSchema.safeParse(response.answer);
+      if (!parsedAnswer.success) continue;
+      responses.push({
+        participantId: response.participant_id as string,
+        displayName: participantNames.get(response.participant_id as string) ?? 'Student',
+        answer: parsedAnswer.data,
+        updatedAt: response.updated_at as string,
+      });
+    }
+  }
+
   return NextResponse.json({
     session: {
       id: session.id,
@@ -49,11 +78,12 @@ export async function GET(_req: Request, { params }: RouteContext) {
       createdAt: session.created_at,
       startedAt: session.started_at,
       endedAt: session.ended_at,
-      participants: (participants ?? []).map((participant) => ({
+      participants: participantRows.map((participant) => ({
         id: participant.id,
         displayName: participant.display_name,
         joinedAt: participant.joined_at,
       })),
+      responses,
     },
   });
 }
