@@ -51,12 +51,12 @@ export async function POST(req: Request) {
     requestId = reservation.request_id;
     if (!requestId) throw new Error('Quota reservation is missing request id.');
 
-    const lesson = await createLesson(input);
+    const { lesson, costUsd } = await createLesson(input);
 
     const { error: finishError } = await supabase.rpc('finish_generation_request', {
       p_request_id: requestId,
       p_status: 'succeeded',
-      p_cost_usd: null,
+      p_cost_usd: costUsd,
       p_lesson_id: null,
     });
     if (finishError) console.error('finish generation request failed', finishError);
