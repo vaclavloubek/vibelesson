@@ -117,18 +117,19 @@ export default function StudentResponseInput({ sessionId, block, response, respo
     const selected = response && 'choice' in response ? response.choice : null;
     const options = block.options ?? [];
     return (
-      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+      <section className="panel" style={{ display: 'grid', gap: 12 }} aria-busy={busy}>
         <div>
           <span className="eyebrow">Tvoje odpověď</span>
           <p className="muted-copy" style={{ marginBottom: 0 }}>Vyber jednu možnost. Odpověď můžeš změnit, dokud učitel nepřejde dál.</p>
         </div>
         {options.length ? (
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gap: 10 }} role="group" aria-label="Možnosti odpovědi">
             {options.map((option) => (
               <button
                 type="button"
                 key={option}
                 className={selected === option ? 'primary' : 'secondary'}
+                aria-pressed={selected === option}
                 disabled={busy}
                 onClick={() => void save({ choice: option })}
                 style={{ textAlign: 'left', justifyContent: 'flex-start', whiteSpace: 'normal', height: 'auto', minHeight: 48 }}
@@ -137,9 +138,9 @@ export default function StudentResponseInput({ sessionId, block, response, respo
               </button>
             ))}
           </div>
-        ) : <div className="error">Tento blok nemá žádné možnosti odpovědi.</div>}
-        {saved ? <p className="student-save-success">✓ Odpověď je uložená.</p> : null}
-        {error ? <div className="error">{error}</div> : null}
+        ) : <div className="error" role="alert">Tento blok nemá žádné možnosti odpovědi.</div>}
+        {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená.</p> : null}
+        {error ? <div className="error" role="alert">{error}</div> : null}
       </section>
     );
   }
@@ -169,7 +170,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
     const sourceItems = block.items ?? [];
 
     return (
-      <section className="panel">
+      <section className="panel" aria-busy={busy}>
         <span className="eyebrow">Tvoje pořadí</span>
         <p className="muted-copy">Seřaď všechny položky od 1. místa dolů. Každá má vlastní jemný odstín, takže ji můžeš při přesouvání snadno sledovat.</p>
         {ranking.length >= 2 ? (
@@ -209,9 +210,9 @@ export default function StudentResponseInput({ sessionId, block, response, respo
               <button type="submit" className="primary" disabled={busy || !rankingChanged || !rankingText.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat pořadí'}</button>
             </div>
           </form>
-        ) : <div className="error" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
-        {saved ? <p className="student-save-success">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
-        {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
+        ) : <div className="error" role="alert" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
+        {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
+        {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
   }
@@ -226,19 +227,22 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
     const isExit = block.type === 'exit_ticket';
     return (
-      <section className="panel">
+      <section className="panel" aria-busy={busy}>
         <span className="eyebrow">{isExit ? 'Tvoje závěrečná odpověď' : 'Tvoje odpověď'}</span>
         <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Text můžeš průběžně ukládat jako koncept. AI hodnocení se zařadí až ve chvíli, kdy odpověď odevzdáš.</p>
         <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginTop: 10 }}>
-          <textarea
-            value={text}
-            onChange={(event) => { setText(event.target.value); setSaved(false); setSubmitted(false); }}
-            maxLength={2000}
-            rows={isExit ? 4 : 6}
-            placeholder={isExit ? 'Napiš krátkou závěrečnou odpověď…' : 'Napiš svou odpověď…'}
-            disabled={busy}
-            style={{ width: '100%', resize: 'vertical', minHeight: isExit ? 100 : 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
-          />
+          <label>
+            {isExit ? 'Závěrečná odpověď' : 'Odpověď'}
+            <textarea
+              value={text}
+              onChange={(event) => { setText(event.target.value); setSaved(false); setSubmitted(false); }}
+              maxLength={2000}
+              rows={isExit ? 4 : 6}
+              placeholder={isExit ? 'Napiš krátkou závěrečnou odpověď…' : 'Napiš svou odpověď…'}
+              disabled={busy}
+              style={{ width: '100%', resize: 'vertical', minHeight: isExit ? 100 : 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
+            />
+          </label>
           <div className="actions" style={{ marginTop: 0 }}>
             <button
               type="button"
@@ -254,11 +258,11 @@ export default function StudentResponseInput({ sessionId, block, response, respo
           </div>
         </form>
         {submitted ? (
-          <p className="student-save-success">✓ Odpověď je odevzdaná. Můžeš ji dál upravovat jako koncept, dokud učitel nepřejde dál.</p>
+          <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je odevzdaná. Můžeš ji dál upravovat jako koncept, dokud učitel nepřejde dál.</p>
         ) : saved ? (
-          <p className="student-save-success">✓ Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.</p>
+          <p className="student-save-success" role="status" aria-live="polite">✓ Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.</p>
         ) : null}
-        {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
+        {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
   }

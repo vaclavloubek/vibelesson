@@ -151,15 +151,15 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     : 0;
 
   return (
-    <main className="shell teacher-live-shell">
+    <main className="shell teacher-live-shell" aria-busy={busy}>
       <header className="brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
         <nav className="main-nav"><Link href="/lessons">Moje lekce</Link></nav>
         <p className="brand-tagline">Řídicí centrum</p>
       </header>
 
-      {error ? <div className="error" style={{ marginBottom: 14 }}>{error}</div> : null}
-      {!session ? <div className="panel"><p className="muted-copy">Načítám řídicí centrum…</p></div> : null}
+      {error ? <div className="error" role="alert" style={{ marginBottom: 14 }}>{error}</div> : null}
+      {!session ? <div className="panel" role="status"><p className="muted-copy">Načítám řídicí centrum…</p></div> : null}
 
       {session?.status === 'lobby' ? (
         <div style={{ display: 'grid', gap: 14 }}>
@@ -227,7 +227,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
           <section className="panel live-control-bar">
             <div className="live-control-layout">
               <div>
-                <span className="eyebrow"><span className="live-status-dot" />Mise probíhá</span>
+                <span className="eyebrow"><span className="live-status-dot" aria-hidden="true" />Mise probíhá</span>
                 <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
                 <p className="muted-copy">Blok {activeIndex + 1} z {session.lessonSnapshot.blocks.length} · {session.participants.length} studentů</p>
               </div>
@@ -237,7 +237,15 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                 <button className="secondary live-end" disabled={busy} onClick={() => void act('end')}>Ukončit hodinu</button>
               </div>
             </div>
-            <div className="live-session-progress" aria-label={`Průběh hodiny: blok ${activeIndex + 1} z ${session.lessonSnapshot.blocks.length}`}>
+            <div
+              className="live-session-progress"
+              role="progressbar"
+              aria-label="Průběh hodiny"
+              aria-valuemin={1}
+              aria-valuemax={session.lessonSnapshot.blocks.length}
+              aria-valuenow={activeIndex + 1}
+              aria-valuetext={`Blok ${activeIndex + 1} z ${session.lessonSnapshot.blocks.length}`}
+            >
               <div className="live-session-progress-fill" style={{ width: `${liveProgress}%` }} />
             </div>
           </section>
@@ -255,7 +263,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
           <div className={hasResponsePanel ? 'live-main-grid' : 'live-main-grid live-main-grid-single'}>
             <div className="live-current-column">
-              {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
+              {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error" role="alert">Aktuální blok se nepodařilo najít ve snapshotu.</div>}
 
               {activeBlock?.type === 'timer' && session.timer ? (
                 <>
@@ -287,7 +295,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <section className="panel live-results-action">
               <span className="eyebrow">Výsledky pro studenty</span>
               {session.resultsRevealed ? (
-                <p className="muted-copy" style={{ marginBottom: 0 }}>Výsledky jsou zveřejněné. Studentské odpovědi na tento blok jsou uzamčené.</p>
+                <p className="muted-copy" role="status" style={{ marginBottom: 0 }}>Výsledky jsou zveřejněné. Studentské odpovědi na tento blok jsou uzamčené.</p>
               ) : (
                 <div className="live-results-action-row">
                   <p className="muted-copy">Učitel vidí průběžné výsledky už teď. Studentům je zveřejni až ve chvíli, kdy už nemají měnit odpověď.</p>
