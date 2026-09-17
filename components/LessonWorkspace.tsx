@@ -13,6 +13,8 @@ import { LessonSchema, type Lesson } from '@/lib/schema';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
+const MAX_MATERIAL_FILES = 5;
+const MAX_MATERIAL_BYTES = 10 * 1024 * 1024;
 
 type LessonApiResponse = {
   lesson?: Lesson;
@@ -32,6 +34,7 @@ type RecoverySnapshot = {
 };
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
+type MaterialMode = 'grounded' | 'strict' | 'inspiration';
 
 type Props = {
   initialLesson?: Lesson | null;
@@ -46,6 +49,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [duration, setDuration] = useState(initialLesson?.totalMinutes ?? 90);
   const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '3–4 studenti');
   const [tone, setTone] = useState('živý, praktický a lehce vtipný');
+  const [materials, setMaterials] = useState<File[]>([]);
+  const [materialMode, setMaterialMode] = useState<MaterialMode>('grounded');
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
   const [undoLesson, setUndoLesson] = useState<Lesson | null>(null);
@@ -133,6 +138,31 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     }
   }
 
+  function addMaterials(fileList: FileList | null) {
+    if (!fileList) return;
+    const incoming = Array.from(fileList);
+    const supported = incoming.filter((file) => /\.(pdf|pptx|docx|txt|md|markdown)$/i.test(file.name));
+    if (supported.length !== incoming.length) {
+      setError('Podporované podklady jsou PDF, PPTX, DOCX, TXT a Markdown.');
+      return;
+    }
+    const oversized = supported.find((file) => file.size > MAX_MATERIAL_BYTES);
+    if (oversized) {
+      setError(`Soubor ${oversized.name} je větší než 10 MB.`);
+      return;
+    }
+    if (materials.length + supported.length > MAX_MATERIAL_FILES) {
+      setError(`Lze nahrát maximálně ${MAX_MATERIAL_FILES} podkladů.`);
+      return;
+    }
+    setMaterials((current) => [...current, ...supported]);
+    setError('');
+  }
+
+  function removeMaterial(index: number) {
+    setMaterials((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
   async function generate(e: FormEvent) {
     e.preventDefault();
     if (!requireAuth()) return;
@@ -145,10 +175,18 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setGenerationStage('requesting');
 
     try {
+      const formData = new FormData();
+      formData.set('prompt', prompt);
+      formData.set('audience', audience);
+      formData.set('duration', String(duration));
+      formData.set('groupSize', groupSize);
+      formData.set('tone', tone);
+      formData.set('materialMode', materialMode);
+      materials.forEach((file) => formData.append('materials', file, file.name));
+
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration, groupSize, tone }),
+        body: formData,
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -342,6 +380,12 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   <label>Délka v minutách<input type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
                   <label>Velikost týmu<input value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
                   <label>Tón<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
+                </div>
+                <div className="material-upload">
+                  <label>Podklady k lekci <span className="muted-copy">· volitelné</span><input type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,.markdown" disabled={busy} onChange={(e) => { addMaterials(e.target.files); e.currentTarget.value = ''; }} /></label>
+                  <p className="muted-copy">PDF, PPTX, DOCX, TXT nebo Markdown · max. 5 souborů · 10 MB na soubor. Podklady se použijí jen při tvorbě lekce a Syllonaut je trvale neukládá.</p>
+                  {materials.length > 0 ? <div className="quick-edits">{materials.map((file, index) => <button key={`${file.name}-${file.size}-${index}`} type="button" disabled={busy} onClick={() => removeMaterial(index)} title="Odebrat podklad">{file.name} ×</button>)}</div> : null}
+                  {materials.length > 0 ? <label>Jak s podklady pracovat<select value={materialMode} disabled={busy} onChange={(e) => setMaterialMode(e.target.value as MaterialMode)}><option value="grounded">Vycházet z podkladů</option><option value="strict">Držet se podkladů</option><option value="inspiration">Použít jako inspiraci</option></select></label> : null}
                 </div>
                 <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>Ukázková lekce</button></div>
                 {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
