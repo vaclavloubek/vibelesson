@@ -10,6 +10,7 @@ import StudentRevealedResults from '@/components/StudentRevealedResults';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
+import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
 
@@ -38,8 +39,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   const [state, setState] = useState<StudentState | null>(null);
   const [error, setError] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<StudentConnectionStatus>('connecting');
+  const [activeBlockAnnouncement, setActiveBlockAnnouncement] = useState('');
   const hasLoadedRef = useRef(false);
   const disconnectedRef = useRef(false);
+  const previousBlockIdRef = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -114,6 +117,19 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    const activeBlock = state?.status === 'live' ? state.activeBlock : null;
+    if (!activeBlock) {
+      previousBlockIdRef.current = null;
+      return;
+    }
+    if (previousBlockIdRef.current !== activeBlock.id) {
+      const blockNumber = (state.activeBlockIndex ?? 0) + 1;
+      setActiveBlockAnnouncement(`Aktuální úkol ${blockNumber} z ${state.totalBlocks}: ${activeBlock.title}.`);
+      previousBlockIdRef.current = activeBlock.id;
+    }
+  }, [state?.activeBlock, state?.activeBlockIndex, state?.status, state?.totalBlocks]);
+
   const currentBlockNumber = (state?.activeBlockIndex ?? 0) + 1;
   const progress = state?.status === 'live' && state.totalBlocks > 0
     ? Math.min(100, Math.max(0, (currentBlockNumber / state.totalBlocks) * 100))
@@ -128,9 +144,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
         <ConnectionStatusBadge status={connectionStatus} />
       </header>
+      <VisuallyHidden><span role="status" aria-live="polite" aria-atomic="true">{activeBlockAnnouncement}</span></VisuallyHidden>
 
-      {error ? <div className="error"><p style={{ marginTop: 0 }}>{error}</p><button className="secondary" type="button" onClick={() => void refresh()}>Zkusit znovu</button></div> : null}
-      {!state && !error ? <div className="panel"><p className="muted-copy">Navazuji spojení s hodinou…</p></div> : null}
+      {error ? <div className="error" role="alert"><p style={{ marginTop: 0 }}>{error}</p><button className="secondary" type="button" onClick={() => void refresh()}>Zkusit znovu</button></div> : null}
+      {!state && !error ? <div className="panel" role="status"><p className="muted-copy">Navazuji spojení s hodinou…</p></div> : null}
 
       {state?.status === 'lobby' ? (
         <div style={{ display: 'grid', gap: 12 }}>
@@ -157,7 +174,15 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               <strong>{currentBlockNumber} / {state.totalBlocks}</strong>
             </div>
             <h1 className="student-session-title">{state.title}</h1>
-            <div className="student-progress-track" aria-label={`Průběh hodiny: blok ${currentBlockNumber} z ${state.totalBlocks}`}>
+            <div
+              className="student-progress-track"
+              role="progressbar"
+              aria-valuemin={1}
+              aria-valuemax={state.totalBlocks}
+              aria-valuenow={currentBlockNumber}
+              aria-valuetext={`Blok ${currentBlockNumber} z ${state.totalBlocks}`}
+              aria-label="Průběh hodiny"
+            >
               <div className="student-progress-fill" style={{ width: `${progress}%` }} />
             </div>
           </section>
@@ -179,7 +204,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
           ) : null}
 
           {connectionStatus === 'reconnecting' ? (
-            <div className="panel" style={{ padding: 12 }}>
+            <div className="panel" role="status" style={{ padding: 12 }}>
               <p className="muted-copy" style={{ margin: 0 }}>Spojení se přerušilo. Poslední známý stav zůstává na obrazovce a Syllonaut se pokusí hodinu automaticky dosynchronizovat.</p>
             </div>
           ) : null}
@@ -215,10 +240,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                     onSaved={() => void refresh()}
                   />
                 ) : (
-                  <div className="error">Pro týmový úkol si nejdřív vyber tým.</div>
+                  <div className="error" role="alert">Pro týmový úkol si nejdřív vyber tým.</div>
                 )
               ) : choiceResultsLocked ? (
-                state.revealedResults ? <StudentRevealedResults results={state.revealedResults} /> : <div className="panel"><p className="muted-copy">Výsledky byly zveřejněné. Načítám je…</p></div>
+                state.revealedResults ? <StudentRevealedResults results={state.revealedResults} /> : <div className="panel" role="status"><p className="muted-copy">Výsledky byly zveřejněné. Načítám je…</p></div>
               ) : (
                 <StudentResponseInput
                   key={state.activeBlock.id}
@@ -234,7 +259,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                 />
               )}
             </>
-          ) : <div className="error">Čekám na aktivní blok…</div>}
+          ) : <div className="error" role="status">Čekám na aktivní blok…</div>}
         </div>
       ) : null}
 
