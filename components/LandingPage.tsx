@@ -52,7 +52,7 @@ export default function LandingPage() {
           <p className={styles.microcopy}>Začněte zadáním. Účet je potřeba až ve chvíli, kdy necháte AI lekci vytvořit.</p>
         </div>
 
-        <div className={styles.heroVisual} aria-label="Ukázka toku od zadání k živé hodině">
+        <div className={styles.heroVisual} aria-hidden="true">
           <div className={styles.visualGlow} />
           <div className={styles.productWindow}>
             <div className={styles.windowBar}>
@@ -134,7 +134,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className={styles.missionControl}>
+        <div className={styles.missionControl} aria-hidden="true" style={{ pointerEvents: 'none' }}>
           <div className={styles.mcTop}>
             <span><i /> LIVE</span>
             <strong>Mediální gramotnost bez filtru</strong>
@@ -142,7 +142,7 @@ export default function LandingPage() {
           </div>
           <div className={styles.mcProgress}><i /></div>
           <div className={styles.mcGrid}>
-            <div className={styles.mcActivity}><span>Blok 3 / 8</span><h3>Seřaďte signály důvěryhodnosti</h3><p>Ve dvojicích vytvořte pořadí a krátce vysvětlete první a poslední volbu.</p><button>Další →</button></div>
+            <div className={styles.mcActivity}><span>Blok 3 / 8</span><h3>Seřaďte signály důvěryhodnosti</h3><p>Ve dvojicích vytvořte pořadí a krátce vysvětlete první a poslední volbu.</p><button type="button" tabIndex={-1}>Další →</button></div>
             <div className={styles.mcResponses}><span>Průběžné odpovědi</span><strong>14 z 18</strong><div><i style={{ width: '78%' }} /></div><small>78 % studentů odeslalo odpověď</small></div>
           </div>
         </div>
