@@ -41,6 +41,15 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
         run: |
           set -euo pipefail
+
+          chrome_version="$(google-chrome --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+          npx --yes browser-driver-manager@2.0.1 install "chrome@${chrome_version}"
+          # browser-driver-manager writes the matching ChromeDriver path here.
+          source "$HOME/.browser-driver-manager/.env"
+          if [[ "$CHROMEDRIVER_TEST_PATH" != /* ]]; then
+            CHROMEDRIVER_TEST_PATH="$HOME/$CHROMEDRIVER_TEST_PATH"
+          fi
+
           npm run dev > /tmp/syllonaut-a11y-next.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
@@ -52,6 +61,7 @@ jobs:
                 http://127.0.0.1:3000/pricing \
                 http://127.0.0.1:3000/join \
                 http://127.0.0.1:3000/new \
+                --chromedriver-path="$CHROMEDRIVER_TEST_PATH" \
                 --tags wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa \
                 --exit
               exit 0
