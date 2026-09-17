@@ -32,6 +32,7 @@ export default function LandingPage() {
         </Link>
         <nav className={styles.nav} aria-label="Hlavní navigace">
           <a href="#jak-to-funguje">Jak to funguje</a>
+          <Link href="/pricing">Ceník</Link>
           {user ? <Link href="/lessons">Moje lekce</Link> : null}
         </nav>
         <div className={styles.headerActions}>
