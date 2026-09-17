@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import pdfParse from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -96,6 +96,16 @@ async function extractPptx(buffer: ArrayBuffer) {
     : slides.join('\n\n');
 }
 
+async function extractPdf(buffer: ArrayBuffer) {
+  const parser = new PDFParse({ data: Buffer.from(buffer) });
+  try {
+    const result = await parser.getText();
+    return result.text;
+  } finally {
+    await parser.destroy();
+  }
+}
+
 async function extractFile(file: File): Promise<ExtractedMaterial> {
   const extension = getExtension(file.name);
   if (!SUPPORTED_EXTENSIONS.has(extension)) {
@@ -115,8 +125,7 @@ async function extractFile(file: File): Promise<ExtractedMaterial> {
   } else if (extension === 'pptx') {
     text = await extractPptx(buffer);
   } else if (extension === 'pdf') {
-    const parsed = await pdfParse(Buffer.from(buffer));
-    text = parsed.text;
+    text = await extractPdf(buffer);
   }
 
   text = text.replace(/\u0000/g, '').replace(/\r\n?/g, '\n').trim();
