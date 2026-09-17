@@ -1,0 +1,159 @@
+name: Temporary PROJECT security refresh
+
+on:
+  push:
+    branches:
+      - docs-refresh-security-audit
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs-refresh-security-audit
+      - name: Refresh PROJECT.md security state
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('PROJECT.md')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  'Aktualizováno: 2026-09-17 po bezpečnostním auditu, remediaci SEC-001/003/004 a zavedení tarifního entitlementu pro AI grading.',
+                  'Aktualizováno: 2026-09-17 po dokončení bezpečnostního auditu SEC-001 až SEC-015. Třináct nálezů je remediovaných/uzavřených; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.'
+              ),
+              (
+                  'Aktuální `main` HEAD při této aktualizaci:\n\n`2fffbf2a804d864cfda1a09cb20c758f5d4377e7` — **Gate AI grading by plan entitlement**.',
+                  'Bezpečnostní baseline commit před touto dokumentační aktualizací:\n\n`584a72b200fb4bea148cac7c4719c713d5fb23fc` — **Fix SEC-015 AI zero data retention enforcement**.\n\nAktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; tento dokument nesmí sloužit jako náhrada kontroly aktuálního `main`.'
+              ),
+              (
+                  'Generování bez podkladů je přes Gateway omezené na OpenAI. Generování s podklady používá routing pouze přes `bedrock` / `azure`, řazený podle ceny, `zeroDataRetention: true`.',
+                  'Všechny současné AI inference cesty explicitně vynucují AI Gateway `zeroDataRetention: true`. Generování bez podkladů, revize a AI grading jsou omezené na OpenAI; generování s podklady používá pouze `bedrock` / `azure`, řazené podle ceny. ZDR je fail-closed routing requirement.'
+              ),
+              (
+                  'Security audit eviduje samostatně **SEC-012**: klientská extrakce DOCX/PPTX přes JSZip může před textovým limitem expandovat komprimovaný obsah; jde o low hardening proti decompression bomb.',
+                  '**SEC-012 je uzavřený:** DOCX/PPTX ZIP preflight omezuje počet položek a relevantních XML částí; XML se dekomprimuje streamovaně s limitem 5 MB na část a 20 MB na dokument, odmítá ZIP64/multi-disk a další nestandardní struktury.'
+              ),
+              (
+                  'Důležité: HTML soubory v repo se samy nenasazují do hosted Supabase. **SEC-006** zůstává otevřený jako hosted-config validation: SMTP, aktivní templates, Site URL, Redirect allowlist, rate limits, CAPTCHA/Auth nastavení a session policy je nutné ověřit proti skutečnému hosted projektu.\n\n**SEC-007:** Supabase security advisor stále hlásí Leaked Password Protection Disabled.',
+                  'Hosted Supabase Auth konfigurace byla v rámci **SEC-006** ověřena proti skutečnému projektu a hardening byl dokončen: canonical Site URL `https://www.syllonaut.com`, redirect allowlist přesně `https://www.syllonaut.com`, password minimum 8 znaků, Turnstile aktivní, Resend SMTP/doména ověřené a scanner-safe signup/recovery templates funkční. **SEC-006 — REMEDIATED / CLOSED.**\n\n**SEC-007 — ACCEPTED RISK / DEFERRED:** Supabase Security Advisor dál hlásí Leaked Password Protection Disabled. Na Free plánu zůstává tato ochrana nedostupná; riziko bylo vědomě přijato do doby přechodu na placený plán nebo další produkční hardening fáze.'
+              ),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'Missing expected text:\n{old[:120]}')
+              text = text.replace(old, new, 1)
+
+          text = re.sub(
+              r'### Vercel Preview a SEC-002\n.*?\n## 3\. Hlavní routy',
+              '''### Vercel Preview a SEC-002\n\nPoslední ověřený stav při auditu:\n\n- Preview používá stejný produkční Supabase trust boundary jako Production;\n- Preview mělo přístup i k placené AI identitě/credentialu;\n- Preview buildy jsou funkční.\n\nTo znamená vyšší blast radius při testování a riziko nechtěných zápisů/placených AI callů do produkce. Cílová architektura zůstává: samostatný staging Supabase, oddělená Preview AI identita/credential a Deployment Protection.\n\n**SEC-002 — ACCEPTED RISK / DEFERRED.** Uživatel výslovně rozhodl ponechat současné sdílené prostředí jako vědomou výjimku. Nález je auditně dispositioned, ale **není technicky remediovaný**. Dokud zůstává výjimka v platnosti, Preview testy nesmí dělat destruktivní zásahy do produkčních dat, load/stress testy ani zbytečné placené AI cally. Před širší produkční škálou nebo při zapojení dalších vývojářů znovu zvážit oddělený staging.\n\n## 3. Hlavní routy''',
+              text,
+              count=1,
+              flags=re.S,
+          )
+
+          text = text.replace(
+              '- token je scopeovaný na session/participant;\n- po refreshi se identita zachovává;',
+              '- token je scopeovaný na session/participant;\n- server-side capability expiruje pevně 24 hodin od joinu (`participant_token_expires_at`), stejně jako browser cookie;\n- po refreshi se identita zachovává po dobu platnosti tokenu;'
+          )
+
+          migration_anchor = '- `20260917145648_gate_ai_grading_by_entitlement`'
+          if migration_anchor not in text:
+              raise SystemExit('Migration anchor missing')
+          text = text.replace(
+              migration_anchor,
+              migration_anchor + '\n- `20260917152048_fix_sec_005_student_write_toctou`\n- `20260917162423_add_sec_009_session_retention_lifecycle`\n- `20260917163934_strengthen_sec_011_relational_scope_constraints`\n- `20260917165505_expire_sec_013_participant_tokens`',
+              1,
+          )
+
+          security_section = '''## 15. Security audit — aktuální stav\n\nDůkladný audit celé aplikace proběhl 2026-09-17. Všechny nálezy SEC-001 až SEC-015 mají nyní jasný disposition: **13 remediovaných/uzavřených + 2 vědomě přijaté výjimky (SEC-002, SEC-007)**.\n\n### Remediované / uzavřené\n\n**SEC-001 — opakovaná AI spotřeba při automatickém re-gradingu individuálních odpovědí — REMEDIATED / CLOSED**\n\nExplicitní draft/submit, idempotence, teacher-controlled regrade a DB ochrana placeného callu.\n\n**SEC-003 — CSV formula injection — REMEDIATED / CLOSED**\n\nCSV export neutralizuje potenciální spreadsheet formule bez poškození skutečných čísel. Commit `c10f0c4`.\n\n**SEC-004 — neomezené joiny / cost amplification — REMEDIATED / CLOSED**\n\nDB boundary cap 200 participants + 150 joinů/min/session.\n\n**SEC-005 — TOCTOU mezi kontrolou live stavu a privilegovaným student/team zápisem — REMEDIATED / CLOSED**\n\nMigrace `20260917152048_fix_sec_005_student_write_toctou`: DB triggery re-checkují live/current block, team membership a edit lock přímo na write boundary.\n\n**SEC-006 — hosted Supabase Auth hardening/config — REMEDIATED / CLOSED**\n\nHosted konfigurace byla skutečně ověřena a upravena: password minimum 8, canonical Site URL/redirect allowlist, Turnstile, Resend SMTP/doména a scanner-safe aktivní templates.\n\n**SEC-008 — dependency lockfile / nedeterministické deployment verze — REMEDIATED / CLOSED**\n\nRepo má `package-lock.json`, Node `24.x`, npm `11.19.0` a Vercel používá `npm ci`. Produkční dependencies prošly audit bez HIGH/CRITICAL nálezů při remediaci.\n\n**SEC-009 — retention/deletion lifecycle studentských/session dat — REMEDIATED / CLOSED**\n\nUkončené sessions se mažou po 12 měsících, opuštěné lobby/live sessions po 30 dnech, expirované team edit locky po 24 hodinách. Teacher může vlastní ukončenou session ručně smazat. Daily Supabase Cron běží v 03:17 UTC. Migrace `20260917162423_add_sec_009_session_retention_lifecycle`.\n\n**SEC-010 — ochrana `main` branche — REMEDIATED / CLOSED**\n\nAktivní GitHub ruleset `Protect main`: PR povinný, required check `Vercel`, strict up-to-date branch, linear history, block force-push/deletion, bez bypassu. Standardní workflow je `branch → Preview/CI → PR → merge`.\n\n**SEC-011 — relační consistency defense-in-depth — REMEDIATED / CLOSED**\n\nComposite FK vynucují konzistentní `session/team/participant` scope pro participants, team responses a team edit locks. Migrace `20260917163934_strengthen_sec_011_relational_scope_constraints`.\n\n**SEC-012 — DOCX/PPTX decompression bomb — REMEDIATED / CLOSED**\n\nZIP preflight max. 2000 entries, max. 500 relevantních XML částí, 5 MB rozbalených dat na XML část a 20 MB na dokument; streamovaný decompression guard + odmítnutí ZIP64/multi-disk.\n\n**SEC-013 — participant token bez server-side expiry — REMEDIATED / CLOSED**\n\n`participant_token_expires_at` v DB, pevná max. životnost 24 h; expiry kontrolují student-session, team-edit i public scoreboard. Migrace `20260917165505_expire_sec_013_participant_tokens`.\n\n**SEC-014 — explicitní browser security headers — REMEDIATED / CLOSED**\n\nGlobální CSP, HSTS, `nosniff`, `DENY` framing, Referrer Policy, Permissions Policy a vypnuté `X-Powered-By`; Preview CSP zachovává Vercel Toolbar, produkční CI ověřuje živé headers.\n\n**SEC-015 — provider-level Zero Data Retention — REMEDIATED / CLOSED**\n\nVšechna současná `generateText(...)` volání explicitně vyžadují AI Gateway `zeroDataRetention: true`. OpenAI generation/revision/grading zůstává provider-restricted; source-material generation používá Azure/Bedrock. `npm run check` obsahuje AST regresní test, který selže, pokud některá routing větev ZDR opomene. Commit `584a72b`.\n\n### Vědomě přijaté výjimky\n\n**SEC-002 — Preview sdílí production AI/Supabase trust boundary — ACCEPTED RISK / DEFERRED**\n\nTechnicky neopraveno. Uživatel výslovně přijal riziko sdíleného Preview/Production trust boundary. Znovu otevřít při potřebě staging prostředí, širší produkční škále nebo zapojení dalších vývojářů.\n\n**SEC-007 — Leaked Password Protection Disabled — ACCEPTED RISK / DEFERRED**\n\nSupabase Security Advisor warning zůstává kvůli Free plánu. Znovu otevřít při přechodu na placený Supabase plán nebo před další vyšší bezpečnostní úrovní.\n\nPůvodní pre-beta must-fix sada SEC-001/002/003/004/005/006/008/015 má tedy disposition: sedm bodů remediovaných, SEC-002 vědomě přijatá výjimka. Bezpečnostní audit už nemá žádný další nevyřešený kódový finding z řady SEC-001 až SEC-015.\n'''
+
+          text, count = re.subn(
+              r'## 15\. Security audit — aktuální stav\n.*?\n## 16\. Aktuální Supabase advisories',
+              security_section + '\n## 16. Aktuální Supabase advisories',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Failed to replace security section')
+
+          advisories = '''## 16. Aktuální Supabase advisories\n\nSecurity a Performance Advisor byly během remediací opakovaně spuštěny po DDL změnách. Nové SEC-005/009/011/013 migrace nepřidaly nový security finding.\n\nZnámý aktuální warning, který je vědomě přijatý:\n\n- **Leaked Password Protection Disabled** — SEC-007 / ACCEPTED RISK / DEFERRED na Supabase Free.\n\nAdvisor může nadále hlásit `SECURITY DEFINER` funkce executable pro `anon`/`authenticated`. Ty nejsou automaticky zranitelnosti: některé RPC jsou úmyslně exposed a interně kontrolují `auth.uid()`, ownership, entitlement nebo participant capability. Každý takový warning posuzovat podle konkrétní funkce, ACL, `search_path`, vstupů a ownership checks; neprovádět mechanické revoke bez dopadové analýzy.\n\nPerformance advisor po SEC-011 snížil počet neindexovaných FK; zbývající starší advisories nejsou součástí uzavřených SEC findingů a před případnou úpravou je nutné znovu ověřit proti aktuálnímu query/access modelu.\n'''
+          text, count = re.subn(
+              r'## 16\. Aktuální Supabase advisories\n.*?\n## 17\. Bezpečnostní hranice',
+              advisories + '\n## 17. Bezpečnostní hranice',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Failed to replace advisories section')
+
+          roadmap_replacements = [
+              (
+                  'AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser extraction, ZDR routing pro source-material flow, prompt-injection ochrana podkladů, explicitní setup params a structured `dataTable`.',
+                  'AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser extraction, fail-closed ZDR routing pro všechny současné AI inference cesty, prompt-injection ochrana podkladů, explicitní setup params a structured `dataTable`.'
+              ),
+              (
+                  '### Milník A.2 — veřejný auth\n**Aplikační flow implementovaný; hosted konfiguraci dál auditovat.**',
+                  '### Milník A.2 — veřejný auth\n**Aplikační flow i hosted konfigurace auditované a produkčně ověřené.**'
+              ),
+              (
+                  'Zbývá zejména SEC-006/007 a kompletní externí E2E po security hardeningu.',
+                  'SEC-006 je uzavřený. SEC-007 zůstává vědomě přijatá výjimka na Free plánu; externí E2E lze dále rozšiřovat podle beta priorit.'
+              ),
+              (
+                  'Zbývá: hybridní scoring v post-session reportu/CSV, security findings od SEC-005 dál a případné další statistiky.',
+                  'Zbývá: hybridní scoring v post-session reportu/CSV a případné další statistiky. Security audit SEC-001 až SEC-015 je dispositioned; otevřené zůstávají pouze přijaté výjimky SEC-002/007.'
+              ),
+          ]
+          for old, new in roadmap_replacements:
+              if old not in text:
+                  raise SystemExit(f'Roadmap expected text missing: {old[:80]}')
+              text = text.replace(old, new, 1)
+
+          operations = '''## 19. Poslední významné operace 2026-09-17\n\nBezpečnostní a související změny dokončené po starší verzi tohoto dokumentu:\n\n- `753c848` — SEC-001: explicit individual submissions\n- `8360205` — SEC-001: teacher-controlled regrading\n- `c10f0c4` — SEC-003: CSV formula injection fix\n- `ab69390` — SEC-004: participant caps + burst limit na DB boundary\n- `14ed01e` — srovnání SEC-004 migration history s produkcí\n- `2fffbf2` — tarifní `ai_grading_enabled`, manual grading pro default/free, AI grading pouze pro entitled účty\n- `21975d8` — SEC-005 DB write-boundary TOCTOU hardening\n- SEC-006 — hosted Auth config ověřen a ručně hardenován (password min 8, canonical redirect allowlist)\n- SEC-007 — vědomě přijaté riziko kvůli Supabase Free\n- `534ecb6` — SEC-008 deterministic dependency installs (`package-lock`, Node 24.x, npm 11.19, `npm ci`)\n- `f60fb28` — SEC-009 session retention lifecycle + manual delete\n- SEC-010 — aktivní GitHub ruleset `Protect main`\n- `aac840f` — SEC-011 composite relational constraints\n- `5182b71` — SEC-012 Office ZIP/decompression hardening\n- `7637dc4` — SEC-013 server-side participant token expiry\n- `1becf44` — SEC-014 browser security headers + live regression check\n- `584a72b` — SEC-015 fail-closed AI Gateway Zero Data Retention + AST regression check\n\nVšechny uvedené kódové remediace prošly Vercel Preview/CI a následným produkčním deploymentem podle chráněného PR workflow.\n'''
+          text, count = re.subn(
+              r'## 19\. Poslední významné operace 2026-09-17\n.*?\n## 20\. Pravidla další práce',
+              operations + '\n## 20. Pravidla další práce',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('Failed to replace operations section')
+
+          rule_anchor = '- žádný force update `main`;'
+          if rule_anchor not in text:
+              raise SystemExit('Rules anchor missing')
+          text = text.replace(
+              rule_anchor,
+              rule_anchor + '\n- `main` je chráněný rulesetem `Protect main`; změny standardně přes pracovní branch → Vercel/CI → PR → merge, branch musí být před mergem aktuální vůči `main`;',
+              1,
+          )
+
+          next_step = '''## 21. Bezprostřední další krok\n\n**Security audit SEC-001 až SEC-015 je dokončen a dispositioned.**\n\n- SEC-001/003/004/005/006/008/009/010/011/012/013/014/015 — REMEDIATED / CLOSED.\n- SEC-002 — ACCEPTED RISK / DEFERRED: Preview sdílí production trust boundary.\n- SEC-007 — ACCEPTED RISK / DEFERRED: Leaked Password Protection na Supabase Free.\n\nDalší práce se má vrátit k produktové roadmapě a beta zpětné vazbě. Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán). Nové bezpečnostní změny dál provádět jednotlivě podle `TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ`.\n'''
+          text, count = re.subn(r'## 21\. Bezprostřední další krok\n.*\Z', next_step, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('Failed to replace next-step section')
+
+          path.write_text(text)
+          PY
+
+          git diff --check
+          git diff -- PROJECT.md
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PROJECT.md
+          git commit -m 'Refresh PROJECT security audit status'
+          git push origin HEAD:docs-refresh-security-audit
