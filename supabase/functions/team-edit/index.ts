@@ -10,7 +10,7 @@ const publishableKey = publishableKeys.default ?? Deno.env.get("SUPABASE_ANON_KE
 if (!supabaseUrl || !secretKey || !publishableKey) throw new Error("Supabase Edge Function environment is incomplete.");
 
 const admin = createClient(supabaseUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } });
-const LOCK_TTL_SECONDS = 12;
+const LOCK_TTL_SECONDS = 60;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -30,13 +30,20 @@ async function sha256(value: string) {
 
 async function broadcastInvalidate(realtimeKey: string) {
   try {
-    await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: publishableKey },
-      body: JSON.stringify({
-        messages: [{ topic: `session:${realtimeKey}`, event: "invalidate", payload: {}, private: false }],
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    try {
+      await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: publishableKey },
+        body: JSON.stringify({
+          messages: [{ topic: `session:${realtimeKey}`, event: "invalidate", payload: {}, private: false }],
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch (error) {
     console.error("Realtime invalidate broadcast failed", error);
   }
