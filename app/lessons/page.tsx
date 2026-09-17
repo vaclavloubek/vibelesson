@@ -103,6 +103,8 @@ export default async function LessonsPage() {
     }];
   });
 
+  const canManageFolders = entitlement.enabled && !foldersError;
+
   return (
     <main className="shell lessons-shell">
       <header className="brand lessons-brand">
@@ -123,7 +125,18 @@ export default async function LessonsPage() {
       {error ? <div className="error">Lekce se nepodařilo načíst. Zkus stránku obnovit.</div> : null}
       {foldersError ? <div className="error">Složky se nepodařilo načíst. Lekce zůstávají bezpečně uložené.</div> : null}
 
-      {!error ? <LessonLibrary lessons={lessons} folders={folders} canManageFolders={entitlement.enabled && !foldersError} /> : null}
+      {!error && lessons.length === 0 && !canManageFolders ? (
+        <section className="lessons-empty panel">
+          <span className="eyebrow">Začátek trasy</span>
+          <h2>Zatím tu nic není</h2>
+          <p>Vytvoř první lekci. Jakmile ji Syllonaut dokončí, uloží se sem automaticky.</p>
+          <Link href="/new" className="primary button-link">Vytvořit první lekci</Link>
+        </section>
+      ) : null}
+
+      {!error && (lessons.length > 0 || canManageFolders) ? (
+        <LessonLibrary lessons={lessons} folders={folders} canManageFolders={canManageFolders} />
+      ) : null}
 
       <section className="lessons-heading" style={{ marginTop: 44 }}>
         <div>
