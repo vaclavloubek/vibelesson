@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ActivityModeBadge from '@/components/ActivityModeBadge';
 import LessonDataTable from '@/components/LessonDataTable';
+import { getLessonAccessibilityAuthoringIssues } from '@/lib/accessibility-authoring';
 import type { Lesson, LessonBlock } from '@/lib/schema';
 
 function label(type: LessonBlock['type']) {
@@ -85,6 +86,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
   const [studentPreviewIndex, setStudentPreviewIndex] = useState(0);
   const sum = lesson.blocks.reduce((total, block) => total + block.durationMinutes, 0);
   const starts = useMemo(() => lesson.blocks.map((_, index) => lesson.blocks.slice(0, index).reduce((total, block) => total + block.durationMinutes, 0)), [lesson.blocks]);
+  const accessibilityIssues = useMemo(() => getLessonAccessibilityAuthoringIssues(lesson), [lesson]);
 
   useEffect(() => {
     setStudentPreviewIndex((current) => Math.min(current, Math.max(0, lesson.blocks.length - 1)));
@@ -141,6 +143,17 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
         {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
         <div className="meta"><span>{lesson.audience}</span><span>{lesson.groupSize}</span><span>{sum} min</span><span>{lesson.blocks.length} aktivit</span></div>
       </div>
+
+      <details className="reveal" style={{ marginTop: 14 }} open={accessibilityIssues.length > 0}>
+        <summary>
+          Kontrola přístupnosti obsahu: {accessibilityIssues.length ? `${accessibilityIssues.length} upozornění` : 'bez zjištěných problémů'}
+        </summary>
+        {accessibilityIssues.length ? (
+          <ul style={{ marginBottom: 0 }}>
+            {accessibilityIssues.map((issue) => <li key={`${issue.blockId}-${issue.code}`}><strong>{issue.blockTitle}:</strong> {issue.message}</li>)}
+          </ul>
+        ) : <p className="muted-copy" style={{ marginBottom: 0 }}>Automatická kontrola nenašla chybějící popisek tabulky, drag-only pokyn ani zjevnou závislost na barvě či poloze. Jde o pomocnou kontrolu, ne náhradu lidského posouzení.</p>}
+      </details>
 
       <div className="lesson-route" aria-label="Průběh lekce">
         {lesson.blocks.map((block, index) => (
