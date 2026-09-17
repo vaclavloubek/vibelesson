@@ -35,7 +35,9 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     const locate = () => {
       const selector = data?.status === 'ended'
         ? 'main.teacher-live-shell .actions'
-        : '.live-control-actions';
+        : data?.status === 'lobby'
+          ? 'main.teacher-live-shell .panel .actions'
+          : '.live-control-actions';
       const nextTarget = document.querySelector(selector);
       setTarget((current) => current === nextTarget ? current : nextTarget);
     };
@@ -53,7 +55,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
   }, [load]);
 
   const changeVisibility = async () => {
-    if (!data || busy) return;
+    if (!data || busy || data.status === 'lobby') return;
 
     const revealing = !data.scoreboardRevealed;
     if (revealing) {
@@ -92,7 +94,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     }
   };
 
-  if (!target || !data || (data.status !== 'live' && data.status !== 'ended')) return null;
+  if (!target || !data) return null;
 
   const canReveal = data.hasScoring && data.availableMaxPoints > 0;
   const disabled = busy || (!data.scoreboardRevealed && !canReveal);
@@ -106,25 +108,25 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
 
   return createPortal(
     <>
-      {data.hasScoring ? (
-        <a
-          className="secondary button-link"
-          href={`/sessions/${sessionId}/presenter`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Prezentační režim
-        </a>
-      ) : null}
-      <button
-        className={data.status === 'ended' && !data.scoreboardRevealed ? 'primary' : 'secondary'}
-        type="button"
-        disabled={disabled}
-        onClick={() => void changeVisibility()}
-        title={!canReveal && !data.scoreboardRevealed ? 'Zatím není k dispozici žádný bodovaný blok.' : undefined}
+      <a
+        className="secondary button-link"
+        href={`/sessions/${sessionId}/presenter`}
+        target="_blank"
+        rel="noreferrer"
       >
-        {label}
-      </button>
+        Prezentační režim
+      </a>
+      {data.status !== 'lobby' ? (
+        <button
+          className={data.status === 'ended' && !data.scoreboardRevealed ? 'primary' : 'secondary'}
+          type="button"
+          disabled={disabled}
+          onClick={() => void changeVisibility()}
+          title={!canReveal && !data.scoreboardRevealed ? 'Zatím není k dispozici žádný bodovaný blok.' : undefined}
+        >
+          {label}
+        </button>
+      ) : null}
       {data.status === 'ended' && (feedback || actionError || data.scoreboardRevealed) ? (
         <span
           role={actionError ? 'alert' : 'status'}
