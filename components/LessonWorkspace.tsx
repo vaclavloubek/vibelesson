@@ -9,12 +9,12 @@ import GenerationProgress, { type GenerationStage } from '@/components/Generatio
 import LessonPreview from '@/components/LessonPreview';
 import SyllonautMark from '@/components/SyllonautMark';
 import { demoLesson } from '@/lib/demo';
+import { extractMaterialsInBrowser } from '@/lib/materials-client';
+import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
 import { LessonSchema, type Lesson } from '@/lib/schema';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
-const MATERIAL_MAX_FILES = 5;
-const MATERIAL_MAX_TOTAL_BYTES = 3_500_000;
 
 type LessonApiResponse = {
   lesson?: Lesson;
@@ -139,8 +139,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     e.preventDefault();
     if (!requireAuth()) return;
 
-    const body = new FormData(e.currentTarget);
-    const files = body.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
+    const formData = new FormData(e.currentTarget);
+    const files = formData.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
+    const materialMode = String(formData.get('materialMode') ?? 'primary');
+
     if (!prompt.trim() && files.length === 0) {
       setError('Popiš hodinu nebo nahraj alespoň jeden podklad.');
       return;
@@ -150,7 +152,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       return;
     }
     if (files.reduce((sum, file) => sum + file.size, 0) > MATERIAL_MAX_TOTAL_BYTES) {
-      setError('Podklady jsou příliš velké. Kvůli limitu Vercelu mohou mít dohromady nejvýše 3,5 MB.');
+      setError('Podklady mohou mít dohromady nejvýše 10 MB.');
       return;
     }
 
@@ -162,9 +164,11 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setGenerationStage('requesting');
 
     try {
+      const materials = await extractMaterialsInBrowser(files);
       const res = await fetch('/api/generate', {
         method: 'POST',
-        body,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, audience, duration, groupSize, tone, materialMode, materials }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -364,7 +368,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   <label style={{ marginTop: 9 }}>Prezentace, pracovní listy nebo textové materiály
                     <input name="materials" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain,text/markdown" />
                   </label>
-                  <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 3,5 MB.</p>
+                  <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 10 MB.</p>
                   <label style={{ marginTop: 12 }}>Jak s podklady pracovat
                     <select name="materialMode" defaultValue="primary" style={{ width: '100%', border: '1px solid var(--line-strong)', borderRadius: 12, background: 'white', padding: '11px 12px', color: 'var(--ink)', font: 'inherit' }}>
                       <option value="primary">Vycházet z podkladů</option>
@@ -372,7 +376,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                       <option value="inspiration">Použít jako inspiraci</option>
                     </select>
                   </label>
-                  <p className="muted-copy" style={{ marginTop: 8 }}>Nahrané soubory ani jejich extrahovaný obsah Syllonaut trvale neukládá. Uloží se pouze výsledná lekce a vaše textové zadání.</p>
+                  <p className="muted-copy" style={{ marginTop: 8 }}>Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.</p>
                 </div>
                 <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>Ukázková lekce</button></div>
                 {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}

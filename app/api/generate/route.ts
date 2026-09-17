@@ -2,9 +2,20 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { extractMaterials, MaterialError, materialsToPrompt, type MaterialMode } from '@/lib/materials';
+import {
+  MATERIAL_MAX_FILES,
+  MATERIAL_MAX_TEXT_PER_FILE,
+  MATERIAL_MAX_TEXT_TOTAL,
+  materialsToPrompt,
+  type MaterialMode,
+} from '@/lib/materials';
 
 export const maxDuration = 300;
+
+const MaterialSchema = z.object({
+  name: z.string().min(1).max(255),
+  text: z.string().min(1).max(MATERIAL_MAX_TEXT_PER_FILE + 100),
+});
 
 const InputSchema = z.object({
   prompt: z.string().max(5000).refine((value) => value.trim().length === 0 || value.trim().length >= 5),
@@ -13,6 +24,7 @@ const InputSchema = z.object({
   groupSize: z.string().min(1).max(100),
   tone: z.string().min(1).max(200),
   materialMode: z.enum(['primary', 'strict', 'inspiration']).default('primary'),
+  materials: z.array(MaterialSchema).max(MATERIAL_MAX_FILES).default([]),
 });
 
 type ReservationRow = {
@@ -27,10 +39,6 @@ type ProgressEvent =
   | { type: 'result'; lesson: unknown; lessonId: string }
   | { type: 'error'; error: string };
 
-function getFiles(formData: FormData) {
-  return formData.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
-}
-
 export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) {
@@ -40,23 +48,18 @@ export async function POST(req: Request) {
   let requestId: string | null = null;
 
   try {
-    const formData = await req.formData();
-    const files = getFiles(formData);
-    const input = InputSchema.parse({
-      prompt: String(formData.get('prompt') ?? ''),
-      audience: String(formData.get('audience') ?? ''),
-      duration: Number(formData.get('duration')),
-      groupSize: String(formData.get('groupSize') ?? ''),
-      tone: String(formData.get('tone') ?? ''),
-      materialMode: String(formData.get('materialMode') ?? 'primary'),
-    });
+    const input = InputSchema.parse(await req.json());
 
-    if (!input.prompt.trim() && files.length === 0) {
+    if (!input.prompt.trim() && input.materials.length === 0) {
       return NextResponse.json({ error: 'Popiš hodinu nebo nahraj alespoň jeden podklad.' }, { status: 400 });
     }
 
-    const extractedMaterials = await extractMaterials(files);
-    const materialText = materialsToPrompt(extractedMaterials);
+    const totalMaterialText = input.materials.reduce((sum, material) => sum + material.text.length, 0);
+    if (totalMaterialText > MATERIAL_MAX_TEXT_TOTAL + (input.materials.length * 100)) {
+      return NextResponse.json({ error: 'Extrahovaný obsah podkladů je příliš dlouhý.' }, { status: 400 });
+    }
+
+    const materialText = materialsToPrompt(input.materials);
 
     const { data, error: reserveError } = await supabase.rpc('reserve_lesson_generation');
     if (reserveError) throw reserveError;
@@ -106,7 +109,11 @@ export async function POST(req: Request) {
           let costUsd: number | null = null;
           try {
             const generated = await createLesson({
-              ...input,
+              prompt: input.prompt,
+              audience: input.audience,
+              duration: input.duration,
+              groupSize: input.groupSize,
+              tone: input.tone,
               materialText,
               materialMode: input.materialMode as MaterialMode,
             }, (stage) => send({ type: 'progress', stage }));
@@ -174,9 +181,6 @@ export async function POST(req: Request) {
       if (finishError) console.error('mark generation request failed', finishError);
     }
 
-    if (error instanceof MaterialError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Zkontroluj zadání lekce a zkus to znovu.' }, { status: 400 });
     }
