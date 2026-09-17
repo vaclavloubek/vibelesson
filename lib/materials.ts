@@ -1,3 +1,4 @@
+import 'pdf-parse/worker';
 import JSZip from 'jszip';
 import { PDFParse } from 'pdf-parse';
 
