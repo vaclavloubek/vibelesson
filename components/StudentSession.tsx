@@ -24,6 +24,7 @@ type StudentState = {
   totalBlocks: number;
   realtimeKey: string;
   myResponse: StudentAnswer | null;
+  myResponseSubmitted: boolean;
   resultsRevealed: boolean;
   revealedResults: RevealedChoiceResults | null;
   timer: LiveTimerState | null;
@@ -224,7 +225,12 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                   sessionId={sessionId}
                   block={state.activeBlock}
                   response={state.myResponse}
-                  onSaved={(answer) => setState((current) => current ? { ...current, myResponse: answer } : current)}
+                  responseSubmitted={state.myResponseSubmitted ?? false}
+                  onSaved={(answer, submittedCurrent) => setState((current) => current ? {
+                    ...current,
+                    myResponse: answer,
+                    myResponseSubmitted: submittedCurrent ?? current.myResponseSubmitted,
+                  } : current)}
                 />
               )}
             </>

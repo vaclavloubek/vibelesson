@@ -8,8 +8,11 @@ type Props = {
   sessionId: string;
   block: PublicLessonBlock;
   response: StudentAnswer | null;
-  onSaved: (answer: StudentAnswer) => void;
+  responseSubmitted: boolean;
+  onSaved: (answer: StudentAnswer, submittedCurrent?: boolean) => void;
 };
+
+type ResponseAction = 'save' | 'submit';
 
 const SAVE_TIMEOUT_MS = 8_000;
 const VERIFY_TIMEOUT_MS = 5_000;
@@ -28,7 +31,7 @@ function sameAnswer(left: StudentAnswer, right: StudentAnswer) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export default function StudentResponseInput({ sessionId, block, response, onSaved }: Props) {
+export default function StudentResponseInput({ sessionId, block, response, responseSubmitted, onSaved }: Props) {
   const initialText = response && 'text' in response ? response.text ?? '' : '';
   const initialRanking = response && 'ranking' in response ? response.ranking : (block.items ?? []);
   const initialRankingText = response && 'ranking' in response ? response.text ?? '' : '';
@@ -36,11 +39,16 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [submitted, setSubmitted] = useState(responseSubmitted);
   const [text, setText] = useState(initialText);
   const [ranking, setRanking] = useState<string[]>(initialRanking);
   const [rankingText, setRankingText] = useState(initialRankingText);
   const [recentlyMoved, setRecentlyMoved] = useState<string | null>(null);
   const [moveStatus, setMoveStatus] = useState('');
+
+  useEffect(() => {
+    setSubmitted(responseSubmitted);
+  }, [responseSubmitted]);
 
   useEffect(() => {
     if (!recentlyMoved) return;
@@ -53,7 +61,10 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
     return response.ranking.join('\u0000') !== ranking.join('\u0000') || response.text !== rankingText;
   }, [ranking, rankingText, response]);
 
-  async function save(answer: StudentAnswer) {
+  const serverText = response && 'text' in response ? response.text ?? '' : '';
+  const textChanged = text.trim() !== serverText.trim();
+
+  async function save(answer: StudentAnswer, responseAction: ResponseAction = 'save') {
     if (busy) return;
     setBusy(true);
     setError('');
@@ -62,14 +73,20 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
       const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blockId: block.id, answer }),
+        body: JSON.stringify({ blockId: block.id, answer, responseAction }),
       }, SAVE_TIMEOUT_MS);
-      const data = await result.json() as { answer?: StudentAnswer; error?: string };
+      const data = await result.json() as {
+        answer?: StudentAnswer;
+        submittedCurrent?: boolean;
+        error?: string;
+      };
       if (!result.ok || !data.answer) {
         setError(data.error || 'Odpověď se nepodařilo uložit.');
         return;
       }
-      onSaved(data.answer);
+      const submittedCurrent = Boolean(data.submittedCurrent);
+      onSaved(data.answer, submittedCurrent);
+      if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
       setSaved(true);
     } catch {
       try {
@@ -79,9 +96,11 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
         const state = await verification.json() as {
           activeBlock?: { id?: string } | null;
           myResponse?: StudentAnswer | null;
+          myResponseSubmitted?: boolean;
         };
         if (verification.ok && state.activeBlock?.id === block.id && state.myResponse && sameAnswer(state.myResponse, answer)) {
-          onSaved(state.myResponse);
+          onSaved(state.myResponse, Boolean(state.myResponseSubmitted));
+          if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(Boolean(state.myResponseSubmitted));
           setSaved(true);
           return;
         }
@@ -200,17 +219,20 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
   if (block.type === 'open_text' || block.type === 'exit_ticket') {
     function submit(event: FormEvent) {
       event.preventDefault();
-      void save({ text: text.trim() });
+      const value = text.trim();
+      if (!value) return;
+      void save({ text: value }, 'submit');
     }
 
     const isExit = block.type === 'exit_ticket';
     return (
       <section className="panel">
         <span className="eyebrow">{isExit ? 'Tvoje závěrečná odpověď' : 'Tvoje odpověď'}</span>
+        <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Text můžeš průběžně ukládat jako koncept. AI hodnocení se zařadí až ve chvíli, kdy odpověď odevzdáš.</p>
         <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginTop: 10 }}>
           <textarea
             value={text}
-            onChange={(event) => { setText(event.target.value); setSaved(false); }}
+            onChange={(event) => { setText(event.target.value); setSaved(false); setSubmitted(false); }}
             maxLength={2000}
             rows={isExit ? 4 : 6}
             placeholder={isExit ? 'Napiš krátkou závěrečnou odpověď…' : 'Napiš svou odpověď…'}
@@ -218,10 +240,24 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
             style={{ width: '100%', resize: 'vertical', minHeight: isExit ? 100 : 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
           />
           <div className="actions" style={{ marginTop: 0 }}>
-            <button type="submit" className="primary" disabled={busy || !text.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat odpověď'}</button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || !text.trim() || !textChanged}
+              onClick={() => { void save({ text: text.trim() }, 'save'); }}
+            >
+              {busy ? 'Ukládám…' : 'Uložit koncept'}
+            </button>
+            <button type="submit" className="primary" disabled={busy || !text.trim() || submitted}>
+              {busy ? 'Odevzdávám…' : submitted ? 'Odevzdáno' : 'Odevzdat odpověď'}
+            </button>
           </div>
         </form>
-        {saved ? <p className="student-save-success">✓ Odpověď je uložená. Můžeš ji ještě upravit, dokud učitel nepřejde dál.</p> : null}
+        {submitted ? (
+          <p className="student-save-success">✓ Odpověď je odevzdaná. Můžeš ji dál upravovat jako koncept, dokud učitel nepřejde dál.</p>
+        ) : saved ? (
+          <p className="student-save-success">✓ Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.</p>
+        ) : null}
         {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
