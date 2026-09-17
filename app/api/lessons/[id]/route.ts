@@ -83,7 +83,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
     const { id } = await params;
     const { data: current, error: readError } = await supabase
       .from('lessons')
-      .select('title, source_prompt, lesson')
+      .select('title, source_prompt, lesson, folder_id')
       .eq('id', id)
       .eq('owner_id', userId)
       .single();
@@ -101,6 +101,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
         title: copyTitle,
         source_prompt: current.source_prompt,
         lesson: copiedLesson,
+        folder_id: current.folder_id,
       })
       .select('id')
       .single();

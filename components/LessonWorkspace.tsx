@@ -39,9 +39,10 @@ type Props = {
   initialLesson?: Lesson | null;
   initialLessonId?: string | null;
   initialPrompt?: string | null;
+  initialFolderId?: string | null;
 };
 
-export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null }: Props) {
+export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null, initialFolderId = null }: Props) {
   const router = useRouter();
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [audience, setAudience] = useState(initialLesson?.audience ?? '');
@@ -168,7 +169,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, materialMode, materials }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, materialMode, materials, folderId: initialFolderId }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -355,6 +356,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
             <div className="panel">
               <span className="eyebrow">Nová lekce</span>
               <h1>Co mají studenti dnes zažít?</h1>
+              {initialFolderId ? <p className="auth-hint">Nová lekce se po vytvoření uloží přímo do vybrané složky.</p> : null}
               <form onSubmit={generate}>
                 <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
                 <div className="form-grid">
