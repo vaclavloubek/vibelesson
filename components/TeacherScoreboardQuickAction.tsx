@@ -106,6 +106,16 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
 
   return createPortal(
     <>
+      {data.hasScoring ? (
+        <a
+          className="secondary button-link"
+          href={`/sessions/${sessionId}/presenter`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Prezentační režim
+        </a>
+      ) : null}
       <button
         className={data.status === 'ended' && !data.scoreboardRevealed ? 'primary' : 'secondary'}
         type="button"
