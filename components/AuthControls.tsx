@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import PasswordField from '@/components/PasswordField';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
+const AUTH_POPOVER_ID = 'auth-popover';
+const AUTH_POPOVER_TITLE_ID = 'auth-popover-title';
 
 type TurnstileApi = {
   render: (
@@ -140,6 +142,8 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaVersion, setCaptchaVersion] = useState(0);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   async function loadQuota(nextUser: User | null) {
     if (!nextUser) {
@@ -207,6 +211,25 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
       window.clearTimeout(timeout);
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const focusFirstControl = window.requestAnimationFrame(() => {
+      popoverRef.current?.querySelector<HTMLElement>('input, button:not([disabled]), a[href], select, textarea')?.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setOpen(false);
+      window.requestAnimationFrame(() => triggerRef.current?.focus());
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFirstControl);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
 
   function resetCaptcha() {
     setCaptchaToken('');
@@ -359,21 +382,35 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
   return (
     <div className="auth-wrap">
       <button
+        ref={triggerRef}
         type="button"
         className="secondary auth-trigger"
         onClick={() => {
-          setOpen((value) => !value);
-          if (!open) switchMode('signin');
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          switchMode('signin');
+          setOpen(true);
         }}
         aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls={AUTH_POPOVER_ID}
       >
         Přihlásit se
       </button>
       {open ? (
-        <div className="auth-popover">
+        <div
+          ref={popoverRef}
+          id={AUTH_POPOVER_ID}
+          className="auth-popover"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby={AUTH_POPOVER_TITLE_ID}
+        >
           {mode === 'signin' ? (
             <>
-              <strong>Přihlášení do Syllonautu</strong>
+              <strong id={AUTH_POPOVER_TITLE_ID}>Přihlášení do Syllonautu</strong>
               <p>Účet je potřeba pro AI funkce a ukládání vlastních lekcí.</p>
               <form onSubmit={signIn}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
@@ -389,7 +426,7 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
 
           {mode === 'signup' ? (
             <>
-              <strong>Vytvořit účet zdarma</strong>
+              <strong id={AUTH_POPOVER_TITLE_ID}>Vytvořit účet zdarma</strong>
               <p>Free účet obsahuje 5 nových AI lekcí a 20 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.</p>
               <form onSubmit={signUp}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
@@ -404,7 +441,7 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
 
           {mode === 'forgot' ? (
             <>
-              <strong>Obnovení hesla</strong>
+              <strong id={AUTH_POPOVER_TITLE_ID}>Obnovení hesla</strong>
               <p>Zadej e-mail k účtu. Kvůli ochraně soukromí neprozrazujeme, zda je adresa v systému registrovaná.</p>
               <form onSubmit={requestPasswordReset}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
@@ -417,7 +454,7 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
 
           {mode === 'check-email' ? (
             <>
-              <strong>Zkontrolujte e-mail</strong>
+              <strong id={AUTH_POPOVER_TITLE_ID}>Zkontrolujte e-mail</strong>
               <p>
                 {message || 'Pokud je tato adresa nová, poslali jsme na ni potvrzovací odkaz. Registraci dokončíš jedním kliknutím.'}
               </p>
@@ -426,7 +463,7 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
             </>
           ) : null}
 
-          {message && mode !== 'check-email' ? <div className="auth-message" role="status">{message}</div> : null}
+          {message && mode !== 'check-email' ? <div className="auth-message" role="status" aria-live="polite">{message}</div> : null}
         </div>
       ) : null}
     </div>
