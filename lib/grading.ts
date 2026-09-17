@@ -80,7 +80,7 @@ export async function gradeResponseWithAI(rawInput: z.input<typeof GradingInputS
   const { output, providerMetadata } = await generateText({
     model: gradingModel,
     output: Output.object({ schema: AIGradingOutputSchema }),
-    providerOptions: { gateway: { only: ['openai'] } },
+    providerOptions: { gateway: { only: ['openai'], zeroDataRetention: true } },
     system: `Jsi hodnoticí modul aplikace Syllonaut. Hodnotíš jednu studentskou nebo týmovou odpověď podle přesně zadané rubriky.
 
 Bezpečnost a férovost:
