@@ -31,7 +31,10 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
 
   useEffect(() => {
     const locate = () => {
-      const nextTarget = document.querySelector('.live-control-actions');
+      const selector = data?.status === 'ended'
+        ? 'main.teacher-live-shell .actions'
+        : '.live-control-actions';
+      const nextTarget = document.querySelector(selector);
       setTarget((current) => current === nextTarget ? current : nextTarget);
     };
 
@@ -39,7 +42,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     const observer = new MutationObserver(locate);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, []);
+  }, [data?.status]);
 
   useEffect(() => {
     void load();
@@ -75,7 +78,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     }
   };
 
-  if (!target || !data || data.status !== 'live') return null;
+  if (!target || !data || (data.status !== 'live' && data.status !== 'ended')) return null;
 
   const canReveal = data.hasScoring && data.availableMaxPoints > 0;
   const disabled = busy || (!data.scoreboardRevealed && !canReveal);
@@ -89,7 +92,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
 
   return createPortal(
     <button
-      className="secondary"
+      className={data.status === 'ended' && !data.scoreboardRevealed ? 'primary' : 'secondary'}
       type="button"
       disabled={disabled}
       onClick={() => void changeVisibility()}
