@@ -6,9 +6,11 @@ import { useState } from 'react';
 type Props = {
   lessonId: string;
   title: string;
+  onMove?: () => void;
+  moveDisabled?: boolean;
 };
 
-export default function LessonActions({ lessonId, title }: Props) {
+export default function LessonActions({ lessonId, title, onMove, moveDisabled = false }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +75,7 @@ export default function LessonActions({ lessonId, title }: Props) {
         <div className="lesson-actions-menu">
           <button type="button" onClick={renameLesson} disabled={busy}>Přejmenovat</button>
           <button type="button" onClick={duplicateLesson} disabled={busy}>Duplikovat</button>
+          {onMove ? <button type="button" onClick={onMove} disabled={busy || moveDisabled}>Přesunout do…</button> : null}
           <button type="button" className="danger-action" onClick={deleteLesson} disabled={busy}>Smazat</button>
         </div>
       </details>
