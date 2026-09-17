@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-17 po dokončení bezpečnostního auditu SEC-001 až SEC-015. Třináct nálezů je remediovaných/uzavřených; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
+Aktualizováno: 2026-09-17 po dokončení bezpečnostního auditu SEC-001 až SEC-015 a následném doplnění prémiových složek/podsložek a veřejné stránky Pricing / Ceník. Třináct bezpečnostních nálezů je remediovaných/uzavřených; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -49,6 +49,7 @@ To znamená vyšší blast radius při testování a riziko nechtěných zápis�
 ## 3. Hlavní routy
 
 - `/` — landing
+- `/pricing` — veřejný Pricing / Ceník pro individuální učitele a školy
 - `/new` — tvorba lekce
 - `/lessons` — Moje lekce + poslední výsledky
 - `/lessons/<id>` — lesson workspace
@@ -61,7 +62,7 @@ To znamená vyšší blast radius při testování a riziko nechtěných zápis�
 - `/auth/update-password` — změna hesla po recovery
 - `/auth/error` — bezpečný auth error stav
 
-Landing umožní začít zadáním bez okamžité registrace; účet je potřeba až pro skutečné AI generování a ukládání.
+Landing umožní začít zadáním bez okamžité registrace; účet je potřeba až pro skutečné AI generování a ukládání. Landing navigace obsahuje odkaz na Ceník.
 
 ## 4. Architektonické principy
 
@@ -121,12 +122,42 @@ Implementováno/ověřeno:
 
 ## 6. Účet, kvóty a tarifní entitlementy
 
-Běžný účet:
+### Produktové plány — veřejný Ceník
+
+Veřejná stránka `/pricing` má dva přepínače:
+
+- **Pro učitele / Pro školy**;
+- **Měsíčně / Ročně**.
+
+Roční varianta je komunikována jako přibližně **2 měsíce zdarma**. Placené tarify zatím nejsou aktivně prodejné: jejich CTA je neaktivní s textem **Připravujeme**. Aktivní je pouze Free CTA, které otevírá stávající zabezpečený signup bez platební karty.
+
+Individuální plány:
+
+- **Free** — 0 Kč / $0; 5 nových AI lekcí + 20 AI úprav měsíčně; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
+- **Teacher** — 199 Kč / $8.99 měsíčně nebo 1 990 Kč / $89 ročně; 25 nových AI lekcí + 100 AI úprav měsíčně; bez placeného AI gradingu; bez prémiových složek;
+- **Teacher Pro** — 329 Kč / $14.99 měsíčně nebo 3 290 Kč / $149 ročně; 60 nových AI lekcí + 250 AI úprav měsíčně; AI grading bodovaných `open_text`, `exit_ticket` a `team_task`; složky a podsložky pro organizaci lekcí.
+
+Všechny individuální plány počítají s live hodinami bez tarifního limitu a se studentským připojením bez plnohodnotného účtu.
+
+Školní/týmové plány, zatím jako veřejná produktová nabídka bez aktivního billing/provisioning flow:
+
+- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav měsíčně společně; 1 290 Kč / $59.99 měsíčně nebo 12 900 Kč / $599 ročně;
+- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav měsíčně společně; 3 190 Kč / $149.99 měsíčně nebo 31 900 Kč / $1,499 ročně;
+- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav měsíčně společně; 8 490 Kč / $399.99 měsíčně nebo 84 900 Kč / $3,999 ročně.
+
+Školní plány počítají se sdíleným měsíčním AI limitem pro daný tým/školu/organizaci. Týmová administrace, skutečné organization membership, billing, checkout a provisioning těchto plánů zatím implementované nejsou.
+
+### Server-authoritative profil a entitlementy
+
+Nový auth user dostane `profiles` řádek přes `on_auth_user_created → private.handle_new_user()`. DB defaulty jsou autorita Free 5/20; při registraci se tarif nevybírá.
+
+Běžný Free účet:
 
 - `role=user`
 - 5 nových lekcí / kalendářní měsíc
 - 20 AI úprav / kalendářní měsíc
-- `ai_grading_enabled=false` jako bezpečný default
+- `ai_grading_enabled=false`
+- `lesson_folders_enabled=false`
 
 Admin:
 
@@ -134,8 +165,9 @@ Admin:
 - `monthly_lesson_limit=NULL`
 - `monthly_revision_limit=NULL`
 - je serverově považován za oprávněný k AI gradingu
+- je serverově považován za oprávněný k prémiovým složkám/podsložkám
 
-Nový auth user dostane `profiles` řádek přes `on_auth_user_created → private.handle_new_user()`. DB defaulty jsou autorita free 5/20; při registraci se v první verzi nevybírá tarif.
+Názvy plánů a ceny nejsou zatím zadrátované do DB entitlement logiky ani billingu. Runtime oprávnění se v současnosti řídí explicitními server-authoritative hodnotami v `profiles` a kvótami.
 
 ### AI grading entitlement
 
@@ -144,10 +176,10 @@ Od 2026-09-17 existuje v `profiles` server-authoritative boolean `ai_grading_ena
 Produktové pravidlo:
 
 - Free: deterministický quiz + ruční hodnocení otevřených/týmových odpovědí;
-- budoucí střední tarif: stejně bez placeného AI gradingu;
-- nejvyšší tarif: `ai_grading_enabled=true` a může používat placený AI grading;
-- admin se chová jako nejvyšší tarif;
-- billing ani názvy budoucích placených tarifů zatím nejsou zadrátované do grading kódu.
+- Teacher: stejně bez placeného AI gradingu;
+- Teacher Pro: `ai_grading_enabled=true` a může používat placený AI grading;
+- admin se chová jako Teacher Pro;
+- UI ani název plánu není bezpečnostní hranice.
 
 Fail-closed ochrana je ve více vrstvách:
 
@@ -158,6 +190,17 @@ Fail-closed ochrana je ve více vrstvách:
 - UI není bezpečnostní hranice.
 
 Manual grading používá stejnou tabulku `response_evaluations`, typicky `status='needs_review'`, `grader_version='manual-v1'`, bez `ai_score`, modelu a AI costu. Učitel zadá `teacher_score` a volitelnou poznámku.
+
+### Lesson folders entitlement
+
+Od 2026-09-17 existuje v `profiles` server-authoritative boolean `lesson_folders_enabled`.
+
+Produktové pravidlo:
+
+- Free a Teacher: bez složek;
+- Teacher Pro: `lesson_folders_enabled=true`;
+- admin má entitlement automaticky;
+- entitlement se kontroluje serverově a v RLS/DB write boundary, ne pouze zobrazením UI.
 
 ## 7. Lesson workspace
 
@@ -173,6 +216,21 @@ Lesson workspace má:
 - ochranu před zavřením při ukládání;
 - zobrazení kvóty;
 - Poslední výsledky / historické sessions.
+
+### Prémiové složky a podsložky
+
+Pro účty s `lesson_folders_enabled=true` a pro admina je implementovaná organizace uložených lekcí:
+
+- root složky + jedna úroveň podsložek, tedy maximálně dvě úrovně;
+- vytvoření složky/podsložky;
+- přejmenování;
+- smazání prázdné hierarchické větve až po odstranění podsložek;
+- přesun existujících i nově vytvořených lekcí do složky nebo zpět mimo složky;
+- dashboard `/lessons` zobrazuje složkovou navigaci a obsah vybrané složky;
+- při smazání složky se lesson reference bezpečně vrací na `folder_id=NULL` díky FK `ON DELETE SET NULL`;
+- ownership a entitlement jsou vynucené serverově/RLS.
+
+Složky jsou osobní pro daného ownera; současná implementace není sdílený školní/team filesystem.
 
 Ukázková lekce **„Mediální mise – Jak přežít internet a neztratit důstojnost“** byla seeddována/duplikována pod uživatelský účet jako běžná vlastní lesson (migrace `20260917033538_seed_admin_demo_lesson`).
 
@@ -349,6 +407,7 @@ Hlavní tabulky:
 
 - `profiles`
 - `lessons`
+- `lesson_folders`
 - `generation_requests`
 - `sessions`
 - `participants`
@@ -375,8 +434,13 @@ Důležité novější migrace v produkční historii:
 - `20260917162423_add_sec_009_session_retention_lifecycle`
 - `20260917163934_strengthen_sec_011_relational_scope_constraints`
 - `20260917165505_expire_sec_013_participant_tokens`
+- `20260917174635_add_lesson_folders_and_entitlement`
+- `20260917175452_index_lesson_folder_scope_fk`
+- `20260917180456_harden_lesson_folder_access_and_index_fk`
 
 Repo migration filenames musí zůstat sladěné s verzemi z produkční `supabase_migrations.schema_migrations`. SEC-004 migration history byla explicitně srovnána commitem `14ed01e`.
+
+Folder schema používá owner-scoped composite FK, RLS, max. dvě úrovně hierarchie, `lessons.folder_id` a server-authoritative `profiles.lesson_folders_enabled`. Přesun/assignment bez entitlementu je fail-closed.
 
 ## 15. Security audit — aktuální stav
 
@@ -487,12 +551,21 @@ AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser ex
 ### Milník A.1 — účet jako workspace
 **MVP dokončeno a produkčně ověřeno.**
 
+Ukládání lekcí, knihovna, rename/duplicate/delete, historické sessions a prémiové osobní složky/podsložky s přesunem existujících lekcí jsou implementované.
+
 ### Milník A.2 — veřejný auth
 **Aplikační flow i hosted konfigurace auditované a produkčně ověřené.**
 
 Hotovo: signup, login/logout, scanner-safe confirm, forgot/recovery/update password, password reveal, Turnstile integrace, branded template source files, DB free onboarding 5/20.
 
 SEC-006 je uzavřený. SEC-007 zůstává vědomě přijatá výjimka na Free plánu; externí E2E lze dále rozšiřovat podle beta priorit.
+
+### Milník A.3 — Pricing / tarifní produktová vrstva
+**Veřejný ceník dokončen; billing zatím záměrně neaktivní.**
+
+Hotovo: `/pricing`, individuální i školní segment, měsíční/roční přepínač, roční zvýhodnění, ceny v CZK/USD, aktivní Free signup CTA, placené CTA „Připravujeme“, vizuální integrace do design systému Syllonautu a odkaz z landing navigace.
+
+Zbývá před skutečným prodejem: billing provider, checkout, subscription lifecycle, DB provisioning konkrétních kvót/entitlementů podle zakoupeného plánu, správa organizací/členství, fakturace a změny/rušení plánu.
 
 ### Milník B — live hodina
 **Hlavní MVP dokončeno.**
@@ -507,8 +580,8 @@ Zbývá: hybridní scoring v post-session reportu/CSV a případné další stat
 - sdílení lekcí a public read-only link;
 - templates/favorites/search;
 - user export/delete;
-- školní/organizační účty;
-- billing až po samostatném rozhodnutí;
+- skutečné školní/organizační účty, membership a správa rolí;
+- billing/checkout/subscription lifecycle podle již zveřejněné tarifní struktury;
 - OCR;
 - pokročilá analytika/lokalizace.
 
@@ -533,8 +606,10 @@ Bezpečnostní a související změny dokončené po starší verzi tohoto dokum
 - `7637dc4` — SEC-013 server-side participant token expiry
 - `1becf44` — SEC-014 browser security headers + live regression check
 - `584a72b` — SEC-015 fail-closed AI Gateway Zero Data Retention + AST regression check
+- `24e8b1c` — prémiové lesson folders/podsložky, `lesson_folders_enabled`, přesun existujících lekcí a server/RLS enforcement
+- `e0a02bd` — veřejná stránka Pricing / Ceník, tarify učitelé/školy, měsíční/roční varianta a Free registrační CTA
 
-Všechny uvedené kódové remediace prošly Vercel Preview/CI a následným produkčním deploymentem podle chráněného PR workflow.
+Všechny uvedené kódové remediace a následné produktové změny prošly chráněným PR workflow s povinným Vercel checkem.
 
 ## 20. Pravidla další práce
 
@@ -567,4 +642,6 @@ Všechny uvedené kódové remediace prošly Vercel Preview/CI a následným pro
 - SEC-002 — ACCEPTED RISK / DEFERRED: Preview sdílí production trust boundary.
 - SEC-007 — ACCEPTED RISK / DEFERRED: Leaked Password Protection na Supabase Free.
 
-Další práce se má vrátit k produktové roadmapě a beta zpětné vazbě. Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán). Nové bezpečnostní změny dál provádět jednotlivě podle `TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ`.
+Produktově jsou nyní dokumentované a implementované také prémiové složky/podsložky a veřejný Pricing / Ceník. Placené plány zůstávají pouze veřejně popsané a jejich CTA je „Připravujeme“; aktivní je Free signup.
+
+Další práce se má vrátit k produktové roadmapě a beta zpětné vazbě. Před aktivací placených tarifů bude potřeba samostatně navrhnout billing/provisioning a organizační membership model. Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán). Nové bezpečnostní změny dál provádět jednotlivě podle `TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ`.
