@@ -20,6 +20,7 @@ const [
   pricingRoute,
   pricingPage,
   authControls,
+  headerMobileNav,
   studentSession,
   studentResponse,
   teamTask,
@@ -43,6 +44,7 @@ const [
   source('app/pricing/page.tsx'),
   source('components/PricingPage.tsx'),
   source('components/AuthControls.tsx'),
+  source('components/HeaderMobileNav.tsx'),
   source('components/StudentSession.tsx'),
   source('components/StudentResponseInput.tsx'),
   source('components/TeamTaskResponseInput.tsx'),
@@ -70,9 +72,13 @@ requirePattern(pricingRoute, /title\s*=\s*['"]Ceník[^'"]*Syllonaut['"]/, 'prici
 requirePattern(pricingPage, /aria-pressed=\{audience === 'teachers'\}/, 'pricing audience selection state is not exposed.');
 requirePattern(pricingPage, /aria-pressed=\{billing === 'monthly'\}/, 'pricing billing selection state is not exposed.');
 requirePattern(pricingPage, /role="status"[^>]+aria-live="polite"/, 'pricing changes are not announced succinctly.');
+requirePattern(pricingPage, /HeaderMobileNav/, 'pricing page lost responsive navigation.');
 requirePattern(authControls, /role="dialog"/, 'authentication popover lost dialog semantics.');
 requirePattern(authControls, /aria-haspopup="dialog"/, 'authentication trigger lost dialog relationship.');
 requirePattern(authControls, /event\.key !== 'Escape'/, 'authentication popover lost Escape handling.');
+requirePattern(headerMobileNav, /useId\(\)/, 'mobile navigation must keep a unique aria-controls relationship.');
+requirePattern(headerMobileNav, /event\.key !== 'Escape'/, 'mobile navigation lost Escape handling.');
+requirePattern(headerMobileNav, /triggerRef\.current\?\.focus\(\)/, 'mobile navigation no longer returns focus after Escape.');
 requirePattern(studentSession, /role="progressbar"/, 'student live progressbar semantics are missing.');
 requirePattern(studentSession, /Aktuální úkol \$\{blockNumber\} z \$\{state\.totalBlocks\}/, 'active lesson-block announcement is missing.');
 requirePattern(studentResponse, /aria-pressed=\{selected === option\}/, 'quiz\/poll selected state is not exposed.');
@@ -83,6 +89,7 @@ requirePattern(lessonWorkspace, /Pokyn pro úpravu celé lekce/, 'whole-lesson A
 requirePattern(lessonWorkspace, /Pokyn pro úpravu vybrané aktivity/, 'block AI revision field lost its label.');
 requirePattern(lessonWorkspace, /folderId:\s*initialFolderId/, 'folder-aware generation was lost while applying accessibility changes.');
 requirePattern(lessonPreview, /Kontrola přístupnosti obsahu/, 'ATAG authoring feedback is missing from teacher preview.');
+requirePattern(lessonPreview, /Jak opravit:/, 'ATAG repair guidance is missing from teacher preview.');
 requirePattern(lessonLibrary, /aria-label="Složky lekcí"/, 'folder navigation lost its accessible name.');
 requirePattern(lessonLibrary, /aria-pressed=\{scope === root\.id\}/, 'selected lesson-folder state is not exposed.');
 requirePattern(lessonLibrary, /aria-pressed=\{selectionMode\}/, 'lesson selection mode state is not exposed.');
@@ -103,6 +110,8 @@ requirePattern(ai, /Pravidla přístupnosti vytvářeného obsahu \(ATAG\/WCAG b
 requirePattern(ai, /caption:\s*z\.string\(\)\.min\(1\)/, 'AI-generated tables no longer require a caption.');
 requirePattern(authoring, /drag-only-instruction/, 'deterministic drag-only authoring check is missing.');
 requirePattern(authoring, /visual-only-cue/, 'deterministic visual-only authoring check is missing.');
+requirePattern(authoring, /unsupported-visual-reference/, 'deterministic unsupported visual-reference check is missing.');
+requirePattern(authoring, /suggestion:/, 'ATAG diagnostics no longer provide repair guidance.');
 requirePattern(presenterCss, /prefers-reduced-motion:\s*reduce/, 'presenter reduced-motion fallback is missing.');
 
 console.log('Accessibility source checks passed.');
