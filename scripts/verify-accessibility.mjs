@@ -15,7 +15,10 @@ const [
   studentSession,
   studentResponse,
   teamTask,
+  lessonWorkspace,
   lessonPreview,
+  lessonLibrary,
+  teacherSession,
   ai,
   authoring,
   presenterCss,
@@ -26,7 +29,10 @@ const [
   source('components/StudentSession.tsx'),
   source('components/StudentResponseInput.tsx'),
   source('components/TeamTaskResponseInput.tsx'),
+  source('components/LessonWorkspace.tsx'),
   source('components/LessonPreview.tsx'),
+  source('app/lessons/LessonLibrary.tsx'),
+  source('components/TeacherSession.tsx'),
   source('lib/ai.ts'),
   source('lib/accessibility-authoring.ts'),
   source('components/PresenterScoreboard.module.css'),
@@ -45,7 +51,16 @@ requirePattern(studentResponse, /aria-pressed=\{selected === option\}/, 'quiz\/p
 requirePattern(studentResponse, /role="alert"/, 'student response errors are not exposed as alerts.');
 requirePattern(teamTask, /Společná týmová odpověď/, 'team response field lost its accessible label.');
 requirePattern(teamTask, /aria-describedby=\{statusId\}/, 'team response field lost status description.');
+requirePattern(lessonWorkspace, /Pokyn pro úpravu celé lekce/, 'whole-lesson AI revision field lost its label.');
+requirePattern(lessonWorkspace, /Pokyn pro úpravu vybrané aktivity/, 'block AI revision field lost its label.');
+requirePattern(lessonWorkspace, /folderId:\s*initialFolderId/, 'folder-aware generation was lost while applying accessibility changes.');
 requirePattern(lessonPreview, /Kontrola přístupnosti obsahu/, 'ATAG authoring feedback is missing from teacher preview.');
+requirePattern(lessonLibrary, /aria-label="Složky lekcí"/, 'folder navigation lost its accessible name.');
+requirePattern(lessonLibrary, /aria-pressed=\{scope === root\.id\}/, 'selected lesson-folder state is not exposed.');
+requirePattern(lessonLibrary, /aria-label=\{`Přejmenovat složku \$\{root\.name\}`\}/, 'folder icon actions lost explicit accessible names.');
+requirePattern(lessonLibrary, /role="alert"/, 'lesson-library errors are not exposed as alerts.');
+requirePattern(teacherSession, /role="progressbar"/, 'teacher live progressbar semantics are missing.');
+requirePattern(teacherSession, /aria-valuetext=\{`Blok \$\{activeIndex \+ 1\} z \$\{session\.lessonSnapshot\.blocks\.length\}`\}/, 'teacher live progress lacks meaningful value text.');
 requirePattern(ai, /Pravidla přístupnosti vytvářeného obsahu \(ATAG\/WCAG by default\)/, 'AI authoring accessibility guardrails are missing.');
 requirePattern(ai, /caption:\s*z\.string\(\)\.min\(1\)/, 'AI-generated tables no longer require a caption.');
 requirePattern(authoring, /drag-only-instruction/, 'deterministic drag-only authoring check is missing.');
