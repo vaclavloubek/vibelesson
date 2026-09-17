@@ -49,6 +49,7 @@ jobs:
             if curl --silent --fail --max-time 2 http://127.0.0.1:3000/ >/dev/null; then
               npx --yes @axe-core/cli@4 \
                 http://127.0.0.1:3000/ \
+                http://127.0.0.1:3000/pricing \
                 http://127.0.0.1:3000/join \
                 http://127.0.0.1:3000/new \
                 --tags wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa \
