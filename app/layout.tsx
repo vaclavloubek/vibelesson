@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import './flow-polish.css';
@@ -24,5 +25,19 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="cs"><body className={`${geist.variable} ${geistMono.variable}`}>{children}</body></html>;
+  return (
+    <html lang="cs">
+      <head>
+        <link rel="preconnect" href="https://challenges.cloudflare.com" />
+      </head>
+      <body className={`${geist.variable} ${geistMono.variable}`}>
+        <Script
+          id="syllonaut-turnstile"
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="beforeInteractive"
+        />
+        {children}
+      </body>
+    </html>
+  );
 }
