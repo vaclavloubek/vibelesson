@@ -28,8 +28,7 @@
 .libraryToolbar,
 .toolbarActions,
 .bulkToolbar,
-.cardTitleWrap,
-.cardMoveActions {
+.cardTitleWrap {
   display: flex;
   align-items: center;
 }
@@ -72,6 +71,8 @@
   text-align: left;
   cursor: pointer;
   font: inherit;
+  outline: 1px solid transparent;
+  transition: background .15s ease, outline-color .15s ease, transform .15s ease;
 }
 
 .scopeButton:hover,
@@ -91,6 +92,12 @@
 .folderButton small,
 .folderActive small {
   color: var(--muted);
+}
+
+.dropTarget {
+  background: var(--panel-soft);
+  outline-color: var(--brand);
+  transform: translateX(2px);
 }
 
 .folderTree {
@@ -125,6 +132,13 @@
   padding-left: 18px;
 }
 
+.dragHint {
+  margin: 8px 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .libraryToolbar {
   justify-content: space-between;
   gap: 18px;
@@ -153,20 +167,6 @@
   margin-bottom: 16px;
 }
 
-.bulkToolbar select,
-.cardMoveActions select {
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  background: white;
-  color: var(--ink);
-  font: inherit;
-}
-
-.bulkToolbar select {
-  min-width: 210px;
-  padding: 8px 10px;
-}
-
 .cardTitleWrap {
   gap: 10px;
   min-width: 0;
@@ -183,15 +183,22 @@
   flex-wrap: wrap;
 }
 
-.cardMoveActions {
-  gap: 10px;
-  margin-left: auto;
+.draggableCard {
+  cursor: grab;
 }
 
-.cardMoveActions select {
-  max-width: 190px;
-  padding: 6px 8px;
-  font-size: 13px;
+.draggableCard:active {
+  cursor: grabbing;
+}
+
+.draggingCard {
+  opacity: .55;
+}
+
+.dragLabel {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .emptyFolder {
@@ -209,6 +216,114 @@
 
 .mobileFolders {
   display: none;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(8 15 31 / 46%);
+  backdrop-filter: blur(4px);
+}
+
+.moveDialog {
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100vh - 40px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: 0 24px 70px rgb(8 15 31 / 24%);
+  padding: 20px;
+}
+
+.moveDialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.moveDialogHeader h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  letter-spacing: -.025em;
+}
+
+.dialogClose {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.dialogHelp {
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.moveTree {
+  display: grid;
+  gap: 5px;
+}
+
+.moveTarget {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.moveTarget:hover:not(:disabled) {
+  border-color: var(--line);
+  background: var(--panel-soft);
+}
+
+.moveTarget:disabled {
+  cursor: default;
+}
+
+.moveTarget small {
+  color: var(--muted);
+}
+
+.moveTargetChild {
+  padding-left: 32px;
+}
+
+.moveTargetCurrent {
+  background: var(--panel-soft);
+  font-weight: 700;
+}
+
+.moveDialogFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 @media (max-width: 820px) {
@@ -252,13 +367,19 @@
     justify-content: flex-start;
   }
 
-  .cardMoveActions {
-    width: 100%;
-    margin-left: 0;
-    justify-content: space-between;
+  .dragLabel {
+    display: none;
   }
 
-  .cardMoveActions select {
-    max-width: 70%;
+  .draggableCard {
+    cursor: default;
+  }
+
+  .moveDialogFooter {
+    flex-direction: column;
+  }
+
+  .moveDialogFooter button {
+    width: 100%;
   }
 }

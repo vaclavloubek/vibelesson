@@ -6,9 +6,10 @@ import { useState } from 'react';
 type Props = {
   lessonId: string;
   title: string;
+  onMove?: () => void;
 };
 
-export default function LessonActions({ lessonId, title }: Props) {
+export default function LessonActions({ lessonId, title, onMove }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -66,12 +67,18 @@ export default function LessonActions({ lessonId, title }: Props) {
     }
   }
 
+  function openMove(event: React.MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.closest('details')?.removeAttribute('open');
+    onMove?.();
+  }
+
   return (
     <div className="lesson-actions-wrap">
       <details className="lesson-actions">
         <summary aria-label={`Akce pro lekci ${title}`}>•••</summary>
         <div className="lesson-actions-menu">
           <button type="button" onClick={renameLesson} disabled={busy}>Přejmenovat</button>
+          {onMove ? <button type="button" onClick={openMove} disabled={busy}>Přesunout do…</button> : null}
           <button type="button" onClick={duplicateLesson} disabled={busy}>Duplikovat</button>
           <button type="button" className="danger-action" onClick={deleteLesson} disabled={busy}>Smazat</button>
         </div>
