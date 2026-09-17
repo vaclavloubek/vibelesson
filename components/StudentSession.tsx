@@ -118,11 +118,11 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   }, [refresh]);
 
   useEffect(() => {
-    const activeBlock = state?.status === 'live' ? state.activeBlock : null;
-    if (!activeBlock) {
+    if (state?.status !== 'live' || !state.activeBlock) {
       previousBlockIdRef.current = null;
       return;
     }
+    const activeBlock = state.activeBlock;
     if (previousBlockIdRef.current !== activeBlock.id) {
       const blockNumber = (state.activeBlockIndex ?? 0) + 1;
       setActiveBlockAnnouncement(`Aktuální úkol ${blockNumber} z ${state.totalBlocks}: ${activeBlock.title}.`);
