@@ -34,6 +34,22 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
   const { id: sessionId, evaluationId } = await params;
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, ai_grading_enabled')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('AI grading entitlement lookup failed', profileError);
+    return NextResponse.json({ error: 'Oprávnění pro AI hodnocení se nepodařilo ověřit.' }, { status: 500 });
+  }
+
+  const aiGradingEnabled = Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled));
+  if (!aiGradingEnabled) {
+    return NextResponse.json({ error: 'AI hodnocení není pro tento tarif dostupné.' }, { status: 403 });
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from('response_evaluations')
     .select('id, session_id, status')
@@ -59,7 +75,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Hodnocení se nepodařilo převzít ke zpracování.' }, { status: 500 });
   }
   if (!claimedRaw) {
-    return NextResponse.json({ error: 'Hodnocení právě zpracovává jiný proces.' }, { status: 409 });
+    return NextResponse.json({ error: 'Hodnocení právě zpracovává jiný proces nebo AI hodnocení není povolené.' }, { status: 409 });
   }
 
   const claimed = ClaimedEvaluationSchema.safeParse(claimedRaw);
