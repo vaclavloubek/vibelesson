@@ -57,7 +57,7 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute }: {
 
   return (
     <article className={`lesson-block lesson-block-type-${block.type} ${selected ? 'selected-block' : ''}`}>
-      {teacherMode ? <button type="button" className="edit-block" onClick={onSelect}>{selected ? 'Vybráno k úpravě' : 'Upravit blok'}</button> : null}
+      {teacherMode ? <button type="button" className="edit-block" aria-pressed={selected} onClick={onSelect}>{selected ? 'Vybráno k úpravě' : 'Upravit blok'}</button> : null}
       <div className="block-head">
         <div style={{ display: 'grid', gap: 6 }}>
           <span className="eyebrow">{index + 1}. {label(block.type)}</span>
@@ -70,11 +70,11 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute }: {
       <p className="instructions">{block.instructions}</p>
       {block.dataTable ? <LessonDataTable data={block.dataTable} /> : null}
       {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
-      {block.options?.length ? <div className="options">{block.options.map((option) => <button key={option} type="button" onClick={() => setSelectedOption(option)} className={selectedOption === option ? 'option selected' : 'option'}>{option}</button>)}</div> : null}
-      {['open_text', 'exit_ticket'].includes(block.type) ? <textarea placeholder="Odpověď studenta…" /> : null}
-      {block.type === 'reveal' && block.revealText ? <div><button type="button" className="secondary" onClick={() => setRevealed((v) => !v)}>{revealed ? 'Skrýt pointu' : 'Odhalit pointu'}</button>{revealed ? <div className="reveal">{block.revealText}</div> : null}</div> : null}
-      {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal">Správná odpověď: <strong>{block.correctAnswer}</strong></div> : null}
-      {block.type === 'timer' ? <div className="timerbox"><strong>{mm}:{ss}</strong><button type="button" className="secondary" onClick={() => setRunning((v) => !v)}>{running ? 'Pauza' : 'Start'}</button><button type="button" className="secondary" onClick={() => { setRunning(false); setSeconds(block.durationMinutes * 60); }}>Reset</button></div> : null}
+      {block.options?.length ? <div className="options" role="group" aria-label="Možnosti odpovědi">{block.options.map((option) => <button key={option} type="button" aria-pressed={selectedOption === option} onClick={() => setSelectedOption(option)} className={selectedOption === option ? 'option selected' : 'option'}>{option}</button>)}</div> : null}
+      {['open_text', 'exit_ticket'].includes(block.type) ? <label>Odpověď studenta<textarea placeholder="Odpověď studenta…" /></label> : null}
+      {block.type === 'reveal' && block.revealText ? <div><button type="button" className="secondary" onClick={() => setRevealed((v) => !v)}>{revealed ? 'Skrýt pointu' : 'Odhalit pointu'}</button>{revealed ? <div className="reveal" role="status">{block.revealText}</div> : null}</div> : null}
+      {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal" role="status">Správná odpověď: <strong>{block.correctAnswer}</strong></div> : null}
+      {block.type === 'timer' ? <div className="timerbox"><strong role="timer" aria-label={`Zbývající čas ${mm}:${ss}`}>{mm}:{ss}</strong><button type="button" className="secondary" onClick={() => setRunning((v) => !v)}>{running ? 'Pauza' : 'Start'}</button><button type="button" className="secondary" onClick={() => { setRunning(false); setSeconds(block.durationMinutes * 60); }}>Reset</button></div> : null}
       {teacherMode && block.teacherNote ? <details><summary>Poznámka pro učitele</summary><p>{block.teacherNote}</p></details> : null}
       {typeof block.points === 'number' ? <div className="points">Max. {block.points} bodů</div> : null}
     </article>
@@ -112,7 +112,17 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
             </div>
             <span>{studentPreviewIndex + 1}/{lesson.blocks.length}</span>
           </div>
-          <div className="student-progress-track"><div className="student-progress-fill" style={{ width: `${studentProgress}%` }} /></div>
+          <div
+            className="student-progress-track"
+            role="progressbar"
+            aria-label="Průběh studentského náhledu"
+            aria-valuemin={1}
+            aria-valuemax={lesson.blocks.length}
+            aria-valuenow={studentPreviewIndex + 1}
+            aria-valuetext={`Blok ${studentPreviewIndex + 1} z ${lesson.blocks.length}`}
+          >
+            <div className="student-progress-fill" style={{ width: `${studentProgress}%` }} />
+          </div>
           {studentBlock ? <Block block={studentBlock} index={studentPreviewIndex} teacherMode={false} selected={false} onSelect={() => {}} /> : null}
           <div className="student-preview-nav">
             <button type="button" className="secondary" disabled={studentPreviewIndex === 0} onClick={() => setStudentPreviewIndex((index) => Math.max(0, index - 1))}>← Předchozí</button>
@@ -138,6 +148,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
             type="button"
             key={block.id}
             className={`lesson-route-stop lesson-route-stop-${block.type}${selectedBlockId === block.id ? ' active' : ''}`}
+            aria-pressed={selectedBlockId === block.id}
             onClick={() => onSelectBlock(block.id)}
             title={`${index + 1}. ${block.title} · ${block.durationMinutes} min`}
           >
