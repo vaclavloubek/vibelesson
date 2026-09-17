@@ -1,10 +1,10 @@
-import 'pdf-parse/worker';
 import JSZip from 'jszip';
-import { PDFParse } from 'pdf-parse';
+import { extractText, getDocumentProxy } from 'unpdf';
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_TOTAL_CHARS = 60_000;
+const MAX_PDF_PAGES = 100;
 
 const SUPPORTED_EXTENSIONS = new Set(['pdf', 'pptx', 'docx', 'txt', 'md', 'markdown']);
 
@@ -98,12 +98,15 @@ async function extractPptx(buffer: ArrayBuffer) {
 }
 
 async function extractPdf(buffer: ArrayBuffer) {
-  const parser = new PDFParse({ data: Buffer.from(buffer) });
+  const pdf = await getDocumentProxy(new Uint8Array(buffer), { maxImageSize: 16_777_216 });
   try {
-    const result = await parser.getText();
-    return result.text;
+    if (pdf.numPages > MAX_PDF_PAGES) {
+      throw new Error(`PDF má více než ${MAX_PDF_PAGES} stran.`);
+    }
+    const result = await extractText(pdf, { mergePages: true });
+    return typeof result.text === 'string' ? result.text : result.text.join('\n\n');
   } finally {
-    await parser.destroy();
+    await pdf.destroy();
   }
 }
 
