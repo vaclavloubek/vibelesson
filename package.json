@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && node scripts/verify-ai-zdr.mjs",
     "check:security-headers": "node scripts/verify-security-headers.mjs"
   },
   "dependencies": {
