@@ -1,0 +1,23 @@
+name: Auth validation
+
+on:
+  push:
+    branches:
+      - auth-ci-validation-20260917
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_validation_only
+      AI_GATEWAY_API_KEY: validation-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm run build
