@@ -5,13 +5,16 @@ alter table public.team_responses
   add column if not exists submitted_at timestamptz null;
 
 -- Before this feature every saved team response was treated as submitted. Preserve
--- that historical meaning for existing sessions and evaluations.
+-- that historical meaning for existing sessions and evaluations. The normal edit-lock
+-- trigger protects student writes, but this one-time migration backfill is administrative.
+alter table public.team_responses disable trigger team_responses_require_edit_lock;
 update public.team_responses
 set submitted_answer = answer,
     submitted_at = updated_at
 where submitted_answer is null
   and jsonb_typeof(answer) = 'object'
   and nullif(btrim(answer->>'text'), '') is not null;
+alter table public.team_responses enable trigger team_responses_require_edit_lock;
 
 create or replace function public.queue_submitted_team_response_evaluation(p_team_response_id uuid)
 returns boolean
