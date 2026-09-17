@@ -141,7 +141,11 @@ export async function createLesson(
   const { output, providerMetadata } = await generateText({
     model,
     output: Output.object({ schema: AILessonSchema }),
-    providerOptions: { gateway: { only: ['openai'], zeroDataRetention: true } },
+    providerOptions: {
+      gateway: materials
+        ? { only: ['bedrock', 'azure'], sort: 'cost', zeroDataRetention: true }
+        : { only: ['openai'] },
+    },
     system: baseRules,
     prompt: `Vytvoř interaktivní lekci podle tohoto zadání:\n\n${input.prompt.trim() || 'Učitel nepřidal další volný popis; vyjdi z parametrů a podkladů.'}\n\nCílová skupina: ${input.audience}\nPožadovaná délka: ${input.duration} minut\nVelikost týmu: ${input.groupSize}\nTón: ${input.tone}${materialInstruction}\n\nLekce má působit jako hotová interaktivní aplikace, ne jako osnovy pro učitele.`,
   });
