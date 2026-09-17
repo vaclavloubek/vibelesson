@@ -28,7 +28,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     const { data: evaluation, error: lookupError } = await supabase
       .from('response_evaluations')
-      .select('id, session_id, status, max_points, ai_score')
+      .select('id, session_id, status, max_points')
       .eq('id', evaluationId)
       .eq('session_id', sessionId)
       .maybeSingle();
@@ -38,8 +38,8 @@ export async function POST(req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Hodnocení se nepodařilo načíst.' }, { status: 500 });
     }
     if (!evaluation) return NextResponse.json({ error: 'Hodnocení nebylo nalezeno.' }, { status: 404 });
-    if (!['graded', 'needs_review'].includes(evaluation.status as string) || evaluation.ai_score === null) {
-      return NextResponse.json({ error: 'AI hodnocení ještě není připravené ke kontrole.' }, { status: 409 });
+    if (!['graded', 'needs_review'].includes(evaluation.status as string)) {
+      return NextResponse.json({ error: 'Hodnocení ještě není připravené ke kontrole.' }, { status: 409 });
     }
     if (body.score > (evaluation.max_points as number)) {
       return NextResponse.json({ error: `Skóre musí být mezi 0 a ${evaluation.max_points}.` }, { status: 400 });
