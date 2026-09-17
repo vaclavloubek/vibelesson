@@ -248,6 +248,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       void saveNow().then((outcome) => {
         if (outcome === 'saved') {
           retryAttemptRef.current = 0;
+          if (dirtyRef.current && latestTextRef.current.trim() && focusedRef.current) scheduleSave();
           return;
         }
         if (outcome === 'retry' && dirtyRef.current && latestTextRef.current.trim() && focusedRef.current) {
@@ -366,7 +367,12 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     focusedRef.current = true;
     setFocused(true);
     const acquired = await ensureLock();
-    if (acquired && dirtyRef.current && !draftConflictRef.current) scheduleSave();
+    if (acquired && dirtyRef.current && !draftConflictRef.current) {
+      scheduleSave();
+    } else if (!acquired && dirtyRef.current && !draftConflictRef.current) {
+      retryAttemptRef.current = Math.max(1, retryAttemptRef.current);
+      scheduleSave(retryDelay(retryAttemptRef.current));
+    }
   }
 
   async function handleBlur() {
