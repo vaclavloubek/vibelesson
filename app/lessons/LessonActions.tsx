@@ -1,15 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 type Props = {
   lessonId: string;
   title: string;
+  onMove?: () => void;
+  moveDisabled?: boolean;
 };
 
-export default function LessonActions({ lessonId, title }: Props) {
+export default function LessonActions({ lessonId, title, onMove, moveDisabled = false }: Props) {
   const router = useRouter();
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,6 +52,11 @@ export default function LessonActions({ lessonId, title }: Props) {
     }
   }
 
+  function moveLesson() {
+    detailsRef.current?.removeAttribute('open');
+    onMove?.();
+  }
+
   async function deleteLesson() {
     if (!window.confirm(`Opravdu smazat lekci „${title}“? Tuto akci zatím nelze vrátit.`)) return;
 
@@ -67,16 +75,17 @@ export default function LessonActions({ lessonId, title }: Props) {
   }
 
   return (
-    <div className="lesson-actions-wrap">
-      <details className="lesson-actions">
+    <div className="lesson-actions-wrap" aria-busy={busy}>
+      <details className="lesson-actions" ref={detailsRef}>
         <summary aria-label={`Akce pro lekci ${title}`}>•••</summary>
         <div className="lesson-actions-menu">
           <button type="button" onClick={renameLesson} disabled={busy}>Přejmenovat</button>
           <button type="button" onClick={duplicateLesson} disabled={busy}>Duplikovat</button>
+          {onMove ? <button type="button" onClick={moveLesson} disabled={busy || moveDisabled}>Přesunout do…</button> : null}
           <button type="button" className="danger-action" onClick={deleteLesson} disabled={busy}>Smazat</button>
         </div>
       </details>
-      {error ? <span className="lesson-action-error">{error}</span> : null}
+      {error ? <span className="lesson-action-error" role="alert">{error}</span> : null}
     </div>
   );
 }
