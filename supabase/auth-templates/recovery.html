@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="cs">
+  <body style="margin:0;padding:0;background:#f6f5f1;color:#151721;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e1dc;border-radius:18px;">
+            <tr>
+              <td style="padding:34px 34px 30px;">
+                <div style="font-size:11px;line-height:1.4;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#686b74;">Syllonaut / Auth</div>
+                <h1 style="margin:12px 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.03em;color:#151721;">Obnovení hesla v Syllonautu</h1>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4f525b;">Přišla žádost o nastavení nového hesla k vašemu účtu. Pokračujte přes bezpečný odkaz níže.</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="border-radius:10px;background:#5b57e8;">
+                      <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;padding:12px 18px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;">Nastavit nové heslo</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:26px 0 0;font-size:13px;line-height:1.55;color:#686b74;">Pokud jste obnovení hesla nevyžádali, tento e-mail můžete ignorovat. Vaše heslo se samo nezmění.</p>
+                <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1dc;font-size:11px;line-height:1.5;color:#8a8c93;">Syllonaut · transakční zpráva</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
