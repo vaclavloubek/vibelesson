@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import PresenterScoreboard from '@/components/PresenterScoreboard';
+import PresenterMode from '@/components/PresenterMode';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -26,5 +26,5 @@ export default async function PresenterPage({ params }: Props) {
 
   if (!session) notFound();
 
-  return <PresenterScoreboard sessionId={id} />;
+  return <PresenterMode sessionId={id} />;
 }
