@@ -150,9 +150,13 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
         </summary>
         {accessibilityIssues.length ? (
           <ul style={{ marginBottom: 0 }}>
-            {accessibilityIssues.map((issue) => <li key={`${issue.blockId}-${issue.code}`}><strong>{issue.blockTitle}:</strong> {issue.message}</li>)}
+            {accessibilityIssues.map((issue) => (
+              <li key={`${issue.blockId}-${issue.code}`}>
+                <strong>{issue.blockTitle}:</strong> {issue.message} <span><strong>Jak opravit:</strong> {issue.suggestion}</span>
+              </li>
+            ))}
           </ul>
-        ) : <p className="muted-copy" style={{ marginBottom: 0 }}>Automatická kontrola nenašla chybějící popisek tabulky, drag-only pokyn ani zjevnou závislost na barvě či poloze. Jde o pomocnou kontrolu, ne náhradu lidského posouzení.</p>}
+        ) : <p className="muted-copy" style={{ marginBottom: 0 }}>Automatická kontrola nenašla chybějící popisek tabulky, drag-only pokyn, zjevnou závislost na barvě či poloze ani nepopsaný odkaz na vizuální materiál. Jde o pomocnou kontrolu, ne náhradu lidského posouzení.</p>}
       </details>
 
       <div className="lesson-route" aria-label="Průběh lekce">
