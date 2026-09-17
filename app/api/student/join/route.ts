@@ -11,6 +11,7 @@ type EdgeJoinResponse = {
   sessionId?: string;
   participantId?: string;
   participantToken?: string;
+  participantTokenExpiresAt?: string;
   error?: string;
 };
 
@@ -32,8 +33,14 @@ export async function POST(req: Request) {
     });
     const data = await edgeResponse.json() as EdgeJoinResponse;
 
-    if (!edgeResponse.ok || !data.sessionId || !data.participantToken) {
+    if (!edgeResponse.ok || !data.sessionId || !data.participantToken || !data.participantTokenExpiresAt) {
       return NextResponse.json({ error: data.error || 'Ke hodině se nepodařilo připojit.' }, { status: edgeResponse.status || 500 });
+    }
+
+    const expiresAt = new Date(data.participantTokenExpiresAt);
+    if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+      console.error('student join returned invalid participant token expiry');
+      return NextResponse.json({ error: 'Ke hodině se nepodařilo připojit.' }, { status: 502 });
     }
 
     const response = NextResponse.json({ sessionId: data.sessionId });
@@ -42,7 +49,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24,
+      expires: expiresAt,
     });
     return response;
   } catch (error) {
