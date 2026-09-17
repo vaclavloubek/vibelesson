@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import LessonActions from './LessonActions';
 import styles from './LessonLibrary.module.css';
 
@@ -30,6 +30,14 @@ type Props = {
 };
 
 type Scope = 'all' | 'unfiled' | string;
+type DropTarget = 'unfiled' | string | null;
+type MoveDialogState = {
+  lessonIds: string[];
+  label: string;
+  currentFolderId?: string | null;
+};
+
+const MOVE_DIALOG_TITLE_ID = 'move-dialog-title';
 
 function formatUpdatedAt(value: string) {
   return new Intl.DateTimeFormat('cs-CZ', {
@@ -44,9 +52,55 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
   const [scope, setScope] = useState<Scope>('all');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
-  const [bulkFolderId, setBulkFolderId] = useState('');
+  const [moveDialog, setMoveDialog] = useState<MoveDialogState | null>(null);
+  const [draggingLessonId, setDraggingLessonId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const moveDialogRef = useRef<HTMLDivElement | null>(null);
+  const moveDialogTriggerRef = useRef<HTMLElement | null>(null);
+
+  function closeMoveDialog() {
+    setMoveDialog(null);
+    window.requestAnimationFrame(() => moveDialogTriggerRef.current?.focus());
+  }
+
+  useEffect(() => {
+    if (!moveDialog) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      moveDialogRef.current?.querySelector<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+    });
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault();
+        closeMoveDialog();
+        return;
+      }
+      if (event.key !== 'Tab' || !moveDialogRef.current) return;
+
+      const focusable = Array.from(moveDialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => !element.hasAttribute('hidden'));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [busy, moveDialog]);
 
   const roots = useMemo(
     () => folders.filter((folder) => !folder.parentId).sort((a, b) => a.name.localeCompare(b.name, 'cs')),
@@ -63,11 +117,6 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
     for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, 'cs'));
     return map;
   }, [folders]);
-
-  const orderedFolders = useMemo(
-    () => roots.flatMap((root) => [root, ...(childrenByParent.get(root.id) ?? [])]),
-    [childrenByParent, roots],
-  );
 
   const visibleLessons = useMemo(() => {
     if (!canManageFolders || scope === 'all') return lessons;
@@ -162,12 +211,71 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         body: JSON.stringify({ lessonIds, folderId }),
       });
       setSelectedLessonIds([]);
+      if (moveDialog) closeMoveDialog();
+      if (selectionMode) setSelectionMode(false);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lekce se nepodařilo přesunout.');
     } finally {
       setBusy(false);
     }
+  }
+
+  function rememberMoveTrigger() {
+    moveDialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+
+  function openSingleMove(lesson: LessonListItem) {
+    rememberMoveTrigger();
+    setError('');
+    setMoveDialog({ lessonIds: [lesson.id], label: lesson.title, currentFolderId: lesson.folderId });
+  }
+
+  function openBulkMove() {
+    if (!selectedLessonIds.length) return;
+    rememberMoveTrigger();
+    setError('');
+    setMoveDialog({
+      lessonIds: selectedLessonIds,
+      label: `${selectedLessonIds.length} ${selectedLessonIds.length === 1 ? 'lekce' : selectedLessonIds.length < 5 ? 'lekce' : 'lekcí'}`,
+    });
+  }
+
+  function startDragging(event: React.DragEvent<HTMLElement>, lessonId: string) {
+    if (selectionMode || busy) {
+      event.preventDefault();
+      return;
+    }
+    setDraggingLessonId(lessonId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', lessonId);
+  }
+
+  function allowDrop(event: React.DragEvent<HTMLElement>, target: DropTarget) {
+    if (!draggingLessonId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDropTarget(target);
+  }
+
+  async function dropLesson(event: React.DragEvent<HTMLElement>, folderId: string | null) {
+    event.preventDefault();
+    const lessonId = draggingLessonId || event.dataTransfer.getData('text/plain');
+    setDraggingLessonId(null);
+    setDropTarget(null);
+    if (!lessonId) return;
+    const lesson = lessons.find((item) => item.id === lessonId);
+    if (lesson && lesson.folderId === folderId) return;
+    await moveLessons([lessonId], folderId);
+  }
+
+  function endDragging() {
+    setDraggingLessonId(null);
+    setDropTarget(null);
+  }
+
+  function isCurrentMoveTarget(folderId: string | null) {
+    return moveDialog?.currentFolderId !== undefined && moveDialog.currentFolderId === folderId;
   }
 
   function renderFolderNavigation() {
@@ -180,36 +288,56 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         <button type="button" aria-pressed={scope === 'all'} className={scope === 'all' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('all')}>
           <span>Všechny lekce</span><small>{lessons.length}</small>
         </button>
-        <button type="button" aria-pressed={scope === 'unfiled'} className={scope === 'unfiled' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('unfiled')}>
+        <button
+          type="button"
+          aria-pressed={scope === 'unfiled'}
+          className={`${scope === 'unfiled' ? styles.scopeActive : styles.scopeButton} ${dropTarget === 'unfiled' ? styles.dropTarget : ''}`}
+          onClick={() => setScope('unfiled')}
+          onDragOver={(event) => allowDrop(event, 'unfiled')}
+          onDragLeave={() => setDropTarget(null)}
+          onDrop={(event) => dropLesson(event, null)}
+        >
           <span>Bez složky</span><small>{lessonCount(null)}</small>
         </button>
         <div className={styles.folderTree}>
           {roots.map((root) => (
             <div key={root.id}>
-              <div className={styles.folderRow}>
+              <div
+                className={`${styles.folderRow} ${dropTarget === root.id ? styles.dropTargetRow : ''}`}
+                onDragOver={(event) => allowDrop(event, root.id)}
+                onDragLeave={() => setDropTarget(null)}
+                onDrop={(event) => dropLesson(event, root.id)}
+              >
                 <button type="button" aria-pressed={scope === root.id} className={scope === root.id ? styles.folderActive : styles.folderButton} onClick={() => setScope(root.id)}>
                   <span>{root.name}</span><small>{lessonCount(root.id)}</small>
                 </button>
                 <div className={styles.folderActions}>
-                  <button type="button" aria-label={`Přidat podsložku do ${root.name}`} title="Přidat podsložku" onClick={() => createFolder(root.id)} disabled={busy}>+</button>
-                  <button type="button" aria-label={`Přejmenovat složku ${root.name}`} title="Přejmenovat" onClick={() => renameFolder(root)} disabled={busy}>✎</button>
-                  <button type="button" aria-label={`Smazat složku ${root.name}`} title="Smazat" onClick={() => deleteFolder(root)} disabled={busy}>×</button>
+                  <button type="button" title="Přidat podsložku" aria-label={`Přidat podsložku do ${root.name}`} onClick={() => createFolder(root.id)} disabled={busy}>+</button>
+                  <button type="button" title="Přejmenovat" aria-label={`Přejmenovat složku ${root.name}`} onClick={() => renameFolder(root)} disabled={busy}>✎</button>
+                  <button type="button" title="Smazat" aria-label={`Smazat složku ${root.name}`} onClick={() => deleteFolder(root)} disabled={busy}>×</button>
                 </div>
               </div>
               {(childrenByParent.get(root.id) ?? []).map((child) => (
-                <div className={`${styles.folderRow} ${styles.childFolder}`} key={child.id}>
+                <div
+                  className={`${styles.folderRow} ${styles.childFolder} ${dropTarget === child.id ? styles.dropTargetRow : ''}`}
+                  key={child.id}
+                  onDragOver={(event) => allowDrop(event, child.id)}
+                  onDragLeave={() => setDropTarget(null)}
+                  onDrop={(event) => dropLesson(event, child.id)}
+                >
                   <button type="button" aria-pressed={scope === child.id} className={scope === child.id ? styles.folderActive : styles.folderButton} onClick={() => setScope(child.id)}>
                     <span>{child.name}</span><small>{lessonCount(child.id)}</small>
                   </button>
                   <div className={styles.folderActions}>
-                    <button type="button" aria-label={`Přejmenovat složku ${child.name}`} title="Přejmenovat" onClick={() => renameFolder(child)} disabled={busy}>✎</button>
-                    <button type="button" aria-label={`Smazat složku ${child.name}`} title="Smazat" onClick={() => deleteFolder(child)} disabled={busy}>×</button>
+                    <button type="button" title="Přejmenovat" aria-label={`Přejmenovat složku ${child.name}`} onClick={() => renameFolder(child)} disabled={busy}>✎</button>
+                    <button type="button" title="Smazat" aria-label={`Smazat složku ${child.name}`} onClick={() => deleteFolder(child)} disabled={busy}>×</button>
                   </div>
                 </div>
               ))}
             </div>
           ))}
         </div>
+        {lessons.length > 0 ? <p className={styles.dragHint}>Na počítači můžeš lekci přetáhnout přímo do složky. Stejný přesun je vždy dostupný i přes nabídku lekce „Přesunout do…“.</p> : null}
       </nav>
     );
   }
@@ -246,18 +374,14 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
             <button type="button" className="secondary" aria-pressed={selectionMode} onClick={() => { setSelectionMode((value) => !value); setSelectedLessonIds([]); }} disabled={busy}>
               {selectionMode ? 'Hotovo' : 'Vybrat'}
             </button>
-            <Link href={newLessonHref} className="primary button-link">+ Nová lekce{activeFolder ? ' sem' : ''}</Link>
+            <Link href={newLessonHref} className="primary button-link">{activeFolder ? '+ Nová lekce v této složce' : '+ Nová lekce'}</Link>
           </div>
         </div>
 
         {selectionMode ? (
           <div className={styles.bulkToolbar} role="group" aria-label="Hromadný přesun lekcí">
             <strong>Vybráno: {selectedLessonIds.length}</strong>
-            <select aria-label="Cílová složka pro vybrané lekce" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)} disabled={busy}>
-              <option value="">Bez složky</option>
-              {orderedFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.parentId ? `↳ ${folder.name}` : folder.name}</option>)}
-            </select>
-            <button type="button" className="secondary" onClick={() => moveLessons(selectedLessonIds, bulkFolderId || null)} disabled={busy || selectedLessonIds.length === 0}>Přesunout</button>
+            <button type="button" className="secondary" onClick={openBulkMove} disabled={busy || selectedLessonIds.length === 0}>Přesunout do…</button>
           </div>
         ) : null}
 
@@ -271,30 +395,98 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         ) : (
           <div className="lesson-grid">
             {visibleLessons.map((lesson) => (
-              <article className="lesson-card" key={lesson.id}>
+              <article
+                className={`lesson-card ${styles.draggableCard} ${draggingLessonId === lesson.id ? styles.draggingCard : ''}`}
+                key={lesson.id}
+                draggable={!selectionMode && !busy}
+                onDragStart={(event) => startDragging(event, lesson.id)}
+                onDragEnd={endDragging}
+              >
                 <div className="lesson-card-top">
                   <div className={styles.cardTitleWrap}>
                     {selectionMode ? <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={() => toggleLesson(lesson.id)} aria-label={`Vybrat lekci ${lesson.title}`} /> : null}
                     <div><Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>{lesson.subtitle ? <p>{lesson.subtitle}</p> : null}</div>
                   </div>
-                  <LessonActions lessonId={lesson.id} title={lesson.title} />
+                  <LessonActions lessonId={lesson.id} title={lesson.title} onMove={() => openSingleMove(lesson)} moveDisabled={selectionMode || busy} />
                 </div>
                 <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} aktivit</span></div>
                 <div className={`lesson-card-footer ${styles.cardFooter}`}>
                   <span>Upraveno {formatUpdatedAt(lesson.updatedAt)}</span>
-                  <div className={styles.cardMoveActions}>
-                    <select value={lesson.folderId ?? ''} onChange={(event) => moveLessons([lesson.id], event.target.value || null)} disabled={busy || selectionMode} aria-label={`Přesunout lekci ${lesson.title}`}>
-                      <option value="">Bez složky</option>
-                      {orderedFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.parentId ? `↳ ${folder.name}` : folder.name}</option>)}
-                    </select>
-                    <Link href={`/lessons/${lesson.id}`} className="auth-link">Otevřít</Link>
-                  </div>
+                  <Link href={`/lessons/${lesson.id}`} className="auth-link">Otevřít</Link>
                 </div>
               </article>
             ))}
           </div>
         )}
       </div>
+
+      {moveDialog ? (
+        <div className={styles.dialogBackdrop} onMouseDown={() => { if (!busy) closeMoveDialog(); }}>
+          <div
+            ref={moveDialogRef}
+            className={styles.moveDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={MOVE_DIALOG_TITLE_ID}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className={styles.dialogHeader}>
+              <div>
+                <span className="eyebrow">Organizace knihovny</span>
+                <h3 id={MOVE_DIALOG_TITLE_ID}>Přesunout do…</h3>
+                <p>{moveDialog.label}</p>
+              </div>
+              <button type="button" className={styles.dialogClose} aria-label="Zavřít dialog přesunu" onClick={closeMoveDialog} disabled={busy}>×</button>
+            </div>
+
+            <div className={styles.moveFolderList}>
+              <button
+                type="button"
+                className={`${styles.moveFolderButton} ${isCurrentMoveTarget(null) ? styles.currentMoveFolder : ''}`}
+                onClick={() => moveLessons(moveDialog.lessonIds, null)}
+                disabled={busy || isCurrentMoveTarget(null)}
+              >
+                <span><strong>Bez složky</strong><small>{lessonCount(null)} lekcí</small></span>
+                {isCurrentMoveTarget(null) ? <em>Aktuálně</em> : <span aria-hidden="true">→</span>}
+              </button>
+
+              {roots.map((root) => (
+                <div className={styles.moveFolderGroup} key={root.id}>
+                  <div className={styles.moveFolderRootRow}>
+                    <button
+                      type="button"
+                      className={`${styles.moveFolderButton} ${isCurrentMoveTarget(root.id) ? styles.currentMoveFolder : ''}`}
+                      onClick={() => moveLessons(moveDialog.lessonIds, root.id)}
+                      disabled={busy || isCurrentMoveTarget(root.id)}
+                    >
+                      <span><strong>{root.name}</strong><small>{lessonCount(root.id)} lekcí</small></span>
+                      {isCurrentMoveTarget(root.id) ? <em>Aktuálně</em> : <span aria-hidden="true">→</span>}
+                    </button>
+                    <button type="button" className={styles.addChildInDialog} onClick={() => createFolder(root.id)} disabled={busy} aria-label={`Přidat podsložku do ${root.name}`}>+</button>
+                  </div>
+                  {(childrenByParent.get(root.id) ?? []).map((child) => (
+                    <button
+                      type="button"
+                      className={`${styles.moveFolderButton} ${styles.moveChildFolder} ${isCurrentMoveTarget(child.id) ? styles.currentMoveFolder : ''}`}
+                      onClick={() => moveLessons(moveDialog.lessonIds, child.id)}
+                      disabled={busy || isCurrentMoveTarget(child.id)}
+                      key={child.id}
+                    >
+                      <span><strong>{child.name}</strong><small>v {root.name} · {lessonCount(child.id)} lekcí</small></span>
+                      {isCurrentMoveTarget(child.id) ? <em>Aktuálně</em> : <span aria-hidden="true">→</span>}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.dialogFooter}>
+              <button type="button" className="secondary" onClick={() => createFolder(null)} disabled={busy}>+ Nová složka</button>
+              <button type="button" className="secondary" onClick={closeMoveDialog} disabled={busy}>Zrušit</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
