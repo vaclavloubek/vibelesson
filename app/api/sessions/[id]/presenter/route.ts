@@ -17,6 +17,7 @@ function toPresenterBlock(block: LessonBlock | null) {
     instructions: block.instructions,
     options: block.options ?? null,
     items: block.items ?? null,
+    dataTable: block.dataTable ?? null,
     revealText: block.type === 'reveal' ? block.revealText ?? null : null,
   };
 }
@@ -73,7 +74,12 @@ export async function GET(_req: Request, { params }: RouteContext) {
   } else if (activeBlock?.type === 'team_task') {
     const [teamsResult, responsesResult] = await Promise.all([
       supabase.from('teams').select('id', { count: 'exact', head: true }).eq('session_id', sessionId),
-      supabase.from('team_responses').select('team_id', { count: 'exact', head: true }).eq('session_id', sessionId).eq('block_id', activeBlock.id),
+      supabase
+        .from('team_responses')
+        .select('team_id', { count: 'exact', head: true })
+        .eq('session_id', sessionId)
+        .eq('block_id', activeBlock.id)
+        .not('submitted_at', 'is', null),
     ]);
     if (teamsResult.error || responsesResult.error) {
       console.error('presenter team response count failed', { teams: teamsResult.error, responses: responsesResult.error });
