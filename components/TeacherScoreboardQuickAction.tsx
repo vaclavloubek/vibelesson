@@ -17,6 +17,8 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
   const [target, setTarget] = useState<Element | null>(null);
   const [data, setData] = useState<ScoreboardControlState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -53,7 +55,8 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
   const changeVisibility = async () => {
     if (!data || busy) return;
 
-    if (!data.scoreboardRevealed) {
+    const revealing = !data.scoreboardRevealed;
+    if (revealing) {
       const warnings: string[] = [];
       if (data.pendingEvaluations) warnings.push(`${data.pendingEvaluations} AI hodnocení ještě čeká.`);
       if (data.needsReviewEvaluations) warnings.push(`${data.needsReviewEvaluations} AI hodnocení je označeno k ruční kontrole.`);
@@ -65,14 +68,25 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     }
 
     setBusy(true);
+    setFeedback('');
+    setActionError('');
     try {
       const response = await fetch(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: data.scoreboardRevealed ? 'hide_scoreboard' : 'reveal_scoreboard' }),
+        body: JSON.stringify({ action: revealing ? 'reveal_scoreboard' : 'hide_scoreboard' }),
       });
-      if (!response.ok) return;
-      await load();
+      const body = await response.json() as { error?: string; scoreboardRevealed?: boolean };
+      if (!response.ok) throw new Error(body.error || 'Viditelnost pořadí se nepodařilo změnit.');
+
+      const nextRevealed = typeof body.scoreboardRevealed === 'boolean'
+        ? body.scoreboardRevealed
+        : revealing;
+      setData((current) => current ? { ...current, scoreboardRevealed: nextRevealed } : current);
+      setFeedback(nextRevealed ? 'Pořadí je zveřejněné studentům.' : 'Pořadí je skryté.');
+      void load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Viditelnost pořadí se nepodařilo změnit.');
     } finally {
       setBusy(false);
     }
@@ -91,15 +105,26 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
         : 'Pořadí zatím nelze zveřejnit';
 
   return createPortal(
-    <button
-      className={data.status === 'ended' && !data.scoreboardRevealed ? 'primary' : 'secondary'}
-      type="button"
-      disabled={disabled}
-      onClick={() => void changeVisibility()}
-      title={!canReveal && !data.scoreboardRevealed ? 'Zatím není k dispozici žádný bodovaný blok.' : undefined}
-    >
-      {label}
-    </button>,
+    <>
+      <button
+        className={data.status === 'ended' && !data.scoreboardRevealed ? 'primary' : 'secondary'}
+        type="button"
+        disabled={disabled}
+        onClick={() => void changeVisibility()}
+        title={!canReveal && !data.scoreboardRevealed ? 'Zatím není k dispozici žádný bodovaný blok.' : undefined}
+      >
+        {label}
+      </button>
+      {data.status === 'ended' && (feedback || actionError || data.scoreboardRevealed) ? (
+        <span
+          role={actionError ? 'alert' : 'status'}
+          className={actionError ? 'error' : 'muted-copy'}
+          style={{ alignSelf: 'center', margin: 0 }}
+        >
+          {actionError || feedback || 'Pořadí je zveřejněné studentům.'}
+        </span>
+      ) : null}
+    </>,
     target,
   );
 }
