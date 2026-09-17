@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-17 po auth hardeningu, live-resilience úpravách, betatestových opravách a opravě Vercel Preview.
+Aktualizováno: 2026-09-17 po bezpečnostním auditu, remediaci SEC-001/003/004 a zavedení tarifního entitlementu pro AI grading.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -16,6 +16,10 @@ Starší `vaclavloubek/edupilot` nepoužívat. Produktově a vizuálně použív
 
 Hlavní doména: `syllonaut.com`.
 
+Aktuální `main` HEAD při této aktualizaci:
+
+`2fffbf2a804d864cfda1a09cb20c758f5d4377e7` — **Gate AI grading by plan entitlement**.
+
 ## 2. Stack a deployment
 
 - Next.js 16.3.1, React 19.2, TypeScript 5.9, Zod 4.1
@@ -28,11 +32,17 @@ Hlavní doména: `syllonaut.com`.
 
 Generování bez podkladů je přes Gateway omezené na OpenAI. Generování s podklady používá routing pouze přes `bedrock` / `azure`, řazený podle ceny, `zeroDataRetention: true`.
 
-### Vercel Preview
+### Vercel Preview a SEC-002
 
-Preview buildy padaly proto, že `NEXT_PUBLIC_SUPABASE_URL` a `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` byly dostupné jen pro Production. 2026-09-17 byly rozšířeny i na Preview. Následný čistý Preview deployment ze stejného stromu jako produkční `main` skončil `success`.
+Poslední ověřený stav při auditu:
 
-`AI_GATEWAY_API_KEY` a `AI_MODEL` byly už předtím dostupné pro Production i Preview.
+- `NEXT_PUBLIC_SUPABASE_URL` a `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` jsou dostupné i pro Preview;
+- `AI_GATEWAY_API_KEY` a `AI_MODEL` byly dostupné pro Production i Preview;
+- Preview buildy jsou funkční.
+
+Tento stav znamenal sdílenou produkční trust boundary pro Preview a byl evidován jako **SEC-002**. Cílová architektura byla odsouhlasena: samostatný sdílený staging Supabase pro Preview, oddělená AI identita/credential s omezeným blast radius a ochrana Preview přes Vercel Authentication/Deployment Protection.
+
+**SEC-002 není v tomto dokumentu považován za uzavřený**, dokud nebude oddělení prostředí skutečně provedeno a ověřeno. Nezaměňovat veřejný Supabase publishable key s tajným credentialem; problém je především sdílená produkční DB/trust boundary a placená AI identita.
 
 ## 3. Hlavní routy
 
@@ -63,7 +73,8 @@ AI negeneruje libovolný React/HTML. Generuje validovaný `Lesson` JSON; aplikac
 - Student nemá Supabase Auth účet.
 - Studentské/public payloady jsou whitelistované.
 - Odvozené skóre se nepersistuje jako další zdroj pravdy.
-- Kvóty/oprávnění jsou server/DB autorita.
+- Kvóty a placená oprávnění jsou server/DB autorita.
+- Client UI nesmí být jediná ochrana placené AI operace.
 - Secrets nikdy do repo ani klientského JS.
 
 ## 5. Lesson schema a AI
@@ -104,21 +115,49 @@ Implementováno/ověřeno:
 - režimy `primary`, `strict`, `inspiration`;
 - podklady jsou v AI promptu nedůvěryhodný obsah; instrukce/prompt injection uvnitř dokumentu se mají ignorovat.
 
-## 6. Účet, kvóty a lesson workspace
+Security audit eviduje samostatně **SEC-012**: klientská extrakce DOCX/PPTX přes JSZip může před textovým limitem expandovat komprimovaný obsah; jde o low hardening proti decompression bomb.
+
+## 6. Účet, kvóty a tarifní entitlementy
 
 Běžný účet:
 
 - `role=user`
 - 5 nových lekcí / kalendářní měsíc
 - 20 AI úprav / kalendářní měsíc
+- `ai_grading_enabled=false` jako bezpečný default
 
 Admin:
 
 - `role=admin`
 - `monthly_lesson_limit=NULL`
 - `monthly_revision_limit=NULL`
+- je serverově považován za oprávněný k AI gradingu
 
 Nový auth user dostane `profiles` řádek přes `on_auth_user_created → private.handle_new_user()`. DB defaulty jsou autorita free 5/20; při registraci se v první verzi nevybírá tarif.
+
+### AI grading entitlement
+
+Od 2026-09-17 existuje v `profiles` server-authoritative boolean `ai_grading_enabled`.
+
+Produktové pravidlo:
+
+- Free: deterministický quiz + ruční hodnocení otevřených/týmových odpovědí;
+- budoucí střední tarif: stejně bez placeného AI gradingu;
+- nejvyšší tarif: `ai_grading_enabled=true` a může používat placený AI grading;
+- admin se chová jako nejvyšší tarif;
+- billing ani názvy budoucích placených tarifů zatím nejsou zadrátované do grading kódu.
+
+Fail-closed ochrana je ve více vrstvách:
+
+- submit/queue vytvoří pro neentitled učitele rovnou manual-review evaluation;
+- background grading processor bez entitlementu nevrací práci k AI;
+- přímý `/grade` endpoint entitlement znovu ověřuje;
+- DB `claim_response_evaluation(...)` kontroluje ownership i entitlement;
+- UI není bezpečnostní hranice.
+
+Manual grading používá stejnou tabulku `response_evaluations`, typicky `status='needs_review'`, `grader_version='manual-v1'`, bez `ai_score`, modelu a AI costu. Učitel zadá `teacher_score` a volitelnou poznámku.
+
+## 7. Lesson workspace
 
 Lesson workspace má:
 
@@ -135,7 +174,7 @@ Lesson workspace má:
 
 Ukázková lekce **„Mediální mise – Jak přežít internet a neztratit důstojnost“** byla seeddována/duplikována pod uživatelský účet jako běžná vlastní lesson (migrace `20260917033538_seed_admin_demo_lesson`).
 
-## 7. Auth — stav 2026-09-17
+## 8. Auth — stav 2026-09-17
 
 Aplikační public teacher auth flow je implementovaný:
 
@@ -158,9 +197,11 @@ Pouhý GET bezpečnostního e-mailového scanneru tedy token nespotřebuje.
 
 Repo obsahuje branded Orbital Precision auth šablony pro Confirm signup, Reset password, Invite, Magic link, Change email a Reauthentication. Confirm/Recovery jsou aktuální produktové flow; ostatní jsou připravené pro budoucnost.
 
-Důležité: HTML soubory v repo se samy nenasazují do hosted Supabase. Při security auditu explicitně ověřit hosted SMTP, aktivní templates, Site URL, Redirect allowlist, rate limits a další Auth konfiguraci.
+Důležité: HTML soubory v repo se samy nenasazují do hosted Supabase. **SEC-006** zůstává otevřený jako hosted-config validation: SMTP, aktivní templates, Site URL, Redirect allowlist, rate limits, CAPTCHA/Auth nastavení a session policy je nutné ověřit proti skutečnému hosted projektu.
 
-## 8. Student a live session
+**SEC-007:** Supabase security advisor stále hlásí Leaked Password Protection Disabled.
+
+## 9. Student a live session
 
 Student:
 
@@ -175,7 +216,7 @@ Student:
 
 Veřejný join je povolen v `lobby` a `live`, ne po `ended`.
 
-### Síťový hardening 2026-09-17
+### Síťový hardening
 
 Nasazeno:
 
@@ -189,50 +230,77 @@ Nasazeno:
 - autosave retry backoff cca 2–30 s;
 - při refreshi/síťovém konfliktu se lokální text nepřepíše potichu vzdálenou verzí; student zvolí, kterou verzi použít.
 
-## 9. Team task: koncept vs odevzdání
+### SEC-004 — join abuse/cost amplification — REMEDIATED / CLOSED
 
-Po betatestu je týmový draft oddělený od skutečného submitu.
+Finální ochrana je na DB insert boundary:
 
-- `team_responses.answer` = autosavovaný **koncept**
+- session max. **200 participants**;
+- max. **150 nových joinů za 1 minutu na session**;
+- kontrola je serializovaná přes lock session row a probíhá v `before insert` triggeru;
+- přímý Edge Function/DB insert tedy nemůže obejít aplikační kontrolu;
+- index `participants(session_id, joined_at desc)` podporuje recent-join kontrolu.
+
+Relevantní migrace v produkční historii:
+
+- `20260917142041_limit_student_session_joins`
+- `20260917142118_enforce_participant_join_limits_at_insert`
+
+## 10. Odevzdání odpovědí: draft vs submit
+
+Neaktivita studenta **není** signál „odpověď je hotová“.
+
+### Team task
+
+- `team_responses.answer` = autosavovaný koncept
 - `team_responses.submitted_answer` = poslední explicitně odevzdaná verze
 - `team_responses.submitted_at` = čas explicitního odevzdání
 
-Autosave pouze ukládá koncept a **nesmí spouštět placené AI hodnocení**.
+Autosave pouze ukládá koncept a nesmí spouštět placené hodnocení.
 
-Akce **Odevzdat týmovou odpověď**:
+Akce **Odevzdat týmovou odpověď** snapshotuje aktuální text a teprve explicitní submit může vytvořit/aktualizovat evaluation. Identická znovu odevzdaná verze nesmí vytvořit další placené AI hodnocení.
 
-- snapshotuje text do `submitted_answer`;
-- nastaví `submitted_at`;
-- teprve potom může queueovat AI evaluation;
-- identická znovu odevzdaná verze nevytváří další placené AI hodnocení;
-- změna konceptu po odevzdání neinvaliduje poslední evaluation, dokud tým znovu explicitně neodevzdá změněnou verzi.
+Presenter u `team_task` počítá jako odevzdané jen řádky s `submitted_at`.
 
-Původní trigger, který AI queueoval při každé změně `team_responses.answer`, byl odstraněn. Historické team responses byly při migraci backfillnuté jako dříve odevzdané, aby zůstala historie konzistentní.
+### Individuální `open_text` / `exit_ticket` — SEC-001
 
-Presenter u team_task počítá jako odevzdané jen řádky s `submitted_at`.
+Po remediaci SEC-001 mají bodované individuální odpovědi stejnou explicitní semantiku:
 
-## 10. Activity clarity a beta feedback
+- běžné uložení = koncept, bez placené AI operace;
+- **Odevzdat odpověď** uloží `submitted_answer` + `submitted_at`;
+- identická verze je idempotentní;
+- pokud je evaluation ještě `pending`, novější explicitně odevzdaný snapshot ji může aktualizovat tak, aby proběhl nejvýše jeden paid grading;
+- po startu nebo dokončení AI gradingu změněná odpověď sama nový placený call nevytvoří;
+- teacher vidí, že existuje novější submitted verze, a případné nové hodnocení spouští explicitně;
+- podle entitlementu se novější verze po teacher akci zařadí buď do AI, nebo zpět k ručnímu hodnocení.
 
-Dnešní tři poznámky z betatestu jsou uzavřené:
+**SEC-001 — REMEDIATED / CLOSED.**
+
+Relevantní commity:
+
+- `753c848` — explicit individual submissions
+- `8360205` — teacher-controlled regrading
+
+## 11. Activity clarity a beta feedback
+
+Uzavřené poznámky z betatestu:
 
 1. Student u aktivity explicitně vidí `Individuální aktivita`, `Týmová aktivita` nebo `Společná aktivita`; stejné badge jsou i v lesson preview.
 2. Číselné datasety používají structured `dataTable`.
-3. AI vyhodnocení týmové práce se spouští po explicitním submitu, ne po autosavu/neaktivitě.
-
-Neaktivita studenta není signál „odpověď je hotová“.
+3. Vyhodnocení otevřených/týmových odpovědí se váže na explicitní submit, ne na autosave nebo čas neaktivity.
 
 Presenter používá vlastní typový label (`Týmový úkol`, `Kvíz`, `Hlasování` atd.); explicitní activity-mode badge ani `dataTable` zatím v samostatném Presenter rendereru nejsou.
 
-## 11. Hybridní scoring + AI grading
+## 12. Hybridní scoring + grading
 
 Implementováno a nasazeno:
 
-- quiz deterministicky;
-- bodované `open_text` / `exit_ticket`: AI podle rubriky;
-- bodovaný `team_task`: AI pouze nad explicitně odevzdanou verzí;
+- quiz se boduje deterministicky pro všechny tarify;
+- bodované `open_text` / `exit_ticket` a `team_task` používají `response_evaluations`;
+- bez AI entitlementu čekají na ruční teacher score;
+- s AI entitlementem AI hodnotí explicitně odevzdaný snapshot podle rubriky;
 - teacher override > AI;
-- AI submit nezdržuje student response;
-- atomický claim chrání proti paralelnímu dvojímu gradingu;
+- student submit není blokován čekáním na AI;
+- atomický DB claim chrání proti paralelnímu dvojímu gradingu;
 - confidence může vést k `needs_review`;
 - persistent teacher review queue;
 - teacher-only rationale/rubrika/confidence/teacher note;
@@ -240,11 +308,11 @@ Implementováno a nasazeno:
 - teacher scoreboard a Presenter používají centralizovaný serverový výpočet;
 - public student score vrací jen vlastní `score`, `maxPoints`, `rank`.
 
-`response_evaluations` ukládá answer/rubric snapshot, criterion scores, `ai_score`, `teacher_score`, confidence, status, model a skutečný `cost_usd`.
+`response_evaluations` ukládá answer/rubric snapshot, criterion scores, `ai_score`, `teacher_score`, confidence, status, model a skutečný `cost_usd`. U manual-only hodnocení AI pole zůstávají prázdná.
 
 Hybridní scoring zatím není součástí post-session reportu/CSV.
 
-## 12. Presenter Mode
+## 13. Presenter Mode
 
 Samostatný teacher-owner-auth read-only režim.
 
@@ -272,7 +340,7 @@ Po `ended` se zobrazí scoreboard / Moon race:
 - reduced-motion fallback;
 - žádné teacher-only grading internals v Presenter payloadu.
 
-## 13. Databázové oblasti
+## 14. Databázové oblasti a migrace
 
 Hlavní tabulky:
 
@@ -287,33 +355,101 @@ Hlavní tabulky:
 - `team_edit_locks`
 - `response_evaluations`
 
-Poslední relevantní migrace:
+Důležité novější migrace v produkční historii:
 
 - `20260917033538_seed_admin_demo_lesson`
-- `20260917105500_extend_team_edit_lock_ttl.sql`
-- `20260917111500_submit_team_answers_before_ai_grading.sql`
+- `20260917085744_extend_team_edit_lock_ttl`
+- `20260917102904_submit_team_answers_before_ai_grading`
+- `20260917102936_persist_submitted_team_answer_snapshot`
+- `20260917105454_submit_team_answers_before_ai_grading`
+- `20260917133141_prepare_explicit_individual_submission`
+- `20260917134214_activate_explicit_individual_submission`
+- `20260917134458_add_teacher_regrade_action`
+- `20260917142041_limit_student_session_joins`
+- `20260917142118_enforce_participant_join_limits_at_insert`
+- `20260917145648_gate_ai_grading_by_entitlement`
 
-## 14. Aktuální Supabase advisories — výchozí stav pro security audit
+Repo migration filenames musí zůstat sladěné s verzemi z produkční `supabase_migrations.schema_migrations`. SEC-004 migration history byla explicitně srovnána commitem `14ed01e`.
 
-Ověřeno 2026-09-17 po posledních migracích.
+## 15. Security audit — aktuální stav
 
-Security linter hlásí:
+Důkladný read-only audit celé aplikace proběhl 2026-09-17. Nálezy je nutné řešit po jednom, vždy `TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ`.
+
+### Uzavřené nálezy
+
+**SEC-001 — opakovaná AI spotřeba při automatickém re-gradingu individuálních odpovědí — REMEDIATED / CLOSED**
+
+Explicitní draft/submit, idempotence, teacher-controlled regrade a DB ochrana placeného callu.
+
+**SEC-003 — CSV formula injection — REMEDIATED / CLOSED**
+
+`SessionReport` při CSV exportu neutralizuje textové buňky, které po případném whitespace/control prefixu začínají `=`, `+`, `-` nebo `@`. Číselné hodnoty se zachovávají jako čísla. Commit `c10f0c4`.
+
+**SEC-004 — neomezené joiny / cost amplification — REMEDIATED / CLOSED**
+
+DB boundary cap 200 participants + 150 joinů/min/session, viz sekce 9.
+
+### Otevřené / další nálezy
+
+**SEC-002 — Preview sdílí production AI/Supabase trust boundary — OPEN / INFRASTRUCTURE REMEDIATION REQUIRED**
+
+Poslední ověřený stav při auditu byl potvrzený architektonický risk. Cílové řešení: staging Supabase + oddělená Preview AI identita + Preview protection. Neoznačovat jako closed bez nové infrastrukturní verifikace.
+
+**SEC-005 — TOCTOU mezi kontrolou live stavu a service-role zápisem — MEDIUM / CONFIRMED**
+
+Student/team Edge flow nejdřív kontroluje aktuální aktivní blok/stav a následně provádí privilegovaný zápis. Stav se může mezi těmito kroky změnit. Cílový směr: atomický DB RPC nebo jiná DB-level recheck/lock konstrukce, která sváže autorizaci a zápis v jedné transakci. **Toto je další kódový finding k řešení.**
+
+**SEC-006 — hosted Supabase Auth hardening/config — MEDIUM / NEEDS VALIDATION**
+
+Ověřit skutečný hosted Site URL, redirect allowlist, CAPTCHA, rate limits, SMTP/templates, session nastavení a další Auth konfiguraci.
+
+**SEC-007 — Leaked Password Protection Disabled — LOW / OPEN**
+
+Aktuálně hlášeno Supabase security advisorem.
+
+**SEC-008 — chybí dependency lockfile / deployment versions nejsou deterministické — MEDIUM / OPEN**
+
+Vyřešit až po kontrole současného package/deploy workflow, nevytvářet lockfile mechanicky bez ověření.
+
+**SEC-009 — chybí explicitní retention/deletion lifecycle studentských/session dat — MEDIUM HARDENING / OPEN**
+
+**SEC-010 — `main` branch není chráněný — HARDENING / OPEN**
+
+Při aktualizaci tohoto dokumentu GitHub stále reportoval `main protected=false`. Nepoužívat force update.
+
+**SEC-011 — relační consistency defense-in-depth — LOW / OPEN**
+
+**SEC-012 — DOCX/PPTX client decompression bomb — LOW / OPEN**
+
+**SEC-013 — participant token bez explicitní server-side expiry — LOW / OPEN**
+
+HttpOnly cookie má přibližně 24 h maxAge, ale serverová capability sama nemá explicitní expiry claim/state.
+
+**SEC-014 — explicitní security headers — LOW / NEEDS VALIDATION**
+
+Repo při auditu neměl explicitní security headers konfiguraci; live headers nebyly kompletně ověřené.
+
+**SEC-015 — provider-level ZDR pro OpenAI cesty bez source materials / grading — MEDIUM / NEEDS VALIDATION**
+
+Source-material generation používá Bedrock/Azure routing s `zeroDataRetention: true`; u běžného OpenAI generation/revision/grading toku nebyla při auditu provider-level ZDR garance explicitně doložena.
+
+Původní pre-beta must-fix sada byla: SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006, SEC-008, SEC-015. Z ní jsou nyní uzavřené SEC-001, SEC-003 a SEC-004.
+
+## 16. Aktuální Supabase advisories
+
+Security advisor byl znovu spuštěn po migraci `20260917145648_gate_ai_grading_by_entitlement`.
+
+Aktuálně hlásí:
 
 - `get_student_public_scoreboard(...)` — `SECURITY DEFINER`, executable pro `anon`;
-- 10 `SECURITY DEFINER` RPC funkcí executable pro `authenticated`, zejména quota/evaluation/review RPC;
+- 11 `SECURITY DEFINER` funkcí executable pro `authenticated`;
 - **Leaked Password Protection Disabled**.
 
-Linter warning není automaticky potvrzená zranitelnost. Některé funkce jsou záměrně `SECURITY DEFINER` a kontrolují `auth.uid()` + ownership; student public scoreboard je capability-scoped. Audit musí ověřit skutečnou exploitovatelnost, ACL, `search_path`, vstupy a ownership checks.
+Tyto warnings nejsou automaticky zranitelnosti. Některé RPC jsou úmyslně exposed a interně kontrolují `auth.uid()`, ownership a/nebo capability. Každý advisor finding musí být posouzen podle skutečné funkce, ACL, `search_path`, vstupů a ownership checks; neprovádět mechanické revoke bez dopadové analýzy.
 
-Performance linter hlásí:
+Předchozí performance advisories zahrnovaly FK bez covering indexu, některé RLS policies bez initplan-friendly `(select auth.uid())` a nepoužité indexy. Před případnou úpravou znovu spustit advisor a ověřit skutečný query/access model.
 
-- 6 FK bez covering indexu;
-- 5 RLS policies, které volají `auth.uid()`/auth funkci per-row místo initplan-friendly `(select auth.uid())`;
-- 2 dosud nepoužité indexy.
-
-Tyto položky jsou auditní backlog; nemají se mechanicky „opravit“ bez kontroly access/query modelu.
-
-## 15. Bezpečnostní hranice
+## 17. Bezpečnostní hranice
 
 Zachovat:
 
@@ -325,34 +461,34 @@ Zachovat:
 - Presenter je read-only a whitelistovaný;
 - Realtime = invalidation, ne citlivý datový kanál;
 - secrets/service role pouze serverově;
-- quota enforcement server/DB;
+- quota a paid-AI entitlement enforcement server/DB;
 - destructive operace kontrolují ownership;
 - auth redirecty nesmí být open redirect;
 - podklady i student text jsou pro AI nedůvěryhodná data.
 
-## 16. Roadmapa / aktuální stav
+## 18. Roadmapa / aktuální stav
 
 ### Milník A — AI workflow
 **Dokončeno.**
 
-AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser extraction, ZDR routing, prompt-injection ochrana podkladů, explicitní setup params a structured `dataTable`.
+AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser extraction, ZDR routing pro source-material flow, prompt-injection ochrana podkladů, explicitní setup params a structured `dataTable`.
 
 ### Milník A.1 — účet jako workspace
 **MVP dokončeno a produkčně ověřeno.**
 
 ### Milník A.2 — veřejný auth
-**Aplikační flow implementovaný; produkční konfiguraci auditovat.**
+**Aplikační flow implementovaný; hosted konfiguraci dál auditovat.**
 
 Hotovo: signup, login/logout, scanner-safe confirm, forgot/recovery/update password, password reveal, Turnstile integrace, branded template source files, DB free onboarding 5/20.
 
-Zbývá zejména bezpečnostně ověřit hosted Auth/SMTP/templates/Site URL/redirects/rate limits/leaked-password a provést kompletní externí E2E po auditu.
+Zbývá zejména SEC-006/007 a kompletní externí E2E po security hardeningu.
 
 ### Milník B — live hodina
 **Hlavní MVP dokončeno.**
 
-Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit team submit, timer, reveal, QR, recovery, report/CSV, scoring, AI grading, teacher review, public own score, Presenter, Moon race, network hardening, beta activity clarity a data tables.
+Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit team i individual submit, timer, reveal, QR, recovery, report/CSV, scoring, plan-aware manual/AI grading, teacher review, public own score, Presenter, Moon race, network hardening, join abuse protection, beta activity clarity a data tables.
 
-Zbývá: hybridní scoring v post-session reportu/CSV a případné další statistiky.
+Zbývá: hybridní scoring v post-session reportu/CSV, security findings od SEC-005 dál a případné další statistiky.
 
 ### Další produktové položky
 
@@ -365,52 +501,45 @@ Zbývá: hybridní scoring v post-session reportu/CSV a případné další stat
 - OCR;
 - pokročilá analytika/lokalizace.
 
-## 17. Poslední významné operace 2026-09-17
+## 19. Poslední významné operace 2026-09-17
 
-Od předchozí aktualizace `PROJECT.md` (`6dec06b`) proběhlo zejména:
+Novější než předchozí `PROJECT.md`:
 
-- `33b58a5` — public teacher auth flow
-- `728ba54` — scanner-safe auth confirmation
-- `48f7169`, `c8931d7` — branded auth templates
-- `3ac1b6f`, `55ff7fb` — Turnstile + UX
-- `a0bd4d0` — password reveal
-- `85b4739`, `06f0b3b` — Presenter jako live classroom display
-- `8691eb8` — response-save network hardening
-- `18072e0` — live resilience proti přechodným Supabase chybám
-- `2c4943a` — zachování team draftů při výpadku
-- `c27e6b5` + finální port — activity clarity + structured numeric data
-- `eb08629` + finální port — team AI grading jen po explicitním submitu
-- `b9f6162` — produkční deployment betatestových oprav
+- `753c848` — SEC-001: explicit individual submissions
+- `8360205` — SEC-001: teacher-controlled regrading
+- `c10f0c4` — SEC-003: CSV formula injection fix
+- `ab69390` — SEC-004: participant caps + burst limit na DB boundary
+- `14ed01e` — srovnání SEC-004 migration history s produkcí
+- `2fffbf2` — tarifní `ai_grading_enabled`, manual grading pro default/free, AI grading pouze pro entitled účty
 
-Mimo repo: Vercel Supabase env vars byly rozšířeny na Preview a následný kontrolní Preview build prošel.
+Vercel Preview i production deploy pro `2fffbf2` skončily `success`.
 
-## 18. Pravidla další práce
+## 20. Pravidla další práce
 
 - nejdřív načíst aktuální `PROJECT.md`, `main` a relevantní soubory;
+- vždy zkontrolovat, zda se `main` neposunul kvůli paralelnímu chatu;
 - **TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ**;
+- security findings řešit jednotlivě, ne hromadným refaktorem;
 - malé logické celky;
 - commitovat funkční celky, ne jednotlivé soubory;
-- před finálním commitem znovu načíst HEAD `main`;
+- před finálním commitem/merge znovu načíst HEAD `main`;
 - zachovat paralelní změny;
 - žádný force update `main`;
 - Preview před Production, pokud je dostupné;
 - DB migrace pokud možno backward-compatible;
-- security/permissions/quota serverově;
+- DDL přes Supabase migration workflow, ne ad-hoc trvalé SQL;
+- security/permissions/quota/paid entitlement serverově;
 - secrets nikdy do repo/klienta;
 - při Supabase zásahu nejdřív ověřit live DB stav;
+- po DDL znovu spustit relevantní Supabase advisories;
+- nedělat destruktivní/load/stress testy na produkci;
+- nevytvářet umělé placené AI cally jen kvůli testu, pokud lze bezpečnost ověřit strukturálně;
 - `PROJECT.md` měnit pouze na výslovný pokyn uživatele.
 
-## 19. Bezprostřední další krok
+## 21. Bezprostřední další krok
 
-**Důkladný bezpečnostní audit celé aplikace.**
+**Pokračovat v security remediation od SEC-005.**
 
-Nejdřív read-only. Audit musí oddělit:
+SEC-005 je potvrzený TOCTOU problém mezi kontrolou teacher-controlled live stavu a následným privilegovaným student/team zápisem. Nejprve read-only zmapovat přesné write paths a současné Edge Function/DB transakční hranice; potom navrhnout nejmenší atomickou DB-level opravu. Neprovádět změnu, dokud není jasné, které operace je nutné svázat do jedné transakce a jak zachovat participant token/team lock semantics.
 
-- potvrzené zranitelnosti;
-- hardening doporučení;
-- privacy/data-leak rizika;
-- abuse/cost-exhaustion rizika;
-- performance advisories;
-- záměrné architektonické výjimky, které linter pouze varuje.
-
-Po auditu předložit prioritizovaná findings + remediation plán. Do produkce nic neměnit bez explicitního souhlasu uživatele.
+SEC-002 zůstává otevřený infrastrukturní finding a nesmí být omylem označen za vyřešený. Po SEC-005 pokračovat dalšími must-fix body SEC-006, SEC-008 a SEC-015, případně se k SEC-002 vrátit samostatným infrastrukturním krokem podle rozhodnutí uživatele.
