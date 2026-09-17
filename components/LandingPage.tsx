@@ -9,6 +9,8 @@ import styles from './LandingPage.module.css';
 import polish from './LandingPagePolish.module.css';
 
 const activities = ['Hlasování', 'Kvíz', 'Týmový úkol', 'Řazení', 'Otevřená odpověď', 'Odhalení', 'Timer'];
+const previewMutedText = { color: '#686b74' } as const;
+const previewPrimaryAction = { background: '#5b57e8' } as const;
 
 function SectionCue({ href, label }: { href: string; label: string }) {
   return (
@@ -62,32 +64,32 @@ export default function LandingPage() {
             </div>
             <div className={styles.windowGrid}>
               <div className={styles.composerCard}>
-                <span className={styles.uiEyebrow}>Zadání</span>
+                <span className={styles.uiEyebrow} style={previewMutedText}>Zadání</span>
                 <strong>Co mají studenti dnes zažít?</strong>
                 <div className={styles.fakeTextarea}>90 minut mediální gramotnosti. Minimum výkladu, práce ve skupinách, praktické příklady a závěrečný exit ticket.</div>
-                <div className={styles.fakeMeta}><span>90 min</span><span>VŠ</span><span>3–4 studenti</span></div>
+                <div className={styles.fakeMeta}><span style={previewMutedText}>90 min</span><span style={previewMutedText}>VŠ</span><span style={previewMutedText}>3–4 studenti</span></div>
                 <div className={styles.fakeButton}>Vytvořit lekci</div>
               </div>
 
               <div className={styles.routeCard}>
                 <div className={styles.routeHeader}>
-                  <div><span className={styles.uiEyebrow}>AI návrh</span><strong>Mediální gramotnost bez filtru</strong></div>
-                  <span>90 min</span>
+                  <div><span className={styles.uiEyebrow} style={previewMutedText}>AI návrh</span><strong>Mediální gramotnost bez filtru</strong></div>
+                  <span style={previewMutedText}>90 min</span>
                 </div>
                 <div className={styles.routeList}>
-                  <div className={styles.routeItem}><i /><span>1</span><div><strong>Rychlý start</strong><small>Hlasování · 8 min</small></div></div>
-                  <div className={styles.routeItem}><i /><span>2</span><div><strong>Najděte slabinu</strong><small>Týmový úkol · 25 min</small></div></div>
-                  <div className={styles.routeItem}><i /><span>3</span><div><strong>Seřaďte důvěryhodnost</strong><small>Řazení · 20 min</small></div></div>
-                  <div className={styles.routeItem}><i /><span>4</span><div><strong>Co si odnášíte?</strong><small>Exit ticket · 7 min</small></div></div>
+                  <div className={styles.routeItem}><i /><span>1</span><div><strong>Rychlý start</strong><small style={previewMutedText}>Hlasování · 8 min</small></div></div>
+                  <div className={styles.routeItem}><i /><span>2</span><div><strong>Najděte slabinu</strong><small style={previewMutedText}>Týmový úkol · 25 min</small></div></div>
+                  <div className={styles.routeItem}><i /><span>3</span><div><strong>Seřaďte důvěryhodnost</strong><small style={previewMutedText}>Řazení · 20 min</small></div></div>
+                  <div className={styles.routeItem}><i /><span>4</span><div><strong>Co si odnášíte?</strong><small style={previewMutedText}>Exit ticket · 7 min</small></div></div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className={styles.phone}>
-            <div className={styles.phoneTop}><span>3 / 8</span><i /></div>
+            <div className={styles.phoneTop}><span style={previewMutedText}>3 / 8</span><i /></div>
             <div className={styles.phoneProgress}><i /></div>
-            <span className={styles.phoneEyebrow}>Řazení</span>
+            <span className={styles.phoneEyebrow} style={previewMutedText}>Řazení</span>
             <strong>Co je nejspolehlivější signál důvěryhodnosti?</strong>
             <div className={`${styles.phoneRank} ${styles.rankOne}`}><b>1.</b><span>Primární zdroj</span></div>
             <div className={`${styles.phoneRank} ${styles.rankTwo}`}><b>2.</b><span>Ověřitelný autor</span></div>
@@ -143,7 +145,7 @@ export default function LandingPage() {
           </div>
           <div className={styles.mcProgress}><i /></div>
           <div className={styles.mcGrid}>
-            <div className={styles.mcActivity}><span>Blok 3 / 8</span><h3>Seřaďte signály důvěryhodnosti</h3><p>Ve dvojicích vytvořte pořadí a krátce vysvětlete první a poslední volbu.</p><button type="button" tabIndex={-1}>Další →</button></div>
+            <div className={styles.mcActivity}><span>Blok 3 / 8</span><h3>Seřaďte signály důvěryhodnosti</h3><p>Ve dvojicích vytvořte pořadí a krátce vysvětlete první a poslední volbu.</p><button type="button" tabIndex={-1} style={previewPrimaryAction}>Další →</button></div>
             <div className={styles.mcResponses}><span>Průběžné odpovědi</span><strong>14 z 18</strong><div><i style={{ width: '78%' }} /></div><small>78 % studentů odeslalo odpověď</small></div>
           </div>
         </div>
