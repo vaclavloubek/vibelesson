@@ -35,6 +35,8 @@ declare global {
 type Props = {
   onAuthChange: (user: User | null) => void;
   quotaRefreshKey?: number;
+  initialOpen?: boolean;
+  initialMode?: 'signin' | 'signup';
 };
 
 type Quota = {
@@ -126,12 +128,17 @@ function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps)
   );
 }
 
-export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Props) {
+export default function AuthControls({
+  onAuthChange,
+  quotaRefreshKey = 0,
+  initialOpen = false,
+  initialMode = 'signin',
+}: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const [open, setOpen] = useState(initialOpen);
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');

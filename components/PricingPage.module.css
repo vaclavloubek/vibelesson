@@ -1,0 +1,337 @@
+.hero {
+  width: min(920px, calc(100% - 40px));
+  margin: 84px auto 0;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: .105em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 14px auto 18px;
+  max-width: 900px;
+  font-size: clamp(42px, 5vw, 68px);
+  line-height: 1;
+  letter-spacing: -.055em;
+  font-weight: 780;
+}
+
+.hero p {
+  max-width: 760px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.58;
+}
+
+.controls {
+  width: min(1120px, calc(100% - 40px));
+  margin: 44px auto 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255,255,255,.62);
+  box-shadow: 0 1px 0 rgba(21,23,33,.02);
+}
+
+.controlGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.controlGroup > span {
+  padding-left: 5px;
+  color: #777a83;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dfded8;
+  border-radius: 13px;
+  background: #f3f2ee;
+}
+
+.segmented button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #676a73;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.segmented button:hover {
+  color: var(--ink);
+  background: rgba(255,255,255,.58);
+}
+
+.segmented button.selected {
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 1px 4px rgba(21,23,33,.08);
+}
+
+.segmented em {
+  margin-left: 5px;
+  color: var(--success);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cards {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.card {
+  position: relative;
+  min-height: 530px;
+  display: flex;
+  flex-direction: column;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255,255,255,.78);
+  box-shadow: 0 8px 28px rgba(21,23,33,.045);
+}
+
+.card.featured {
+  border-color: rgba(91,87,232,.36);
+  background:
+    radial-gradient(circle at 82% 0%, rgba(91,87,232,.105), transparent 14rem),
+    rgba(255,255,255,.93);
+  box-shadow: 0 18px 48px rgba(62,58,176,.10);
+}
+
+.badge {
+  position: absolute;
+  top: 17px;
+  right: 17px;
+  padding: 5px 8px;
+  border: 1px solid rgba(91,87,232,.18);
+  border-radius: 999px;
+  background: #f1f0ff;
+  color: #514dcc;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+
+.cardHeader {
+  padding-right: 80px;
+}
+
+.cardHeader h2 {
+  margin: 0 0 9px;
+  font-size: 25px;
+  letter-spacing: -.035em;
+}
+
+.cardHeader p {
+  min-height: 63px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.priceBlock {
+  min-height: 118px;
+  margin: 24px 0 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e7e6e1;
+}
+
+.priceLine {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.priceLine strong {
+  font-size: clamp(31px, 3vw, 42px);
+  line-height: 1;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.priceLine span,
+.usdPrice,
+.priceNote {
+  color: #777a83;
+  font-size: 11px;
+}
+
+.usdPrice {
+  margin-top: 7px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.priceNote {
+  margin-top: 8px;
+  color: var(--success);
+  font-weight: 680;
+}
+
+.features {
+  display: grid;
+  gap: 11px;
+  margin: 0 0 26px;
+  padding: 0;
+  list-style: none;
+}
+
+.features li {
+  position: relative;
+  padding-left: 22px;
+  color: #4f525b;
+  font-size: 13px;
+  line-height: 1.48;
+}
+
+.features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #efefff;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.activeCta,
+.disabledCta {
+  width: 100%;
+  min-height: 44px;
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.activeCta {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 1px 1px rgba(21,23,33,.08);
+  transition: transform .14s ease, background .16s ease;
+}
+
+.activeCta:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.disabledCta {
+  border: 1px solid var(--line);
+  background: #f1f0ec;
+  color: #8b8d94;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.notes {
+  width: min(1120px, calc(100% - 40px));
+  margin: 52px auto 84px;
+  padding-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+  border-top: 1px solid #deddd7;
+}
+
+.notes > div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.noteIndex {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.notes strong {
+  font-size: 14px;
+  letter-spacing: -.015em;
+}
+
+.notes p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .hero { margin-top: 54px; }
+  .controls { align-items: stretch; }
+  .cards { grid-template-columns: 1fr; max-width: 680px; }
+  .card { min-height: auto; }
+  .cardHeader p { min-height: 0; }
+  .notes { grid-template-columns: 1fr; max-width: 680px; }
+}
+
+@media (max-width: 720px) {
+  .hero,
+  .controls,
+  .cards,
+  .notes {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .hero { margin-top: 42px; text-align: left; }
+  .hero h1 { font-size: clamp(39px, 12vw, 54px); }
+  .hero p { font-size: 16px; }
+  .controls { flex-direction: column; margin-top: 34px; }
+  .segmented { width: 100%; }
+  .segmented button { flex: 1; }
+  .card { padding: 22px; }
+  .badge { position: static; width: fit-content; margin-bottom: 16px; }
+  .cardHeader { padding-right: 0; }
+}
+
+@media (max-width: 470px) {
+  .segmented button { padding: 8px 9px; font-size: 11px; }
+  .segmented em { display: block; margin: 2px 0 0; font-size: 8px; }
+  .priceLine strong { font-size: 35px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activeCta { transition: none; }
+}
