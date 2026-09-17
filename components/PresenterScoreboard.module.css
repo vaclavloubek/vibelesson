@@ -308,9 +308,11 @@
 
 .rocket {
   --rocket-position: 12%;
-  --rocket-start: 12%;
-  --rocket-end: 88%;
+  --rocket-target: 12%;
   --rocket-hue: 246;
+  --flight-delay: 0s;
+  --flight-duration: 2.8s;
+  --celebration-delay: 0s;
   position: absolute;
   left: var(--rocket-position);
   top: 50%;
@@ -355,6 +357,7 @@
 
 .rocketFlame {
   fill: #f4b15d;
+  opacity: .9;
   filter: drop-shadow(0 0 4px rgba(244,177,93,.8));
   transform-origin: 15px 22px;
   animation: flamePulse .72s ease-in-out infinite alternate;
@@ -400,14 +403,26 @@
   padding: 2px 5px;
 }
 
-.finalist {
-  left: var(--rocket-start);
-  z-index: 8;
-  animation: finalFlight 1.28s cubic-bezier(.15,.78,.2,1) var(--final-delay) forwards;
+.finalFlight {
+  left: 12%;
+  z-index: 7;
+  transition: none;
+  animation: finalFlight var(--flight-duration) cubic-bezier(.65, 0, .35, 1) var(--flight-delay) both;
 }
 
-.finalist .rocketTag {
-  border-color: hsla(var(--rocket-hue), 90%, 75%, .34);
+.finalFlight .rocketFlame {
+  animation:
+    flamePulse .26s ease-in-out infinite alternate,
+    flameOut .42s ease-out calc(var(--flight-delay) + var(--flight-duration) - .18s) forwards;
+}
+
+.podium {
+  z-index: 9;
+}
+
+.podium .rocketTag {
+  border-color: hsla(var(--rocket-hue), 90%, 75%, .38);
+  box-shadow: 0 5px 18px hsla(var(--rocket-hue), 80%, 45%, .14);
 }
 
 .landingBurst {
@@ -420,16 +435,7 @@
   border: 1px solid rgba(255,255,255,.9);
   box-shadow: 0 0 22px 6px hsla(var(--rocket-hue), 90%, 72%, .5);
   opacity: 0;
-  animation: landingBurst .92s ease calc(var(--final-delay) + 1.02s) both;
-}
-
-.rocketEnded:not(.finalist) {
-  filter: saturate(.72) brightness(.88);
-}
-
-.rocketEnded:not(.finalist) .rocketFlame {
-  animation: none;
-  opacity: .18;
+  animation: landingBurst .9s ease-out calc(var(--flight-delay) + var(--flight-duration) + var(--celebration-delay)) both;
 }
 
 .engineFade {
@@ -440,8 +446,9 @@
   height: 20px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(244,177,93,.36), transparent 68%);
-  animation: engineFade 1.4s ease-out both;
+  background: radial-gradient(circle, rgba(244,177,93,.4), transparent 68%);
+  opacity: 0;
+  animation: engineFade .72s ease-out calc(var(--flight-delay) + var(--flight-duration) - .08s) both;
 }
 
 .raceLegend {
@@ -556,36 +563,50 @@
 }
 
 @keyframes flamePulse {
-  from { transform: scaleX(.72); opacity: .62; }
-  to { transform: scaleX(1.15); opacity: 1; }
+  from { transform: scaleX(.72); }
+  to { transform: scaleX(1.15); }
+}
+
+@keyframes flameOut {
+  from { opacity: .9; }
+  to { opacity: .16; }
 }
 
 @keyframes finalFlight {
   0% {
-    left: var(--rocket-start);
-    transform: translate(-50%, -50%) scale(1);
-    filter: drop-shadow(0 0 10px hsla(var(--rocket-hue), 82%, 70%, .22));
+    left: 12%;
+    transform: translate(-50%, -50%) scale(.92);
+    filter: drop-shadow(0 0 6px hsla(var(--rocket-hue), 82%, 70%, .12));
   }
-  58% {
-    transform: translate(-50%, -50%) scale(1.13);
-    filter: drop-shadow(0 0 20px hsla(var(--rocket-hue), 90%, 72%, .58));
+  16% {
+    transform: translate(-50%, -50%) scale(.98);
+    filter: drop-shadow(0 0 11px hsla(var(--rocket-hue), 88%, 72%, .28));
+  }
+  54% {
+    transform: translate(-50%, -50%) scale(1.1);
+    filter: drop-shadow(0 0 22px hsla(var(--rocket-hue), 92%, 72%, .6));
+  }
+  82% {
+    transform: translate(-50%, -50%) scale(1.045);
+    filter: drop-shadow(0 0 15px hsla(var(--rocket-hue), 90%, 72%, .42));
   }
   100% {
-    left: var(--rocket-end);
+    left: var(--rocket-target);
     transform: translate(-50%, -50%) scale(1);
-    filter: drop-shadow(0 0 13px hsla(var(--rocket-hue), 90%, 72%, .42));
+    filter: drop-shadow(0 0 10px hsla(var(--rocket-hue), 82%, 70%, .24));
   }
 }
 
 @keyframes landingBurst {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
-  35% { opacity: .95; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.5); }
+  32% { opacity: .96; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.7); }
 }
 
 @keyframes engineFade {
-  from { opacity: .8; transform: translate(-50%, -50%) scale(.7); }
-  to { opacity: 0; transform: translate(-50%, -50%) scale(2.2); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.55); }
+  28% { opacity: .78; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.1); }
 }
 
 @media (max-width: 1180px) {
@@ -629,14 +650,19 @@
     transition: none;
   }
 
+  .finalFlight {
+    animation: none;
+    left: var(--rocket-target);
+  }
+
   .rocketFlame,
+  .finalFlight .rocketFlame,
   .engineFade {
     animation: none;
   }
 
-  .finalist {
-    animation: none;
-    left: var(--rocket-end);
+  .finalFlight .rocketFlame {
+    opacity: .16;
   }
 
   .landingBurst {
