@@ -26,6 +26,7 @@ const [
   lessonWorkspace,
   lessonPreview,
   lessonLibrary,
+  lessonActions,
   teacherSession,
   ai,
   authoring,
@@ -48,6 +49,7 @@ const [
   source('components/LessonWorkspace.tsx'),
   source('components/LessonPreview.tsx'),
   source('app/lessons/LessonLibrary.tsx'),
+  source('app/lessons/LessonActions.tsx'),
   source('components/TeacherSession.tsx'),
   source('lib/ai.ts'),
   source('lib/accessibility-authoring.ts'),
@@ -83,8 +85,16 @@ requirePattern(lessonWorkspace, /folderId:\s*initialFolderId/, 'folder-aware gen
 requirePattern(lessonPreview, /Kontrola přístupnosti obsahu/, 'ATAG authoring feedback is missing from teacher preview.');
 requirePattern(lessonLibrary, /aria-label="Složky lekcí"/, 'folder navigation lost its accessible name.');
 requirePattern(lessonLibrary, /aria-pressed=\{scope === root\.id\}/, 'selected lesson-folder state is not exposed.');
+requirePattern(lessonLibrary, /aria-pressed=\{selectionMode\}/, 'lesson selection mode state is not exposed.');
 requirePattern(lessonLibrary, /aria-label=\{`Přejmenovat složku \$\{root\.name\}`\}/, 'folder icon actions lost explicit accessible names.');
 requirePattern(lessonLibrary, /role="alert"/, 'lesson-library errors are not exposed as alerts.');
+requirePattern(lessonLibrary, /role="dialog"/, 'folder move flow lost dialog semantics.');
+requirePattern(lessonLibrary, /aria-modal="true"/, 'folder move dialog must remain modal to assistive technology.');
+requirePattern(lessonLibrary, /event\.key === 'Tab'/, 'folder move dialog lost keyboard focus trapping.');
+requirePattern(lessonLibrary, /moveDialogTriggerRef\.current\?\.focus\(\)/, 'folder move dialog no longer returns focus to its trigger.');
+requirePattern(lessonLibrary, /Stejný přesun je vždy dostupný i přes nabídku lekce/, 'drag-and-drop no longer documents its non-drag alternative.');
+requirePattern(lessonActions, /Přesunout do…/, 'lesson menu lost the non-drag move alternative.');
+requirePattern(lessonActions, /role="alert"/, 'lesson action errors are not exposed as alerts.');
 requirePattern(teacherSession, /role="progressbar"/, 'teacher live progressbar semantics are missing.');
 requirePattern(teacherSession, /aria-valuetext=\{`Blok \$\{activeIndex \+ 1\} z \$\{session\.lessonSnapshot\.blocks\.length\}`\}/, 'teacher live progress lacks meaningful value text.');
 requirePattern(ai, /Pravidla přístupnosti vytvářeného obsahu \(ATAG\/WCAG by default\)/, 'AI authoring accessibility guardrails are missing.');
