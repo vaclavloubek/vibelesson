@@ -2,17 +2,17 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { extractMaterials, MaterialError, materialsToPrompt, type MaterialMode } from '@/lib/materials';
 
-// Longer lessons can legitimately take more than one minute to generate.
-// Keep this below the stale-reservation cleanup window in the quota RPCs.
 export const maxDuration = 300;
 
 const InputSchema = z.object({
-  prompt: z.string().min(5).max(5000),
+  prompt: z.string().max(5000).refine((value) => value.trim().length === 0 || value.trim().length >= 5),
   audience: z.string().min(1).max(200),
   duration: z.number().int().min(10).max(360),
   groupSize: z.string().min(1).max(100),
   tone: z.string().min(1).max(200),
+  materialMode: z.enum(['primary', 'strict', 'inspiration']).default('primary'),
 });
 
 type ReservationRow = {
@@ -27,6 +27,10 @@ type ProgressEvent =
   | { type: 'result'; lesson: unknown; lessonId: string }
   | { type: 'error'; error: string };
 
+function getFiles(formData: FormData) {
+  return formData.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
+}
+
 export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) {
@@ -36,7 +40,23 @@ export async function POST(req: Request) {
   let requestId: string | null = null;
 
   try {
-    const input = InputSchema.parse(await req.json());
+    const formData = await req.formData();
+    const files = getFiles(formData);
+    const input = InputSchema.parse({
+      prompt: String(formData.get('prompt') ?? ''),
+      audience: String(formData.get('audience') ?? ''),
+      duration: Number(formData.get('duration')),
+      groupSize: String(formData.get('groupSize') ?? ''),
+      tone: String(formData.get('tone') ?? ''),
+      materialMode: String(formData.get('materialMode') ?? 'primary'),
+    });
+
+    if (!input.prompt.trim() && files.length === 0) {
+      return NextResponse.json({ error: 'Popiš hodinu nebo nahraj alespoň jeden podklad.' }, { status: 400 });
+    }
+
+    const extractedMaterials = await extractMaterials(files);
+    const materialText = materialsToPrompt(extractedMaterials);
 
     const { data, error: reserveError } = await supabase.rpc('reserve_lesson_generation');
     if (reserveError) throw reserveError;
@@ -85,7 +105,11 @@ export async function POST(req: Request) {
         void (async () => {
           let costUsd: number | null = null;
           try {
-            const generated = await createLesson(input, (stage) => send({ type: 'progress', stage }));
+            const generated = await createLesson({
+              ...input,
+              materialText,
+              materialMode: input.materialMode as MaterialMode,
+            }, (stage) => send({ type: 'progress', stage }));
             const lesson = generated.lesson;
             costUsd = generated.costUsd;
 
@@ -148,6 +172,13 @@ export async function POST(req: Request) {
         p_lesson_id: null,
       });
       if (finishError) console.error('mark generation request failed', finishError);
+    }
+
+    if (error instanceof MaterialError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Zkontroluj zadání lekce a zkus to znovu.' }, { status: 400 });
     }
 
     console.error('prepare lesson generation failed', error);

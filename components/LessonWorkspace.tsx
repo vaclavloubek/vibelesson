@@ -13,6 +13,8 @@ import { LessonSchema, type Lesson } from '@/lib/schema';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
+const MATERIAL_MAX_FILES = 5;
+const MATERIAL_MAX_TOTAL_BYTES = 3_500_000;
 
 type LessonApiResponse = {
   lesson?: Lesson;
@@ -133,9 +135,24 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     }
   }
 
-  async function generate(e: FormEvent) {
+  async function generate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!requireAuth()) return;
+
+    const body = new FormData(e.currentTarget);
+    const files = body.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
+    if (!prompt.trim() && files.length === 0) {
+      setError('Popiš hodinu nebo nahraj alespoň jeden podklad.');
+      return;
+    }
+    if (files.length > MATERIAL_MAX_FILES) {
+      setError(`Nahraj nejvýše ${MATERIAL_MAX_FILES} souborů.`);
+      return;
+    }
+    if (files.reduce((sum, file) => sum + file.size, 0) > MATERIAL_MAX_TOTAL_BYTES) {
+      setError('Podklady jsou příliš velké. Kvůli limitu Vercelu mohou mít dohromady nejvýše 3,5 MB.');
+      return;
+    }
 
     setBusy(true);
     setError('');
@@ -147,8 +164,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration, groupSize, tone }),
+        body,
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -336,12 +352,27 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">Nová lekce</span>
               <h1>Co mají studenti dnes zažít?</h1>
               <form onSubmit={generate}>
-                <label>Volný popis hodiny<textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" required /></label>
+                <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
                 <div className="form-grid">
-                  <label>Cílovka<input value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
-                  <label>Délka v minutách<input type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
-                  <label>Velikost týmu<input value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
-                  <label>Tón<input value={tone} onChange={(e) => setTone(e.target.value)} /></label>
+                  <label>Cílovka<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
+                  <label>Délka v minutách<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
+                  <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
+                  <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} /></label>
+                </div>
+                <div style={{ marginTop: 16, padding: 14, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--panel-soft)' }}>
+                  <span className="eyebrow">Podklady k lekci · volitelné</span>
+                  <label style={{ marginTop: 9 }}>Prezentace, pracovní listy nebo textové materiály
+                    <input name="materials" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain,text/markdown" />
+                  </label>
+                  <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 3,5 MB.</p>
+                  <label style={{ marginTop: 12 }}>Jak s podklady pracovat
+                    <select name="materialMode" defaultValue="primary" style={{ width: '100%', border: '1px solid var(--line-strong)', borderRadius: 12, background: 'white', padding: '11px 12px', color: 'var(--ink)', font: 'inherit' }}>
+                      <option value="primary">Vycházet z podkladů</option>
+                      <option value="strict">Držet se podkladů</option>
+                      <option value="inspiration">Použít jako inspiraci</option>
+                    </select>
+                  </label>
+                  <p className="muted-copy" style={{ marginTop: 8 }}>Nahrané soubory ani jejich extrahovaný obsah Syllonaut trvale neukládá. Uloží se pouze výsledná lekce a vaše textové zadání.</p>
                 </div>
                 <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>Ukázková lekce</button></div>
                 {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
