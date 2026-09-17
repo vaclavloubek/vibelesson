@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import {
   MATERIAL_MAX_FILES,
   MATERIAL_MAX_TEXT_PER_FILE,
@@ -25,6 +26,7 @@ const InputSchema = z.object({
   tone: z.string().min(1).max(200),
   materialMode: z.enum(['primary', 'strict', 'inspiration']).default('primary'),
   materials: z.array(MaterialSchema).max(MATERIAL_MAX_FILES).default([]),
+  folderId: z.string().uuid().nullable().optional().default(null),
 });
 
 type ReservationRow = {
@@ -57,6 +59,21 @@ export async function POST(req: Request) {
     const totalMaterialText = input.materials.reduce((sum, material) => sum + material.text.length, 0);
     if (totalMaterialText > MATERIAL_MAX_TEXT_TOTAL + (input.materials.length * 100)) {
       return NextResponse.json({ error: 'Extrahovaný obsah podkladů je příliš dlouhý.' }, { status: 400 });
+    }
+
+    if (input.folderId) {
+      const entitlement = await getLessonFolderEntitlement(supabase, userId);
+      if (!entitlement.enabled) {
+        return NextResponse.json({ error: 'Ukládání do složek je dostupné v nejvyšším tarifu.' }, { status: 403 });
+      }
+      const { data: folder, error: folderError } = await supabase
+        .from('lesson_folders')
+        .select('id')
+        .eq('id', input.folderId)
+        .eq('owner_id', userId)
+        .maybeSingle();
+      if (folderError) throw folderError;
+      if (!folder) return NextResponse.json({ error: 'Vybraná složka nebyla nalezena.' }, { status: 404 });
     }
 
     const materialText = materialsToPrompt(input.materials);
@@ -128,6 +145,7 @@ export async function POST(req: Request) {
                 title: lesson.title,
                 source_prompt: input.prompt,
                 lesson,
+                folder_id: input.folderId,
               })
               .select('id')
               .single();
