@@ -25,7 +25,7 @@ Pull requests run:
 
 1. TypeScript and existing project checks;
 2. `npm run check:accessibility`, which protects critical accessibility contracts in source code;
-3. axe checks on the public routes `/`, `/join` and `/new`, using WCAG A/AA rule tags including WCAG 2.2 AA.
+3. axe checks on the public routes `/`, `/pricing`, `/join` and `/new`, using WCAG A/AA rule tags including WCAG 2.2 AA.
 
 Automated tests are intended to catch regressions such as missing names, roles, states, focus affordances, landmarks and selected-state semantics. They cannot validate the whole user experience or all WCAG success criteria.
 
@@ -38,6 +38,7 @@ Before a wider public release, test representative end-to-end flows rather than 
 - Reach the skip link immediately and move to the main content.
 - Complete sign-in/sign-up/recovery without a pointer.
 - Open and close the authentication popover with the keyboard; Escape closes it and focus returns to the trigger.
+- Open and close the responsive navigation with the keyboard; Escape closes it and focus returns to the menu trigger.
 - Create a lesson, switch teacher/student preview, select and revise a block.
 - Navigate the lesson library and folders, including create/rename/delete/move controls.
 - Join a live lesson as a student and complete poll, quiz, ranking, open-text, exit-ticket and team-task flows.
@@ -57,13 +58,14 @@ Verify especially:
 
 - page titles and Czech document language;
 - field labels, descriptions, invalid states and error announcements;
-- selected poll/quiz/team/folder state;
+- selected poll/quiz/team/folder/pricing state;
 - active live block announcement;
 - autosave and collaborative lock status;
 - progress values and timer milestones;
 - table captions and column headers;
 - result reveal, score and connection-status announcements;
-- authentication focus entry, Escape close and focus return.
+- authentication focus entry, Escape close and focus return;
+- responsive navigation name, expanded state and focus return.
 
 ### Zoom, reflow and text
 
@@ -94,9 +96,10 @@ AI generation and AI revision must preserve the following defaults:
 - essential information is available textually rather than requiring an oral explanation by the teacher;
 - tabular datasets use real table structures and a meaningful caption;
 - future meaningful images require a text alternative or an explicit authoring step to provide one;
-- inaccessible patterns should be detected and surfaced to the teacher before live use when practical.
+- inaccessible patterns should be detected and surfaced to the teacher before live use when practical;
+- detected issues should include concrete repair guidance rather than only a generic warning.
 
-The teacher preview currently performs deterministic checks for missing table captions, drag-only wording and obvious visual-only cues. These checks are intentionally conservative and are not a substitute for human review.
+The teacher preview currently performs deterministic checks for missing table captions, drag-only wording, obvious visual-only cues and references to unsupported or potentially undescribed images, graphs or diagrams. Each finding includes a suggested repair. These checks are intentionally conservative and are not a substitute for human review.
 
 ## Regression policy
 
