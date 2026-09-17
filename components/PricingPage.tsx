@@ -189,7 +189,13 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
             initialOpen={startSignup}
             initialMode={startSignup ? 'signup' : 'signin'}
           />
-          <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }}>Připravit hodinu</Link>
+          <Link
+            href="/new"
+            className={landing.headerCta}
+            style={{ whiteSpace: 'nowrap', flex: '0 0 auto', minWidth: 'max-content' }}
+          >
+            Připravit hodinu
+          </Link>
         </div>
       </header>
 
