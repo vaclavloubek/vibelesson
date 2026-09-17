@@ -29,6 +29,7 @@ export async function POST(req: Request, { params }: RouteContext) {
         participantToken,
         blockId: submission.blockId,
         answer: submission.answer,
+        responseAction: submission.responseAction,
       }),
       cache: 'no-store',
     });
