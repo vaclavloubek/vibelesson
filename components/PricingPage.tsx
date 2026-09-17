@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import SyllonautMark from '@/components/SyllonautMark';
+import VisuallyHidden from '@/components/VisuallyHidden';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -169,6 +170,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
   const [audience, setAudience] = useState<Audience>('teachers');
   const [billing, setBilling] = useState<Billing>('monthly');
   const plans = audience === 'teachers' ? teacherPlans : schoolPlans;
+  const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}.`;
 
   return (
     <main className={landing.page}>
@@ -219,7 +221,11 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
         </div>
       </section>
 
-      <section className={styles.cards} aria-live="polite">
+      <div role="status" aria-live="polite" aria-atomic="true">
+        <VisuallyHidden>{pricingStatus}</VisuallyHidden>
+      </div>
+
+      <section className={styles.cards}>
         {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billing={billing} />)}
       </section>
 
