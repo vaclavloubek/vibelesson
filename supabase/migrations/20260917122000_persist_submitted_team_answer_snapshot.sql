@@ -31,14 +31,22 @@ begin
   from public.team_responses
   where id = p_team_response_id;
 
-  if not found or v_response.submitted_at is null then
+  if not found then
     return false;
   end if;
 
-  if jsonb_typeof(v_response.submitted_answer) <> 'object'
-     or nullif(btrim(v_response.submitted_answer->>'text'), '') is null then
+  if jsonb_typeof(v_response.answer) <> 'object'
+     or nullif(btrim(v_response.answer->>'text'), '') is null then
     return false;
   end if;
+
+  -- This function is called only by the explicit team submit action. Freeze the
+  -- current autosaved draft as the submitted version before any grading work.
+  update public.team_responses
+  set submitted_answer = v_response.answer,
+      submitted_at = now()
+  where id = v_response.id
+  returning * into v_response;
 
   select block
   into v_block
@@ -58,6 +66,7 @@ begin
     return false;
   end if;
 
+  -- Unscored team tasks are still submitted, they simply do not need an AI job.
   if jsonb_typeof(v_block->'points') <> 'number'
      or coalesce(v_block->>'points', '') !~ '^[0-9]+$' then
     return false;
