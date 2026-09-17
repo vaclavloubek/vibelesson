@@ -21,7 +21,7 @@ type ZipStream = {
   resume(): ZipStream;
 };
 
-export type OfficeZipEntry = {
+type StreamableZipEntry = {
   internalStream(type: 'uint8array'): ZipStream;
 };
 
@@ -48,6 +48,19 @@ function findEndOfCentralDirectory(view: DataView) {
   }
 
   return -1;
+}
+
+function getStreamableEntry(entry: unknown): StreamableZipEntry {
+  if (
+    typeof entry !== 'object'
+    || entry === null
+    || !('internalStream' in entry)
+    || typeof (entry as { internalStream?: unknown }).internalStream !== 'function'
+  ) {
+    throw invalidArchiveError();
+  }
+
+  return entry as StreamableZipEntry;
 }
 
 export function assertSafeOfficeZipContainer(data: ArrayBuffer) {
@@ -139,13 +152,13 @@ export function assertOfficeXmlEntryCount(count: number) {
   }
 }
 
-export async function readOfficeXmlText(entry: OfficeZipEntry, budget: OfficeXmlBudget) {
+export async function readOfficeXmlText(entry: unknown, budget: OfficeXmlBudget) {
   if (budget.remainingEntries <= 0 || budget.remainingBytes <= 0) throw archiveTooLargeError();
   budget.remainingEntries -= 1;
 
   const byteLimit = Math.min(OFFICE_MAX_XML_ENTRY_BYTES, budget.remainingBytes);
   const decoder = new TextDecoder('utf-8');
-  const stream = entry.internalStream('uint8array');
+  const stream = getStreamableEntry(entry).internalStream('uint8array');
 
   return new Promise<string>((resolve, reject) => {
     let settled = false;
