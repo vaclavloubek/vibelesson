@@ -2,6 +2,12 @@
 
 import JSZip from 'jszip';
 import {
+  assertOfficeXmlEntryCount,
+  assertSafeOfficeZipContainer,
+  createOfficeXmlBudget,
+  readOfficeXmlText,
+} from './office-archive';
+import {
   MATERIAL_MAX_FILES,
   MATERIAL_MAX_TEXT_PER_FILE,
   MATERIAL_MAX_TEXT_TOTAL,
@@ -24,28 +30,35 @@ function fileNumber(path: string) {
 }
 
 async function extractDocx(data: ArrayBuffer) {
+  assertSafeOfficeZipContainer(data);
   const zip = await JSZip.loadAsync(data);
   const document = zip.file('word/document.xml');
   if (!document) throw new MaterialError('DOCX neobsahuje čitelný dokument.');
-  const xml = await document.async('string');
+
+  const budget = createOfficeXmlBudget();
+  const xml = await readOfficeXmlText(document, budget);
   return xmlParagraphText(xml, 'w:p', 'w:t');
 }
 
 async function extractPptx(data: ArrayBuffer) {
+  assertSafeOfficeZipContainer(data);
   const zip = await JSZip.loadAsync(data);
   const slideFiles = zip.file(/^ppt\/slides\/slide\d+\.xml$/).sort((a, b) => fileNumber(a.name) - fileNumber(b.name));
   if (!slideFiles.length) throw new MaterialError('PPTX neobsahuje čitelné snímky.');
 
+  const noteFiles = zip.file(/^ppt\/notesSlides\/notesSlide\d+\.xml$/).sort((a, b) => fileNumber(a.name) - fileNumber(b.name));
+  assertOfficeXmlEntryCount(slideFiles.length + noteFiles.length);
+
+  const budget = createOfficeXmlBudget();
   const parts: string[] = [];
   for (const file of slideFiles) {
-    const xml = await file.async('string');
+    const xml = await readOfficeXmlText(file, budget);
     const text = xmlParagraphText(xml, 'a:p', 'a:t');
     if (text) parts.push(`Snímek ${fileNumber(file.name)}\n${text}`);
   }
 
-  const noteFiles = zip.file(/^ppt\/notesSlides\/notesSlide\d+\.xml$/).sort((a, b) => fileNumber(a.name) - fileNumber(b.name));
   for (const file of noteFiles) {
-    const xml = await file.async('string');
+    const xml = await readOfficeXmlText(file, budget);
     const text = xmlParagraphText(xml, 'a:p', 'a:t');
     if (text) parts.push(`Poznámky ke snímku ${fileNumber(file.name)}\n${text}`);
   }
