@@ -115,6 +115,7 @@ export async function POST(req: Request) {
             const generated = await createLesson({
               ...input,
               materials: materials?.text,
+              pdfMaterials: materials?.pdfs,
               materialMode: input.materialMode,
             }, (stage) => send({ type: 'progress', stage }));
             const lesson = generated.lesson;
@@ -182,7 +183,7 @@ export async function POST(req: Request) {
     }
 
     console.error('prepare lesson generation failed', error);
-    const message = error instanceof Error && /soubor|podporovaný formát|10 MB|text|nahrát maximálně/i.test(error.message)
+    const message = error instanceof Error && /soubor|podporovaný formát|10 MB|text|nahrát maximálně|DOCX|PPTX|archiv|kompres/i.test(error.message)
       ? error.message
       : 'Generování se nepodařilo spustit. Zkus to prosím znovu.';
     return NextResponse.json({ error: message }, { status: 500 });

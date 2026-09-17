@@ -1,18 +1,25 @@
-import JSZip from 'jszip';
-import { extractText, getDocumentProxy } from 'unpdf';
+import { inflateRawSync } from 'node:zlib';
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_TOTAL_CHARS = 60_000;
-const MAX_PDF_PAGES = 100;
+const MAX_ARCHIVE_ENTRIES = 2_000;
 
 const SUPPORTED_EXTENSIONS = new Set(['pdf', 'pptx', 'docx', 'txt', 'md', 'markdown']);
 
 export type MaterialMode = 'grounded' | 'strict' | 'inspiration';
 
-export type ExtractedMaterial = {
+export type PdfMaterial = {
   name: string;
-  text: string;
+  data: Uint8Array;
+};
+
+type ZipEntry = {
+  name: string;
+  compression: number;
+  flags: number;
+  compressedSize: number;
+  localHeaderOffset: number;
 };
 
 function getExtension(name: string) {
@@ -44,15 +51,76 @@ function extractXmlText(xml: string, textTag: RegExp, paragraphTag: RegExp) {
     .trim();
 }
 
-async function extractDocx(buffer: ArrayBuffer) {
-  const zip = await JSZip.loadAsync(buffer);
+function findEndOfCentralDirectory(buffer: Buffer) {
+  const minOffset = Math.max(0, buffer.length - 65_557);
+  for (let offset = buffer.length - 22; offset >= minOffset; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50) return offset;
+  }
+  throw new Error('Soubor není platný DOCX/PPTX archiv.');
+}
+
+function readZipEntries(buffer: Buffer) {
+  const eocdOffset = findEndOfCentralDirectory(buffer);
+  const entryCount = buffer.readUInt16LE(eocdOffset + 10);
+  const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
+  if (entryCount > MAX_ARCHIVE_ENTRIES) throw new Error('Dokument obsahuje příliš mnoho částí.');
+
+  const entries = new Map<string, ZipEntry>();
+  let offset = centralDirectoryOffset;
+
+  for (let index = 0; index < entryCount; index += 1) {
+    if (offset + 46 > buffer.length || buffer.readUInt32LE(offset) !== 0x02014b50) {
+      throw new Error('DOCX/PPTX má neplatnou strukturu archivu.');
+    }
+    const flags = buffer.readUInt16LE(offset + 8);
+    const compression = buffer.readUInt16LE(offset + 10);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const fileNameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const localHeaderOffset = buffer.readUInt32LE(offset + 42);
+    const nameStart = offset + 46;
+    const nameEnd = nameStart + fileNameLength;
+    if (nameEnd > buffer.length) throw new Error('DOCX/PPTX má poškozený seznam souborů.');
+    const name = buffer.subarray(nameStart, nameEnd).toString('utf8');
+    entries.set(name, { name, compression, flags, compressedSize, localHeaderOffset });
+    offset = nameEnd + extraLength + commentLength;
+  }
+
+  return entries;
+}
+
+function readZipEntry(buffer: Buffer, entry: ZipEntry) {
+  if ((entry.flags & 0x1) !== 0) throw new Error('Šifrované DOCX/PPTX soubory nejsou podporované.');
+  const offset = entry.localHeaderOffset;
+  if (offset + 30 > buffer.length || buffer.readUInt32LE(offset) !== 0x04034b50) {
+    throw new Error('DOCX/PPTX má poškozenou lokální hlavičku.');
+  }
+  const fileNameLength = buffer.readUInt16LE(offset + 26);
+  const extraLength = buffer.readUInt16LE(offset + 28);
+  const dataStart = offset + 30 + fileNameLength + extraLength;
+  const dataEnd = dataStart + entry.compressedSize;
+  if (dataEnd > buffer.length) throw new Error('DOCX/PPTX obsahuje neúplná data.');
+  const compressed = buffer.subarray(dataStart, dataEnd);
+
+  if (entry.compression === 0) return compressed;
+  if (entry.compression === 8) return inflateRawSync(compressed);
+  throw new Error('DOCX/PPTX používá nepodporovanou kompresi.');
+}
+
+function getZipText(buffer: Buffer, entries: Map<string, ZipEntry>, path: string) {
+  const entry = entries.get(path);
+  return entry ? readZipEntry(buffer, entry).toString('utf8') : '';
+}
+
+function extractDocx(buffer: Buffer) {
+  const entries = readZipEntries(buffer);
   const parts = ['word/document.xml', 'word/footnotes.xml', 'word/endnotes.xml'];
   const texts: string[] = [];
 
   for (const path of parts) {
-    const file = zip.file(path);
-    if (!file) continue;
-    const xml = await file.async('string');
+    const xml = getZipText(buffer, entries, path);
+    if (!xml) continue;
     const text = extractXmlText(xml, /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g, /<\/w:p>/g);
     if (text) texts.push(text);
   }
@@ -65,29 +133,25 @@ function slideNumber(path: string) {
   return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
-async function extractPptx(buffer: ArrayBuffer) {
-  const zip = await JSZip.loadAsync(buffer);
-  const slidePaths = Object.keys(zip.files)
+function extractPptx(buffer: Buffer) {
+  const entries = readZipEntries(buffer);
+  const slidePaths = [...entries.keys()]
     .filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path))
     .sort((a, b) => slideNumber(a) - slideNumber(b));
 
   const slides: string[] = [];
   for (const path of slidePaths) {
-    const file = zip.file(path);
-    if (!file) continue;
-    const xml = await file.async('string');
+    const xml = getZipText(buffer, entries, path);
     const text = extractXmlText(xml, /<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g, /<\/a:p>/g);
     if (text) slides.push(`Snímek ${slideNumber(path)}:\n${text}`);
   }
 
-  const notePaths = Object.keys(zip.files)
+  const notePaths = [...entries.keys()]
     .filter((path) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(path))
-    .sort();
+    .sort((a, b) => slideNumber(a) - slideNumber(b));
   const notes: string[] = [];
   for (const path of notePaths) {
-    const file = zip.file(path);
-    if (!file) continue;
-    const xml = await file.async('string');
+    const xml = getZipText(buffer, entries, path);
     const text = extractXmlText(xml, /<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g, /<\/a:p>/g);
     if (text) notes.push(text);
   }
@@ -97,55 +161,40 @@ async function extractPptx(buffer: ArrayBuffer) {
     : slides.join('\n\n');
 }
 
-async function extractPdf(buffer: ArrayBuffer) {
-  const pdf = await getDocumentProxy(new Uint8Array(buffer), { maxImageSize: 16_777_216 });
-  try {
-    if (pdf.numPages > MAX_PDF_PAGES) {
-      throw new Error(`PDF má více než ${MAX_PDF_PAGES} stran.`);
-    }
-    const result = await extractText(pdf, { mergePages: true });
-    return typeof result.text === 'string' ? result.text : result.text.join('\n\n');
-  } finally {
-    await pdf.destroy();
-  }
-}
-
-async function extractFile(file: File): Promise<ExtractedMaterial> {
-  const extension = getExtension(file.name);
-  if (!SUPPORTED_EXTENSIONS.has(extension)) {
-    throw new Error(`Soubor ${file.name} nemá podporovaný formát.`);
-  }
-  if (file.size > MAX_FILE_BYTES) {
-    throw new Error(`Soubor ${file.name} je větší než 10 MB.`);
-  }
-
-  const buffer = await file.arrayBuffer();
-  let text = '';
-
-  if (extension === 'txt' || extension === 'md' || extension === 'markdown') {
-    text = new TextDecoder('utf-8').decode(buffer);
-  } else if (extension === 'docx') {
-    text = await extractDocx(buffer);
-  } else if (extension === 'pptx') {
-    text = await extractPptx(buffer);
-  } else if (extension === 'pdf') {
-    text = await extractPdf(buffer);
-  }
-
-  text = text.replace(/\u0000/g, '').replace(/\r\n?/g, '\n').trim();
-  if (!text) throw new Error(`Ze souboru ${file.name} se nepodařilo získat žádný text.`);
-
-  return { name: file.name, text };
-}
-
 export async function extractLessonMaterials(files: File[]) {
   if (files.length > MAX_FILES) throw new Error(`Lze nahrát maximálně ${MAX_FILES} souborů.`);
 
-  const extracted = await Promise.all(files.map(extractFile));
+  const textMaterials: Array<{ name: string; text: string }> = [];
+  const pdfMaterials: PdfMaterial[] = [];
+
+  for (const file of files) {
+    const extension = getExtension(file.name);
+    if (!SUPPORTED_EXTENSIONS.has(extension)) throw new Error(`Soubor ${file.name} nemá podporovaný formát.`);
+    if (file.size > MAX_FILE_BYTES) throw new Error(`Soubor ${file.name} je větší než 10 MB.`);
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (extension === 'pdf') {
+      pdfMaterials.push({ name: file.name, data: bytes });
+      continue;
+    }
+
+    let text = '';
+    if (extension === 'txt' || extension === 'md' || extension === 'markdown') {
+      text = new TextDecoder('utf-8').decode(bytes);
+    } else if (extension === 'docx') {
+      text = extractDocx(Buffer.from(bytes));
+    } else if (extension === 'pptx') {
+      text = extractPptx(Buffer.from(bytes));
+    }
+
+    text = text.replace(/\u0000/g, '').replace(/\r\n?/g, '\n').trim();
+    if (!text) throw new Error(`Ze souboru ${file.name} se nepodařilo získat žádný text.`);
+    textMaterials.push({ name: file.name, text });
+  }
+
   let remaining = MAX_TOTAL_CHARS;
   const chunks: string[] = [];
-
-  for (const material of extracted) {
+  for (const material of textMaterials) {
     if (remaining <= 0) break;
     const header = `--- PODKLAD: ${material.name} ---\n`;
     const available = Math.max(0, remaining - header.length);
@@ -156,7 +205,7 @@ export async function extractLessonMaterials(files: File[]) {
 
   return {
     text: chunks.join('\n\n'),
-    files: extracted.map((item) => item.name),
+    pdfs: pdfMaterials,
     truncated: remaining <= 0,
   };
 }
