@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterScoreboard.module.css';
@@ -20,6 +21,53 @@ type PresenterData = {
   maxPoints: number;
   rows: PresenterRow[];
 };
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function racePosition(score: number, maxPoints: number) {
+  const progress = maxPoints > 0 ? clamp(score / maxPoints, 0, 1) : 0;
+  return 12 + progress * 74;
+}
+
+function rocketStyle(row: PresenterRow, maxPoints: number, index: number, finalist: boolean): CSSProperties {
+  const start = `${racePosition(row.score, maxPoints)}%`;
+  const style = {
+    '--rocket-position': start,
+    '--rocket-start': start,
+    '--rocket-end': '88%',
+    '--rocket-hue': String((246 + index * 47) % 360),
+  } as CSSProperties;
+
+  if (finalist) {
+    const finalDelay = 0.2 + (2 - index) * 1.55;
+    (style as CSSProperties & Record<string, string>)['--final-delay'] = `${finalDelay}s`;
+  }
+
+  return style;
+}
+
+function RocketGlyph() {
+  return (
+    <svg viewBox="0 0 72 44" aria-hidden="true">
+      <path className={styles.rocketFlame} d="M15 22 3 14l4 8-4 8 12-8Z" />
+      <path className={styles.rocketFin} d="M26 10 19 2l2 13M26 34l-7 8 2-13" />
+      <path className={styles.rocketBody} d="M12 22C21 8 35 5 49 8c8 2 15 8 20 14-5 6-12 12-20 14-14 3-28 0-37-14Z" />
+      <circle className={styles.rocketWindow} cx="46" cy="22" r="5" />
+    </svg>
+  );
+}
+
+function CompactRow({ row, maxPoints }: { row: PresenterRow; maxPoints: number }) {
+  return (
+    <div className={styles.compactRow}>
+      <strong>{row.rank}.</strong>
+      <span>{row.displayName}</span>
+      <strong>{row.score}/{maxPoints}</strong>
+    </div>
+  );
+}
 
 export default function PresenterScoreboard({ sessionId }: { sessionId: string }) {
   const [data, setData] = useState<PresenterData | null>(null);
@@ -63,16 +111,21 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
   }, [data?.realtimeKey, load]);
 
   const phaseLabel = data?.status === 'ended' ? 'Mise dokončena' : data?.status === 'live' ? 'Mise probíhá' : 'Startovní zóna';
-  const boardTitle = data?.status === 'ended' ? 'Konečné pořadí' : 'Průběžné pořadí';
+  const boardTitle = data?.status === 'ended' ? 'Konečné pořadí' : 'Závod k Měsíci';
+  const participantCount = data?.rows.length ?? 0;
+  const raceLimit = participantCount <= 12 ? participantCount : participantCount <= 24 ? 10 : 5;
+  const raceRows = data?.rows.slice(0, raceLimit) ?? [];
+  const remainingRows = participantCount > 12 && participantCount <= 24 ? data?.rows.slice(10) ?? [] : [];
+  const largeLeaderboard = participantCount >= 25 ? data?.rows.slice(0, 10) ?? [] : [];
+  const largeOverflow = participantCount >= 25 ? Math.max(0, participantCount - 10) : 0;
+  const isFinal = data?.status === 'ended';
 
   return (
     <main className={styles.screen}>
       <header className={styles.header}>
-        <div>
-          <div className={styles.brand}>
-            <span className={styles.mark}><SyllonautMark /></span>
-            <span>Syllonaut</span>
-          </div>
+        <div className={styles.brand}>
+          <span className={styles.mark}><SyllonautMark /></span>
+          <span>Syllonaut</span>
         </div>
         <div className={styles.meta}>
           <span className={styles.status}>{phaseLabel}</span>
@@ -82,9 +135,20 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
 
       <section className={styles.content}>
         {data ? (
-          <div>
-            <p className={styles.kicker}>{phaseLabel}</p>
-            <h1 className={styles.title}>{data.title}</h1>
+          <div className={styles.missionHead}>
+            <div>
+              <p className={styles.kicker}>{phaseLabel}</p>
+              <h1 className={styles.title}>{data.title}</h1>
+            </div>
+            {data.scoreboardRevealed && data.hasScoring ? (
+              <div className={styles.scoreMeta}>
+                <strong>{participantCount}</strong>
+                <span>{participantCount === 1 ? 'posádka' : participantCount >= 2 && participantCount <= 4 ? 'posádky' : 'posádek'}</span>
+                <i />
+                <strong>{data.maxPoints}</strong>
+                <span>bodů maximum</span>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -125,21 +189,68 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
         ) : null}
 
         {data && !error && data.hasScoring && data.scoreboardRevealed ? (
-          <div style={{ marginTop: 'clamp(28px, 5vh, 58px)' }}>
+          <div className={styles.board}>
             <div className={styles.boardHead}>
-              <h2>{boardTitle}</h2>
-              <span className={styles.maxPoints}>Maximum {data.maxPoints} bodů</span>
+              <div>
+                <p className={styles.kicker}>{isFinal ? 'Cíl mise' : 'Aktuální pozice'}</p>
+                <h2>{boardTitle}</h2>
+              </div>
+              {isFinal && raceRows.length >= 3 ? <span className={styles.finalSequence}>Finální přistání · 3 → 2 → 1</span> : null}
             </div>
 
             {data.rows.length ? (
-              <div className={`${styles.rows} ${data.rows.length > 8 ? styles.rowsMany : ''}`}>
-                {data.rows.map((row, index) => (
-                  <div className={styles.row} key={`${row.rank}-${row.displayName}-${index}`}>
-                    <strong className={styles.rank}>{row.rank}.</strong>
-                    <strong className={styles.name}>{row.displayName}</strong>
-                    <strong className={styles.score}>{row.score} <span>/ {data.maxPoints}</span></strong>
+              <div className={`${styles.raceLayout} ${participantCount >= 25 ? styles.raceLayoutLarge : ''}`}>
+                <section className={styles.racePanel} aria-label={isFinal ? 'Konečný závod k Měsíci' : 'Průběžný závod k Měsíci'}>
+                  <div className={`${styles.raceCourse} ${raceRows.length >= 9 ? styles.raceCourseDense : ''}`}>
+                    <div className={styles.spaceDust} aria-hidden="true" />
+                    <div className={styles.earth} aria-hidden="true"><span>Země</span></div>
+                    <div className={styles.moon} aria-hidden="true"><span>Měsíc</span></div>
+                    <div className={styles.routeLine} aria-hidden="true" />
+
+                    <div className={styles.lanes}>
+                      {raceRows.map((row, index) => {
+                        const finalist = Boolean(isFinal && index < 3);
+                        return (
+                          <div className={styles.lane} key={`${row.displayName}-${index}`}>
+                            <div className={styles.laneLine} aria-hidden="true" />
+                            <div
+                              className={`${styles.rocket} ${finalist ? styles.finalist : ''} ${isFinal && !finalist ? styles.rocketEnded : ''}`}
+                              style={rocketStyle(row, data.maxPoints, index, finalist)}
+                            >
+                              <span className={styles.rocketTag}>
+                                <strong>{row.rank}. {row.displayName}</strong>
+                                <small>{row.score} / {data.maxPoints}</small>
+                              </span>
+                              <span className={styles.rocketGlyph}><RocketGlyph /></span>
+                              {finalist ? <span className={styles.landingBurst} aria-hidden="true" /> : null}
+                              {isFinal && !finalist ? <span className={styles.engineFade} aria-hidden="true" /> : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ))}
+                  <div className={styles.raceLegend}>
+                    <span>Start</span>
+                    <span>Poloha rakety = získané body / aktuálně dostupné maximum</span>
+                    <span>Cíl</span>
+                  </div>
+                </section>
+
+                {participantCount >= 25 ? (
+                  <aside className={styles.leaderboard}>
+                    <div className={styles.leaderboardHead}>
+                      <div>
+                        <p className={styles.kicker}>Přehled</p>
+                        <h3>Top 10</h3>
+                      </div>
+                      {largeOverflow ? <span>+ {largeOverflow} dalších</span> : null}
+                    </div>
+                    <div className={styles.compactRows}>
+                      {largeLeaderboard.map((row, index) => <CompactRow key={`${row.displayName}-${index}`} row={row} maxPoints={data.maxPoints} />)}
+                    </div>
+                  </aside>
+                ) : null}
               </div>
             ) : (
               <div className={styles.waiting}>
@@ -149,6 +260,18 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                 </div>
               </div>
             )}
+
+            {remainingRows.length ? (
+              <section className={styles.remaining}>
+                <div className={styles.remainingHead}>
+                  <strong>Další posádky</strong>
+                  <span>{remainingRows.length} mimo hlavní letovou dráhu</span>
+                </div>
+                <div className={styles.remainingGrid}>
+                  {remainingRows.map((row, index) => <CompactRow key={`${row.displayName}-${index}`} row={row} maxPoints={data.maxPoints} />)}
+                </div>
+              </section>
+            ) : null}
           </div>
         ) : null}
       </section>
