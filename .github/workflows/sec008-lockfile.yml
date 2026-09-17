@@ -1,0 +1,39 @@
+name: SEC-008 lockfile probe
+
+on:
+  push:
+    branches:
+      - sec-008-deterministic-deps
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package.json
+      - name: Record toolchain
+        run: |
+          node --version > toolchain.txt
+          npm --version >> toolchain.txt
+      - name: Generate lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Verify clean install
+        run: npm ci --ignore-scripts
+      - name: Typecheck
+        run: npm run check
+      - name: Upload probe artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sec008-lockfile-probe
+          path: |
+            package-lock.json
+            toolchain.txt
+          if-no-files-found: error
+          retention-days: 1
