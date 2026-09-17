@@ -233,11 +233,29 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       ) : null}
 
       {state?.status === 'ended' ? (
-        <section className="panel" style={{ textAlign: 'center' }}>
-          <span className="eyebrow">Mise dokončena</span>
-          <h1>Hodina skončila</h1>
-          <p className="muted-copy">Díky za účast, {state.participantDisplayName}.</p>
-        </section>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <section className="panel" style={{ textAlign: 'center' }}>
+            <span className="eyebrow">Mise dokončena</span>
+            <h1>Hodina skončila</h1>
+            <p className="muted-copy">Díky za účast, {state.participantDisplayName}.</p>
+          </section>
+
+          {state.scoreboard ? (
+            <section className="panel" aria-label="Moje konečné skóre">
+              <span className="eyebrow">Konečné pořadí</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 16, marginTop: 8 }}>
+                <div>
+                  <strong style={{ display: 'block', fontSize: 28, lineHeight: 1.1 }}>{state.scoreboard.score} / {state.scoreboard.maxPoints}</strong>
+                  <span className="muted-copy">Tvoje skóre</span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. místo</strong>
+                  <span className="muted-copy">Konečné pořadí</span>
+                </div>
+              </div>
+            </section>
+          ) : null}
+        </div>
       ) : null}
     </main>
   );
