@@ -90,7 +90,9 @@ requirePattern(lessonLibrary, /aria-label=\{`Přejmenovat složku \$\{root\.name
 requirePattern(lessonLibrary, /role="alert"/, 'lesson-library errors are not exposed as alerts.');
 requirePattern(lessonLibrary, /role="dialog"/, 'folder move flow lost dialog semantics.');
 requirePattern(lessonLibrary, /aria-modal="true"/, 'folder move dialog must remain modal to assistive technology.');
-requirePattern(lessonLibrary, /event\.key === 'Tab'/, 'folder move dialog lost keyboard focus trapping.');
+requirePattern(lessonLibrary, /event\.key !== 'Tab'/, 'folder move dialog lost keyboard focus trapping.');
+requirePattern(lessonLibrary, /document\.activeElement === first/, 'folder move dialog no longer loops focus at the first control.');
+requirePattern(lessonLibrary, /document\.activeElement === last/, 'folder move dialog no longer loops focus at the last control.');
 requirePattern(lessonLibrary, /moveDialogTriggerRef\.current\?\.focus\(\)/, 'folder move dialog no longer returns focus to its trigger.');
 requirePattern(lessonLibrary, /Stejný přesun je vždy dostupný i přes nabídku lekce/, 'drag-and-drop no longer documents its non-drag alternative.');
 requirePattern(lessonActions, /Přesunout do…/, 'lesson menu lost the non-drag move alternative.');
