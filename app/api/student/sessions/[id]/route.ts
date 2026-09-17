@@ -32,7 +32,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
       headers: {
         'Content-Type': 'application/json',
         apikey: key,
-        Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({ action: 'state', sessionId: id, participantToken }),
       cache: 'no-store',
@@ -48,7 +47,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
         headers: {
           'Content-Type': 'application/json',
           apikey: key,
-          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
           p_session_id: id,
