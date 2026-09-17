@@ -256,63 +256,6 @@ async function save(body: Record<string, unknown>) {
   return json({ ok: true, text, updatedAt: saved.updated_at, lock: claimed.lock });
 }
 
-async function submit(body: Record<string, unknown>) {
-  const text = typeof body.text === "string" ? body.text.trim() : "";
-  if (text.length < 1 || text.length > 4000) return json({ error: "Týmová odpověď musí mít 1 až 4000 znaků." }, 400);
-
-  const loaded = await loadContext(body);
-  if (loaded.response) return loaded.response;
-  const context = loaded.context!;
-  const sessionId = loaded.sessionId!;
-
-  let claimed;
-  try {
-    claimed = await claimLock(context, sessionId);
-  } catch {
-    return json({ error: "Editor se nepodařilo ověřit." }, 500);
-  }
-  if (!claimed.acquired) {
-    return json({ error: "Týmovou odpověď právě upravuje jiný člen týmu.", lock: claimed.lock }, 409);
-  }
-
-  const { data: saved, error: saveError } = await admin
-    .from("team_responses")
-    .upsert({
-      session_id: sessionId,
-      team_id: context.participant.team_id,
-      block_id: context.blockId,
-      answer: { text },
-      updated_by_participant_id: context.participant.id,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "session_id,team_id,block_id" })
-    .select("id, updated_at")
-    .single();
-
-  if (saveError || !saved) {
-    console.error("Submit team response save failed", saveError);
-    return json({ error: "Týmovou odpověď se nepodařilo uložit před odevzdáním." }, 500);
-  }
-
-  const { data: queued, error: queueError } = await admin.rpc("queue_submitted_team_response_evaluation", {
-    p_team_response_id: saved.id,
-  });
-
-  if (queueError) {
-    console.error("Submit team response grading queue failed", queueError);
-    return json({ error: "Odpověď je uložená, ale nepodařilo se ji označit jako odevzdanou. Zkus odevzdání znovu." }, 500);
-  }
-
-  scheduleBroadcastInvalidate(context.session.realtime_key);
-  return json({
-    ok: true,
-    submitted: true,
-    queuedForEvaluation: Boolean(queued),
-    text,
-    updatedAt: saved.updated_at,
-    lock: claimed.lock,
-  });
-}
-
 async function release(body: Record<string, unknown>) {
   const loaded = await loadContext(body, false);
   if (loaded.response) return loaded.response;
@@ -345,7 +288,6 @@ Deno.serve(async (req: Request) => {
     if (body.action === "claim") return await claim(body, true);
     if (body.action === "heartbeat") return await claim(body, false);
     if (body.action === "save") return await save(body);
-    if (body.action === "submit") return await submit(body);
     if (body.action === "release") return await release(body);
     return json({ error: "Neznámá akce." }, 400);
   } catch (error) {

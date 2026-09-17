@@ -15,7 +15,6 @@ type PresenterBlock = {
   instructions: string;
   options: string[] | null;
   items: string[] | null;
-  dataTable: { caption?: string; columns: string[]; rows: string[][] } | null;
   revealText: string | null;
 };
 
@@ -49,12 +48,6 @@ const blockLabels: Record<PresenterBlock['type'], string> = {
   timer: 'Časový blok',
   exit_ticket: 'Exit ticket',
 };
-
-function activityMode(type: PresenterBlock['type']) {
-  if (type === 'team_task') return 'Týmová aktivita';
-  if (type === 'intro' || type === 'reveal' || type === 'timer') return 'Společná aktivita';
-  return 'Individuální aktivita';
-}
 
 function formatTime(totalSeconds: number) {
   const safe = Math.max(0, totalSeconds);
@@ -201,29 +194,8 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
 
           {block ? (
             <article className={styles.activityCard}>
-              <span style={{ alignSelf: 'flex-start', marginBottom: 12, padding: '7px 11px', border: '1px solid rgba(255,255,255,.16)', borderRadius: 999, background: 'rgba(255,255,255,.07)', color: 'rgba(247,248,255,.82)', fontSize: 'clamp(12px,1vw,16px)', fontWeight: 760 }}>
-                {activityMode(block.type)}
-              </span>
               <h1>{block.title}</h1>
               <p className={styles.instructions}>{block.instructions}</p>
-
-              {block.dataTable ? (
-                <div style={{ overflowX: 'auto', marginTop: 28, width: '100%' }}>
-                  <table style={{ width: '100%', minWidth: Math.max(560, block.dataTable.columns.length * 150), borderCollapse: 'collapse', fontSize: 'clamp(15px,1.25vw,21px)' }}>
-                    {block.dataTable.caption ? <caption style={{ textAlign: 'left', captionSide: 'top', paddingBottom: 10, color: 'rgba(247,248,255,.78)', fontWeight: 750 }}>{block.dataTable.caption}</caption> : null}
-                    <thead>
-                      <tr>{block.dataTable.columns.map((column) => <th key={column} style={{ padding: '12px 14px', border: '1px solid rgba(255,255,255,.18)', background: 'rgba(255,255,255,.09)', textAlign: 'left' }}>{column}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {block.dataTable.rows.map((row, rowIndex) => (
-                        <tr key={`${rowIndex}-${row.join('\u0000')}`}>
-                          {row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`} style={{ padding: '12px 14px', border: '1px solid rgba(255,255,255,.14)', color: 'rgba(247,248,255,.88)' }}>{cell}</td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
 
               {displayItems?.length ? (
                 <div className={styles.optionGrid}>
