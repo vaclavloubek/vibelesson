@@ -1,0 +1,89 @@
+name: SEC-013 participant token expiry
+
+on:
+  push:
+    branches:
+      - sec-013-participant-token-expiry
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sec-013-participant-token-expiry
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Apply SEC-013 source changes
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if new in text:
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'supabase/functions/student-session/index.ts',
+              'const { data, error } = await db.from("participants").select(select).eq("session_id", sessionId).eq("participant_token_hash", await hash(rawToken)).maybeSingle();',
+              'const { data, error } = await db.from("participants").select(select).eq("session_id", sessionId).eq("participant_token_hash", await hash(rawToken)).gt("participant_token_expires_at", new Date().toISOString()).maybeSingle();',
+          )
+          replace_once(
+              'supabase/functions/student-session/index.ts',
+              ').select("id").single(); if (insertError || !p)',
+              ').select("id,participant_token_expires_at").single(); if (insertError || !p)',
+          )
+          replace_once(
+              'supabase/functions/student-session/index.ts',
+              'participantId: p.id, participantToken: raw });',
+              'participantId: p.id, participantToken: raw, participantTokenExpiresAt: p.participant_token_expires_at });',
+          )
+          replace_once(
+              'supabase/functions/team-edit/index.ts',
+              '.eq("participant_token_hash", participantTokenHash)\n    .maybeSingle();',
+              '.eq("participant_token_hash", participantTokenHash)\n    .gt("participant_token_expires_at", new Date().toISOString())\n    .maybeSingle();',
+          )
+          replace_once(
+              'app/api/student/join/route.ts',
+              '  participantToken?: string;\n  error?: string;',
+              '  participantToken?: string;\n  participantTokenExpiresAt?: string;\n  error?: string;',
+          )
+          replace_once(
+              'app/api/student/join/route.ts',
+              '    if (!edgeResponse.ok || !data.sessionId || !data.participantToken) {\n      return NextResponse.json({ error: data.error || \'Ke hodině se nepodařilo připojit.\' }, { status: edgeResponse.status || 500 });\n    }\n\n    const response = NextResponse.json({ sessionId: data.sessionId });',
+              '    if (!edgeResponse.ok || !data.sessionId || !data.participantToken || !data.participantTokenExpiresAt) {\n      return NextResponse.json({ error: data.error || \'Ke hodině se nepodařilo připojit.\' }, { status: edgeResponse.status || 500 });\n    }\n\n    const expiresAt = new Date(data.participantTokenExpiresAt);\n    if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {\n      console.error(\'student join returned invalid participant token expiry\');\n      return NextResponse.json({ error: \'Ke hodině se nepodařilo připojit.\' }, { status: 502 });\n    }\n\n    const response = NextResponse.json({ sessionId: data.sessionId });',
+          )
+          replace_once(
+              'app/api/student/join/route.ts',
+              '      maxAge: 60 * 60 * 24,',
+              '      expires: expiresAt,',
+          )
+          PY
+      - run: npm ci
+      - run: npm run check
+      - name: Verify expiry guards are present
+        run: |
+          grep -q 'participant_token_expires_at' supabase/functions/student-session/index.ts
+          grep -q 'participant_token_expires_at' supabase/functions/team-edit/index.ts
+          grep -q 'participantTokenExpiresAt' app/api/student/join/route.ts
+      - name: Commit validated source changes
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'vaclavloubek'
+          git config user.email 'vaclav.loubek@gmail.com'
+          git add supabase/functions/student-session/index.ts supabase/functions/team-edit/index.ts app/api/student/join/route.ts
+          git commit -m 'Enforce SEC-013 participant token expiry'
+          git push origin HEAD:sec-013-participant-token-expiry
