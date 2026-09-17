@@ -39,9 +39,10 @@ type Props = {
   initialLesson?: Lesson | null;
   initialLessonId?: string | null;
   initialPrompt?: string | null;
+  initialFolderId?: string | null;
 };
 
-export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null }: Props) {
+export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null, initialFolderId = null }: Props) {
   const router = useRouter();
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [audience, setAudience] = useState(initialLesson?.audience ?? '');
@@ -168,7 +169,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, materialMode, materials }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, materialMode, materials, folderId: initialFolderId }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -343,7 +344,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       ) : null}
 
       <div className="workspace">
-        <section className="builder" aria-busy={busy}>
+        <section className="builder">
           {lessonId && lesson ? (
             <div className="panel current-lesson-panel">
               <span className="eyebrow">Uložená lekce</span>
@@ -355,6 +356,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
             <div className="panel">
               <span className="eyebrow">Nová lekce</span>
               <h1>Co mají studenti dnes zažít?</h1>
+              {initialFolderId ? <p className="auth-hint">Nová lekce se po vytvoření uloží přímo do vybrané složky.</p> : null}
               <form onSubmit={generate}>
                 <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
                 <div className="form-grid">
@@ -385,29 +387,14 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           )}
 
           {lesson ? <>
-            <div className="panel vibe-editor">
-              <span className="eyebrow">AI úprava celé lekce</span>
-              <h2>Uprav celou lekci</h2>
-              <form onSubmit={revise}>
-                <label>
-                  Pokyn pro úpravu celé lekce
-                  <textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required />
-                </label>
-                <button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button>
-              </form>
-              <div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div>
-            </div>
-            <div className="panel block-editor">
-              <span className="eyebrow">AI úprava jedné aktivity</span>
-              <h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>
-              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>Pokyn pro úpravu vybrané aktivity<textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /></label><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}
-            </div>
+            <div className="panel vibe-editor"><span className="eyebrow">AI úprava celé lekce</span><h2>Uprav celou lekci</h2><form onSubmit={revise}><textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button></form><div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div></div>
+            <div className="panel block-editor"><span className="eyebrow">AI úprava jedné aktivity</span><h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>{selectedBlock ? <form onSubmit={reviseSelectedBlock}><textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}</div>
           </> : null}
-          {error ? <div className="error" role="alert">{error}</div> : null}
+          {error ? <div className="error">{error}</div> : null}
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label="Režim náhledu"><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>

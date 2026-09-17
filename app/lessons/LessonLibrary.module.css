@@ -1,0 +1,264 @@
+.libraryLayout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.libraryMain {
+  min-width: 0;
+}
+
+.folderNavigation {
+  display: grid;
+  gap: 6px;
+}
+
+.folderNavTop,
+.folderRow,
+.libraryToolbar,
+.toolbarActions,
+.bulkToolbar,
+.cardTitleWrap,
+.cardMoveActions {
+  display: flex;
+  align-items: center;
+}
+
+.folderNavTop {
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.folderNavTop button,
+.folderActions button {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.folderNavTop button {
+  padding: 6px 9px;
+  font-size: 13px;
+}
+
+.scopeButton,
+.scopeActive,
+.folderButton,
+.folderActive {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.scopeButton:hover,
+.folderButton:hover,
+.scopeActive,
+.folderActive {
+  background: var(--panel-soft);
+}
+
+.scopeActive,
+.folderActive {
+  font-weight: 700;
+}
+
+.scopeButton small,
+.scopeActive small,
+.folderButton small,
+.folderActive small {
+  color: var(--muted);
+}
+
+.folderTree {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.folderRow {
+  gap: 4px;
+}
+
+.folderActions {
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+
+.folderRow:hover .folderActions,
+.folderRow:focus-within .folderActions {
+  opacity: 1;
+}
+
+.folderActions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.childFolder {
+  padding-left: 18px;
+}
+
+.libraryToolbar {
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.libraryToolbar h2 {
+  margin: 4px 0 0;
+  font-size: 28px;
+  letter-spacing: -.03em;
+}
+
+.toolbarActions {
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.bulkToolbar {
+  gap: 10px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+
+.bulkToolbar select,
+.cardMoveActions select {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.bulkToolbar select {
+  min-width: 210px;
+  padding: 8px 10px;
+}
+
+.cardTitleWrap {
+  gap: 10px;
+  min-width: 0;
+}
+
+.cardTitleWrap input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.cardFooter {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardMoveActions {
+  gap: 10px;
+  margin-left: auto;
+}
+
+.cardMoveActions select {
+  max-width: 190px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.emptyFolder {
+  margin: 0;
+}
+
+.emptyFolder h3 {
+  margin: 0 0 8px;
+}
+
+.emptyFolder p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.mobileFolders {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .libraryLayout {
+    display: block;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .mobileFolders {
+    display: block;
+    margin-bottom: 18px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    padding: 10px 12px;
+  }
+
+  .mobileFolders > summary {
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .mobileFolders[open] > summary {
+    margin-bottom: 10px;
+  }
+
+  .folderActions {
+    opacity: 1;
+  }
+
+  .libraryToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .toolbarActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .cardMoveActions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .cardMoveActions select {
+    max-width: 70%;
+  }
+}

@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import LessonActions from './LessonActions';
+import LessonLibrary, { type LessonFolderItem, type LessonListItem } from './LessonLibrary';
 import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
+import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 
@@ -34,11 +35,25 @@ export default async function LessonsPage() {
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
   if (!userId) redirect('/');
 
+  const entitlement = await getLessonFolderEntitlement(supabase, userId);
+
   const { data: rows, error } = await supabase
     .from('lessons')
-    .select('id, title, lesson, created_at, updated_at')
+    .select('id, title, lesson, folder_id, created_at, updated_at')
     .eq('owner_id', userId)
     .order('updated_at', { ascending: false });
+
+  let folderRows: { id: string; name: string; parent_id: string | null }[] = [];
+  let foldersError: unknown = null;
+  if (entitlement.enabled) {
+    const folderResult = await supabase
+      .from('lesson_folders')
+      .select('id, name, parent_id')
+      .eq('owner_id', userId)
+      .order('name', { ascending: true });
+    folderRows = (folderResult.data ?? []) as { id: string; name: string; parent_id: string | null }[];
+    foldersError = folderResult.error;
+  }
 
   const { data: sessionRows, error: sessionsError } = await supabase
     .from('sessions')
@@ -49,18 +64,29 @@ export default async function LessonsPage() {
     .order('ended_at', { ascending: false });
 
   if (error) console.error('load lessons failed', error);
+  if (foldersError) console.error('load lesson folders failed', foldersError);
   if (sessionsError) console.error('load ended sessions failed', sessionsError);
 
-  const lessons = (rows ?? []).flatMap((row) => {
+  const lessons: LessonListItem[] = (rows ?? []).flatMap((row) => {
     const parsed = LessonSchema.safeParse(row.lesson);
     if (!parsed.success) return [];
     return [{
       id: row.id as string,
       title: row.title as string,
-      lesson: parsed.data,
+      subtitle: parsed.data.subtitle ?? null,
+      audience: parsed.data.audience,
+      totalMinutes: parsed.data.totalMinutes,
+      blockCount: parsed.data.blocks.length,
       updatedAt: row.updated_at as string,
+      folderId: typeof row.folder_id === 'string' ? row.folder_id : null,
     }];
   });
+
+  const folders: LessonFolderItem[] = folderRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    parentId: row.parent_id,
+  }));
 
   const recentResults = (sessionRows ?? []).flatMap((row) => {
     const parsed = LessonSchema.safeParse(row.lesson_snapshot);
@@ -77,6 +103,8 @@ export default async function LessonsPage() {
     }];
   });
 
+  const canManageFolders = entitlement.enabled && !foldersError;
+
   return (
     <main className="shell lessons-shell">
       <header className="brand lessons-brand">
@@ -89,14 +117,15 @@ export default async function LessonsPage() {
         <div>
           <span className="eyebrow">Palubní deník</span>
           <h1>Moje lekce</h1>
-          <p>Všechny připravené lekce se sem ukládají automaticky.</p>
+          <p>{entitlement.enabled ? 'Uspořádej lekce podle škol, tříd nebo předmětů.' : 'Všechny připravené lekce se sem ukládají automaticky.'}</p>
         </div>
         <Link href="/new" className="primary button-link">+ Nová lekce</Link>
       </section>
 
       {error ? <div className="error">Lekce se nepodařilo načíst. Zkus stránku obnovit.</div> : null}
+      {foldersError ? <div className="error">Složky se nepodařilo načíst. Lekce zůstávají bezpečně uložené.</div> : null}
 
-      {!error && lessons.length === 0 ? (
+      {!error && lessons.length === 0 && !canManageFolders ? (
         <section className="lessons-empty panel">
           <span className="eyebrow">Začátek trasy</span>
           <h2>Zatím tu nic není</h2>
@@ -105,28 +134,9 @@ export default async function LessonsPage() {
         </section>
       ) : null}
 
-      <section className="lesson-grid">
-        {lessons.map(({ id, title, lesson, updatedAt }) => (
-          <article className="lesson-card" key={id}>
-            <div className="lesson-card-top">
-              <div>
-                <Link href={`/lessons/${id}`} className="lesson-title-link"><h2>{title}</h2></Link>
-                {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
-              </div>
-              <LessonActions lessonId={id} title={title} />
-            </div>
-            <div className="lesson-card-meta">
-              <span>{lesson.audience}</span>
-              <span>{lesson.totalMinutes} min</span>
-              <span>{lesson.blocks.length} aktivit</span>
-            </div>
-            <div className="lesson-card-footer">
-              <span>Upraveno {formatUpdatedAt(updatedAt)}</span>
-              <Link href={`/lessons/${id}`} className="auth-link">Otevřít</Link>
-            </div>
-          </article>
-        ))}
-      </section>
+      {!error && (lessons.length > 0 || canManageFolders) ? (
+        <LessonLibrary lessons={lessons} folders={folders} canManageFolders={canManageFolders} />
+      ) : null}
 
       <section className="lessons-heading" style={{ marginTop: 44 }}>
         <div>
