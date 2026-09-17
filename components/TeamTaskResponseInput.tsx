@@ -58,6 +58,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
 export default function TeamTaskResponseInput({ sessionId, block, teamName, response, onSaved }: Props) {
   const serverText = response?.text ?? '';
   const draftKey = `syllonaut-team-draft-v1:${sessionId}:${block.id}:${teamName}`;
+  const statusId = `team-response-status-${block.id}`;
   const [text, setText] = useState(serverText);
   const [lock, setLockState] = useState<LockInfo>(null);
   const [focused, setFocused] = useState(false);
@@ -486,11 +487,11 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
   else if (focused && lock?.mine) statusText = 'Upravuješ ty · automatické ukládání konceptu je aktivní.';
 
   return (
-    <section className="panel">
+    <section className="panel" aria-busy={submitting || saveState === 'saving'}>
       <span className="eyebrow">Společná odpověď · {teamName}</span>
       <p className="muted-copy" style={{ marginTop: 8 }}>Toto pole sdílí celý tým. V jednu chvíli ho upravuje jeden člen; ostatní vidí poslední uloženou verzi.</p>
       {draftConflict ? (
-        <div className="reveal" style={{ marginTop: 12 }}>
+        <div className="reveal" role="alert" style={{ marginTop: 12 }}>
           <strong>Našli jsme neuložený text z doby před obnovením stránky.</strong>
           <p style={{ marginBottom: 10 }}>Mezitím se ale změnila týmová odpověď na serveru. Vyber, kterou verzi chceš použít; nic nepřepíšeme automaticky.</p>
           <div className="actions" style={{ marginTop: 0 }}>
@@ -499,27 +500,30 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
           </div>
         </div>
       ) : draftRecovered ? (
-        <div className="reveal" style={{ marginTop: 12 }}>
+        <div className="reveal" role="status" style={{ marginTop: 12 }}>
           Obnovili jsme neuložený text z této karty. Neztratil se při refreshi ani během výpadku spojení.
         </div>
       ) : null}
       {lockedByOther ? (
-        <div className="reveal" style={{ marginTop: 12 }}>
+        <div className="reveal" role="status" style={{ marginTop: 12 }}>
           Právě upravuje <strong>{lock!.holderDisplayName}</strong>. Můžeš odpověď číst, editor se uvolní automaticky.
         </div>
       ) : null}
-      <textarea
-        value={text}
-        onFocus={() => { void handleFocus(); }}
-        onBlur={() => { void handleBlur(); }}
-        onChange={(event) => handleChange(event.target.value)}
-        maxLength={4000}
-        rows={7}
-        placeholder="Zapište společný výstup týmu…"
-        disabled={lockedByOther || draftConflict || submitting}
-        style={{ marginTop: 12 }}
-      />
-      <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>{statusText}</p>
+      <label style={{ marginTop: 12 }}>
+        Společná týmová odpověď
+        <textarea
+          value={text}
+          onFocus={() => { void handleFocus(); }}
+          onBlur={() => { void handleBlur(); }}
+          onChange={(event) => handleChange(event.target.value)}
+          maxLength={4000}
+          rows={7}
+          placeholder="Zapište společný výstup týmu…"
+          disabled={lockedByOther || draftConflict || submitting}
+          aria-describedby={statusId}
+        />
+      </label>
+      <p id={statusId} className="muted-copy" role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: 8, marginBottom: 0 }}>{statusText}</p>
       <div className="actions" style={{ marginTop: 12 }}>
         <button
           className="primary"
@@ -532,7 +536,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
         </button>
       </div>
       <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Automatické ukládání ukládá pouze koncept. AI hodnocení se může spustit až po odevzdání.</p>
-      {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
+      {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
     </section>
   );
 }

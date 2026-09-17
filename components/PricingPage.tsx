@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
+import VisuallyHidden from '@/components/VisuallyHidden';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -174,6 +175,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
   const [audience, setAudience] = useState<Audience>('teachers');
   const [billing, setBilling] = useState<Billing>('monthly');
   const plans = audience === 'teachers' ? teacherPlans : schoolPlans;
+  const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}.`;
 
   return (
     <main className={landing.page}>
@@ -194,13 +196,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
             initialOpen={startSignup}
             initialMode={startSignup ? 'signup' : 'signin'}
           />
-          <Link
-            href="/new"
-            className={landing.headerCta}
-            style={{ whiteSpace: 'nowrap', flex: '0 0 auto', minWidth: 'max-content' }}
-          >
-            Připravit hodinu
-          </Link>
+          <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }}>Připravit hodinu</Link>
           <HeaderMobileNav signedIn={Boolean(user)} current="pricing" />
         </div>
       </header>
@@ -231,7 +227,11 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
         </div>
       </section>
 
-      <section className={styles.cards} aria-live="polite">
+      <div role="status" aria-live="polite" aria-atomic="true">
+        <VisuallyHidden>{pricingStatus}</VisuallyHidden>
+      </div>
+
+      <section className={styles.cards}>
         {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billing={billing} />)}
       </section>
 

@@ -19,7 +19,7 @@ const AIGradingCriterionSchema = z.object({
 });
 
 const AIDataTableSchema = z.object({
-  caption: z.string().nullable(),
+  caption: z.string().min(1).max(200),
   columns: z.array(z.string()).min(2).max(8),
   rows: z.array(z.array(z.string()).min(2).max(8)).min(1).max(30),
 });
@@ -65,7 +65,7 @@ Pravidla:
 - U ranking bloku vyplň items a v instructions vždy výslovně požaduj dvě části odpovědi: seřazení všech položek a krátké zdůvodnění pořadí (1–2 věty). Studentský formulář obě části vyžaduje.
 - U otevřených odpovědí a exit ticketu formuluj jednu konkrétní otázku.
 - Pokud blok pracuje se sadou nejméně tří souvisejících číselných údajů, časovou řadou, výsledky měření, webovou analytikou nebo jiným datasetem určeným k porovnávání, vyplň dataTable. Číselný dataset neschovávej do dlouhého odstavce instructions. Do instructions dej úkol a kontext, vlastní data dej přehledně do dataTable. Pokud tabulka není potřeba, nastav dataTable na null.
-- dataTable musí mít 2–8 sloupců a 1–30 řádků; každý řádek musí mít přesně stejný počet buněk jako columns. Hodnoty formátuj už pro zobrazení studentovi včetně jednotek, pokud jsou důležité.
+- dataTable musí mít 2–8 sloupců a 1–30 řádků; každý řádek musí mít přesně stejný počet buněk jako columns. Hodnoty formátuj už pro zobrazení studentovi včetně jednotek, pokud jsou důležité. Každá dataTable MUSÍ mít krátký a výstižný caption, který popíše obsah nebo účel tabulky.
 - teacherNote používej pro stručnou metodickou poznámku, řešení nebo debrief; student ji nevidí.
 - points používej jen tam, kde je výsledek smysluplně hodnotitelný. Quiz může mít points bez gradingRubric, protože se vyhodnotí deterministicky podle correctAnswer.
 - Pokud mají open_text, exit_ticket nebo team_task kladné points, MUSÍ mít také gradingRubric. Rubrika má mít 2–4 konkrétní pozorovatelná kritéria. Každé kritérium má stabilní stručné id, krátký title, přesný description a maxPoints. Součet maxPoints MUSÍ přesně odpovídat points bloku.
@@ -76,6 +76,15 @@ Pravidla:
 - Nevymýšlej faktické údaje, studie ani citace, pokud nejsou součástí uživatelova zadání. Když je aktivita potřebuje, použij zjevně fiktivní scénář.
 - Celkový součet durationMinutes má co nejpřesněji odpovídat požadované délce.
 - Jazyk výstupu je čeština, není-li výslovně požadováno jinak.
+
+Pravidla přístupnosti vytvářeného obsahu (ATAG/WCAG by default):
+- Každé studentské zadání musí být srozumitelné jako samostatný text. Nesmí předpokládat, že student vidí konkrétní rozložení obrazovky, barvu, ikonu, animaci nebo polohu prvku.
+- Nikdy nepoužívej barvu, tvar, velikost, polohu, animaci nebo zvuk jako jediný způsob, jak rozlišit možnost nebo předat informaci. Místo „klikni na zelenou možnost“ použij textový název možnosti.
+- Neformuluj aktivitu jako drag-only gesto. U ranking používej formulace „seřaď“, „změň pořadí“ nebo „přesuň položku“, protože aplikace nabízí ovládání i bez drag-and-drop.
+- Nevyžaduj přesné časované gesto, pohyb zařízení ani současné stisknutí více kláves, pokud to není výslovný vzdělávací cíl a zároveň neexistuje rovnocenná alternativa.
+- Informaci důležitou pro splnění úkolu vždy uveď textově; nespoléhej na to, že ji učitel doplní ústně nebo že ji student odvodí jen z vizuálního vzhledu.
+- Tabulková data používej jen pro skutečné vztahy řádků a sloupců a vždy dej tabulce výstižný caption.
+- Při úpravách existující lekce tato pravidla přístupnosti zachovej i tehdy, když je instrukce učitele výslovně nezmiňuje.
 `;
 
 const materialModeInstructions: Record<MaterialMode, string> = {
@@ -104,7 +113,7 @@ function normalizeDataTable(data: z.infer<typeof AIDataTableSchema> | null) {
   const rows = data.rows.slice(0, 30).map((row) => columns.map((_, index) => (row[index] ?? '').trim()));
   if (!rows.length) return undefined;
   return {
-    caption: data.caption?.trim() || undefined,
+    caption: data.caption.trim(),
     columns,
     rows,
   };

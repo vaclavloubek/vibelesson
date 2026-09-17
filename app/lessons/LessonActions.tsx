@@ -75,7 +75,7 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
   }
 
   return (
-    <div className="lesson-actions-wrap">
+    <div className="lesson-actions-wrap" aria-busy={busy}>
       <details className="lesson-actions" ref={detailsRef}>
         <summary aria-label={`Akce pro lekci ${title}`}>•••</summary>
         <div className="lesson-actions-menu">
@@ -85,7 +85,7 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
           <button type="button" className="danger-action" onClick={deleteLesson} disabled={busy}>Smazat</button>
         </div>
       </details>
-      {error ? <span className="lesson-action-error">{error}</span> : null}
+      {error ? <span className="lesson-action-error" role="alert">{error}</span> : null}
     </div>
   );
 }

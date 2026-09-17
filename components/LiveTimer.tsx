@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState } from '@/lib/live';
 
 type Props = {
@@ -15,8 +16,22 @@ function formatSeconds(totalSeconds: number) {
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
+function milestoneMessage(seconds: number, label: string) {
+  if (seconds === 60) return `${label}: zbývá jedna minuta.`;
+  if (seconds === 30) return `${label}: zbývá 30 sekund.`;
+  if (seconds === 10) return `${label}: zbývá 10 sekund.`;
+  return `${label}: čas vypršel.`;
+}
+
 export default function LiveTimer({ timer, label = 'Čas' }: Props) {
   const [remaining, setRemaining] = useState(timer.remainingSeconds);
+  const [announcement, setAnnouncement] = useState('');
+  const previousSecondsRef = useRef(Math.max(0, Math.ceil(timer.remainingSeconds)));
+
+  useEffect(() => {
+    previousSecondsRef.current = Math.max(0, Math.ceil(timer.remainingSeconds));
+    setAnnouncement('');
+  }, [timer.syncedAt]);
 
   useEffect(() => {
     const receivedAt = Date.now();
@@ -35,6 +50,14 @@ export default function LiveTimer({ timer, label = 'Čas' }: Props) {
     return () => window.clearInterval(interval);
   }, [timer.remainingSeconds, timer.status, timer.syncedAt]);
 
+  useEffect(() => {
+    const currentSeconds = Math.max(0, Math.ceil(remaining));
+    const previousSeconds = previousSecondsRef.current;
+    const crossed = [60, 30, 10, 0].find((milestone) => previousSeconds > milestone && currentSeconds <= milestone);
+    if (crossed !== undefined) setAnnouncement(milestoneMessage(crossed, label));
+    previousSecondsRef.current = currentSeconds;
+  }, [label, remaining]);
+
   const finished = remaining <= 0;
   const statusText = finished
     ? 'Čas vypršel'
@@ -45,10 +68,17 @@ export default function LiveTimer({ timer, label = 'Čas' }: Props) {
         : 'Čeká na spuštění';
 
   return (
-    <section className="panel" style={{ textAlign: 'center' }}>
+    <section className="panel" style={{ textAlign: 'center' }} aria-label={label}>
       <span className="eyebrow">{label}</span>
-      <div style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-.04em', margin: '8px 0 4px' }}>{formatSeconds(remaining)}</div>
+      <div
+        role="timer"
+        aria-label={`${label}: ${formatSeconds(remaining)}. ${statusText}.`}
+        style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-.04em', margin: '8px 0 4px' }}
+      >
+        {formatSeconds(remaining)}
+      </div>
       <p className="muted-copy" style={{ marginBottom: 0 }}>{statusText}</p>
+      <VisuallyHidden><span role="status" aria-live="polite" aria-atomic="true">{announcement}</span></VisuallyHidden>
     </section>
   );
 }

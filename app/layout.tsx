@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import './flow-polish.css';
 import './mobile-focus.css';
+import './accessibility.css';
 
 const geist = Geist({
   subsets: ['latin'],
@@ -36,7 +37,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="beforeInteractive"
         />
-        {children}
+        <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
+        <div id="main-content" tabIndex={-1}>{children}</div>
       </body>
     </html>
   );

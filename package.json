@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "check": "tsc --noEmit && node scripts/verify-ai-zdr.mjs",
-    "check:security-headers": "node scripts/verify-security-headers.mjs"
+    "check:security-headers": "node scripts/verify-security-headers.mjs",
+    "check:accessibility": "node scripts/verify-accessibility.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
