@@ -172,45 +172,45 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
   function renderFolderNavigation() {
     return (
-      <div className={styles.folderNavigation}>
+      <nav className={styles.folderNavigation} aria-label="Složky lekcí">
         <div className={styles.folderNavTop}>
           <strong>Složky</strong>
           <button type="button" onClick={() => createFolder(null)} disabled={busy}>+ Složka</button>
         </div>
-        <button type="button" className={scope === 'all' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('all')}>
+        <button type="button" aria-pressed={scope === 'all'} className={scope === 'all' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('all')}>
           <span>Všechny lekce</span><small>{lessons.length}</small>
         </button>
-        <button type="button" className={scope === 'unfiled' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('unfiled')}>
+        <button type="button" aria-pressed={scope === 'unfiled'} className={scope === 'unfiled' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('unfiled')}>
           <span>Bez složky</span><small>{lessonCount(null)}</small>
         </button>
         <div className={styles.folderTree}>
           {roots.map((root) => (
             <div key={root.id}>
               <div className={styles.folderRow}>
-                <button type="button" className={scope === root.id ? styles.folderActive : styles.folderButton} onClick={() => setScope(root.id)}>
+                <button type="button" aria-pressed={scope === root.id} className={scope === root.id ? styles.folderActive : styles.folderButton} onClick={() => setScope(root.id)}>
                   <span>{root.name}</span><small>{lessonCount(root.id)}</small>
                 </button>
                 <div className={styles.folderActions}>
-                  <button type="button" title="Přidat podsložku" onClick={() => createFolder(root.id)} disabled={busy}>+</button>
-                  <button type="button" title="Přejmenovat" onClick={() => renameFolder(root)} disabled={busy}>✎</button>
-                  <button type="button" title="Smazat" onClick={() => deleteFolder(root)} disabled={busy}>×</button>
+                  <button type="button" aria-label={`Přidat podsložku do ${root.name}`} title="Přidat podsložku" onClick={() => createFolder(root.id)} disabled={busy}>+</button>
+                  <button type="button" aria-label={`Přejmenovat složku ${root.name}`} title="Přejmenovat" onClick={() => renameFolder(root)} disabled={busy}>✎</button>
+                  <button type="button" aria-label={`Smazat složku ${root.name}`} title="Smazat" onClick={() => deleteFolder(root)} disabled={busy}>×</button>
                 </div>
               </div>
               {(childrenByParent.get(root.id) ?? []).map((child) => (
                 <div className={`${styles.folderRow} ${styles.childFolder}`} key={child.id}>
-                  <button type="button" className={scope === child.id ? styles.folderActive : styles.folderButton} onClick={() => setScope(child.id)}>
+                  <button type="button" aria-pressed={scope === child.id} className={scope === child.id ? styles.folderActive : styles.folderButton} onClick={() => setScope(child.id)}>
                     <span>{child.name}</span><small>{lessonCount(child.id)}</small>
                   </button>
                   <div className={styles.folderActions}>
-                    <button type="button" title="Přejmenovat" onClick={() => renameFolder(child)} disabled={busy}>✎</button>
-                    <button type="button" title="Smazat" onClick={() => deleteFolder(child)} disabled={busy}>×</button>
+                    <button type="button" aria-label={`Přejmenovat složku ${child.name}`} title="Přejmenovat" onClick={() => renameFolder(child)} disabled={busy}>✎</button>
+                    <button type="button" aria-label={`Smazat složku ${child.name}`} title="Smazat" onClick={() => deleteFolder(child)} disabled={busy}>×</button>
                   </div>
                 </div>
               ))}
             </div>
           ))}
         </div>
-      </div>
+      </nav>
     );
   }
 
@@ -229,7 +229,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
   }
 
   return (
-    <section className={styles.libraryLayout}>
+    <section className={styles.libraryLayout} aria-busy={busy}>
       <aside className={styles.sidebar}>{renderFolderNavigation()}</aside>
       <div className={styles.libraryMain}>
         <details className={styles.mobileFolders}>
@@ -243,7 +243,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
             <h2>{activeFolder?.name ?? (scope === 'unfiled' ? 'Bez složky' : 'Všechny lekce')}</h2>
           </div>
           <div className={styles.toolbarActions}>
-            <button type="button" className="secondary" onClick={() => { setSelectionMode((value) => !value); setSelectedLessonIds([]); }} disabled={busy}>
+            <button type="button" className="secondary" aria-pressed={selectionMode} onClick={() => { setSelectionMode((value) => !value); setSelectedLessonIds([]); }} disabled={busy}>
               {selectionMode ? 'Hotovo' : 'Vybrat'}
             </button>
             <Link href={newLessonHref} className="primary button-link">+ Nová lekce{activeFolder ? ' sem' : ''}</Link>
@@ -251,9 +251,9 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         </div>
 
         {selectionMode ? (
-          <div className={styles.bulkToolbar}>
+          <div className={styles.bulkToolbar} role="group" aria-label="Hromadný přesun lekcí">
             <strong>Vybráno: {selectedLessonIds.length}</strong>
-            <select value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)} disabled={busy}>
+            <select aria-label="Cílová složka pro vybrané lekce" value={bulkFolderId} onChange={(event) => setBulkFolderId(event.target.value)} disabled={busy}>
               <option value="">Bez složky</option>
               {orderedFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.parentId ? `↳ ${folder.name}` : folder.name}</option>)}
             </select>
@@ -261,7 +261,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
           </div>
         ) : null}
 
-        {error ? <div className="error">{error}</div> : null}
+        {error ? <div className="error" role="alert">{error}</div> : null}
 
         {visibleLessons.length === 0 ? (
           <div className={`panel ${styles.emptyFolder}`}>
