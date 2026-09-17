@@ -18,6 +18,12 @@ const AIGradingCriterionSchema = z.object({
   maxPoints: z.number().int(),
 });
 
+const AIDataTableSchema = z.object({
+  caption: z.string().nullable(),
+  columns: z.array(z.string()).min(2).max(8),
+  rows: z.array(z.array(z.string()).min(2).max(8)).min(1).max(30),
+});
+
 const AILessonBlockSchema = z.object({
   id: z.string(),
   type: BlockTypeSchema,
@@ -26,6 +32,7 @@ const AILessonBlockSchema = z.object({
   instructions: z.string(),
   options: z.array(z.string()).nullable(),
   items: z.array(z.string()).nullable(),
+  dataTable: AIDataTableSchema.nullable(),
   correctAnswer: z.string().nullable(),
   revealText: z.string().nullable(),
   teacherNote: z.string().nullable(),
@@ -57,6 +64,8 @@ Pravidla:
 - U reveal bloku vyplň revealText.
 - U ranking bloku vyplň items a v instructions vždy výslovně požaduj dvě části odpovědi: seřazení všech položek a krátké zdůvodnění pořadí (1–2 věty). Studentský formulář obě části vyžaduje.
 - U otevřených odpovědí a exit ticketu formuluj jednu konkrétní otázku.
+- Pokud blok pracuje se sadou nejméně tří souvisejících číselných údajů, časovou řadou, výsledky měření, webovou analytikou nebo jiným datasetem určeným k porovnávání, vyplň dataTable. Číselný dataset neschovávej do dlouhého odstavce instructions. Do instructions dej úkol a kontext, vlastní data dej přehledně do dataTable. Pokud tabulka není potřeba, nastav dataTable na null.
+- dataTable musí mít 2–8 sloupců a 1–30 řádků; každý řádek musí mít přesně stejný počet buněk jako columns. Hodnoty formátuj už pro zobrazení studentovi včetně jednotek, pokud jsou důležité.
 - teacherNote používej pro stručnou metodickou poznámku, řešení nebo debrief; student ji nevidí.
 - points používej jen tam, kde je výsledek smysluplně hodnotitelný. Quiz může mít points bez gradingRubric, protože se vyhodnotí deterministicky podle correctAnswer.
 - Pokud mají open_text, exit_ticket nebo team_task kladné points, MUSÍ mít také gradingRubric. Rubrika má mít 2–4 konkrétní pozorovatelná kritéria. Každé kritérium má stabilní stručné id, krátký title, přesný description a maxPoints. Součet maxPoints MUSÍ přesně odpovídat points bloku.
@@ -88,6 +97,19 @@ function getGatewayCost(providerMetadata: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function normalizeDataTable(data: z.infer<typeof AIDataTableSchema> | null) {
+  if (!data) return undefined;
+  const columns = data.columns.map((column) => column.trim()).filter(Boolean).slice(0, 8);
+  if (columns.length < 2) return undefined;
+  const rows = data.rows.slice(0, 30).map((row) => columns.map((_, index) => (row[index] ?? '').trim()));
+  if (!rows.length) return undefined;
+  return {
+    caption: data.caption?.trim() || undefined,
+    columns,
+    rows,
+  };
+}
+
 function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock {
   return LessonBlockSchema.parse({
     id: block.id,
@@ -97,6 +119,7 @@ function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock
     instructions: block.instructions,
     options: block.options ?? undefined,
     items: block.items ?? undefined,
+    dataTable: normalizeDataTable(block.dataTable),
     correctAnswer: block.correctAnswer ?? undefined,
     revealText: block.revealText ?? undefined,
     teacherNote: block.teacherNote ?? undefined,

@@ -21,6 +21,8 @@ type LockInfo = {
 type TeamEditResult = {
   ok?: boolean;
   acquired?: boolean;
+  submitted?: boolean;
+  queuedForEvaluation?: boolean;
   lock?: LockInfo;
   text?: string;
   error?: string;
@@ -30,6 +32,7 @@ type RequestResult = TeamEditResult & { responseOk: boolean; status: number };
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved';
 type SaveOutcome = 'saved' | 'retry' | 'blocked';
 type StoredDraft = { text: string; baseServerText: string; savedAt: number };
+type TeamEditAction = 'status' | 'claim' | 'heartbeat' | 'save' | 'submit' | 'release';
 
 const SAVE_DEBOUNCE_MS = 800;
 const RETRY_BASE_MS = 2000;
@@ -62,6 +65,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
   const [error, setError] = useState('');
   const [draftRecovered, setDraftRecovered] = useState(false);
   const [draftConflict, setDraftConflict] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const lockRef = useRef<LockInfo>(null);
   const focusedRef = useRef(false);
@@ -106,13 +111,14 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     }
   }, [draftKey]);
 
-  const request = useCallback(async (action: 'status' | 'claim' | 'heartbeat' | 'save' | 'release', value?: string): Promise<RequestResult> => {
+  const request = useCallback(async (action: TeamEditAction, value?: string): Promise<RequestResult> => {
+    const carriesText = action === 'save' || action === 'submit';
     const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/team-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, blockId: block.id, ...(action === 'save' ? { text: value } : {}) }),
+      body: JSON.stringify({ action, blockId: block.id, ...(carriesText ? { text: value } : {}) }),
       cache: 'no-store',
-    }, action === 'save' ? 10_000 : 5_000);
+    }, carriesText ? 10_000 : 5_000);
     const data = await result.json() as TeamEditResult;
     return { ...data, responseOk: result.ok, status: result.status };
   }, [block.id, sessionId]);
@@ -126,6 +132,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     setSaveState('idle');
     setDraftRecovered(false);
     setDraftConflictState(false);
+    setSubmitted(false);
     clearDraft();
     setError(message ?? '');
   }, [clearDraft, setDraftConflictState]);
@@ -281,6 +288,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       setText(parsed.text);
       setSaveState('dirty');
       setDraftRecovered(true);
+      setSubmitted(false);
       const conflict = parsed.baseServerText !== serverText;
       setDraftConflictState(conflict);
       if (conflict) {
@@ -397,6 +405,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     setText(value);
     setDraftRecovered(false);
     setDraftConflictState(false);
+    setSubmitted(false);
 
     if (!changed) {
       retryAttemptRef.current = 0;
@@ -412,24 +421,69 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     scheduleSave();
   }
 
+  async function submitAnswer() {
+    if (submitting || draftConflictRef.current || lockedByOther) return;
+    const value = latestTextRef.current.trim();
+    if (!value) {
+      setError('Společná týmová odpověď nemůže zůstat prázdná.');
+      return;
+    }
+
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (savePromiseRef.current) await savePromiseRef.current;
+
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await request('submit', value);
+      if (result.lock !== undefined) setLock(result.lock ?? null);
+      if (!result.responseOk || !result.submitted) {
+        setError(result.error || 'Týmovou odpověď se nepodařilo odevzdat.');
+        return;
+      }
+
+      latestTextRef.current = value;
+      lastSavedTextRef.current = value;
+      dirtyRef.current = false;
+      retryAttemptRef.current = 0;
+      setText(value);
+      setSaveState('saved');
+      setDraftRecovered(false);
+      setDraftConflictState(false);
+      clearDraft();
+      setSubmitted(true);
+      onSaved();
+    } catch {
+      setError('Spojení se při odevzdávání přerušilo. Koncept zůstává uložený; zkus odevzdání znovu.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function useRecoveredDraft() {
     setDraftConflictState(false);
     setDraftRecovered(false);
+    setSubmitted(false);
     setError('');
     persistDraft(latestTextRef.current);
     const acquired = await ensureLock();
     if (acquired) scheduleSave();
   }
 
-  let statusText = 'Klikni do pole a začni psát. Změny se ukládají automaticky.';
+  let statusText = 'Klikni do pole a začni psát. Změny se ukládají automaticky jako koncept.';
   if (lockedByOther && dirtyRef.current) statusText = `Upravuje ${lock!.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`;
   else if (lockedByOther) statusText = `Upravuje ${lock!.holderDisplayName}. Pole se po uvolnění zpřístupní.`;
   else if (draftConflict) statusText = 'Obnovený text čeká na tvoje rozhodnutí.';
   else if (draftRecovered) statusText = 'Obnovili jsme neuložený text z této karty. Po kliknutí do pole se znovu uloží.';
-  else if (saveState === 'saving') statusText = 'Ukládám…';
-  else if (saveState === 'dirty') statusText = 'Změny se uloží automaticky; při výpadku se další pokusy postupně zpomalí.';
-  else if (saveState === 'saved') statusText = 'Uloženo.';
-  else if (focused && lock?.mine) statusText = 'Upravuješ ty · automatické ukládání je aktivní.';
+  else if (submitting) statusText = 'Odevzdávám týmovou odpověď…';
+  else if (submitted) statusText = 'Odpověď je odevzdaná. Další změny se budou znovu ukládat jen jako koncept, dokud ji znovu neodevzdáte.';
+  else if (saveState === 'saving') statusText = 'Ukládám koncept…';
+  else if (saveState === 'dirty') statusText = 'Změny se uloží automaticky jako koncept; při výpadku se další pokusy postupně zpomalí.';
+  else if (saveState === 'saved') statusText = 'Koncept je uložený. Pro hodnocení ho ještě odevzdejte.';
+  else if (focused && lock?.mine) statusText = 'Upravuješ ty · automatické ukládání konceptu je aktivní.';
 
   return (
     <section className="panel">
@@ -462,10 +516,22 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
         maxLength={4000}
         rows={7}
         placeholder="Zapište společný výstup týmu…"
-        disabled={lockedByOther || draftConflict}
+        disabled={lockedByOther || draftConflict || submitting}
         style={{ marginTop: 12 }}
       />
       <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>{statusText}</p>
+      <div className="actions" style={{ marginTop: 12 }}>
+        <button
+          className="primary"
+          type="button"
+          disabled={lockedByOther || draftConflict || submitting || !text.trim() || submitted}
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={() => { void submitAnswer(); }}
+        >
+          {submitting ? 'Odevzdávám…' : submitted ? 'Odevzdáno' : 'Odevzdat týmovou odpověď'}
+        </button>
+      </div>
+      <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Automatické ukládání ukládá pouze koncept. AI hodnocení se může spustit až po odevzdání.</p>
       {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
     </section>
   );

@@ -1,3 +1,5 @@
+import ActivityModeBadge from '@/components/ActivityModeBadge';
+import LessonDataTable from '@/components/LessonDataTable';
 import type { PublicLessonBlock } from '@/lib/live';
 import type { LessonBlock } from '@/lib/schema';
 
@@ -28,10 +30,15 @@ export default function LiveBlock({
   return (
     <article className="lesson-block">
       <div className="block-head">
-        <div><span className="eyebrow">{labels[block.type]}</span><h3>{block.title}</h3></div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <span className="eyebrow">{labels[block.type]}</span>
+          <ActivityModeBadge type={block.type} />
+          <h3>{block.title}</h3>
+        </div>
         <span className="duration">{block.durationMinutes} min</span>
       </div>
       <p className="instructions">{block.instructions}</p>
+      {block.dataTable ? <LessonDataTable data={block.dataTable} /> : null}
       {!hideItems && block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
       {!hideOptions && block.options?.length ? <div className="options">{block.options.map((option) => <div className="option" key={option}>{option}</div>)}</div> : null}
       {block.revealText ? <div className="reveal">{block.revealText}</div> : null}

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import ActivityModeBadge from '@/components/ActivityModeBadge';
+import LessonDataTable from '@/components/LessonDataTable';
 import type { Lesson, LessonBlock } from '@/lib/schema';
 
 function label(type: LessonBlock['type']) {
@@ -57,14 +59,16 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute }: {
     <article className={`lesson-block lesson-block-type-${block.type} ${selected ? 'selected-block' : ''}`}>
       {teacherMode ? <button type="button" className="edit-block" onClick={onSelect}>{selected ? 'Vybráno k úpravě' : 'Upravit blok'}</button> : null}
       <div className="block-head">
-        <div>
+        <div style={{ display: 'grid', gap: 6 }}>
           <span className="eyebrow">{index + 1}. {label(block.type)}</span>
+          <ActivityModeBadge type={block.type} />
           <h3>{block.title}</h3>
           {teacherMode && typeof startMinute === 'number' ? <span className="block-time-range">{startMinute}–{startMinute + block.durationMinutes}. minuta</span> : null}
         </div>
         <span className="duration">{block.durationMinutes} min</span>
       </div>
       <p className="instructions">{block.instructions}</p>
+      {block.dataTable ? <LessonDataTable data={block.dataTable} /> : null}
       {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
       {block.options?.length ? <div className="options">{block.options.map((option) => <button key={option} type="button" onClick={() => setSelectedOption(option)} className={selectedOption === option ? 'option selected' : 'option'}>{option}</button>)}</div> : null}
       {['open_text', 'exit_ticket'].includes(block.type) ? <textarea placeholder="Odpověď studenta…" /> : null}
