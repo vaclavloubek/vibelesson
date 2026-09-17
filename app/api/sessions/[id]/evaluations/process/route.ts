@@ -31,6 +31,20 @@ export async function POST(_req: Request, { params }: RouteContext) {
   }
   if (!session) return NextResponse.json({ error: 'Hodina nebyla nalezena.' }, { status: 404 });
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, ai_grading_enabled')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('background grading entitlement lookup failed', profileError);
+    return NextResponse.json({ error: 'Oprávnění pro AI hodnocení se nepodařilo ověřit.' }, { status: 500 });
+  }
+
+  const aiGradingEnabled = Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled));
+  if (!aiGradingEnabled) return NextResponse.json({ evaluationIds: [] });
+
   const { data: rows, error } = await supabase
     .from('response_evaluations')
     .select('id, status, source_updated_at, updated_at')

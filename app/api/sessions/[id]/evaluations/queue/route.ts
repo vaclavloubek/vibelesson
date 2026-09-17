@@ -32,6 +32,7 @@ const EvaluationRowSchema = z.object({
   teacher_note: z.string().max(1000).nullable(),
   answer_snapshot: z.unknown(),
   evaluated_at: z.string().nullable(),
+  grader_version: z.string(),
   created_at: z.string(),
 });
 
@@ -74,7 +75,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const [evaluationsResult, participantsResult, teamsResult, responsesResult, teamResponsesResult] = await Promise.all([
     supabase
       .from('response_evaluations')
-      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, created_at')
+      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, grader_version, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true }),
     supabase.from('participants').select('id, display_name').eq('session_id', sessionId),
@@ -91,7 +92,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
       responses: responsesResult.error,
       teamResponses: teamResponsesResult.error,
     });
-    return NextResponse.json({ error: 'AI hodnocení se nepodařilo načíst.' }, { status: 500 });
+    return NextResponse.json({ error: 'Hodnocení se nepodařilo načíst.' }, { status: 500 });
   }
 
   const participantNames = new Map((participantsResult.data ?? []).map((item) => [item.id, item.display_name]));
@@ -155,6 +156,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
       teacherNote: parsed.data.teacher_note,
       evaluatedAt: parsed.data.evaluated_at,
       createdAt: parsed.data.created_at,
+      manualOnly: parsed.data.grader_version.startsWith('manual-'),
     });
   }
 
