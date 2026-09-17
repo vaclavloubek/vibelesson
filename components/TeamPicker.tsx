@@ -39,7 +39,7 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
   if (!teams.length) return null;
 
   return (
-    <section className="panel">
+    <section className="panel" aria-busy={busy}>
       <span className="eyebrow">Tým</span>
       <h2 style={{ marginBottom: 8 }}>{selectedTeamId ? 'Tvůj tým' : 'Vyber si tým'}</h2>
       <p className="muted-copy">
@@ -47,7 +47,7 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
           ? 'Po zahájení hodiny už tým změnit nejde.'
           : 'V lobby můžeš volbu ještě změnit. Po zahájení hodiny se tým zamkne.'}
       </p>
-      <div style={{ display: 'grid', gap: 9, marginTop: 14 }}>
+      <div style={{ display: 'grid', gap: 9, marginTop: 14 }} role="group" aria-label="Výběr týmu">
         {teams.map((team) => {
           const selected = selectedTeamId === team.id;
           return (
@@ -55,6 +55,7 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
               key={team.id}
               type="button"
               className={selected ? 'primary' : 'secondary'}
+              aria-pressed={selected}
               disabled={busy || (locked && !selected)}
               onClick={() => void choose(team.id)}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, textAlign: 'left' }}
@@ -65,7 +66,7 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
           );
         })}
       </div>
-      {error ? <div className="error" style={{ marginTop: 10 }}>{error}</div> : null}
+      {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
     </section>
   );
 }
