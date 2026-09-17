@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import landing from './LandingPage.module.css';
@@ -196,6 +197,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
             initialMode={startSignup ? 'signup' : 'signin'}
           />
           <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }}>Připravit hodinu</Link>
+          <HeaderMobileNav signedIn={Boolean(user)} current="pricing" />
         </div>
       </header>
 
