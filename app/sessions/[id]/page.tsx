@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import EvaluationBackgroundPump from '@/components/EvaluationBackgroundPump';
 import SessionReport from '@/components/SessionReport';
 import TeacherLiveTools from '@/components/TeacherLiveTools';
+import TeacherScoreboardQuickAction from '@/components/TeacherScoreboardQuickAction';
 import TeacherSession from '@/components/TeacherSession';
 import { createClient } from '@/lib/supabase/server';
 
@@ -28,6 +29,7 @@ export default async function TeacherSessionPage({ params }: Props) {
     <>
       <EvaluationBackgroundPump sessionId={id} />
       <TeacherSession sessionId={id} />
+      <TeacherScoreboardQuickAction sessionId={id} />
       <TeacherLiveTools sessionId={id} />
       <SessionReport sessionId={id} />
     </>
