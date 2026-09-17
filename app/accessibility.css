@@ -1,0 +1,40 @@
+:root {
+  --success: #24765f;
+  --line-strong: #8b8d94;
+}
+
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  z-index: 10000;
+  transform: translateY(-180%);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #151721;
+  color: #ffffff;
+  font-weight: 750;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(21, 23, 33, 0.22);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 3px solid #403cc7;
+  outline-offset: 3px;
+}
+
+.teacher-live-shell :where(a, button, input, textarea, select, summary):focus-visible {
+  outline-color: #c8c6ff;
+}
+
+.teacher-live-shell .primary {
+  background: #5b57e8;
+}
+
+.teacher-live-shell .primary:hover:not(:disabled) {
+  background: #4d49d7;
+}

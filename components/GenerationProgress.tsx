@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import SyllonautMark from '@/components/SyllonautMark';
+import VisuallyHidden from '@/components/VisuallyHidden';
 import styles from './GenerationProgress.module.css';
 
 export type GenerationStage = 'requesting' | 'generating' | 'validating' | 'saving';
@@ -85,7 +86,8 @@ export default function GenerationProgress({
   const copy = stageCopy[stage];
 
   return (
-    <div className={styles.root} aria-live="polite" aria-busy="true">
+    <div className={styles.root} aria-busy="true">
+      <VisuallyHidden><span role="status" aria-live="polite" aria-atomic="true">{copy.title}. {copy.body}</span></VisuallyHidden>
       <div className={styles.orbit}><SyllonautMark /></div>
 
       <div className={styles.copy}>
