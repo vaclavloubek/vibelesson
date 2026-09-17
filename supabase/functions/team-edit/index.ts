@@ -275,22 +275,26 @@ async function submit(body: Record<string, unknown>) {
     return json({ error: "Týmovou odpověď právě upravuje jiný člen týmu.", lock: claimed.lock }, 409);
   }
 
+  const submittedAt = new Date().toISOString();
+  const submittedAnswer = { text };
   const { data: saved, error: saveError } = await admin
     .from("team_responses")
     .upsert({
       session_id: sessionId,
       team_id: context.participant.team_id,
       block_id: context.blockId,
-      answer: { text },
+      answer: submittedAnswer,
+      submitted_answer: submittedAnswer,
+      submitted_at: submittedAt,
       updated_by_participant_id: context.participant.id,
-      updated_at: new Date().toISOString(),
+      updated_at: submittedAt,
     }, { onConflict: "session_id,team_id,block_id" })
-    .select("id, updated_at")
+    .select("id, updated_at, submitted_at")
     .single();
 
   if (saveError || !saved) {
     console.error("Submit team response save failed", saveError);
-    return json({ error: "Týmovou odpověď se nepodařilo uložit před odevzdáním." }, 500);
+    return json({ error: "Týmovou odpověď se nepodařilo odevzdat." }, 500);
   }
 
   const { data: queued, error: queueError } = await admin.rpc("queue_submitted_team_response_evaluation", {
@@ -299,7 +303,7 @@ async function submit(body: Record<string, unknown>) {
 
   if (queueError) {
     console.error("Submit team response grading queue failed", queueError);
-    return json({ error: "Odpověď je uložená, ale nepodařilo se ji označit jako odevzdanou. Zkus odevzdání znovu." }, 500);
+    return json({ error: "Odpověď je odevzdaná, ale nepodařilo se zařadit hodnocení. Zkus odevzdání znovu." }, 500);
   }
 
   scheduleBroadcastInvalidate(context.session.realtime_key);
@@ -308,6 +312,7 @@ async function submit(body: Record<string, unknown>) {
     submitted: true,
     queuedForEvaluation: Boolean(queued),
     text,
+    submittedAt: saved.submitted_at,
     updatedAt: saved.updated_at,
     lock: claimed.lock,
   });
