@@ -18,7 +18,7 @@ type Block = Record<string, unknown>;
 type Answer = { choice: string } | { text: string } | { ranking: string[]; text: string };
 type Participant = { id: string; display_name?: string; team_id?: string | null };
 function blocks(snapshot: unknown) { const x = (snapshot ?? {}) as { blocks?: unknown }; return Array.isArray(x.blocks) ? x.blocks.filter((b): b is Block => !!b && typeof b === "object") : []; }
-function publicBlock(block: Block) { const out: Record<string, unknown> = {}; for (const k of ["id","type","title","durationMinutes","instructions","options","items","revealText","points"]) if (block[k] !== undefined) out[k] = block[k]; return out; }
+function publicBlock(block: Block) { const out: Record<string, unknown> = {}; for (const k of ["id","type","title","durationMinutes","instructions","options","items","dataTable","revealText","points"]) if (block[k] !== undefined) out[k] = block[k]; return out; }
 function remaining(s: { timer_status?: unknown; timer_started_at?: unknown; timer_remaining_seconds?: unknown }, now: number) { const base = typeof s.timer_remaining_seconds === "number" ? Math.max(0, s.timer_remaining_seconds) : 0; if (s.timer_status !== "running" || typeof s.timer_started_at !== "string") return base; const start = Date.parse(s.timer_started_at); return Number.isFinite(start) ? Math.max(0, base - Math.max(0, Math.floor((now - start) / 1000))) : base; }
 function normalize(block: Block, raw: unknown): { answer?: Answer; error?: string; status?: number } {
   if (!raw || typeof raw !== "object") return { error: "Chybí odpověď.", status: 400 };
