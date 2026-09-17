@@ -1,42 +1,29 @@
 <!doctype html>
 <html lang="cs">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Nastavte si nové heslo</title>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f5f1;color:#151721;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Pomocí tohoto odkazu si můžete nastavit nové heslo.</div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f6f5f1;padding:32px 16px;">
-      <tr><td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:580px;background:#ffffff;border:1px solid #e2e1dc;border-radius:18px;">
-          <tr><td style="padding:32px 34px 30px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
-              <tr>
-                <td width="36" height="36" align="center" valign="middle" style="width:36px;height:36px;border-radius:11px;background:#151721;color:#ffffff;font-size:16px;line-height:36px;font-weight:800;">S</td>
-                <td style="padding-left:10px;">
-                  <div style="font-size:17px;line-height:1.2;font-weight:700;color:#151721;">Syllonaut</div>
-                  <div style="margin-top:2px;font-size:11px;line-height:1.35;color:#686b74;">AI navigátor pro interaktivní výuku</div>
-                </td>
-              </tr>
-            </table>
-            <div style="margin:0 0 10px;font-size:10px;line-height:1.4;font-weight:800;letter-spacing:0.11em;text-transform:uppercase;color:#686b74;">Bezpečnost</div>
-            <h1 style="margin:0 0 13px;font-size:28px;line-height:1.15;letter-spacing:-0.03em;color:#151721;font-weight:700;">Nastavte si nové heslo</h1>
-            <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#4f525b;">Obdrželi jsme žádost o změnu hesla k vašemu účtu v Syllonautu. Pomocí tlačítka níže si můžete nastavit nové.</p>
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 26px;">
-              <tr><td style="border-radius:10px;background:#5b57e8;">
-                <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;padding:13px 20px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Nastavit nové heslo</a>
-              </td></tr>
-            </table>
-            <p style="margin:0;font-size:13px;line-height:1.6;color:#686b74;">Pokud jste o změnu hesla nežádali, nic nemusíte dělat. Vaše současné heslo zůstává beze změny.</p>
-            <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1dc;">
-              <div style="font-size:11px;line-height:1.5;color:#8a8c93;">Syllonaut · AI navigátor pro interaktivní výuku</div>
-              <div style="margin-top:3px;font-size:11px;line-height:1.5;color:#8a8c93;">syllonaut.com</div>
-            </div>
-          </td></tr>
-        </table>
-        <div style="max-width:580px;padding:14px 8px 0;font-size:10px;line-height:1.5;color:#9a9ca3;text-align:center;">Tento e-mail byl odeslán automaticky v souvislosti s vaším účtem v Syllonautu.</div>
-      </td></tr>
+  <body style="margin:0;padding:0;background:#f6f5f1;color:#151721;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e1dc;border-radius:18px;">
+            <tr>
+              <td style="padding:34px 34px 30px;">
+                <div style="font-size:11px;line-height:1.4;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#686b74;">Syllonaut / Auth</div>
+                <h1 style="margin:12px 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.03em;color:#151721;">Obnovení hesla v Syllonautu</h1>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4f525b;">Přišla žádost o nastavení nového hesla k vašemu účtu. Pokračujte přes bezpečný odkaz níže.</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="border-radius:10px;background:#5b57e8;">
+                      <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;padding:12px 18px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;">Nastavit nové heslo</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:26px 0 0;font-size:13px;line-height:1.55;color:#686b74;">Pokud jste obnovení hesla nevyžádali, tento e-mail můžete ignorovat. Vaše heslo se samo nezmění.</p>
+                <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1dc;font-size:11px;line-height:1.5;color:#8a8c93;">Syllonaut · transakční zpráva</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
   </body>
 </html>
