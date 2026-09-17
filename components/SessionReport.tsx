@@ -26,8 +26,17 @@ function formatDuration(seconds: number | null) {
   return `${hours} h ${minutes % 60} min`;
 }
 
+function neutralizeCsvFormula(value: string) {
+  const dangerousFormulaPrefix = /^[\u0000-\u0020\u007f-\u009f\u00a0]*[=+\-@]/;
+  return dangerousFormulaPrefix.test(value) ? `'${value}` : value;
+}
+
 function csvCell(value: string | number | null | undefined) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`;
+  const rawValue = value ?? '';
+  const safeValue = typeof rawValue === 'number'
+    ? String(rawValue)
+    : neutralizeCsvFormula(String(rawValue));
+  return `"${safeValue.replaceAll('"', '""')}"`;
 }
 
 function buildCsv(report: SessionReportData) {
