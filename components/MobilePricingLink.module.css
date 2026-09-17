@@ -1,0 +1,32 @@
+.mobilePricingLink {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: #5f626b;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mobilePricingLink:hover {
+  background: rgba(255, 255, 255, .68);
+  color: #151721;
+}
+
+@media (max-width: 1040px) {
+  .mobilePricingLink {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 460px) {
+  .mobilePricingLink {
+    min-height: 36px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+}
