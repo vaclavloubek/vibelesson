@@ -11,6 +11,14 @@ function requirePattern(text, pattern, message) {
 const [
   layout,
   accessibilityCss,
+  authLayout,
+  joinLayout,
+  newLayout,
+  lessonsLayout,
+  sessionsLayout,
+  studentLayout,
+  pricingRoute,
+  pricingPage,
   authControls,
   studentSession,
   studentResponse,
@@ -25,6 +33,14 @@ const [
 ] = await Promise.all([
   source('app/layout.tsx'),
   source('app/accessibility.css'),
+  source('app/auth/layout.tsx'),
+  source('app/join/layout.tsx'),
+  source('app/new/layout.tsx'),
+  source('app/lessons/layout.tsx'),
+  source('app/sessions/layout.tsx'),
+  source('app/student/layout.tsx'),
+  source('app/pricing/page.tsx'),
+  source('components/PricingPage.tsx'),
   source('components/AuthControls.tsx'),
   source('components/StudentSession.tsx'),
   source('components/StudentResponseInput.tsx'),
@@ -42,6 +58,16 @@ requirePattern(layout, /<html lang="cs">/, 'root document must declare Czech lan
 requirePattern(layout, /className="skip-link"[^>]+href="#main-content"/, 'skip link to main content is missing.');
 requirePattern(accessibilityCss, /:focus-visible/, 'global visible keyboard focus style is missing.');
 requirePattern(accessibilityCss, /--line-strong:\s*#8b8d94/i, 'form-control boundary contrast token regressed.');
+requirePattern(authLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'auth routes lost a specific page title.');
+requirePattern(joinLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'join routes lost a specific page title.');
+requirePattern(newLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'new-lesson route lost a specific page title.');
+requirePattern(lessonsLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'lesson-library routes lost a specific page title.');
+requirePattern(sessionsLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'teacher-session routes lost a specific page title.');
+requirePattern(studentLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'student routes lost a specific page title.');
+requirePattern(pricingRoute, /title\s*=\s*['"]Ceník[^'"]*Syllonaut['"]/, 'pricing route lost its specific page title.');
+requirePattern(pricingPage, /aria-pressed=\{audience === 'teachers'\}/, 'pricing audience selection state is not exposed.');
+requirePattern(pricingPage, /aria-pressed=\{billing === 'monthly'\}/, 'pricing billing selection state is not exposed.');
+requirePattern(pricingPage, /role="status"[^>]+aria-live="polite"/, 'pricing changes are not announced succinctly.');
 requirePattern(authControls, /role="dialog"/, 'authentication popover lost dialog semantics.');
 requirePattern(authControls, /aria-haspopup="dialog"/, 'authentication trigger lost dialog relationship.');
 requirePattern(authControls, /event\.key !== 'Escape'/, 'authentication popover lost Escape handling.');
