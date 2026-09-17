@@ -1,5 +1,21 @@
 -- Team response autosaves are drafts. Only an explicit submit may enqueue AI grading.
 
+alter table public.team_responses
+  add column if not exists submitted_answer jsonb null,
+  add column if not exists submitted_at timestamptz null;
+
+-- Before this migration every persisted team response was treated as submitted.
+-- Preserve that meaning for existing sessions and reports.
+update public.team_responses
+set submitted_answer = answer,
+    submitted_at = updated_at
+where submitted_answer is null;
+
+create index if not exists team_responses_submitted_idx
+  on public.team_responses(session_id, block_id, submitted_at)
+  where submitted_at is not null;
+
+-- Autosaving answer must never enqueue or reset paid AI grading.
 drop trigger if exists queue_scored_team_response_evaluation on public.team_responses;
 
 create or replace function public.queue_submitted_team_response_evaluation(p_team_response_id uuid)
@@ -24,8 +40,9 @@ begin
     return false;
   end if;
 
-  if jsonb_typeof(v_response.answer) <> 'object'
-     or nullif(btrim(v_response.answer->>'text'), '') is null then
+  if v_response.submitted_at is null
+     or jsonb_typeof(v_response.submitted_answer) <> 'object'
+     or nullif(btrim(v_response.submitted_answer->>'text'), '') is null then
     return false;
   end if;
 
@@ -93,12 +110,12 @@ begin
     return false;
   end if;
 
-  -- Re-submitting the exact same answer never creates another paid AI call.
+  -- Re-submitting the exact same submitted version never creates another paid AI call.
   if exists (
     select 1
     from public.response_evaluations e
     where e.team_response_id = v_response.id
-      and e.answer_snapshot is not distinct from v_response.answer
+      and e.answer_snapshot is not distinct from v_response.submitted_answer
       and e.status in ('pending', 'grading', 'graded', 'needs_review')
   ) then
     return false;
@@ -137,11 +154,11 @@ begin
     v_response.team_id,
     null,
     v_response.id,
-    v_response.updated_at,
+    v_response.submitted_at,
     'pending',
     v_points,
     v_rubric,
-    v_response.answer,
+    v_response.submitted_answer,
     '[]'::jsonb,
     null,
     null,
@@ -154,7 +171,7 @@ begin
     false,
     null,
     null,
-    'b7-v2-submit',
+    'b7-v3-explicit-submit',
     now()
   )
   on conflict (team_response_id) do update
@@ -180,7 +197,7 @@ begin
       teacher_confirmed = false,
       teacher_reviewed_at = null,
       teacher_note = null,
-      grader_version = 'b7-v2-submit',
+      grader_version = 'b7-v3-explicit-submit',
       updated_at = now();
 
   return true;
