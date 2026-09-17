@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import LessonActions from './LessonActions';
+import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -45,8 +46,7 @@ export default async function LessonsPage() {
     .eq('teacher_id', userId)
     .eq('status', 'ended')
     .not('ended_at', 'is', null)
-    .order('ended_at', { ascending: false })
-    .limit(12);
+    .order('ended_at', { ascending: false });
 
   if (error) console.error('load lessons failed', error);
   if (sessionsError) console.error('load ended sessions failed', sessionsError);
@@ -131,8 +131,8 @@ export default async function LessonsPage() {
       <section className="lessons-heading" style={{ marginTop: 44 }}>
         <div>
           <span className="eyebrow">Výsledky misí</span>
-          <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>Poslední výsledky</h2>
-          <p>Ukončené hodiny zůstávají dostupné i později. Otevřením se vrátíš k celému reportu a CSV exportu.</p>
+          <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>Výsledky hodin</h2>
+          <p>Ukončené hodiny zůstávají dostupné nejdéle 12 měsíců. Report můžeš kdykoli smazat ručně; tím se nenávratně smažou i související studentská data.</p>
         </div>
       </section>
 
@@ -155,7 +155,10 @@ export default async function LessonsPage() {
                   <Link href={`/sessions/${id}`} className="lesson-title-link"><h2>{title}</h2></Link>
                   {subtitle ? <p>{subtitle}</p> : null}
                 </div>
-                <span className="beta">REPORT</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="beta">REPORT</span>
+                  <SessionActions sessionId={id} title={title} />
+                </div>
               </div>
               <div className="lesson-card-meta">
                 <span>Ukončeno {formatUpdatedAt(endedAt)}</span>
