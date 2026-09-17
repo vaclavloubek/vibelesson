@@ -88,6 +88,7 @@ async function verifyParticipant(sessionId: string, participantToken: string) {
     .select("id, display_name, team_id")
     .eq("session_id", sessionId)
     .eq("participant_token_hash", participantTokenHash)
+    .gt("participant_token_expires_at", new Date().toISOString())
     .maybeSingle();
 
   if (error) {

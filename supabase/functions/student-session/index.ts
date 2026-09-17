@@ -33,7 +33,7 @@ async function invalidate(key: string) { try { await fetch(`${url}/realtime/v1/a
 function scheduleInvalidate(key: string) { EdgeRuntime.waitUntil(invalidate(key)); }
 async function verify(sessionId: string, rawToken: string, select = "id, display_name, team_id") {
   if (!/^[0-9a-f-]{36}$/i.test(sessionId) || rawToken.length < 32 || rawToken.length > 128) return { response: reply({ error: "Neplatná participant identita." }, 401) };
-  const { data, error } = await db.from("participants").select(select).eq("session_id", sessionId).eq("participant_token_hash", await hash(rawToken)).maybeSingle();
+  const { data, error } = await db.from("participants").select(select).eq("session_id", sessionId).eq("participant_token_hash", await hash(rawToken)).gt("participant_token_expires_at", new Date().toISOString()).maybeSingle();
   if (error) { console.error("Participant lookup failed", error); return { response: reply({ error: "Účastníka se nepodařilo ověřit." }, 500) }; }
   if (!data) return { response: reply({ error: "Účastník nebyl ověřen." }, 401) };
   return { participant: data as unknown as Participant };
@@ -43,7 +43,7 @@ async function join(b: Record<string, unknown>) {
   const code = typeof b.joinCode === "string" ? b.joinCode.trim().toUpperCase() : ""; const name = typeof b.displayName === "string" ? b.displayName.trim() : "";
   if (!/^[A-HJ-NP-Z2-9]{7}$/.test(code)) return reply({ error: "Neplatný kód hodiny." }, 400); if (name.length < 1 || name.length > 60) return reply({ error: "Jméno musí mít 1 až 60 znaků.", }, 400);
   const { data: s, error } = await db.from("sessions").select("id,status,realtime_key").eq("join_code", code).maybeSingle(); if (error) return reply({ error: "Hodinu se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina s tímto kódem neexistuje." }, 404); if (s.status === "ended") return reply({ error: "Tato hodina už skončila." }, 410);
-  const raw = token(); const { data: p, error: insertError } = await db.from("participants").insert({ session_id: s.id, display_name: name, participant_token_hash: await hash(raw) }).select("id").single(); if (insertError || !p) return reply({ error: "Ke hodině se nepodařilo připojit." }, 500); scheduleInvalidate(s.realtime_key as string); return reply({ sessionId: s.id, participantId: p.id, participantToken: raw });
+  const raw = token(); const { data: p, error: insertError } = await db.from("participants").insert({ session_id: s.id, display_name: name, participant_token_hash: await hash(raw) }).select("id,participant_token_expires_at").single(); if (insertError || !p) return reply({ error: "Ke hodině se nepodařilo připojit." }, 500); scheduleInvalidate(s.realtime_key as string); return reply({ sessionId: s.id, participantId: p.id, participantToken: raw, participantTokenExpiresAt: p.participant_token_expires_at });
 }
 
 async function state(b: Record<string, unknown>) {
