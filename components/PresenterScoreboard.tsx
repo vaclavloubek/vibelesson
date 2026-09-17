@@ -26,18 +26,31 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function racePosition(score: number, maxPoints: number) {
-  const progress = maxPoints > 0 ? clamp(score / maxPoints, 0, 1) : 0;
-  return 12 + progress * 74;
+function scoreProgress(score: number, maxPoints: number) {
+  return maxPoints > 0 ? clamp(score / maxPoints, 0, 1) : 0;
 }
 
-function rocketStyle(row: PresenterRow, maxPoints: number, index: number): CSSProperties {
+function racePosition(score: number, maxPoints: number) {
+  return 12 + scoreProgress(score, maxPoints) * 74;
+}
+
+function rocketStyle(row: PresenterRow, maxPoints: number, index: number, isFinal: boolean): CSSProperties {
+  const progress = scoreProgress(row.score, maxPoints);
   const position = `${racePosition(row.score, maxPoints)}%`;
-  return {
+  const style = {
     '--rocket-position': position,
-    '--rocket-start': position,
+    '--rocket-target': position,
     '--rocket-hue': String((246 + index * 47) % 360),
-  } as CSSProperties;
+  } as CSSProperties & Record<string, string>;
+
+  if (isFinal) {
+    style['--flight-delay'] = `${Math.min(index, 9) * 0.08}s`;
+    style['--flight-duration'] = `${2.55 + progress * 0.65}s`;
+    const podiumDelay = index === 2 ? 0.12 : index === 1 ? 0.48 : index === 0 ? 0.84 : 0;
+    style['--celebration-delay'] = `${podiumDelay}s`;
+  }
+
+  return style;
 }
 
 function RocketGlyph() {
@@ -187,7 +200,7 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                 <p className={styles.kicker}>{isFinal ? 'Cíl mise' : 'Aktuální pozice'}</p>
                 <h2>{boardTitle}</h2>
               </div>
-              {isFinal ? <span className={styles.finalSequence}>Konečná poloha odpovídá získaným bodům</span> : null}
+              {isFinal ? <span className={styles.finalSequence}>Finální let · zrychlení → brzdění → přistání</span> : null}
             </div>
 
             {data.rows.length ? (
@@ -200,22 +213,26 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                     <div className={styles.routeLine} aria-hidden="true" />
 
                     <div className={styles.lanes}>
-                      {raceRows.map((row, index) => (
-                        <div className={styles.lane} key={`${row.displayName}-${index}`}>
-                          <div className={styles.laneLine} aria-hidden="true" />
-                          <div
-                            className={`${styles.rocket} ${isFinal ? styles.rocketEnded : ''}`}
-                            style={rocketStyle(row, data.maxPoints, index)}
-                          >
-                            <span className={styles.rocketTag}>
-                              <strong>{row.rank}. {row.displayName}</strong>
-                              <small>{row.score} / {data.maxPoints}</small>
-                            </span>
-                            <span className={styles.rocketGlyph}><RocketGlyph /></span>
-                            {isFinal ? <span className={styles.engineFade} aria-hidden="true" /> : null}
+                      {raceRows.map((row, index) => {
+                        const podium = isFinal && index < 3;
+                        return (
+                          <div className={styles.lane} key={`${row.displayName}-${index}`}>
+                            <div className={styles.laneLine} aria-hidden="true" />
+                            <div
+                              className={`${styles.rocket} ${isFinal ? styles.finalFlight : ''} ${podium ? styles.podium : ''}`}
+                              style={rocketStyle(row, data.maxPoints, index, isFinal)}
+                            >
+                              <span className={styles.rocketTag}>
+                                <strong>{row.rank}. {row.displayName}</strong>
+                                <small>{row.score} / {data.maxPoints}</small>
+                              </span>
+                              <span className={styles.rocketGlyph}><RocketGlyph /></span>
+                              {isFinal ? <span className={styles.engineFade} aria-hidden="true" /> : null}
+                              {podium ? <span className={styles.landingBurst} aria-hidden="true" /> : null}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                   <div className={styles.raceLegend}>
