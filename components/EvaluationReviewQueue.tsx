@@ -13,6 +13,9 @@ type QueueEvaluation = {
   blockIndex: number;
   respondentName: string;
   answerText: string;
+  hasNewerSubmission: boolean;
+  latestAnswerText: string | null;
+  latestSubmittedAt: string | null;
   status: EvaluationStatus;
   maxPoints: number;
   aiScore: number | null;
@@ -36,11 +39,12 @@ type ReviewPatch = {
 };
 
 function reviewPriority(item: QueueEvaluation) {
-  if (!item.teacherConfirmed && item.status === 'needs_review') return 0;
-  if (!item.teacherConfirmed && item.status === 'graded') return 1;
-  if (item.status === 'pending' || item.status === 'grading') return 2;
-  if (item.status === 'failed') return 3;
-  return 4;
+  if (item.hasNewerSubmission) return 0;
+  if (!item.teacherConfirmed && item.status === 'needs_review') return 1;
+  if (!item.teacherConfirmed && item.status === 'graded') return 2;
+  if (item.status === 'pending' || item.status === 'grading') return 3;
+  if (item.status === 'failed') return 4;
+  return 5;
 }
 
 function ReviewForm({ evaluation, sessionId, onReviewed }: {
@@ -107,15 +111,37 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
   );
 }
 
-function EvaluationItem({ evaluation, sessionId, onReviewed }: {
+function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
   evaluation: QueueEvaluation;
   sessionId: string;
   onReviewed: (patch: ReviewPatch) => void;
+  onRequeued: (evaluationId: string) => void;
 }) {
+  const [regrading, setRegrading] = useState(false);
+  const [regradeError, setRegradeError] = useState('');
   const effectiveScore = evaluation.teacherScore ?? evaluation.aiScore;
   const confidence = evaluation.confidence === null ? null : Math.round(evaluation.confidence * 100);
   const criterionScores = new Map(evaluation.criterionScores.map((item) => [item.criterionId, item]));
   const ready = evaluation.status === 'graded' || evaluation.status === 'needs_review';
+  const canRegrade = evaluation.hasNewerSubmission && ['graded', 'needs_review', 'failed'].includes(evaluation.status);
+
+  async function regrade() {
+    if (!canRegrade || regrading) return;
+    setRegrading(true);
+    setRegradeError('');
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/evaluations/${evaluation.id}/regrade`, {
+        method: 'POST',
+      });
+      const data = await response.json() as { requeued?: boolean; error?: string };
+      if (!response.ok || !data.requeued) throw new Error(data.error || 'Nové AI hodnocení se nepodařilo zařadit.');
+      onRequeued(evaluation.id);
+    } catch (err) {
+      setRegradeError(err instanceof Error ? err.message : 'Nové AI hodnocení se nepodařilo zařadit.');
+    } finally {
+      setRegrading(false);
+    }
+  }
 
   return (
     <div className="item" style={{ padding: 12 }}>
@@ -127,6 +153,23 @@ function EvaluationItem({ evaluation, sessionId, onReviewed }: {
         <strong>{effectiveScore === null ? '—' : `${effectiveScore} / ${evaluation.maxPoints}`}</strong>
       </div>
       {evaluation.answerText ? <p style={{ margin: '9px 0 0', whiteSpace: 'pre-wrap' }}>{evaluation.answerText}</p> : null}
+
+      {evaluation.hasNewerSubmission ? (
+        <div className="reveal" style={{ marginTop: 10 }}>
+          <strong>Po tomto hodnocení byla odevzdaná novější verze.</strong>
+          {evaluation.latestAnswerText ? <p style={{ margin: '7px 0 0', whiteSpace: 'pre-wrap' }}>{evaluation.latestAnswerText}</p> : null}
+          {canRegrade ? (
+            <div className="actions" style={{ marginTop: 10 }}>
+              <button className="secondary" type="button" disabled={regrading} onClick={() => { void regrade(); }}>
+                {regrading ? 'Zařazuji…' : 'Vyhodnotit novou verzi AI'}
+              </button>
+            </div>
+          ) : (
+            <p className="muted-copy" style={{ margin: '7px 0 0' }}>Aktuální AI hodnocení nejdřív doběhne. Nová verze se sama znovu hodnotit nebude.</p>
+          )}
+          {regradeError ? <p className="muted-copy" style={{ margin: '7px 0 0' }}>{regradeError}</p> : null}
+        </div>
+      ) : null}
 
       {evaluation.status === 'pending' ? <p className="muted-copy" style={{ marginBottom: 0 }}>Čeká na AI hodnocení.</p> : null}
       {evaluation.status === 'grading' ? <p className="muted-copy" style={{ marginBottom: 0 }}>AI právě hodnotí…</p> : null}
@@ -210,21 +253,48 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
     )));
   }
 
+  function applyRequeue(evaluationId: string) {
+    setEvaluations((current) => current.map((evaluation) => (
+      evaluation.id === evaluationId
+        ? {
+            ...evaluation,
+            answerText: evaluation.latestAnswerText ?? evaluation.answerText,
+            hasNewerSubmission: false,
+            latestAnswerText: null,
+            latestSubmittedAt: null,
+            status: 'pending',
+            aiScore: null,
+            teacherScore: null,
+            rationale: null,
+            confidence: null,
+            criterionScores: [],
+            teacherConfirmed: false,
+            teacherReviewedAt: null,
+            teacherNote: null,
+            evaluatedAt: null,
+          }
+        : evaluation
+    )));
+  }
+
   if (!loaded) return null;
   if (!evaluations.length && !error) return null;
 
   const sorted = [...evaluations].sort((a, b) => reviewPriority(a) - reviewPriority(b) || a.blockIndex - b.blockIndex);
+  const newer = evaluations.filter((item) => item.hasNewerSubmission).length;
   const toReview = evaluations.filter((item) => !item.teacherConfirmed && (item.status === 'graded' || item.status === 'needs_review')).length;
   const waiting = evaluations.filter((item) => item.status === 'pending' || item.status === 'grading').length;
   const confirmed = evaluations.filter((item) => item.teacherConfirmed).length;
 
   const summary = error
     ? 'AI hodnocení · chyba načtení'
-    : toReview
-      ? `AI hodnocení · ${toReview} ke kontrole${waiting ? ` · ${waiting} čeká` : ''}`
-      : waiting
-        ? `AI hodnocení · ${waiting} čeká`
-        : `AI hodnocení · ${confirmed} potvrzeno`;
+    : newer
+      ? `AI hodnocení · ${newer} novější ${newer === 1 ? 'odpověď' : 'odpovědi'}${toReview ? ` · ${toReview} ke kontrole` : ''}`
+      : toReview
+        ? `AI hodnocení · ${toReview} ke kontrole${waiting ? ` · ${waiting} čeká` : ''}`
+        : waiting
+          ? `AI hodnocení · ${waiting} čeká`
+          : `AI hodnocení · ${confirmed} potvrzeno`;
 
   return (
     <aside style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 80, width: 'min(430px, calc(100vw - 24px))' }}>
@@ -232,8 +302,8 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         <summary style={{ cursor: 'pointer', fontWeight: 800, padding: '14px 16px', listStylePosition: 'inside' }}>{summary}</summary>
         <div style={{ borderTop: '1px solid var(--border)', padding: 12, maxHeight: '68vh', overflowY: 'auto' }}>
           {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
-          {!error ? <p className="muted-copy" style={{ margin: '0 0 10px' }}>Hodnocení můžeš potvrdit i poté, co studenti pokračují na další úkol.</p> : null}
-          {!error ? <div style={{ display: 'grid', gap: 8 }}>{sorted.map((evaluation) => <EvaluationItem key={evaluation.id} evaluation={evaluation} sessionId={sessionId} onReviewed={applyReview} />)}</div> : null}
+          {!error ? <p className="muted-copy" style={{ margin: '0 0 10px' }}>Hodnocení můžeš potvrdit i poté, co studenti pokračují na další úkol. Novější odevzdanou verzi AI znovu hodnotí jen na tvůj pokyn.</p> : null}
+          {!error ? <div style={{ display: 'grid', gap: 8 }}>{sorted.map((evaluation) => <EvaluationItem key={evaluation.id} evaluation={evaluation} sessionId={sessionId} onReviewed={applyReview} onRequeued={applyRequeue} />)}</div> : null}
         </div>
       </details>
     </aside>

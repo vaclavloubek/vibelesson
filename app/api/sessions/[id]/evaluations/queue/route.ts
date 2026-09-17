@@ -17,6 +17,8 @@ const EvaluationRowSchema = z.object({
   block_id: z.string().min(1).max(200),
   participant_id: z.string().uuid().nullable(),
   team_id: z.string().uuid().nullable(),
+  response_id: z.string().uuid().nullable(),
+  team_response_id: z.string().uuid().nullable(),
   status: EvaluationStatusSchema,
   max_points: z.number().int().min(1).max(20),
   ai_score: z.number().int().min(0).max(20).nullable(),
@@ -39,6 +41,15 @@ function answerText(snapshot: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function sameSnapshot(left: unknown, right: unknown) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+type SubmittedRow = {
+  submitted_answer: unknown;
+  submitted_at: string | null;
+};
+
 export async function GET(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
@@ -60,27 +71,39 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const lesson = LessonSchema.safeParse(session.lesson_snapshot);
   if (!lesson.success) return NextResponse.json({ error: 'Snapshot lekce je neplatný.' }, { status: 500 });
 
-  const [evaluationsResult, participantsResult, teamsResult] = await Promise.all([
+  const [evaluationsResult, participantsResult, teamsResult, responsesResult, teamResponsesResult] = await Promise.all([
     supabase
       .from('response_evaluations')
-      .select('id, block_id, participant_id, team_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, created_at')
+      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true }),
     supabase.from('participants').select('id, display_name').eq('session_id', sessionId),
     supabase.from('teams').select('id, name').eq('session_id', sessionId),
+    supabase.from('responses').select('id, submitted_answer, submitted_at').eq('session_id', sessionId),
+    supabase.from('team_responses').select('id, submitted_answer, submitted_at').eq('session_id', sessionId),
   ]);
 
-  if (evaluationsResult.error || participantsResult.error || teamsResult.error) {
+  if (evaluationsResult.error || participantsResult.error || teamsResult.error || responsesResult.error || teamResponsesResult.error) {
     console.error('evaluation queue load failed', {
       evaluations: evaluationsResult.error,
       participants: participantsResult.error,
       teams: teamsResult.error,
+      responses: responsesResult.error,
+      teamResponses: teamResponsesResult.error,
     });
     return NextResponse.json({ error: 'AI hodnocení se nepodařilo načíst.' }, { status: 500 });
   }
 
   const participantNames = new Map((participantsResult.data ?? []).map((item) => [item.id, item.display_name]));
   const teamNames = new Map((teamsResult.data ?? []).map((item) => [item.id, item.name]));
+  const responseSubmissions = new Map((responsesResult.data ?? []).map((item) => [item.id, {
+    submitted_answer: item.submitted_answer,
+    submitted_at: item.submitted_at,
+  } satisfies SubmittedRow]));
+  const teamResponseSubmissions = new Map((teamResponsesResult.data ?? []).map((item) => [item.id, {
+    submitted_answer: item.submitted_answer,
+    submitted_at: item.submitted_at,
+  } satisfies SubmittedRow]));
   const blockMap = new Map(lesson.data.blocks.map((block, index) => [block.id, { block, index }]));
 
   const evaluations = [];
@@ -94,6 +117,16 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const blockEntry = blockMap.get(parsed.data.block_id);
     if (!blockEntry) continue;
 
+    const latestSubmission = parsed.data.response_id
+      ? responseSubmissions.get(parsed.data.response_id)
+      : parsed.data.team_response_id
+        ? teamResponseSubmissions.get(parsed.data.team_response_id)
+        : undefined;
+    const hasNewerSubmission = Boolean(
+      latestSubmission?.submitted_at
+      && !sameSnapshot(parsed.data.answer_snapshot, latestSubmission.submitted_answer),
+    );
+
     evaluations.push({
       id: parsed.data.id,
       blockId: parsed.data.block_id,
@@ -106,6 +139,9 @@ export async function GET(_req: Request, { params }: RouteContext) {
           ? teamNames.get(parsed.data.team_id) ?? 'Tým'
           : 'Odpověď',
       answerText: answerText(parsed.data.answer_snapshot),
+      hasNewerSubmission,
+      latestAnswerText: hasNewerSubmission ? answerText(latestSubmission?.submitted_answer) : null,
+      latestSubmittedAt: hasNewerSubmission ? latestSubmission?.submitted_at ?? null : null,
       status: parsed.data.status,
       maxPoints: parsed.data.max_points,
       aiScore: parsed.data.ai_score,
