@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-17 po bezpečnostním auditu, remediaci SEC-001/003/004 a zavedení tarifního entitlementu pro AI grading.
+Aktualizováno: 2026-09-17 po dokončení bezpečnostního auditu SEC-001 až SEC-015. Třináct nálezů je remediovaných/uzavřených; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -16,9 +16,11 @@ Starší `vaclavloubek/edupilot` nepoužívat. Produktově a vizuálně použív
 
 Hlavní doména: `syllonaut.com`.
 
-Aktuální `main` HEAD při této aktualizaci:
+Bezpečnostní baseline commit před touto dokumentační aktualizací:
 
-`2fffbf2a804d864cfda1a09cb20c758f5d4377e7` — **Gate AI grading by plan entitlement**.
+`584a72b200fb4bea148cac7c4719c713d5fb23fc` — **Fix SEC-015 AI zero data retention enforcement**.
+
+Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; tento dokument nesmí sloužit jako náhrada kontroly aktuálního `main`.
 
 ## 2. Stack a deployment
 
@@ -30,19 +32,19 @@ Aktuální `main` HEAD při této aktualizaci:
 - Supabase project ref: `qsjddlgmabgmtssvntmn`, `eu-west-1`, Postgres 17, RLS aktivní
 - velikost DB ověřená 2026-09-17: přibližně **13 MB**
 
-Generování bez podkladů je přes Gateway omezené na OpenAI. Generování s podklady používá routing pouze přes `bedrock` / `azure`, řazený podle ceny, `zeroDataRetention: true`.
+Všechny současné AI inference cesty explicitně vynucují AI Gateway `zeroDataRetention: true`. Generování bez podkladů, revize a AI grading jsou omezené na OpenAI; generování s podklady používá pouze `bedrock` / `azure`, řazené podle ceny. ZDR je fail-closed routing requirement.
 
 ### Vercel Preview a SEC-002
 
 Poslední ověřený stav při auditu:
 
-- `NEXT_PUBLIC_SUPABASE_URL` a `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` jsou dostupné i pro Preview;
-- `AI_GATEWAY_API_KEY` a `AI_MODEL` byly dostupné pro Production i Preview;
+- Preview používá stejný produkční Supabase trust boundary jako Production;
+- Preview mělo přístup i k placené AI identitě/credentialu;
 - Preview buildy jsou funkční.
 
-Tento stav znamenal sdílenou produkční trust boundary pro Preview a byl evidován jako **SEC-002**. Cílová architektura byla odsouhlasena: samostatný sdílený staging Supabase pro Preview, oddělená AI identita/credential s omezeným blast radius a ochrana Preview přes Vercel Authentication/Deployment Protection.
+To znamená vyšší blast radius při testování a riziko nechtěných zápisů/placených AI callů do produkce. Cílová architektura zůstává: samostatný staging Supabase, oddělená Preview AI identita/credential a Deployment Protection.
 
-**SEC-002 není v tomto dokumentu považován za uzavřený**, dokud nebude oddělení prostředí skutečně provedeno a ověřeno. Nezaměňovat veřejný Supabase publishable key s tajným credentialem; problém je především sdílená produkční DB/trust boundary a placená AI identita.
+**SEC-002 — ACCEPTED RISK / DEFERRED.** Uživatel výslovně rozhodl ponechat současné sdílené prostředí jako vědomou výjimku. Nález je auditně dispositioned, ale **není technicky remediovaný**. Dokud zůstává výjimka v platnosti, Preview testy nesmí dělat destruktivní zásahy do produkčních dat, load/stress testy ani zbytečné placené AI cally. Před širší produkční škálou nebo při zapojení dalších vývojářů znovu zvážit oddělený staging.
 
 ## 3. Hlavní routy
 
@@ -115,7 +117,7 @@ Implementováno/ověřeno:
 - režimy `primary`, `strict`, `inspiration`;
 - podklady jsou v AI promptu nedůvěryhodný obsah; instrukce/prompt injection uvnitř dokumentu se mají ignorovat.
 
-Security audit eviduje samostatně **SEC-012**: klientská extrakce DOCX/PPTX přes JSZip může před textovým limitem expandovat komprimovaný obsah; jde o low hardening proti decompression bomb.
+**SEC-012 je uzavřený:** DOCX/PPTX ZIP preflight omezuje počet položek a relevantních XML částí; XML se dekomprimuje streamovaně s limitem 5 MB na část a 20 MB na dokument, odmítá ZIP64/multi-disk a další nestandardní struktury.
 
 ## 6. Účet, kvóty a tarifní entitlementy
 
@@ -197,9 +199,9 @@ Pouhý GET bezpečnostního e-mailového scanneru tedy token nespotřebuje.
 
 Repo obsahuje branded Orbital Precision auth šablony pro Confirm signup, Reset password, Invite, Magic link, Change email a Reauthentication. Confirm/Recovery jsou aktuální produktové flow; ostatní jsou připravené pro budoucnost.
 
-Důležité: HTML soubory v repo se samy nenasazují do hosted Supabase. **SEC-006** zůstává otevřený jako hosted-config validation: SMTP, aktivní templates, Site URL, Redirect allowlist, rate limits, CAPTCHA/Auth nastavení a session policy je nutné ověřit proti skutečnému hosted projektu.
+Hosted Supabase Auth konfigurace byla v rámci **SEC-006** ověřena proti skutečnému projektu a hardening byl dokončen: canonical Site URL `https://www.syllonaut.com`, redirect allowlist přesně `https://www.syllonaut.com`, password minimum 8 znaků, Turnstile aktivní, Resend SMTP/doména ověřené a scanner-safe signup/recovery templates funkční. **SEC-006 — REMEDIATED / CLOSED.**
 
-**SEC-007:** Supabase security advisor stále hlásí Leaked Password Protection Disabled.
+**SEC-007 — ACCEPTED RISK / DEFERRED:** Supabase Security Advisor dál hlásí Leaked Password Protection Disabled. Na Free plánu zůstává tato ochrana nedostupná; riziko bylo vědomě přijato do doby přechodu na placený plán nebo další produkční hardening fáze.
 
 ## 9. Student a live session
 
@@ -210,7 +212,8 @@ Student:
 - participant identita používá náhodný token;
 - raw token je pouze HttpOnly cookie, DB drží SHA-256 hash;
 - token je scopeovaný na session/participant;
-- po refreshi se identita zachovává;
+- server-side capability expiruje pevně 24 hodin od joinu (`participant_token_expires_at`), stejně jako browser cookie;
+- po refreshi se identita zachovává po dobu platnosti tokenu;
 - student vidí pouze aktivní blok a whitelistovaný stav;
 - nemění teacher-controlled session state.
 
@@ -368,14 +371,18 @@ Důležité novější migrace v produkční historii:
 - `20260917142041_limit_student_session_joins`
 - `20260917142118_enforce_participant_join_limits_at_insert`
 - `20260917145648_gate_ai_grading_by_entitlement`
+- `20260917152048_fix_sec_005_student_write_toctou`
+- `20260917162423_add_sec_009_session_retention_lifecycle`
+- `20260917163934_strengthen_sec_011_relational_scope_constraints`
+- `20260917165505_expire_sec_013_participant_tokens`
 
 Repo migration filenames musí zůstat sladěné s verzemi z produkční `supabase_migrations.schema_migrations`. SEC-004 migration history byla explicitně srovnána commitem `14ed01e`.
 
 ## 15. Security audit — aktuální stav
 
-Důkladný read-only audit celé aplikace proběhl 2026-09-17. Nálezy je nutné řešit po jednom, vždy `TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ`.
+Důkladný audit celé aplikace proběhl 2026-09-17. Všechny nálezy SEC-001 až SEC-015 mají nyní jasný disposition: **13 remediovaných/uzavřených + 2 vědomě přijaté výjimky (SEC-002, SEC-007)**.
 
-### Uzavřené nálezy
+### Remediované / uzavřené
 
 **SEC-001 — opakovaná AI spotřeba při automatickém re-gradingu individuálních odpovědí — REMEDIATED / CLOSED**
 
@@ -383,71 +390,75 @@ Explicitní draft/submit, idempotence, teacher-controlled regrade a DB ochrana p
 
 **SEC-003 — CSV formula injection — REMEDIATED / CLOSED**
 
-`SessionReport` při CSV exportu neutralizuje textové buňky, které po případném whitespace/control prefixu začínají `=`, `+`, `-` nebo `@`. Číselné hodnoty se zachovávají jako čísla. Commit `c10f0c4`.
+CSV export neutralizuje potenciální spreadsheet formule bez poškození skutečných čísel. Commit `c10f0c4`.
 
 **SEC-004 — neomezené joiny / cost amplification — REMEDIATED / CLOSED**
 
-DB boundary cap 200 participants + 150 joinů/min/session, viz sekce 9.
+DB boundary cap 200 participants + 150 joinů/min/session.
 
-### Otevřené / další nálezy
+**SEC-005 — TOCTOU mezi kontrolou live stavu a privilegovaným student/team zápisem — REMEDIATED / CLOSED**
 
-**SEC-002 — Preview sdílí production AI/Supabase trust boundary — OPEN / INFRASTRUCTURE REMEDIATION REQUIRED**
+Migrace `20260917152048_fix_sec_005_student_write_toctou`: DB triggery re-checkují live/current block, team membership a edit lock přímo na write boundary.
 
-Poslední ověřený stav při auditu byl potvrzený architektonický risk. Cílové řešení: staging Supabase + oddělená Preview AI identita + Preview protection. Neoznačovat jako closed bez nové infrastrukturní verifikace.
+**SEC-006 — hosted Supabase Auth hardening/config — REMEDIATED / CLOSED**
 
-**SEC-005 — TOCTOU mezi kontrolou live stavu a service-role zápisem — MEDIUM / CONFIRMED**
+Hosted konfigurace byla skutečně ověřena a upravena: password minimum 8, canonical Site URL/redirect allowlist, Turnstile, Resend SMTP/doména a scanner-safe aktivní templates.
 
-Student/team Edge flow nejdřív kontroluje aktuální aktivní blok/stav a následně provádí privilegovaný zápis. Stav se může mezi těmito kroky změnit. Cílový směr: atomický DB RPC nebo jiná DB-level recheck/lock konstrukce, která sváže autorizaci a zápis v jedné transakci. **Toto je další kódový finding k řešení.**
+**SEC-008 — dependency lockfile / nedeterministické deployment verze — REMEDIATED / CLOSED**
 
-**SEC-006 — hosted Supabase Auth hardening/config — MEDIUM / NEEDS VALIDATION**
+Repo má `package-lock.json`, Node `24.x`, npm `11.19.0` a Vercel používá `npm ci`. Produkční dependencies prošly audit bez HIGH/CRITICAL nálezů při remediaci.
 
-Ověřit skutečný hosted Site URL, redirect allowlist, CAPTCHA, rate limits, SMTP/templates, session nastavení a další Auth konfiguraci.
+**SEC-009 — retention/deletion lifecycle studentských/session dat — REMEDIATED / CLOSED**
 
-**SEC-007 — Leaked Password Protection Disabled — LOW / OPEN**
+Ukončené sessions se mažou po 12 měsících, opuštěné lobby/live sessions po 30 dnech, expirované team edit locky po 24 hodinách. Teacher může vlastní ukončenou session ručně smazat. Daily Supabase Cron běží v 03:17 UTC. Migrace `20260917162423_add_sec_009_session_retention_lifecycle`.
 
-Aktuálně hlášeno Supabase security advisorem.
+**SEC-010 — ochrana `main` branche — REMEDIATED / CLOSED**
 
-**SEC-008 — chybí dependency lockfile / deployment versions nejsou deterministické — MEDIUM / OPEN**
+Aktivní GitHub ruleset `Protect main`: PR povinný, required check `Vercel`, strict up-to-date branch, linear history, block force-push/deletion, bez bypassu. Standardní workflow je `branch → Preview/CI → PR → merge`.
 
-Vyřešit až po kontrole současného package/deploy workflow, nevytvářet lockfile mechanicky bez ověření.
+**SEC-011 — relační consistency defense-in-depth — REMEDIATED / CLOSED**
 
-**SEC-009 — chybí explicitní retention/deletion lifecycle studentských/session dat — MEDIUM HARDENING / OPEN**
+Composite FK vynucují konzistentní `session/team/participant` scope pro participants, team responses a team edit locks. Migrace `20260917163934_strengthen_sec_011_relational_scope_constraints`.
 
-**SEC-010 — `main` branch není chráněný — HARDENING / OPEN**
+**SEC-012 — DOCX/PPTX decompression bomb — REMEDIATED / CLOSED**
 
-Při aktualizaci tohoto dokumentu GitHub stále reportoval `main protected=false`. Nepoužívat force update.
+ZIP preflight max. 2000 entries, max. 500 relevantních XML částí, 5 MB rozbalených dat na XML část a 20 MB na dokument; streamovaný decompression guard + odmítnutí ZIP64/multi-disk.
 
-**SEC-011 — relační consistency defense-in-depth — LOW / OPEN**
+**SEC-013 — participant token bez server-side expiry — REMEDIATED / CLOSED**
 
-**SEC-012 — DOCX/PPTX client decompression bomb — LOW / OPEN**
+`participant_token_expires_at` v DB, pevná max. životnost 24 h; expiry kontrolují student-session, team-edit i public scoreboard. Migrace `20260917165505_expire_sec_013_participant_tokens`.
 
-**SEC-013 — participant token bez explicitní server-side expiry — LOW / OPEN**
+**SEC-014 — explicitní browser security headers — REMEDIATED / CLOSED**
 
-HttpOnly cookie má přibližně 24 h maxAge, ale serverová capability sama nemá explicitní expiry claim/state.
+Globální CSP, HSTS, `nosniff`, `DENY` framing, Referrer Policy, Permissions Policy a vypnuté `X-Powered-By`; Preview CSP zachovává Vercel Toolbar, produkční CI ověřuje živé headers.
 
-**SEC-014 — explicitní security headers — LOW / NEEDS VALIDATION**
+**SEC-015 — provider-level Zero Data Retention — REMEDIATED / CLOSED**
 
-Repo při auditu neměl explicitní security headers konfiguraci; live headers nebyly kompletně ověřené.
+Všechna současná `generateText(...)` volání explicitně vyžadují AI Gateway `zeroDataRetention: true`. OpenAI generation/revision/grading zůstává provider-restricted; source-material generation používá Azure/Bedrock. `npm run check` obsahuje AST regresní test, který selže, pokud některá routing větev ZDR opomene. Commit `584a72b`.
 
-**SEC-015 — provider-level ZDR pro OpenAI cesty bez source materials / grading — MEDIUM / NEEDS VALIDATION**
+### Vědomě přijaté výjimky
 
-Source-material generation používá Bedrock/Azure routing s `zeroDataRetention: true`; u běžného OpenAI generation/revision/grading toku nebyla při auditu provider-level ZDR garance explicitně doložena.
+**SEC-002 — Preview sdílí production AI/Supabase trust boundary — ACCEPTED RISK / DEFERRED**
 
-Původní pre-beta must-fix sada byla: SEC-001, SEC-002, SEC-003, SEC-004, SEC-005, SEC-006, SEC-008, SEC-015. Z ní jsou nyní uzavřené SEC-001, SEC-003 a SEC-004.
+Technicky neopraveno. Uživatel výslovně přijal riziko sdíleného Preview/Production trust boundary. Znovu otevřít při potřebě staging prostředí, širší produkční škále nebo zapojení dalších vývojářů.
+
+**SEC-007 — Leaked Password Protection Disabled — ACCEPTED RISK / DEFERRED**
+
+Supabase Security Advisor warning zůstává kvůli Free plánu. Znovu otevřít při přechodu na placený Supabase plán nebo před další vyšší bezpečnostní úrovní.
+
+Původní pre-beta must-fix sada SEC-001/002/003/004/005/006/008/015 má tedy disposition: sedm bodů remediovaných, SEC-002 vědomě přijatá výjimka. Bezpečnostní audit už nemá žádný další nevyřešený kódový finding z řady SEC-001 až SEC-015.
 
 ## 16. Aktuální Supabase advisories
 
-Security advisor byl znovu spuštěn po migraci `20260917145648_gate_ai_grading_by_entitlement`.
+Security a Performance Advisor byly během remediací opakovaně spuštěny po DDL změnách. Nové SEC-005/009/011/013 migrace nepřidaly nový security finding.
 
-Aktuálně hlásí:
+Známý aktuální warning, který je vědomě přijatý:
 
-- `get_student_public_scoreboard(...)` — `SECURITY DEFINER`, executable pro `anon`;
-- 11 `SECURITY DEFINER` funkcí executable pro `authenticated`;
-- **Leaked Password Protection Disabled**.
+- **Leaked Password Protection Disabled** — SEC-007 / ACCEPTED RISK / DEFERRED na Supabase Free.
 
-Tyto warnings nejsou automaticky zranitelnosti. Některé RPC jsou úmyslně exposed a interně kontrolují `auth.uid()`, ownership a/nebo capability. Každý advisor finding musí být posouzen podle skutečné funkce, ACL, `search_path`, vstupů a ownership checks; neprovádět mechanické revoke bez dopadové analýzy.
+Advisor může nadále hlásit `SECURITY DEFINER` funkce executable pro `anon`/`authenticated`. Ty nejsou automaticky zranitelnosti: některé RPC jsou úmyslně exposed a interně kontrolují `auth.uid()`, ownership, entitlement nebo participant capability. Každý takový warning posuzovat podle konkrétní funkce, ACL, `search_path`, vstupů a ownership checks; neprovádět mechanické revoke bez dopadové analýzy.
 
-Předchozí performance advisories zahrnovaly FK bez covering indexu, některé RLS policies bez initplan-friendly `(select auth.uid())` a nepoužité indexy. Před případnou úpravou znovu spustit advisor a ověřit skutečný query/access model.
+Performance advisor po SEC-011 snížil počet neindexovaných FK; zbývající starší advisories nejsou součástí uzavřených SEC findingů a před případnou úpravou je nutné znovu ověřit proti aktuálnímu query/access modelu.
 
 ## 17. Bezpečnostní hranice
 
@@ -471,24 +482,24 @@ Zachovat:
 ### Milník A — AI workflow
 **Dokončeno.**
 
-AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser extraction, ZDR routing pro source-material flow, prompt-injection ochrana podkladů, explicitní setup params a structured `dataTable`.
+AI generation/revision, quota/cost, source materials 10 MB, ephemeral browser extraction, fail-closed ZDR routing pro všechny současné AI inference cesty, prompt-injection ochrana podkladů, explicitní setup params a structured `dataTable`.
 
 ### Milník A.1 — účet jako workspace
 **MVP dokončeno a produkčně ověřeno.**
 
 ### Milník A.2 — veřejný auth
-**Aplikační flow implementovaný; hosted konfiguraci dál auditovat.**
+**Aplikační flow i hosted konfigurace auditované a produkčně ověřené.**
 
 Hotovo: signup, login/logout, scanner-safe confirm, forgot/recovery/update password, password reveal, Turnstile integrace, branded template source files, DB free onboarding 5/20.
 
-Zbývá zejména SEC-006/007 a kompletní externí E2E po security hardeningu.
+SEC-006 je uzavřený. SEC-007 zůstává vědomě přijatá výjimka na Free plánu; externí E2E lze dále rozšiřovat podle beta priorit.
 
 ### Milník B — live hodina
 **Hlavní MVP dokončeno.**
 
 Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit team i individual submit, timer, reveal, QR, recovery, report/CSV, scoring, plan-aware manual/AI grading, teacher review, public own score, Presenter, Moon race, network hardening, join abuse protection, beta activity clarity a data tables.
 
-Zbývá: hybridní scoring v post-session reportu/CSV, security findings od SEC-005 dál a případné další statistiky.
+Zbývá: hybridní scoring v post-session reportu/CSV a případné další statistiky. Security audit SEC-001 až SEC-015 je dispositioned; otevřené zůstávají pouze přijaté výjimky SEC-002/007.
 
 ### Další produktové položky
 
@@ -503,7 +514,7 @@ Zbývá: hybridní scoring v post-session reportu/CSV, security findings od SEC-
 
 ## 19. Poslední významné operace 2026-09-17
 
-Novější než předchozí `PROJECT.md`:
+Bezpečnostní a související změny dokončené po starší verzi tohoto dokumentu:
 
 - `753c848` — SEC-001: explicit individual submissions
 - `8360205` — SEC-001: teacher-controlled regrading
@@ -511,8 +522,19 @@ Novější než předchozí `PROJECT.md`:
 - `ab69390` — SEC-004: participant caps + burst limit na DB boundary
 - `14ed01e` — srovnání SEC-004 migration history s produkcí
 - `2fffbf2` — tarifní `ai_grading_enabled`, manual grading pro default/free, AI grading pouze pro entitled účty
+- `21975d8` — SEC-005 DB write-boundary TOCTOU hardening
+- SEC-006 — hosted Auth config ověřen a ručně hardenován (password min 8, canonical redirect allowlist)
+- SEC-007 — vědomě přijaté riziko kvůli Supabase Free
+- `534ecb6` — SEC-008 deterministic dependency installs (`package-lock`, Node 24.x, npm 11.19, `npm ci`)
+- `f60fb28` — SEC-009 session retention lifecycle + manual delete
+- SEC-010 — aktivní GitHub ruleset `Protect main`
+- `aac840f` — SEC-011 composite relational constraints
+- `5182b71` — SEC-012 Office ZIP/decompression hardening
+- `7637dc4` — SEC-013 server-side participant token expiry
+- `1becf44` — SEC-014 browser security headers + live regression check
+- `584a72b` — SEC-015 fail-closed AI Gateway Zero Data Retention + AST regression check
 
-Vercel Preview i production deploy pro `2fffbf2` skončily `success`.
+Všechny uvedené kódové remediace prošly Vercel Preview/CI a následným produkčním deploymentem podle chráněného PR workflow.
 
 ## 20. Pravidla další práce
 
@@ -525,6 +547,7 @@ Vercel Preview i production deploy pro `2fffbf2` skončily `success`.
 - před finálním commitem/merge znovu načíst HEAD `main`;
 - zachovat paralelní změny;
 - žádný force update `main`;
+- `main` je chráněný rulesetem `Protect main`; změny standardně přes pracovní branch → Vercel/CI → PR → merge, branch musí být před mergem aktuální vůči `main`;
 - Preview před Production, pokud je dostupné;
 - DB migrace pokud možno backward-compatible;
 - DDL přes Supabase migration workflow, ne ad-hoc trvalé SQL;
@@ -538,8 +561,10 @@ Vercel Preview i production deploy pro `2fffbf2` skončily `success`.
 
 ## 21. Bezprostřední další krok
 
-**Pokračovat v security remediation od SEC-005.**
+**Security audit SEC-001 až SEC-015 je dokončen a dispositioned.**
 
-SEC-005 je potvrzený TOCTOU problém mezi kontrolou teacher-controlled live stavu a následným privilegovaným student/team zápisem. Nejprve read-only zmapovat přesné write paths a současné Edge Function/DB transakční hranice; potom navrhnout nejmenší atomickou DB-level opravu. Neprovádět změnu, dokud není jasné, které operace je nutné svázat do jedné transakce a jak zachovat participant token/team lock semantics.
+- SEC-001/003/004/005/006/008/009/010/011/012/013/014/015 — REMEDIATED / CLOSED.
+- SEC-002 — ACCEPTED RISK / DEFERRED: Preview sdílí production trust boundary.
+- SEC-007 — ACCEPTED RISK / DEFERRED: Leaked Password Protection na Supabase Free.
 
-SEC-002 zůstává otevřený infrastrukturní finding a nesmí být omylem označen za vyřešený. Po SEC-005 pokračovat dalšími must-fix body SEC-006, SEC-008 a SEC-015, případně se k SEC-002 vrátit samostatným infrastrukturním krokem podle rozhodnutí uživatele.
+Další práce se má vrátit k produktové roadmapě a beta zpětné vazbě. Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán). Nové bezpečnostní změny dál provádět jednotlivě podle `TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ`.
