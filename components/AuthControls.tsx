@@ -1,6 +1,5 @@
 'use client';
 
-import Script from 'next/script';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
@@ -14,9 +13,13 @@ type TurnstileApi = {
       sitekey: string;
       action?: string;
       theme?: 'light' | 'dark' | 'auto';
+      appearance?: 'always' | 'execute' | 'interaction-only';
       callback: (token: string) => void;
+      'before-interactive-callback'?: () => void;
+      'after-interactive-callback'?: () => void;
       'expired-callback'?: () => void;
-      'error-callback'?: () => void;
+      'timeout-callback'?: () => void;
+      'error-callback'?: (errorCode?: string) => void;
     },
   ) => string;
   remove: (widgetId: string) => void;
@@ -45,6 +48,7 @@ type Quota = {
 };
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email';
+type ChallengeStatus = 'loading' | 'checking' | 'interactive' | 'retrying' | 'verified';
 
 type TurnstileChallengeProps = {
   ready: boolean;
@@ -54,18 +58,40 @@ type TurnstileChallengeProps = {
 
 function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<ChallengeStatus>('loading');
 
   useEffect(() => {
-    if (!ready || !containerRef.current || !window.turnstile) return;
+    if (!ready || !containerRef.current || !window.turnstile) {
+      setStatus('loading');
+      return;
+    }
 
     onToken('');
+    setStatus('checking');
     const widgetId = window.turnstile.render(containerRef.current, {
       sitekey: TURNSTILE_SITE_KEY,
       action,
       theme: 'auto',
-      callback: onToken,
-      'expired-callback': () => onToken(''),
-      'error-callback': () => onToken(''),
+      appearance: 'interaction-only',
+      callback: (token) => {
+        setStatus('verified');
+        onToken(token);
+      },
+      'before-interactive-callback': () => setStatus('interactive'),
+      'after-interactive-callback': () => setStatus((current) => current === 'verified' ? current : 'checking'),
+      'expired-callback': () => {
+        setStatus('checking');
+        onToken('');
+      },
+      'timeout-callback': () => {
+        setStatus('interactive');
+        onToken('');
+      },
+      'error-callback': (errorCode) => {
+        console.warn('Turnstile challenge failed', errorCode);
+        setStatus('retrying');
+        onToken('');
+      },
     });
 
     return () => {
@@ -73,12 +99,29 @@ function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps)
     };
   }, [action, onToken, ready]);
 
+  const statusText = !ready || status === 'loading'
+    ? 'Načítám bezpečnostní ověření…'
+    : status === 'checking'
+      ? 'Kontroluji zabezpečení…'
+      : status === 'retrying'
+        ? 'Ověření se nezdařilo, zkouším znovu…'
+        : status === 'verified'
+          ? 'Bezpečnostní ověření dokončeno.'
+          : '';
+
   return (
     <div
-      ref={containerRef}
       aria-label="Bezpečnostní ověření"
-      style={{ minHeight: 65, display: 'flex', justifyContent: 'center' }}
-    />
+      aria-live="polite"
+      style={{ minHeight: 65, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      {statusText ? (
+        <span style={{ position: 'absolute', color: 'var(--muted)', fontSize: 12, textAlign: 'center' }}>
+          {statusText}
+        </span>
+      ) : null}
+      <div ref={containerRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }} />
+    </div>
   );
 }
 
@@ -141,6 +184,28 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
   useEffect(() => {
     if (user) void loadQuota(user);
   }, [quotaRefreshKey, user]);
+
+  useEffect(() => {
+    if (window.turnstile) {
+      setTurnstileReady(true);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      if (!window.turnstile) return;
+      setTurnstileReady(true);
+      window.clearInterval(interval);
+    }, 50);
+
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
+    }, 10000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, []);
 
   function resetCaptcha() {
     setCaptchaToken('');
@@ -292,17 +357,6 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
 
   return (
     <div className="auth-wrap">
-      <Script
-        id="syllonaut-turnstile"
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-        strategy="afterInteractive"
-        onReady={() => setTurnstileReady(true)}
-        onError={() => {
-          setTurnstileReady(false);
-          setCaptchaToken('');
-          setMessage('Bezpečnostní ověření se nepodařilo načíst. Obnov stránku a zkus to znovu.');
-        }}
-      />
       <button
         type="button"
         className="secondary auth-trigger"
