@@ -44,10 +44,10 @@ type Props = {
 export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null }: Props) {
   const router = useRouter();
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
-  const [audience, setAudience] = useState(initialLesson?.audience ?? '1. ročník vysoké školy');
-  const [duration, setDuration] = useState(initialLesson?.totalMinutes ?? 90);
-  const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '3–4 studenti');
-  const [tone, setTone] = useState('živý, praktický a lehce vtipný');
+  const [audience, setAudience] = useState(initialLesson?.audience ?? '');
+  const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
+  const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '');
+  const [tone, setTone] = useState('');
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
   const [undoLesson, setUndoLesson] = useState<Lesson | null>(null);
@@ -168,7 +168,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration, groupSize, tone, materialMode, materials }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, materialMode, materials }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -358,10 +358,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <form onSubmit={generate}>
                 <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
                 <div className="form-grid">
-                  <label>Cílovka<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} /></label>
-                  <label>Délka v minutách<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
-                  <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} /></label>
-                  <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} /></label>
+                  <label>Cílovka<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="např. 1. ročník vysoké školy" required /></label>
+                  <label>Délka v minutách<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="např. 90" required /></label>
+                  <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder="např. 3–4 studenti" required /></label>
+                  <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="např. živý, praktický a lehce vtipný" required /></label>
                 </div>
                 <div style={{ marginTop: 16, padding: 14, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--panel-soft)' }}>
                   <span className="eyebrow">Podklady k lekci · volitelné</span>
@@ -392,7 +392,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={duration} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div><button type="button" className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'}>{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>
