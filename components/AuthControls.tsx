@@ -1,8 +1,32 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Script from 'next/script';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+
+const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
+
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      action?: string;
+      theme?: 'light' | 'dark' | 'auto';
+      callback: (token: string) => void;
+      'expired-callback'?: () => void;
+      'error-callback'?: () => void;
+    },
+  ) => string;
+  remove: (widgetId: string) => void;
+};
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
 
 type Props = {
   onAuthChange: (user: User | null) => void;
@@ -22,6 +46,42 @@ type Quota = {
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email';
 
+type TurnstileChallengeProps = {
+  ready: boolean;
+  action: 'signin' | 'signup' | 'recovery';
+  onToken: (token: string) => void;
+};
+
+function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!ready || !containerRef.current || !window.turnstile) return;
+
+    onToken('');
+    const widgetId = window.turnstile.render(containerRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      action,
+      theme: 'auto',
+      callback: onToken,
+      'expired-callback': () => onToken(''),
+      'error-callback': () => onToken(''),
+    });
+
+    return () => {
+      window.turnstile?.remove(widgetId);
+    };
+  }, [action, onToken, ready]);
+
+  return (
+    <div
+      ref={containerRef}
+      aria-label="Bezpečnostní ověření"
+      style={{ minHeight: 65, display: 'flex', justifyContent: 'center' }}
+    />
+  );
+}
+
 export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
@@ -33,6 +93,9 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaVersion, setCaptchaVersion] = useState(0);
 
   async function loadQuota(nextUser: User | null) {
     if (!nextUser) {
@@ -79,11 +142,17 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
     if (user) void loadQuota(user);
   }, [quotaRefreshKey, user]);
 
+  function resetCaptcha() {
+    setCaptchaToken('');
+    setCaptchaVersion((value) => value + 1);
+  }
+
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setMessage('');
     setPassword('');
     setPasswordConfirm('');
+    resetCaptcha();
   }
 
   function authRedirectOrigin() {
@@ -92,10 +161,21 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
 
   async function signIn(e: FormEvent) {
     e.preventDefault();
+    if (!captchaToken) {
+      setMessage('Dokonči prosím bezpečnostní ověření.');
+      return;
+    }
+
+    const token = captchaToken;
     setBusy(true);
     setMessage('');
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+      options: { captchaToken: token },
+    });
     setBusy(false);
+    resetCaptcha();
 
     if (!error) return;
     if (error.code === 'email_not_confirmed') {
@@ -117,7 +197,12 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
       setMessage('Hesla se neshodují.');
       return;
     }
+    if (!captchaToken) {
+      setMessage('Dokonči prosím bezpečnostní ověření.');
+      return;
+    }
 
+    const token = captchaToken;
     setBusy(true);
     setMessage('');
     const { data, error } = await supabase.auth.signUp({
@@ -125,9 +210,11 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
       password,
       options: {
         emailRedirectTo: authRedirectOrigin(),
+        captchaToken: token,
       },
     });
     setBusy(false);
+    resetCaptcha();
 
     if (error) {
       setMessage(error.code === 'weak_password'
@@ -153,13 +240,20 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
       setMessage('Zadej e-mail, který používáš pro přihlášení.');
       return;
     }
+    if (!captchaToken) {
+      setMessage('Dokonči prosím bezpečnostní ověření.');
+      return;
+    }
 
+    const token = captchaToken;
     setBusy(true);
     setMessage('');
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: authRedirectOrigin(),
+      captchaToken: token,
     });
     setBusy(false);
+    resetCaptcha();
 
     if (error) console.error('password recovery request failed', error);
     setMode('check-email');
@@ -198,6 +292,17 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
 
   return (
     <div className="auth-wrap">
+      <Script
+        id="syllonaut-turnstile"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onReady={() => setTurnstileReady(true)}
+        onError={() => {
+          setTurnstileReady(false);
+          setCaptchaToken('');
+          setMessage('Bezpečnostní ověření se nepodařilo načíst. Obnov stránku a zkus to znovu.');
+        }}
+      />
       <button
         type="button"
         className="secondary auth-trigger"
@@ -218,7 +323,8 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
               <form onSubmit={signIn}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <label>Heslo<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required /></label>
-                <button className="primary" disabled={busy}>{busy ? 'Přihlašuji…' : 'Přihlásit se'}</button>
+                <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} />
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Přihlašuji…' : 'Přihlásit se'}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>Zapomenuté heslo</button>
               <span aria-hidden="true"> · </span>
@@ -234,7 +340,8 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <label>Heslo<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required /></label>
                 <label>Heslo znovu<input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required /></label>
-                <button className="primary" disabled={busy}>{busy ? 'Vytvářím účet…' : 'Vytvořit účet'}</button>
+                <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Vytvářím účet…' : 'Vytvořit účet'}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>Už mám účet</button>
             </>
@@ -246,7 +353,8 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
               <p>Zadej e-mail k účtu. Kvůli ochraně soukromí neprozrazujeme, zda je adresa v systému registrovaná.</p>
               <form onSubmit={requestPasswordReset}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-                <button className="primary" disabled={busy}>{busy ? 'Odesílám…' : 'Poslat odkaz pro obnovu'}</button>
+                <TurnstileChallenge key={`recovery-${captchaVersion}`} ready={turnstileReady} action="recovery" onToken={setCaptchaToken} />
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Odesílám…' : 'Poslat odkaz pro obnovu'}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>Zpět k přihlášení</button>
             </>
