@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import PasswordField from '@/components/PasswordField';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
 
@@ -376,7 +377,7 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
               <p>Účet je potřeba pro AI funkce a ukládání vlastních lekcí.</p>
               <form onSubmit={signIn}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-                <label>Heslo<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required /></label>
+                <PasswordField label="Heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required />
                 <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} />
                 <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Přihlašuji…' : 'Přihlásit se'}</button>
               </form>
@@ -392,8 +393,8 @@ export default function AuthControls({ onAuthChange, quotaRefreshKey = 0 }: Prop
               <p>Free účet obsahuje 5 nových AI lekcí a 20 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.</p>
               <form onSubmit={signUp}>
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-                <label>Heslo<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required /></label>
-                <label>Heslo znovu<input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required /></label>
+                <PasswordField label="Heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <PasswordField label="Heslo znovu" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
                 <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Vytvářím účet…' : 'Vytvořit účet'}</button>
               </form>

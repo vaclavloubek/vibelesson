@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import PasswordField from '@/components/PasswordField';
 
 export default function UpdatePasswordForm() {
   const supabase = useMemo(() => createClient(), []);
@@ -61,14 +62,8 @@ export default function UpdatePasswordForm() {
       <p className="muted-copy">Zvol nové heslo alespoň o 8 znacích.</p>
       <div className="vibe-editor">
         <form onSubmit={updatePassword}>
-          <label>
-            Nové heslo
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
-          </label>
-          <label>
-            Nové heslo znovu
-            <input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
-          </label>
+          <PasswordField label="Nové heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <PasswordField label="Nové heslo znovu" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
           <button className="primary" disabled={busy}>{busy ? 'Ukládám…' : 'Uložit nové heslo'}</button>
         </form>
       </div>
