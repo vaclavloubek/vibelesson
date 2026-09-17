@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from './LandingPage.module.css';
 import polish from './LandingPagePolish.module.css';
@@ -38,6 +39,7 @@ export default function LandingPage() {
         <div className={styles.headerActions}>
           <AuthControls onAuthChange={setUser} />
           <Link href="/new" className={`${styles.headerCta} ${polish.headerCta}`}>Připravit hodinu</Link>
+          <HeaderMobileNav signedIn={Boolean(user)} current="home" />
         </div>
       </header>
 
