@@ -197,7 +197,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       if (revealedBlockIds.includes(activeBlock.id)) return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id, scoreboardRevealed: Boolean(session.scoreboard_revealed) });
       update = { revealed_block_ids: [...revealedBlockIds, activeBlock.id] };
     } else if (action.action === 'reveal_scoreboard' || action.action === 'hide_scoreboard') {
-      if (session.status !== 'live') return NextResponse.json({ error: 'Pořadí lze měnit pouze během živé hodiny.' }, { status: 409 });
+      if (session.status !== 'live' && session.status !== 'ended') {
+        return NextResponse.json({ error: 'Pořadí lze měnit až po zahájení hodiny.' }, { status: 409 });
+      }
       const scoreboardRevealed = action.action === 'reveal_scoreboard';
       if (Boolean(session.scoreboard_revealed) === scoreboardRevealed) {
         return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id, scoreboardRevealed });
