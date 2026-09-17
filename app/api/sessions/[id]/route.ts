@@ -11,7 +11,7 @@ type TimerStatus = 'idle' | 'running' | 'paused';
 async function loadOwnedSession(id: string, userId: string, supabase: SupabaseClient) {
   return supabase
     .from('sessions')
-    .select('id, lesson_id, teacher_id, join_code, status, active_block_id, lesson_snapshot, realtime_key, created_at, started_at, ended_at, revealed_block_ids, timer_status, timer_started_at, timer_remaining_seconds')
+    .select('id, lesson_id, teacher_id, join_code, status, active_block_id, lesson_snapshot, realtime_key, created_at, started_at, ended_at, revealed_block_ids, scoreboard_revealed, timer_status, timer_started_at, timer_remaining_seconds')
     .eq('id', id)
     .eq('teacher_id', userId)
     .single();
@@ -134,6 +134,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
       startedAt: session.started_at,
       endedAt: session.ended_at,
       resultsRevealed: Boolean(activeBlock && (session.revealed_block_ids ?? []).includes(activeBlock.id)),
+      scoreboardRevealed: Boolean(session.scoreboard_revealed),
       timer,
       teams: (teams ?? []).map((team) => ({ id: team.id, name: team.name, sortOrder: team.sort_order })),
       participants: participantRows.map((participant) => ({
@@ -185,7 +186,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
         timer_remaining_seconds: defaultTimerSeconds(firstBlock),
       };
     } else if (action.action === 'end') {
-      if (session.status === 'ended') return NextResponse.json({ ok: true, status: 'ended', activeBlockId: session.active_block_id });
+      if (session.status === 'ended') return NextResponse.json({ ok: true, status: 'ended', activeBlockId: session.active_block_id, scoreboardRevealed: Boolean(session.scoreboard_revealed) });
       update = { status: 'ended', ended_at: now, timer_status: 'idle', timer_started_at: null };
     } else if (action.action === 'reveal_results') {
       if (session.status !== 'live') return NextResponse.json({ error: 'Výsledky lze zveřejnit pouze během živé hodiny.' }, { status: 409 });
@@ -193,8 +194,15 @@ export async function PATCH(req: Request, { params }: RouteContext) {
         return NextResponse.json({ error: 'Výsledky lze zveřejnit pouze u hlasování nebo kvízu.' }, { status: 409 });
       }
       const revealedBlockIds = (session.revealed_block_ids ?? []) as string[];
-      if (revealedBlockIds.includes(activeBlock.id)) return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id });
+      if (revealedBlockIds.includes(activeBlock.id)) return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id, scoreboardRevealed: Boolean(session.scoreboard_revealed) });
       update = { revealed_block_ids: [...revealedBlockIds, activeBlock.id] };
+    } else if (action.action === 'reveal_scoreboard' || action.action === 'hide_scoreboard') {
+      if (session.status !== 'live') return NextResponse.json({ error: 'Pořadí lze měnit pouze během živé hodiny.' }, { status: 409 });
+      const scoreboardRevealed = action.action === 'reveal_scoreboard';
+      if (Boolean(session.scoreboard_revealed) === scoreboardRevealed) {
+        return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id, scoreboardRevealed });
+      }
+      update = { scoreboard_revealed: scoreboardRevealed };
     } else if (action.action === 'timer_start' || action.action === 'timer_pause' || action.action === 'timer_reset') {
       if (session.status !== 'live') return NextResponse.json({ error: 'Timer lze ovládat pouze během živé hodiny.' }, { status: 409 });
       if (!activeBlock || activeBlock.type !== 'timer') return NextResponse.json({ error: 'Aktuální blok není timer.' }, { status: 409 });
@@ -211,7 +219,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           timer_remaining_seconds: effectiveTimerRemaining(session),
         };
       } else {
-        if (session.timer_status === 'running') return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id });
+        if (session.timer_status === 'running') return NextResponse.json({ ok: true, status: session.status, activeBlockId: session.active_block_id, scoreboardRevealed: Boolean(session.scoreboard_revealed) });
         if (currentRemaining <= 0) return NextResponse.json({ error: 'Čas vypršel. Nejdřív timer resetuj.' }, { status: 409 });
         update = { timer_status: 'running', timer_started_at: now, timer_remaining_seconds: currentRemaining };
       }
@@ -237,13 +245,18 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       .update(update)
       .eq('id', id)
       .eq('teacher_id', userId)
-      .select('status, active_block_id, realtime_key')
+      .select('status, active_block_id, realtime_key, scoreboard_revealed')
       .single();
 
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
     await broadcastSessionInvalidate(updated.realtime_key as string);
 
-    return NextResponse.json({ ok: true, status: updated.status, activeBlockId: updated.active_block_id });
+    return NextResponse.json({
+      ok: true,
+      status: updated.status,
+      activeBlockId: updated.active_block_id,
+      scoreboardRevealed: Boolean(updated.scoreboard_revealed),
+    });
   } catch (error) {
     console.error('update session failed', error);
     return NextResponse.json({ error: 'Stav hodiny se nepodařilo změnit.' }, { status: 500 });

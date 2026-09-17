@@ -10,7 +10,7 @@ import StudentRevealedResults from '@/components/StudentRevealedResults';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
-import type { LiveTimerState, PublicLessonBlock, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
+import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
 
 type Team = { id: string; name: string; memberCount: number };
@@ -30,6 +30,7 @@ type StudentState = {
   teams: Team[];
   myTeam: Team | null;
   myTeamResponse: { text: string; updatedByParticipantId: string | null } | null;
+  scoreboard: PublicScoreboardState | null;
 };
 
 export default function StudentSession({ sessionId }: { sessionId: string }) {
@@ -159,6 +160,22 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               <div className="student-progress-fill" style={{ width: `${progress}%` }} />
             </div>
           </section>
+
+          {state.scoreboard ? (
+            <section className="panel" aria-label="Moje průběžné skóre">
+              <span className="eyebrow">Průběžné pořadí</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 16, marginTop: 8 }}>
+                <div>
+                  <strong style={{ display: 'block', fontSize: 28, lineHeight: 1.1 }}>{state.scoreboard.score} / {state.scoreboard.maxPoints}</strong>
+                  <span className="muted-copy">Tvoje skóre</span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. místo</strong>
+                  <span className="muted-copy">Aktuální pořadí</span>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           {connectionStatus === 'reconnecting' ? (
             <div className="panel" style={{ padding: 12 }}>

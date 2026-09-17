@@ -22,12 +22,20 @@ export type RevealedChoiceResults = {
   isCorrect?: boolean | null;
 };
 
+export type PublicScoreboardState = {
+  score: number;
+  maxPoints: number;
+  rank: number;
+};
+
 export const SessionActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('start') }),
   z.object({ action: z.literal('next') }),
   z.object({ action: z.literal('previous') }),
   z.object({ action: z.literal('end') }),
   z.object({ action: z.literal('reveal_results') }),
+  z.object({ action: z.literal('reveal_scoreboard') }),
+  z.object({ action: z.literal('hide_scoreboard') }),
   z.object({ action: z.literal('timer_start') }),
   z.object({ action: z.literal('timer_pause') }),
   z.object({ action: z.literal('timer_reset') }),
@@ -37,6 +45,7 @@ export type SessionAction = z.infer<typeof SessionActionSchema>;
 export const PublicLessonBlockSchema = LessonBlockSchema.omit({
   teacherNote: true,
   correctAnswer: true,
+  gradingRubric: true,
 });
 export type PublicLessonBlock = z.infer<typeof PublicLessonBlockSchema>;
 

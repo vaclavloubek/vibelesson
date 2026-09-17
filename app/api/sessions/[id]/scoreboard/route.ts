@@ -39,7 +39,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const { id: sessionId } = await params;
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
-    .select('status, active_block_id, lesson_snapshot')
+    .select('status, active_block_id, lesson_snapshot, scoreboard_revealed')
     .eq('id', sessionId)
     .eq('teacher_id', userId)
     .maybeSingle();
@@ -209,6 +209,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   });
 
   const pendingEvaluations = evaluations.filter((item) => item.status === 'pending' || item.status === 'grading').length;
+  const needsReviewEvaluations = evaluations.filter((item) => item.status === 'needs_review').length;
   const unconfirmedEvaluations = evaluations.filter((item) => (
     !item.teacher_confirmed && (item.status === 'graded' || item.status === 'needs_review') && item.ai_score !== null
   )).length;
@@ -216,6 +217,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   return NextResponse.json({
     status: session.status,
+    scoreboardRevealed: Boolean(session.scoreboard_revealed),
     hasScoring: lesson.data.blocks.some((block) => (
       (block.type === 'quiz' && Boolean(block.points && block.points > 0 && block.correctAnswer))
       || isAIGradedBlock(block)
@@ -223,6 +225,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     availableMaxPoints,
     scoredBlockCount: scoredBlocks.length,
     pendingEvaluations,
+    needsReviewEvaluations,
     unconfirmedEvaluations,
     failedEvaluations,
     rows: rankedRows,

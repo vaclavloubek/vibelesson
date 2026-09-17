@@ -17,9 +17,20 @@ function token() { const b = new Uint8Array(32); crypto.getRandomValues(b); let 
 type Block = Record<string, unknown>;
 type Answer = { choice: string } | { text: string } | { ranking: string[]; text: string };
 type Participant = { id: string; display_name?: string; team_id?: string | null };
+type ScoreParticipant = { id: string; team_id?: string | null };
+type Evaluation = { participant_id?: string | null; team_id?: string | null; block_id?: string; status?: string; ai_score?: number | null; teacher_score?: number | null };
 function blocks(snapshot: unknown) { const x = (snapshot ?? {}) as { blocks?: unknown }; return Array.isArray(x.blocks) ? x.blocks.filter((b): b is Block => !!b && typeof b === "object") : []; }
 function publicBlock(block: Block) { const out: Record<string, unknown> = {}; for (const k of ["id","type","title","durationMinutes","instructions","options","items","revealText","points"]) if (block[k] !== undefined) out[k] = block[k]; return out; }
 function remaining(s: { timer_status?: unknown; timer_started_at?: unknown; timer_remaining_seconds?: unknown }, now: number) { const base = typeof s.timer_remaining_seconds === "number" ? Math.max(0, s.timer_remaining_seconds) : 0; if (s.timer_status !== "running" || typeof s.timer_started_at !== "string") return base; const start = Date.parse(s.timer_started_at); return Number.isFinite(start) ? Math.max(0, base - Math.max(0, Math.floor((now - start) / 1000))) : base; }
+function blockPoints(block: Block) { return typeof block.points === "number" && Number.isFinite(block.points) && block.points > 0 ? block.points : 0; }
+function isAIGradedBlock(block: Block) {
+  if (block.type !== "open_text" && block.type !== "exit_ticket" && block.type !== "team_task") return false;
+  const points = blockPoints(block); const rubric = Array.isArray(block.gradingRubric) ? block.gradingRubric : [];
+  if (!points || !rubric.length) return false;
+  let total = 0;
+  for (const raw of rubric) { if (!raw || typeof raw !== "object") return false; const max = (raw as Record<string, unknown>).maxPoints; if (typeof max !== "number" || !Number.isFinite(max) || max <= 0) return false; total += max; }
+  return total === points;
+}
 function normalize(block: Block, raw: unknown): { answer?: Answer; error?: string; status?: number } {
   if (!raw || typeof raw !== "object") return { error: "Chybí odpověď.", status: 400 };
   const v = raw as Record<string, unknown>;
@@ -46,16 +57,54 @@ async function join(b: Record<string, unknown>) {
 
 async function state(b: Record<string, unknown>) {
   const sessionId = typeof b.sessionId === "string" ? b.sessionId : ""; const rawToken = typeof b.participantToken === "string" ? b.participantToken : ""; const v = await verify(sessionId, rawToken); if (v.response) return v.response; const p = v.participant!;
-  const { data: s, error } = await db.from("sessions").select("id,status,active_block_id,lesson_snapshot,realtime_key,revealed_block_ids,timer_status,timer_started_at,timer_remaining_seconds").eq("id", sessionId).maybeSingle(); if (error) return reply({ error: "Hodinu se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina neexistuje." }, 404);
+  const { data: s, error } = await db.from("sessions").select("id,status,active_block_id,lesson_snapshot,realtime_key,revealed_block_ids,scoreboard_revealed,timer_status,timer_started_at,timer_remaining_seconds").eq("id", sessionId).maybeSingle(); if (error) return reply({ error: "Hodinu se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina neexistuje." }, 404);
   const lesson = (s.lesson_snapshot ?? {}) as { title?: unknown }; const all = blocks(s.lesson_snapshot); const index = typeof s.active_block_id === "string" ? all.findIndex(x => x.id === s.active_block_id) : -1; const rawBlock = s.status === "live" && index >= 0 ? all[index] : null; const activeBlock = rawBlock ? publicBlock(rawBlock) : null;
-  const [{ data: teamRows, error: te }, { data: memberRows, error: me }] = await Promise.all([db.from("teams").select("id,name,sort_order").eq("session_id", sessionId).order("sort_order", { ascending: true }), db.from("participants").select("team_id").eq("session_id", sessionId)]); if (te || me) return reply({ error: "Týmy se nepodařilo načíst." }, 500);
+  const [{ data: teamRows, error: te }, { data: memberRows, error: me }] = await Promise.all([db.from("teams").select("id,name,sort_order").eq("session_id", sessionId).order("sort_order", { ascending: true }), db.from("participants").select("id,team_id").eq("session_id", sessionId)]); if (te || me) return reply({ error: "Týmy se nepodařilo načíst." }, 500);
   const counts = new Map<string, number>(); for (const m of memberRows ?? []) if (typeof m.team_id === "string") counts.set(m.team_id, (counts.get(m.team_id) ?? 0) + 1); const teams = (teamRows ?? []).map(t => ({ id: t.id, name: t.name, memberCount: counts.get(t.id as string) ?? 0 })); const myTeam = typeof p.team_id === "string" ? teams.find(t => t.id === p.team_id) ?? null : null;
   let myResponse: Answer | null = null; if (activeBlock && typeof s.active_block_id === "string" && rawBlock?.type !== "team_task") { const { data: r, error: re } = await db.from("responses").select("answer").eq("session_id", sessionId).eq("participant_id", p.id).eq("block_id", s.active_block_id).maybeSingle(); if (re) return reply({ error: "Odpověď se nepodařilo načíst." }, 500); myResponse = (r?.answer as Answer | undefined) ?? null; }
   let myTeamResponse: { text: string; updatedByParticipantId: string | null } | null = null; if (rawBlock?.type === "team_task" && typeof p.team_id === "string" && typeof s.active_block_id === "string") { const { data: r, error: re } = await db.from("team_responses").select("answer,updated_by_participant_id").eq("session_id", sessionId).eq("team_id", p.team_id).eq("block_id", s.active_block_id).maybeSingle(); if (re) return reply({ error: "Týmovou odpověď se nepodařilo načíst." }, 500); const a = r?.answer as Record<string, unknown> | undefined; if (typeof a?.text === "string") myTeamResponse = { text: a.text, updatedByParticipantId: r?.updated_by_participant_id as string | null }; }
   const revealed = Array.isArray(s.revealed_block_ids) ? s.revealed_block_ids.filter((x): x is string => typeof x === "string") : []; const resultsRevealed = typeof s.active_block_id === "string" && revealed.includes(s.active_block_id) && (rawBlock?.type === "poll" || rawBlock?.type === "quiz"); let revealedResults: Record<string, unknown> | null = null;
   if (resultsRevealed && rawBlock && typeof s.active_block_id === "string") { const opts = Array.isArray(rawBlock.options) ? rawBlock.options.filter((x): x is string => typeof x === "string") : []; const { data: rows, error: re } = await db.from("responses").select("answer").eq("session_id", sessionId).eq("block_id", s.active_block_id); if (re) return reply({ error: "Zveřejněné výsledky se nepodařilo načíst." }, 500); const agg = opts.map(option => ({ option, count: 0 })); let total = 0; for (const row of rows ?? []) { const a = row.answer as Record<string, unknown> | null; const choice = typeof a?.choice === "string" ? a.choice : ""; const item = agg.find(x => x.option === choice); if (item) { item.count++; total++; } } revealedResults = { type: rawBlock.type, counts: agg, total }; if (rawBlock.type === "quiz") { const correct = typeof rawBlock.correctAnswer === "string" ? rawBlock.correctAnswer : undefined; const mine = myResponse && "choice" in myResponse ? myResponse.choice : null; revealedResults.correctAnswer = correct; revealedResults.myAnswer = mine; revealedResults.isCorrect = mine && correct ? mine === correct : null; } }
+
+  let scoreboard: { score: number; maxPoints: number; rank: number } | null = null;
+  if (s.status === "live" && s.scoreboard_revealed === true) {
+    const [{ data: scoreResponses, error: scoreResponseError }, { data: evaluationRows, error: evaluationError }] = await Promise.all([
+      db.from("responses").select("participant_id,block_id,answer").eq("session_id", sessionId),
+      db.from("response_evaluations").select("participant_id,team_id,block_id,status,ai_score,teacher_score").eq("session_id", sessionId),
+    ]);
+    if (scoreResponseError || evaluationError) { console.error("Student scoreboard load failed", { scoreResponseError, evaluationError }); return reply({ error: "Průběžné skóre se nepodařilo načíst." }, 500); }
+
+    const responseByParticipantBlock = new Map<string, unknown>(); const activeResponseBlocks = new Set<string>();
+    for (const row of scoreResponses ?? []) { if (typeof row.participant_id !== "string" || typeof row.block_id !== "string") continue; responseByParticipantBlock.set(`${row.participant_id}:${row.block_id}`, row.answer); activeResponseBlocks.add(row.block_id); }
+    const evaluationByParticipantBlock = new Map<string, Evaluation>(); const evaluationByTeamBlock = new Map<string, Evaluation>(); const activeEvaluationBlocks = new Set<string>();
+    for (const raw of evaluationRows ?? []) { const evaluation = raw as Evaluation; if (typeof evaluation.block_id !== "string") continue; activeEvaluationBlocks.add(evaluation.block_id); if (typeof evaluation.participant_id === "string") evaluationByParticipantBlock.set(`${evaluation.participant_id}:${evaluation.block_id}`, evaluation); if (typeof evaluation.team_id === "string") evaluationByTeamBlock.set(`${evaluation.team_id}:${evaluation.block_id}`, evaluation); }
+
+    const scoredBlocks = all
+      .map((block, blockIndex) => ({ block, blockIndex }))
+      .filter(({ block }) => (block.type === "quiz" && blockPoints(block) > 0 && typeof block.correctAnswer === "string" && block.correctAnswer.length > 0) || isAIGradedBlock(block))
+      .filter(({ block, blockIndex }) => blockIndex <= index || (typeof block.id === "string" && (activeResponseBlocks.has(block.id) || activeEvaluationBlocks.has(block.id))));
+    const availableMaxPoints = scoredBlocks.reduce((sum, item) => sum + blockPoints(item.block), 0);
+    const scores = new Map<string, number>();
+
+    for (const rawMember of memberRows ?? []) {
+      const member = rawMember as ScoreParticipant; if (typeof member.id !== "string") continue; let score = 0;
+      for (const { block } of scoredBlocks) {
+        if (typeof block.id !== "string") continue; const points = blockPoints(block);
+        if (block.type === "quiz") { const rawAnswer = responseByParticipantBlock.get(`${member.id}:${block.id}`); const answer = rawAnswer && typeof rawAnswer === "object" ? rawAnswer as Record<string, unknown> : null; const choice = typeof answer?.choice === "string" ? answer.choice : null; if (choice !== null && choice === block.correctAnswer) score += points; continue; }
+        const evaluation = block.type === "team_task" ? (typeof member.team_id === "string" ? evaluationByTeamBlock.get(`${member.team_id}:${block.id}`) : undefined) : evaluationByParticipantBlock.get(`${member.id}:${block.id}`);
+        if (!evaluation || evaluation.status === "pending" || evaluation.status === "grading" || evaluation.status === "failed") continue;
+        const effectiveScore = typeof evaluation.teacher_score === "number" ? evaluation.teacher_score : evaluation.ai_score;
+        if (typeof effectiveScore === "number" && Number.isFinite(effectiveScore)) score += effectiveScore;
+      }
+      scores.set(member.id, score);
+    }
+
+    const myScore = scores.get(p.id) ?? 0; let rank = 1; for (const score of scores.values()) if (score > myScore) rank += 1;
+    scoreboard = { score: myScore, maxPoints: availableMaxPoints, rank };
+  }
+
   const syncedAt = new Date().toISOString(); const timerState = rawBlock?.type === "timer" ? { status: s.timer_status === "running" || s.timer_status === "paused" ? s.timer_status : "idle", remainingSeconds: remaining(s, Date.parse(syncedAt)), syncedAt } : null;
-  return reply({ sessionId: s.id, status: s.status, title: typeof lesson.title === "string" ? lesson.title : "Hodina", participantDisplayName: p.display_name, activeBlock, activeBlockIndex: index >= 0 ? index : null, totalBlocks: all.length, realtimeKey: s.realtime_key, myResponse, resultsRevealed, revealedResults, timer: timerState, teams, myTeam, myTeamResponse });
+  return reply({ sessionId: s.id, status: s.status, title: typeof lesson.title === "string" ? lesson.title : "Hodina", participantDisplayName: p.display_name, activeBlock, activeBlockIndex: index >= 0 ? index : null, totalBlocks: all.length, realtimeKey: s.realtime_key, myResponse, resultsRevealed, revealedResults, timer: timerState, teams, myTeam, myTeamResponse, scoreboard });
 }
 
 async function chooseTeam(b: Record<string, unknown>) {

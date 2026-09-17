@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import styles from '@/components/TeacherScoreboard.module.css';
 
 type ScoreSource = 'quiz' | 'ai' | 'teacher' | 'pending' | 'failed' | 'missing';
@@ -28,10 +28,12 @@ type ScoreboardRow = {
 
 type ScoreboardData = {
   status: 'lobby' | 'live' | 'ended';
+  scoreboardRevealed: boolean;
   hasScoring: boolean;
   availableMaxPoints: number;
   scoredBlockCount: number;
   pendingEvaluations: number;
+  needsReviewEvaluations: number;
   unconfirmedEvaluations: number;
   failedEvaluations: number;
   rows: ScoreboardRow[];
@@ -51,28 +53,32 @@ function sourceLabel(source: ScoreSource) {
 export default function TeacherScoreboard({ sessionId }: { sessionId: string }) {
   const [data, setData] = useState<ScoreboardData | null>(null);
   const [error, setError] = useState('');
+  const [revealBusy, setRevealBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/scoreboard`, { cache: 'no-store' });
+      const body = await response.json() as ScoreboardData & { error?: string };
+      if (!response.ok) throw new Error(body.error || 'Skóre se nepodařilo načíst.');
+      setData(body);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Skóre se nepodařilo načíst.');
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      try {
-        const response = await fetch(`/api/sessions/${sessionId}/scoreboard`, { cache: 'no-store' });
-        const body = await response.json() as ScoreboardData & { error?: string };
-        if (!response.ok) throw new Error(body.error || 'Skóre se nepodařilo načíst.');
-        if (cancelled) return;
-        setData(body);
-        setError('');
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Skóre se nepodařilo načíst.');
-      }
+    const refresh = async () => {
+      if (cancelled) return;
+      await load();
     };
 
-    void load();
-    const timer = window.setInterval(() => { void load(); }, 4000);
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 4000);
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') void load();
+      if (document.visibilityState === 'visible') void refresh();
     };
     document.addEventListener('visibilitychange', onVisibility);
 
@@ -81,7 +87,26 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [sessionId]);
+  }, [load]);
+
+  const setScoreboardVisibility = async (revealed: boolean) => {
+    setRevealBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: revealed ? 'reveal_scoreboard' : 'hide_scoreboard' }),
+      });
+      const body = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(body.error || 'Viditelnost pořadí se nepodařilo změnit.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Viditelnost pořadí se nepodařilo změnit.');
+    } finally {
+      setRevealBusy(false);
+    }
+  };
 
   if (!data || data.status !== 'live' || !data.hasScoring) return null;
 
@@ -89,9 +114,54 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
   const summary = leader
     ? `Skóre · ${leader.displayName} ${leader.score}/${leader.maxPoints}`
     : 'Skóre · bez studentů';
+  const hasRevealWarning = !data.scoreboardRevealed && Boolean(
+    data.pendingEvaluations || data.needsReviewEvaluations || data.unconfirmedEvaluations,
+  );
+  const canReveal = data.availableMaxPoints > 0;
 
   return (
     <aside className={styles.wrap}>
+      <div className={`panel ${styles.revealPanel}`}>
+        <div className={styles.revealHead}>
+          <div>
+            <strong>{data.scoreboardRevealed ? 'Pořadí je zveřejněné' : 'Pořadí je skryté'}</strong>
+            <span>
+              {data.scoreboardRevealed
+                ? 'Studenti vidí jen své vlastní skóre a pořadí.'
+                : canReveal
+                  ? 'Studenti zatím své skóre ani pořadí nevidí.'
+                  : 'Zatím není k dispozici žádný bodovaný blok.'}
+            </span>
+          </div>
+          <button
+            className={data.scoreboardRevealed ? 'secondary' : undefined}
+            type="button"
+            disabled={revealBusy || (!data.scoreboardRevealed && !canReveal)}
+            onClick={() => void setScoreboardVisibility(!data.scoreboardRevealed)}
+          >
+            {revealBusy
+              ? 'Ukládám…'
+              : data.scoreboardRevealed
+                ? 'Skrýt pořadí'
+                : 'Zveřejnit pořadí'}
+          </button>
+        </div>
+
+        {hasRevealWarning ? (
+          <div className={styles.warning} role="status">
+            <strong>Před zveřejněním zkontroluj hodnocení:</strong>
+            <ul>
+              {data.pendingEvaluations ? <li>{data.pendingEvaluations} AI hodnocení ještě čeká.</li> : null}
+              {data.needsReviewEvaluations ? <li>{data.needsReviewEvaluations} AI hodnocení je označeno k ruční kontrole.</li> : null}
+              {data.unconfirmedEvaluations ? <li>{data.unconfirmedEvaluations} AI návrhů zatím není potvrzeno učitelem.</li> : null}
+            </ul>
+            <span>Pořadí můžeš zveřejnit i přesto.</span>
+          </div>
+        ) : null}
+
+        {error ? <p className={styles.controlError}>{error}</p> : null}
+      </div>
+
       <details className={`panel ${styles.panel}`}>
         <summary className={styles.summary}>{summary}</summary>
         <div className={styles.content}>
@@ -102,10 +172,10 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
             {data.failedEvaluations ? <span>{data.failedEvaluations} chyb</span> : null}
           </div>
           <p className="muted-copy" style={{ margin: '0 0 10px' }}>
-            Průběžné pořadí vidí pouze učitel. AI skóre se započítává dočasně; potvrzené nebo upravené skóre učitele má přednost.
+            {data.scoreboardRevealed
+              ? 'Studenti vidí pouze své vlastní skóre a pořadí. Kompletní tabulka, zdroje bodů a stav AI hodnocení zůstávají pouze učiteli.'
+              : 'Průběžné pořadí vidí pouze učitel. AI skóre se započítává dočasně; potvrzené nebo upravené skóre učitele má přednost.'}
           </p>
-
-          {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
 
           {!error && data.rows.length ? (
             <div className={styles.rows}>
