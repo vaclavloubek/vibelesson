@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Nastavte si nové heslo</title>
+    <title>Přihlásit se bez hesla</title>
   </head>
   <body style="margin:0;padding:0;background:#f6f5f1;color:#151721;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Pomocí tohoto odkazu si můžete nastavit nové heslo.</div>
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Jednorázovým odkazem se bezpečně přihlásíte do Syllonautu.</div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f6f5f1;padding:32px 16px;">
       <tr><td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:580px;background:#ffffff;border:1px solid #e2e1dc;border-radius:18px;">
@@ -20,15 +20,15 @@
                 </td>
               </tr>
             </table>
-            <div style="margin:0 0 10px;font-size:10px;line-height:1.4;font-weight:800;letter-spacing:0.11em;text-transform:uppercase;color:#686b74;">Bezpečnost</div>
-            <h1 style="margin:0 0 13px;font-size:28px;line-height:1.15;letter-spacing:-0.03em;color:#151721;font-weight:700;">Nastavte si nové heslo</h1>
-            <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#4f525b;">Obdrželi jsme žádost o změnu hesla k vašemu účtu v Syllonautu. Pomocí tlačítka níže si můžete nastavit nové.</p>
+            <div style="margin:0 0 10px;font-size:10px;line-height:1.4;font-weight:800;letter-spacing:0.11em;text-transform:uppercase;color:#686b74;">Přihlášení</div>
+            <h1 style="margin:0 0 13px;font-size:28px;line-height:1.15;letter-spacing:-0.03em;color:#151721;font-weight:700;">Přihlásit se bez hesla</h1>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#4f525b;">Pomocí tohoto odkazu se bezpečně přihlásíte do Syllonautu. Odkaz je jednorázový.</p>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 26px;">
               <tr><td style="border-radius:10px;background:#5b57e8;">
-                <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;padding:13px 20px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Nastavit nové heslo</a>
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:13px 20px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Přihlásit se</a>
               </td></tr>
             </table>
-            <p style="margin:0;font-size:13px;line-height:1.6;color:#686b74;">Pokud jste o změnu hesla nežádali, nic nemusíte dělat. Vaše současné heslo zůstává beze změny.</p>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#686b74;">Pokud jste o tento odkaz nežádali, zprávu můžete ignorovat.</p>
             <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1dc;">
               <div style="font-size:11px;line-height:1.5;color:#8a8c93;">Syllonaut · AI navigátor pro interaktivní výuku</div>
               <div style="margin-top:3px;font-size:11px;line-height:1.5;color:#8a8c93;">syllonaut.com</div>
