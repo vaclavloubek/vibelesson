@@ -31,21 +31,13 @@ function racePosition(score: number, maxPoints: number) {
   return 12 + progress * 74;
 }
 
-function rocketStyle(row: PresenterRow, maxPoints: number, index: number, finalist: boolean): CSSProperties {
-  const start = `${racePosition(row.score, maxPoints)}%`;
-  const style = {
-    '--rocket-position': start,
-    '--rocket-start': start,
-    '--rocket-end': '88%',
+function rocketStyle(row: PresenterRow, maxPoints: number, index: number): CSSProperties {
+  const position = `${racePosition(row.score, maxPoints)}%`;
+  return {
+    '--rocket-position': position,
+    '--rocket-start': position,
     '--rocket-hue': String((246 + index * 47) % 360),
   } as CSSProperties;
-
-  if (finalist) {
-    const finalDelay = 0.2 + (2 - index) * 1.55;
-    (style as CSSProperties & Record<string, string>)['--final-delay'] = `${finalDelay}s`;
-  }
-
-  return style;
 }
 
 function RocketGlyph() {
@@ -195,7 +187,7 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                 <p className={styles.kicker}>{isFinal ? 'Cíl mise' : 'Aktuální pozice'}</p>
                 <h2>{boardTitle}</h2>
               </div>
-              {isFinal && raceRows.length >= 3 ? <span className={styles.finalSequence}>Finální přistání · 3 → 2 → 1</span> : null}
+              {isFinal ? <span className={styles.finalSequence}>Konečná poloha odpovídá získaným bodům</span> : null}
             </div>
 
             {data.rows.length ? (
@@ -208,26 +200,22 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                     <div className={styles.routeLine} aria-hidden="true" />
 
                     <div className={styles.lanes}>
-                      {raceRows.map((row, index) => {
-                        const finalist = Boolean(isFinal && index < 3);
-                        return (
-                          <div className={styles.lane} key={`${row.displayName}-${index}`}>
-                            <div className={styles.laneLine} aria-hidden="true" />
-                            <div
-                              className={`${styles.rocket} ${finalist ? styles.finalist : ''} ${isFinal && !finalist ? styles.rocketEnded : ''}`}
-                              style={rocketStyle(row, data.maxPoints, index, finalist)}
-                            >
-                              <span className={styles.rocketTag}>
-                                <strong>{row.rank}. {row.displayName}</strong>
-                                <small>{row.score} / {data.maxPoints}</small>
-                              </span>
-                              <span className={styles.rocketGlyph}><RocketGlyph /></span>
-                              {finalist ? <span className={styles.landingBurst} aria-hidden="true" /> : null}
-                              {isFinal && !finalist ? <span className={styles.engineFade} aria-hidden="true" /> : null}
-                            </div>
+                      {raceRows.map((row, index) => (
+                        <div className={styles.lane} key={`${row.displayName}-${index}`}>
+                          <div className={styles.laneLine} aria-hidden="true" />
+                          <div
+                            className={`${styles.rocket} ${isFinal ? styles.rocketEnded : ''}`}
+                            style={rocketStyle(row, data.maxPoints, index)}
+                          >
+                            <span className={styles.rocketTag}>
+                              <strong>{row.rank}. {row.displayName}</strong>
+                              <small>{row.score} / {data.maxPoints}</small>
+                            </span>
+                            <span className={styles.rocketGlyph}><RocketGlyph /></span>
+                            {isFinal ? <span className={styles.engineFade} aria-hidden="true" /> : null}
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className={styles.raceLegend}>
