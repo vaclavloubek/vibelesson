@@ -11,6 +11,23 @@ type Props = {
   onSaved: (answer: StudentAnswer) => void;
 };
 
+const SAVE_TIMEOUT_MS = 8_000;
+const VERIFY_TIMEOUT_MS = 5_000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function sameAnswer(left: StudentAnswer, right: StudentAnswer) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export default function StudentResponseInput({ sessionId, block, response, onSaved }: Props) {
   const initialText = response && 'text' in response ? response.text ?? '' : '';
   const initialRanking = response && 'ranking' in response ? response.ranking : (block.items ?? []);
@@ -42,17 +59,36 @@ export default function StudentResponseInput({ sessionId, block, response, onSav
     setError('');
     setSaved(false);
     try {
-      const result = await fetch(`/api/student/sessions/${sessionId}/response`, {
+      const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blockId: block.id, answer }),
-      });
+      }, SAVE_TIMEOUT_MS);
       const data = await result.json() as { answer?: StudentAnswer; error?: string };
-      if (!result.ok || !data.answer) throw new Error(data.error || 'Odpověď se nepodařilo uložit.');
+      if (!result.ok || !data.answer) {
+        setError(data.error || 'Odpověď se nepodařilo uložit.');
+        return;
+      }
       onSaved(data.answer);
       setSaved(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Odpověď se nepodařilo uložit.');
+    } catch {
+      try {
+        const verification = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, {
+          cache: 'no-store',
+        }, VERIFY_TIMEOUT_MS);
+        const state = await verification.json() as {
+          activeBlock?: { id?: string } | null;
+          myResponse?: StudentAnswer | null;
+        };
+        if (verification.ok && state.activeBlock?.id === block.id && state.myResponse && sameAnswer(state.myResponse, answer)) {
+          onSaved(state.myResponse);
+          setSaved(true);
+          return;
+        }
+      } catch {
+        // The connection is still unavailable. Let the user retry without keeping the UI stuck.
+      }
+      setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
     } finally {
       setBusy(false);
     }

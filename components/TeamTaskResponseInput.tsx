@@ -29,6 +29,16 @@ type TeamEditResult = {
 type RequestResult = TeamEditResult & { responseOk: boolean; status: number };
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved';
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export default function TeamTaskResponseInput({ sessionId, block, teamName, response, onSaved }: Props) {
   const serverText = response?.text ?? '';
   const [text, setText] = useState(serverText);
@@ -52,12 +62,12 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
   }, []);
 
   const request = useCallback(async (action: 'status' | 'claim' | 'heartbeat' | 'save' | 'release', value?: string): Promise<RequestResult> => {
-    const result = await fetch(`/api/student/sessions/${sessionId}/team-edit`, {
+    const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/team-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, blockId: block.id, ...(action === 'save' ? { text: value } : {}) }),
       cache: 'no-store',
-    });
+    }, action === 'save' ? 10_000 : 5_000);
     const data = await result.json() as TeamEditResult;
     return { ...data, responseOk: result.ok, status: result.status };
   }, [block.id, sessionId]);
@@ -151,7 +161,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
         onSaved();
         return true;
       } catch {
-        setError('Týmovou odpověď se nepodařilo uložit.');
+        setError('Spojení se při ukládání přerušilo. Změnu zkusím uložit znovu.');
         setSaveState('dirty');
         return false;
       }

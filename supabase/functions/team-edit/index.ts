@@ -42,6 +42,10 @@ async function broadcastInvalidate(realtimeKey: string) {
   }
 }
 
+function scheduleBroadcastInvalidate(realtimeKey: string) {
+  EdgeRuntime.waitUntil(broadcastInvalidate(realtimeKey));
+}
+
 type Participant = { id: string; display_name: string; team_id: string | null };
 type SessionRow = {
   status: string;
@@ -197,7 +201,7 @@ async function claim(body: Record<string, unknown>, broadcast = true) {
   if (loaded.response) return loaded.response;
   try {
     const result = await claimLock(loaded.context!, loaded.sessionId!);
-    if (broadcast && result.acquired) await broadcastInvalidate(loaded.context!.session.realtime_key);
+    if (broadcast && result.acquired) scheduleBroadcastInvalidate(loaded.context!.session.realtime_key);
     return json({ ok: true, ...result });
   } catch {
     return json({ error: "Editor se nepodařilo zamknout." }, 500);
@@ -241,7 +245,7 @@ async function save(body: Record<string, unknown>) {
     return json({ error: "Týmovou odpověď se nepodařilo uložit." }, 500);
   }
 
-  await broadcastInvalidate(context.session.realtime_key);
+  scheduleBroadcastInvalidate(context.session.realtime_key);
   return json({ ok: true, text, updatedAt: saved.updated_at, lock: claimed.lock });
 }
 
@@ -264,7 +268,7 @@ async function release(body: Record<string, unknown>) {
     return json({ error: "Editor se nepodařilo uvolnit." }, 500);
   }
 
-  await broadcastInvalidate(context.session.realtime_key);
+  scheduleBroadcastInvalidate(context.session.realtime_key);
   return json({ ok: true, lock: null });
 }
 
