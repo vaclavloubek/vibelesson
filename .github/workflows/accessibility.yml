@@ -1,0 +1,66 @@
+name: Accessibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run check:accessibility
+
+  axe-public-routes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Run WCAG 2.2 AA axe checks on public routes
+        shell: bash
+        env:
+          VERCEL_ENV: preview
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+        run: |
+          set -euo pipefail
+          npm run dev > /tmp/syllonaut-a11y-next.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --silent --fail --max-time 2 http://127.0.0.1:3000/ >/dev/null; then
+              npx --yes @axe-core/cli@4 \
+                http://127.0.0.1:3000/ \
+                http://127.0.0.1:3000/join \
+                http://127.0.0.1:3000/new \
+                --tags wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa \
+                --exit
+              exit 0
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat /tmp/syllonaut-a11y-next.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          cat /tmp/syllonaut-a11y-next.log
+          exit 1
