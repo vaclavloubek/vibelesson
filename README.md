@@ -53,3 +53,5 @@ Kosmický slovník je vrstva značky, ne nový odborný žargon. V datovém mode
 Autoritativní repository zůstává `vaclavloubek/vibelesson`, dokud nebude případně přejmenováno samostatným krokem.
 
 Podrobný stav, rozhodnutí a roadmapa jsou v `PROJECT.md`.
+
+<!-- Vercel preview baseline check -->
