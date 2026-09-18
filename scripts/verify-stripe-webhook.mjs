@@ -126,6 +126,22 @@ const invoiceEvent = {
   },
 };
 
+const simulatedSubscriptionEvent = {
+  ...event,
+  id: 'evt_simulated001',
+  data: {
+    object: {
+      id: 'sub_simulated001',
+      object: 'subscription',
+      test_clock: 'clock_simulation001',
+    },
+  },
+};
+assert(
+  normalizeStripeSubscriptionEvent(simulatedSubscriptionEvent, billingRouteForCountry) === null,
+  'test-clock subscription events must never provision real sandbox mappings',
+);
+
 const normalizedInvoice = normalizeStripeInvoiceEvent(invoiceEvent);
 assert(normalizedInvoice?.eventType === 'invoice.payment_failed', 'payment failure should normalize');
 assert(normalizedInvoice?.subscriptionId === 'sub_regression001', 'invoice should retain subscription ID');
