@@ -101,7 +101,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         sessionId,
         'student',
         'student.response',
-        { blockId: block.id, answer: data.answer, submitted: submittedCurrent },
+        { blockId: block.id, answer: data.answer, submitted: submittedCurrent, source: 'primary' },
         operationId,
       );
     } catch {
@@ -127,7 +127,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         sessionId,
         'student',
         'student.response',
-        { blockId: block.id, answer, submitted: responseAction === 'submit' },
+        { blockId: block.id, answer, submitted: responseAction === 'submit', source: 'fallback' },
         operationId,
       );
       const queuedLocally = await enqueueLiveOperation({
