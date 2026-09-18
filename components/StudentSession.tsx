@@ -13,6 +13,7 @@ import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
+import { cacheLiveSnapshot, flushLiveOutbox, loadLiveSnapshot } from '@/lib/live-offline';
 
 type Team = { id: string; name: string; memberCount: number };
 type StudentState = {
@@ -59,13 +60,26 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       disconnectedRef.current = false;
       hasLoadedRef.current = true;
       setState(data);
+      void cacheLiveSnapshot(`student:${sessionId}`, data).catch(() => undefined);
       setError('');
       setConnectionStatus(recovered ? 'restored' : 'connected');
     } catch (err) {
       disconnectedRef.current = true;
       setConnectionStatus('reconnecting');
       if (!hasLoadedRef.current) {
-        setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        try {
+          const cached = await loadLiveSnapshot<StudentState>(`student:${sessionId}`);
+          if (cached) {
+            hasLoadedRef.current = true;
+            setState(cached);
+            setError('');
+            setConnectionStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline-safe' : 'reconnecting');
+          } else {
+            setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+          }
+        } catch {
+          setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        }
       }
     } finally {
       window.clearTimeout(timer);
@@ -101,16 +115,31 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   }, [state?.realtimeKey, refresh]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => { void refresh(); }, 15000);
+    const intervalMs = connectionStatus === 'connected' || connectionStatus === 'restored' ? 20_000 : 5_000;
+    const timer = window.setInterval(() => {
+      if (!navigator.onLine) {
+        if (hasLoadedRef.current) setConnectionStatus('offline-safe');
+        return;
+      }
+      void flushLiveOutbox(sessionId)
+        .catch(() => undefined)
+        .finally(() => { void refresh(); });
+    }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [refresh]);
+  }, [connectionStatus, refresh, sessionId]);
 
   useEffect(() => {
     const handleOffline = () => {
       disconnectedRef.current = true;
-      setConnectionStatus('reconnecting');
+      setConnectionStatus(hasLoadedRef.current ? 'offline-safe' : 'reconnecting');
     };
-    const handleOnline = () => { void refresh(); };
+    const handleOnline = () => {
+      disconnectedRef.current = true;
+      setConnectionStatus('reconnecting');
+      void flushLiveOutbox(sessionId)
+        .catch(() => undefined)
+        .finally(() => { void refresh(); });
+    };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') void refresh();
     };
@@ -123,7 +152,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [refresh]);
+  }, [refresh, sessionId]);
 
   useEffect(() => {
     if (state?.status !== 'live' || !state.activeBlock) {
@@ -211,9 +240,13 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
             </section>
           ) : null}
 
-          {connectionStatus === 'reconnecting' ? (
+          {connectionStatus === 'reconnecting' || connectionStatus === 'offline-safe' ? (
             <div className="panel" role="status" style={{ padding: 12 }}>
-              <p className="muted-copy" style={{ margin: 0 }}>Spojení se přerušilo. Poslední známý stav zůstává na obrazovce a Syllonaut se pokusí hodinu automaticky dosynchronizovat.</p>
+              <p className="muted-copy" style={{ margin: 0 }}>
+                {connectionStatus === 'offline-safe'
+                  ? 'Internet je nedostupný. Poslední známý stav hodiny zůstává k dispozici a nové odpovědi se bezpečně uloží v tomto zařízení pro pozdější synchronizaci.'
+                  : 'Spojení se přerušilo. Poslední známý stav zůstává na obrazovce a Syllonaut se pokusí hodinu automaticky dosynchronizovat.'}
+              </p>
             </div>
           ) : null}
 

@@ -1,12 +1,13 @@
 'use client';
 
-export type StudentConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'restored';
+export type StudentConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'restored' | 'offline-safe';
 
 const STATUS_META: Record<StudentConnectionStatus, { label: string; color: string }> = {
   connecting: { label: 'Navazuji spojení…', color: 'var(--amber)' },
   connected: { label: 'Připojeno', color: 'var(--success)' },
   reconnecting: { label: 'Obnovuji spojení…', color: 'var(--amber)' },
   restored: { label: 'Připojeno znovu', color: 'var(--success)' },
+  'offline-safe': { label: 'Offline · data chráněna', color: 'var(--amber)' },
 };
 
 export default function ConnectionStatusBadge({ status }: { status: StudentConnectionStatus }) {

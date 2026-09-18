@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
+import { LIVE_OUTBOX_FAILED_EVENT, LIVE_OUTBOX_SYNCED_EVENT, queueLiveRequest, removeLiveOutbox } from '@/lib/live-offline';
 
 type Props = {
   sessionId: string;
@@ -39,6 +40,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [submitted, setSubmitted] = useState(responseSubmitted);
   const [text, setText] = useState(initialText);
   const [ranking, setRanking] = useState<string[]>(initialRanking);
@@ -49,6 +51,27 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   useEffect(() => {
     setSubmitted(responseSubmitted);
   }, [responseSubmitted]);
+
+  useEffect(() => {
+    const prefix = `student-response:${sessionId}:${block.id}:`;
+    const synced = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (id?.startsWith(prefix)) setQueued(false);
+    };
+    const failed = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (id?.startsWith(prefix)) {
+        setQueued(false);
+        setError('Lokálně uloženou odpověď se po obnovení spojení nepodařilo přijmout. Zkontroluj aktuální úkol.');
+      }
+    };
+    window.addEventListener(LIVE_OUTBOX_SYNCED_EVENT, synced);
+    window.addEventListener(LIVE_OUTBOX_FAILED_EVENT, failed);
+    return () => {
+      window.removeEventListener(LIVE_OUTBOX_SYNCED_EVENT, synced);
+      window.removeEventListener(LIVE_OUTBOX_FAILED_EVENT, failed);
+    };
+  }, [block.id, sessionId]);
 
   useEffect(() => {
     if (!recentlyMoved) return;
@@ -66,6 +89,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
   async function save(answer: StudentAnswer, responseAction: ResponseAction = 'save') {
     if (busy) return;
+    const outboxId = `student-response:${sessionId}:${block.id}:${responseAction}`;
     setBusy(true);
     setError('');
     setSaved(false);
@@ -85,6 +109,8 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         return;
       }
       const submittedCurrent = Boolean(data.submittedCurrent);
+      void removeLiveOutbox(outboxId).catch(() => undefined);
+      setQueued(false);
       onSaved(data.answer, submittedCurrent);
       if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
       setSaved(true);
@@ -107,7 +133,24 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       } catch {
         // The connection is still unavailable. Let the user retry without keeping the UI stuck.
       }
-      setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
+      try {
+        await queueLiveRequest({
+          id: outboxId,
+          sessionId,
+          kind: 'student-response',
+          url: `/api/student/sessions/${sessionId}/response`,
+          method: 'POST',
+          body: { blockId: block.id, answer, responseAction },
+        });
+        onSaved(answer, false);
+        if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(false);
+        setSaved(true);
+        setQueued(true);
+        setError('');
+        return;
+      } catch {
+        setError('Spojení se při ukládání přerušilo a lokální úložiště není dostupné. Odpověď zatím zůstává jen v tomto formuláři.');
+      }
     } finally {
       setBusy(false);
     }
@@ -139,7 +182,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
             ))}
           </div>
         ) : <div className="error" role="alert">Tento blok nemá žádné možnosti odpovědi.</div>}
-        {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená.</p> : null}
+        {queued ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená v tomto zařízení a odešle se po obnovení spojení.</p> : saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená.</p> : null}
         {error ? <div className="error" role="alert">{error}</div> : null}
       </section>
     );
