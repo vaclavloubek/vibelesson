@@ -33,6 +33,8 @@ type SessionSnapshot = {
     updatedAt: string;
     submittedAnswer?: unknown;
     submittedAt?: string | null;
+    source?: 'primary' | 'fallback';
+    submissionSource?: 'primary' | 'fallback';
   }>;
   teamResponses?: Array<{
     teamId: string;
@@ -43,6 +45,8 @@ type SessionSnapshot = {
     submittedText?: string | null;
     submittedAt?: string | null;
     updatedByParticipantId?: string | null;
+    source?: 'primary' | 'fallback';
+    submissionSource?: 'primary' | 'fallback';
   }>;
   revealedBlockIds: string[];
   scoreboardRevealed?: boolean;
@@ -307,14 +311,19 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     if (!blockId) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
     const existing = snapshot.responses.find((row) => row.participantId === event.actorId && row.blockId === blockId);
     const answer = payload.answer ?? null;
+    const source = payload.source === 'primary' ? 'primary' : 'fallback';
+    const submittedAt = typeof payload.submittedAt === 'string' ? payload.submittedAt : event.createdAt;
+    const updatedAt = typeof payload.updatedAt === 'string' ? payload.updatedAt : event.createdAt;
     const next = {
       participantId: event.actorId,
       blockId,
       answer,
       submitted: payload.submitted === true ? true : existing?.submitted ?? false,
-      updatedAt: event.createdAt,
+      updatedAt,
       submittedAnswer: payload.submitted === true ? answer : existing?.submittedAnswer,
-      submittedAt: payload.submitted === true ? event.createdAt : existing?.submittedAt ?? null,
+      submittedAt: payload.submitted === true ? submittedAt : existing?.submittedAt ?? null,
+      source,
+      submissionSource: payload.submitted === true ? source : existing?.submissionSource,
     };
     return {
       ...snapshot,
@@ -333,15 +342,20 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     const text = typeof payload.text === 'string' ? payload.text.slice(0, 4000) : '';
     if (!teamId || !blockId || !text) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
     const existing = (snapshot.teamResponses ?? []).find((row) => row.teamId === teamId && row.blockId === blockId);
+    const source = payload.source === 'primary' ? 'primary' : 'fallback';
+    const submittedAt = typeof payload.submittedAt === 'string' ? payload.submittedAt : event.createdAt;
+    const updatedAt = typeof payload.updatedAt === 'string' ? payload.updatedAt : event.createdAt;
     const next = {
       teamId,
       blockId,
       text,
       submitted: payload.submitted === true ? true : existing?.submitted ?? false,
-      updatedAt: event.createdAt,
+      updatedAt,
       submittedText: payload.submitted === true ? text : existing?.submittedText ?? null,
-      submittedAt: payload.submitted === true ? event.createdAt : existing?.submittedAt ?? null,
+      submittedAt: payload.submitted === true ? submittedAt : existing?.submittedAt ?? null,
       updatedByParticipantId: event.actorId,
+      source,
+      submissionSource: payload.submitted === true ? source : existing?.submissionSource,
     };
     return {
       ...snapshot,
