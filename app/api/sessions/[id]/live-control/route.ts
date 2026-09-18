@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('id,status,active_block_id,lesson_snapshot,revealed_block_ids,timer_status,timer_started_at,timer_remaining_seconds')
+    .select('id,join_code,status,active_block_id,lesson_snapshot,revealed_block_ids,timer_status,timer_started_at,timer_remaining_seconds')
     .eq('id', id)
     .eq('teacher_id', userId)
     .maybeSingle();
@@ -37,6 +37,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   await bootstrapLiveControl({
     sessionId: id,
+    joinCode: session.join_code,
     revision: 0,
     status: session.status,
     activeBlockId: session.active_block_id,
@@ -56,7 +57,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     teamResponses: (teamResponses ?? []).flatMap((response) => {
       const answer = response.answer as { text?: unknown } | null;
       return typeof answer?.text === 'string'
-        ? [{ teamId: response.team_id, blockId: response.block_id, text: answer.text, submitted: Boolean(response.submitted_at) }]
+        ? [{ teamId: response.team_id, blockId: response.block_id, text: answer.text, submitted: Boolean(response.submitted_at), updatedByParticipantId: null }]
         : [];
     }),
     revealedBlockIds: Array.isArray(session.revealed_block_ids) ? session.revealed_block_ids : [],
