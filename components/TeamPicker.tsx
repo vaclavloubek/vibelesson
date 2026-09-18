@@ -35,10 +35,10 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
         }
         throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
       }
-      void postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId }, operationId);
+      void postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId, source: 'primary' }, operationId);
       onChanged();
     } catch (err) {
-      const fallbackOk = await postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId }, operationId);
+      const fallbackOk = await postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId, source: 'fallback' }, operationId);
       if (fallbackOk) {
         setError('Volba týmu je dočasně uložená v záložní live vrstvě a po obnovení spojení se dosynchronizuje.');
         onChanged();
