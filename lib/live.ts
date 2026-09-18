@@ -68,6 +68,7 @@ export const StudentResponseSubmissionSchema = z.object({
   blockId: z.string().min(1).max(200),
   answer: StudentAnswerSchema,
   responseAction: z.enum(['save', 'submit']).default('save'),
+  operationId: z.string().uuid().optional(),
 });
 
 export const TeamCreateSchema = z.object({
