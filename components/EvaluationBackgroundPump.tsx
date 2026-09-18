@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { trackEvent, type ActivityType } from '@/lib/analytics';
+import { trackEventOnce, type ActivityType } from '@/lib/analytics';
 
 const WAKE_INTERVAL_MS = 8000;
 
@@ -41,7 +41,7 @@ export default function EvaluationBackgroundPump({ sessionId }: { sessionId: str
             (data.activityType === 'open_text' || data.activityType === 'exit_ticket' || data.activityType === 'team_task')
             && (data.status === 'graded' || data.status === 'needs_review')
           ) {
-            trackEvent('ai_grading_completed', {
+            trackEventOnce(`ai-grading:${evaluationId}`, 'ai_grading_completed', {
               activity_type: data.activityType,
               result_state: data.status,
             });
