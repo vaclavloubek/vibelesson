@@ -54,6 +54,31 @@ function json(value: unknown, status = 200) {
   });
 }
 
+function allowedOrigin(request: Request) {
+  const origin = request.headers.get('origin');
+  if (!origin) return null;
+  if (origin === 'https://www.syllonaut.com' || origin === 'https://syllonaut.com') return origin;
+  try {
+    const url = new URL(origin);
+    if (url.protocol === 'https:' && url.hostname.endsWith('.vercel.app')) return origin;
+    if ((url.hostname === 'localhost' || url.hostname === '127.0.0.1') && (url.protocol === 'http:' || url.protocol === 'https:')) return origin;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function cors(response: Response, request: Request) {
+  const origin = allowedOrigin(request);
+  if (!origin) return response;
+  const headers = new Headers(response.headers);
+  headers.set('access-control-allow-origin', origin);
+  headers.set('access-control-allow-headers', 'authorization, content-type');
+  headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
+  headers.set('vary', 'Origin');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 function base64UrlToBytes(value: string) {
   const base64 = value.replaceAll('-', '+').replaceAll('_', '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
   const binary = atob(base64);
@@ -291,7 +316,12 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/health') return json({ ok: true, service: 'syllonaut-live-control' });
+    if (request.method === 'OPTIONS') {
+      const origin = allowedOrigin(request);
+      if (!origin) return new Response(null, { status: 403 });
+      return cors(new Response(null, { status: 204 }), request);
+    }
+    if (url.pathname === '/health') return cors(json({ ok: true, service: 'syllonaut-live-control' }), request);
 
     const route = sessionRoute(url);
     if (!route) return json({ error: 'Not found.' }, 404);
@@ -316,7 +346,9 @@ export default {
       headers.set('x-syllonaut-sub', capability.sub);
     }
 
-    return stub.fetch(new Request(request, { headers }));
+    const response = await stub.fetch(new Request(request, { headers }));
+    if (response.status === 101) return response;
+    return cors(response, request);
   },
 } satisfies ExportedHandler<Env>;
 
