@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 pro release Syllonaut 0.9 — anglické rozhraní a multilingual lesson engine.
+Aktualizováno: 2026-09-18 po synchronizaci paralelních prací: produkční live hardening 0.8.12–0.8.16, dokončený Stripe sandbox lifecycle, aktivní GA4 produktová analytika, rozpracovaná i18n 0.9 a rozhodovací bod Supabase → Neon po ostrých testech 2026-09-21.
 
 **Aktuální produktová verze: 0.9** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka, persistentní ruční přepínač a oddělený jazyk generované lekce. Lekce lze vytvářet v libovolném jazyce podporovaném modelem; UI locale, billing country/currency a lesson language jsou samostatné veličiny. Live student, Presenter, teacher workspace, Pricing, auth, GDPR i metadata jsou locale-aware. Produkční live-control hardening z verze 0.8.16 zůstává zachovaný.
 
@@ -808,69 +808,132 @@ SEC-006 closed; SEC-007 accepted/deferred.
 
 ### Milník A.3 — Pricing / tarifní produktová vrstva
 
-**Veřejný Ceník dokončen; Stripe + DB billing foundation dokončený, prodej záměrně ještě neaktivní.**
+**Veřejný Ceník je dokončen; Stripe + DB billing foundation a hlavní sandbox lifecycle jsou implementované a end-to-end otestované. Ostrý prodej zůstává záměrně vypnutý.**
 
 Hotovo:
 
 - teacher/school segment;
 - monthly/annual;
 - regionální pricing: CZK pro ČR, EUR pro eurozónu, USD pro ostatní;
-- Free signup CTA;
-- paid `Připravujeme`;
-- Teacher Pro premium features;
-- School/Campus obsahují AI grading + folders;
-- responzivní header/hamburger;
+- Free signup CTA; placené CTA zůstává `Připravujeme`;
+- Teacher Pro premium features; School/Campus obsahují AI grading + folders;
 - Stripe sandbox katalog CZK/EUR/USD;
-- admin-only sandbox Checkout Session flow pro Teacher / Teacher Pro s country routingem a Price lookupem z DB;
-- DB plan/price/subscription/event model pro individuální plány;
-- idempotentní service-role provisioning RPC;
-- striktní oddělení sandbox/live entitlementů;
-- zachování ručních entitlement overrides.
+- DB plan/price/customer/subscription/event model pro individuální plány;
+- idempotentní service-role provisioning RPC a striktní oddělení sandbox/live entitlementů;
+- sandbox Checkout pro Teacher / Teacher Pro s country routingem a serverovým Price lookupem;
+- reuse existujícího Stripe Customer, aby opakovaný Checkout nevytvářel duplicitní customer identity;
+- admin-only sanitizovaná Checkout diagnostika;
+- admin-only Stripe Customer Portal pro platební metody, faktury a cancellation;
+- webhook evidence pro `invoice.payment_failed` a `invoice.paid`, přičemž entitlement zůstává subscription-authoritative;
+- Stripe test-clock / simulation eventy jsou izolované od skutečných sandbox mappings;
+- CZ standardní Stripe Checkout i německá Managed Payments větev byly sandboxově ověřeny end-to-end;
+- otestováno cancel-at-period-end, obnovení zrušení, upgrade/downgrade Teacher ↔ Teacher Pro, změna billing období a německá DPH;
+- sandbox nesmí měnit ostré entitlementy a ruční entitlement overrides se zachovávají.
 
 Zbývá před skutečným prodejem:
 
-- doplnit `STRIPE_SECRET_KEY_TEST` do deploymentu a ověřit sandbox Checkout end-to-end;
-- před live prodejem ověřovat skutečnou billing country z `checkout.session.completed`; předem zvolená země nesmí sama rozhodnout live routing;
-- end-to-end sandbox lifecycle (purchase, renew, fail, cancel, upgrade/downgrade);
-- Customer Portal;
-- live Stripe Price IDs a ostré Stripe credentials;
-- organization membership/roles pro Team / School / Campus.
+- live Stripe Price IDs, live credentials a produkční onboarding;
+- finálně ověřovat skutečnou billing country ze Stripe dat; předem zvolená země nesmí sama rozhodnout live routing;
+- produkční acceptance testy webhooků, checkoutu, renewal/failure/cancel/upgrade/downgrade flow;
+- definovat bezpečný country/currency migration flow, pokud zákazník změní fakturační zemi/region;
+- organization membership/roles pro Team / School / Campus;
+- teprve potom aktivovat placené CTA a ostrý prodej.
 
-### Milník A.4 — Privacy / GDPR / analytics readiness
+### Milník A.4 — Privacy / GDPR / produktová analytika
 
-**GDPR/cookies baseline dokončen; GA4 připraveno k aktivaci.**
+**GDPR/cookies baseline je dokončený a GA4 produktová analytika je produkčně aktivní při striktním opt-in.**
 
 Hotovo:
 
 - GDPR stránka + správce + funkční privacy kontakt;
-- consent-gated GA4 loader;
-- analytics opt-in/withdrawal;
+- consent-gated GA4 loader a analytics opt-in/withdrawal;
 - marketing consent audit/self-service withdrawal;
 - privacy regression checks;
-- ověřená e-mailová infrastruktura pro auth i privacy kontakt.
+- produkční GA4 stream `G-1BVLNYB3HV`;
+- produkčně ověřený GA4 collect request s HTTP 204 a vznik `_ga` cookies pouze po souhlasu;
+- typed analytics helper v `lib/analytics.ts`;
+- Enhanced Measurement pageviews;
+- privacy-safe produktové eventy pro CTA/pricing/signup/login, generation/revision, folders, live/session/student engagement, reports/CSV a grading;
+- `ANALYTICS.md` + regression checks;
+- GA4 property `554871574`;
+- batch setup skript `scripts/setup-ga4.mjs` a vytvořených 15 custom dimensions pro produktovou analýzu.
 
 Zbývá:
 
-- vytvořit/napojit GA4 property a web data stream;
-- nastavit `NEXT_PUBLIC_GA_MEASUREMENT_ID` v Production/Preview podle zvolené strategie;
-- zavést a zdokumentovat produktové eventy;
-- ověřit eventy v GA4 DebugView/Realtime;
-- definovat klíčové eventy/conversions až podle skutečných produktových funnelů;
+- nasbírat reálný provoz a průběžně ověřovat data v Realtime/Explorations;
+- podle skutečných funnelů označit smysluplné key events/conversions;
+- doladit reporting až podle reálného používání, nikoli podle prázdné beta property;
 - nepřenášet do analytiky e-mail, jméno, lesson text, student answers ani jiné PII/content payloady.
+
+### Milník A.5 — Lokalizace / multilingual lessons 0.9
+
+**Rozpracováno mimo produkční `main` na `feature/i18n-0.9`, PR #60. PR je k 2026-09-18 mergeable/clean, ale nesmí se sloučit před dokončením Preview E2E a finálním sladěním s aktuálním `main`.**
+
+Schválený produktový model:
+
+- návštěvník v ČR/SR dostane české UI, ostatní anglické;
+- ruční volba jazyka UI přebíjí geolokaci a je persistentní;
+- měna ceníku/billing routing je na jazyku UI nezávislá;
+- při tvorbě lekce musí být přímo viditelné, že zadání lze psát v potřebném/libovolném jazyce;
+- jazyk lekce podporuje volbu **Automaticky podle zadání** i explicitně zvolený jazyk;
+- zvolený/odvozený jazyk lekce se zachovává při AI revizích.
+
+Na větvi je implementováno:
+
+- locale routing a persistentní CZ/EN;
+- lokalizace auth, cookies, tvorby lekce, knihovny, live UI, gradingu, Presenteru, join/student částí a Pricingu;
+- lesson-language engine a metadata;
+- zachování současných Stripe/Customer Portal změn z `main`;
+- build, `npm run check` a accessibility kontroly byly na posledním ověření zelené.
+
+Před vydáním 0.9 zbývá:
+
+- dokončit/ověřit zbylé systémové stránky včetně GDPR/privacy;
+- znovu sladit větev s nejnovějším `main`;
+- kompletní Preview E2E pro české i anglické UI a multilingual lesson flow;
+- teprve poté merge a vydání 0.9.
 
 ### Milník B — live hodina
 
-**Hlavní MVP dokončeno.**
+**Hlavní MVP je dokončené; produkce je na 0.8.16 a po incidentech Supabase prošla další least-privilege a recovery hardening fází.**
 
-Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables. Verze 0.8 přidává session-scoped Teacher recovery, automatický primary/Cloudflare command race, Presenter fallback, bezpečné timeout UX a server-driven AI grading s DB retry.
+Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity a data tables.
 
-P2 Cloudflare Worker/Durable Object mirroring zůstává aktivní; migration `20260918093706_allow_live_reconciliation_trigger_bypass` řeší snapshot convergence přes SEC-005 guardy. 0.8 navíc chrání teacher navigaci client-side preflightem, takže správnost základního failoveru není závislá jen na okamžitém nasazení nové Worker validace.
+Resilience/hardening 0.8–0.8.16:
 
-Zbývá:
+- session-scoped Teacher recovery;
+- paralelní primary + Cloudflare command race;
+- server-driven AI grading s DB retry;
+- Cloudflare Worker/Durable Object mirroring a bezpečná snapshot reconciliation přes migraci `20260918093706_allow_live_reconciliation_trigger_bypass`;
+- resume ticket lze použít jen při skutečném selhání primárního auth lookupu; běžné odhlášení nesmí fallback obejít;
+- service worker necachuje redirectovanou odpověď ani odpověď pro jinou cestu;
+- rotace live cache epoch na `syllonaut-live-shell-v2` maže před-hardeningové live cache;
+- Worker `0.8.14` / protocol `2` má samostatnou `presenter` capability pouze pro read-only state/WebSocket a explicitně zakazuje Presenter zápis do `/events`;
+- Presenter browser od 0.8.16 ukládá a používá samostatný presenter token a pro fallback už nepoužívá teacher capability.
 
-- po nasazení 0.8 udělat cílený end-to-end test primární → fallback → recovery a následný chaos test A–G;
-- hybridní scoring v post-session reportu/CSV;
-- případné další statistiky.
+Plánované pokračování hardeningu:
+
+1. do ostrého pondělního testu držet funkční freeze na 0.8.16 mimo kritické opravy;
+2. 2026-09-21 provést reálný acceptance test bez umělého vyvolávání výpadků a sledovat Teacher/Presenter, student writes, AI grading, `live_control_revision` a případný primary → fallback → recovery;
+3. bezprostředně po testu udělat post-session audit relevantních logů a dat;
+4. poté cílené disposable chaos scénáře A–G;
+5. následně automatizovat/standardizovat deployment Cloudflare Workeru, aby nevznikala verze aplikace nekompatibilní s Worker protokolem;
+6. doplnit cílenou observability pro primary/fallback/recovery, capabilities a reconciliation;
+7. oddělit `LIVE_RESUME_SECRET` od ostatních serverových secretů jako další least-privilege krok.
+
+### Milník B.1 — Supabase provozní rozhodovací bod
+
+V posledních dnech se projevily provider-level problémy Supabase Auth/API, které zasáhly live výuku navzdory tomu, že samotný projekt/databáze nebyly zdrojem incidentu. K 2026-09-18 Supabase stále hlásí degraded performance API Gateway a pokračující rollout opravy intermittent JWT 401 rejection.
+
+Rozhodnutí:
+
+- nyní žádná databázová migrace ani paralelní přepis;
+- nejprve vyhodnotit ostré testy 2026-09-21 a aktuální stav Supabase;
+- pokud bude Auth/API po testech stabilní, zůstat na současné architektuře a pokračovat v hardeningu;
+- pokud budou problémy pokračovat, zahájit **read-only migrační audit Supabase → Neon**;
+- první audit má projít tabulky, SQL funkce/RPC, triggery, RLS, Auth vazby, Realtime dependency, billing provisioning a migrační/cutover rizika bez změny produkce;
+- cílový kandidát je Neon/Postgres; live realtime/control plane by v případné cílové architektuře zůstal oddělený přes Cloudflare Durable Objects;
+- žádný cutover bez Preview/staging migrace, E2E a rollback plánu.
 
 ### Milník C — Accessibility / inclusive authoring
 
@@ -920,7 +983,7 @@ Zbývá do dalších verzí:
 - templates/favorites/search;
 - user export/delete;
 - skutečné školní/organizační účty, membership a správa rolí;
-- billing/checkout/subscription lifecycle;
+- live billing activation po produkčním acceptance a organization membership;
 - OCR;
 - produktová analytika GA4: další funnel/reporting a vyhodnocení jazykových dimenzí.
 
@@ -966,6 +1029,11 @@ Bezpečnostní a produktové změny:
 - `f6ff9f3` — WCAG/ATAG accessibility remediation + accessibility CI/release baseline
 
 Další významné změny 2026-09-18:
+
+- `278200f2` — privacy-safe GA4 product analytics + funnel/event taxonomy;
+- `329c5526` — oprava GA4 `gtag` command queue semantics;
+- `d287aec7` — idempotentní GA4 Admin batch setup pro property `554871574`;
+- `PR #60` / `feature/i18n-0.9` — rozpracovaná verze 0.9: CZ/EN UI + multilingual lesson language; k 2026-09-18 mergeable/clean, zatím mimo `main`;
 
 - `4104941` — cookie consent, GDPR page, marketing opt-in a privacy regression checks;
 - `93932cf` — doplnění identity správce GDPR;
@@ -1033,16 +1101,18 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-015 je dokončen a dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený a ověřený; GA4 je připravené v kódu, ale zatím bez produkčního Measurement ID a bez vlastní eventové taxonomie.
+Security audit SEC-001 až SEC-015 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. Stripe sandbox lifecycle je ve výrazně pokročilém stavu, ale ostrý prodej zůstává vypnutý. Produkční live vrstva je na 0.8.16 / Worker 0.8.14 protocol 2. Lokalizace 0.9 je rozpracovaná mimo `main`.
 
-Nejbližší smysluplné produktové priority:
+Nejbližší priority v tomto pořadí:
 
-1. ověřit 0.8 v nejbližší reálné výuce jako produkční acceptance test: bez umělého vyvolávání výpadků sledovat Teacher/Presenter, studentské zápisy, AI grading, `live_control_revision` a případné automatické primary → fallback → recovery; cílené chaos scénáře A–G doplnit až následně, pokud je reálná výuka sama neprověří;
-2. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
-3. pokračovat ve sběru a zapracování beta feedbacku;
-4. doplnit hybridní scoring do post-session reportu/CSV;
-5. doplnit sandbox Checkout API key, otestovat nákup CZ i zahraničí z aplikace a následně doplnit live country verification + celý subscription lifecycle;
-6. navrhnout organization membership/role model pro Team/School/Campus;
-7. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
+1. do pondělní ostré výuky držet 0.8.16 funkčně stabilní; nedělat zbytečné zásahy do live/auth/databázové vrstvy;
+2. 2026-09-21 provést reálný acceptance test a bezprostřední post-session audit Teacher/Presenter/student writes/AI grading/fallback-recovery;
+3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
+4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
+5. dokončit Preview E2E a merge i18n 0.9 až po sladění s nejnovějším `main`;
+6. dokončit live Stripe onboarding/credentials/country verification a produkční billing acceptance; placená CTA zapnout až poté;
+7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions;
+8. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
+9. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
-Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán).
+Security výjimky SEC-002/007 znovu otevřít při změně předpokladů. Případný odchod od Supabase by zároveň odstranil dnešní SEC-002 architektonický důvod pro sdílený Supabase trust boundary, ale nesmí se předjímat před pondělním rozhodovacím bodem.
