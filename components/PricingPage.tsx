@@ -159,7 +159,10 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
       </div>
 
       <ul className={styles.features}>
-        {plan.features.map((feature) => <li key={feature}>{feature}</li>)}
+        {plan.features.map((feature) => {
+          const premiumHook = feature.startsWith('AI hodnocení') || feature.startsWith('Složky a podsložky');
+          return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}</li>;
+        })}
       </ul>
 
       {plan.free ? (

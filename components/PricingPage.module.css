@@ -230,6 +230,20 @@
   font-weight: 900;
 }
 
+.features li.premiumFeature {
+  color: var(--ink);
+  font-weight: 740;
+  letter-spacing: -.01em;
+}
+
+.features li.premiumFeature::before {
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+}
+
 .activeCta,
 .disabledCta {
   width: 100%;
