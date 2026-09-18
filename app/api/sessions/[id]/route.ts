@@ -272,6 +272,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           operationId: action.operationId,
           payload: {
             action: action.action,
+            source: 'primary',
             ...('expectedActiveBlockId' in action ? { expectedActiveBlockId: action.expectedActiveBlockId } : {}),
           },
         }),
