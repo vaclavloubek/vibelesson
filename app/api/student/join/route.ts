@@ -66,7 +66,7 @@ export async function POST(req: Request) {
           role: 'student',
           subject: data.participantId!,
           type: 'student.joined',
-          payload: { displayName: body.displayName },
+          payload: { displayName: body.displayName, source: 'primary' },
         });
       });
     }
