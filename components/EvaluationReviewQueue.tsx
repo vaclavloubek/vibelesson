@@ -1,7 +1,7 @@
 'use client';
 
 import { trackEvent, type ActivityType } from '@/lib/analytics';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
 type GradingMode = 'ai' | 'manual';
@@ -87,9 +87,14 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
       if (!response.ok) throw new Error(data.error || 'Hodnocení se nepodařilo uložit.');
       const activityType = gradableActivityType(evaluation.blockType);
       if (activityType) {
-        if (evaluation.manualOnly || evaluation.aiScore === null) {
+        if ((evaluation.manualOnly || evaluation.aiScore === null) && !evaluation.teacherConfirmed) {
           trackEvent('manual_grading_completed', { activity_type: activityType });
-        } else if (score !== evaluation.aiScore) {
+        } else if (
+          !evaluation.manualOnly
+          && evaluation.aiScore !== null
+          && score !== evaluation.aiScore
+          && score !== evaluation.teacherScore
+        ) {
           trackEvent('teacher_grade_override', { activity_type: activityType });
         }
       }
@@ -258,7 +263,6 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   const [loaded, setLoaded] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const trackedAiEvaluationsRef = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -268,17 +272,6 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         const data = await response.json() as { evaluations?: QueueEvaluation[]; activeBlockId?: string | null; error?: string };
         if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || 'Hodnocení se nepodařilo načíst.');
         if (cancelled) return;
-        for (const evaluation of data.evaluations) {
-          if (evaluation.manualOnly || (evaluation.status !== 'graded' && evaluation.status !== 'needs_review')) continue;
-          if (trackedAiEvaluationsRef.current.has(evaluation.id)) continue;
-          const activityType = gradableActivityType(evaluation.blockType);
-          if (!activityType) continue;
-          trackedAiEvaluationsRef.current.add(evaluation.id);
-          trackEvent('ai_grading_completed', {
-            activity_type: activityType,
-            result_state: evaluation.status,
-          });
-        }
         setEvaluations(data.evaluations);
         setActiveBlockId(typeof data.activeBlockId === 'string' ? data.activeBlockId : null);
         setError('');
