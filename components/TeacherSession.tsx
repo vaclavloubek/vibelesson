@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
+  fetchLiveControlState,
   postLiveControlEvent,
   saveLiveControlAccess,
   type LiveControlAccess,
@@ -63,6 +64,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [joinUrl, setJoinUrl] = useState('');
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const hasSessionRef = useRef(false);
+  const sessionRef = useRef<TeacherSessionData | null>(null);
   const reconciliationRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -74,10 +76,81 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         const data = await response.json() as { session?: TeacherSessionData; error?: string };
         if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
         hasSessionRef.current = true;
+        sessionRef.current = data.session;
         setSession(data.session);
         setError('');
       } catch (err) {
-        if (!hasSessionRef.current) setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        const live = await fetchLiveControlState(sessionId, 'teacher');
+        if (live) {
+          const snapshot = live.snapshot;
+          const current = sessionRef.current;
+          const lesson = snapshot.lessonSnapshot as unknown as Lesson;
+          const activeBlockId = snapshot.activeBlockId;
+          const participantNames = new Map(snapshot.participants.map((participant) => [participant.id, participant.displayName]));
+          const rawTimer = snapshot.timer && typeof snapshot.timer === 'object'
+            ? snapshot.timer as { status?: unknown; startedAt?: unknown; remainingSeconds?: unknown }
+            : null;
+          let timer: LiveTimerState | null = null;
+          if (rawTimer && (rawTimer.status === 'idle' || rawTimer.status === 'running' || rawTimer.status === 'paused')) {
+            let remainingSeconds = typeof rawTimer.remainingSeconds === 'number' ? Math.max(0, rawTimer.remainingSeconds) : 0;
+            if (rawTimer.status === 'running' && typeof rawTimer.startedAt === 'string') {
+              remainingSeconds = Math.max(0, remainingSeconds - Math.max(0, Math.floor((Date.now() - Date.parse(rawTimer.startedAt)) / 1000)));
+            }
+            timer = { status: rawTimer.status, remainingSeconds, syncedAt: new Date().toISOString() };
+          }
+
+          const recovered: TeacherSessionData = {
+            id: sessionId,
+            lessonId: current?.lessonId ?? null,
+            joinCode: snapshot.joinCode ?? current?.joinCode ?? '',
+            status: snapshot.status,
+            activeBlockId,
+            lessonSnapshot: lesson,
+            realtimeKey: current?.realtimeKey ?? '',
+            createdAt: current?.createdAt ?? snapshot.updatedAt,
+            startedAt: current?.startedAt ?? (snapshot.status === 'lobby' ? null : snapshot.updatedAt),
+            endedAt: snapshot.status === 'ended' ? snapshot.updatedAt : current?.endedAt ?? null,
+            resultsRevealed: Boolean(activeBlockId && snapshot.revealedBlockIds.includes(activeBlockId)),
+            timer,
+            participants: snapshot.participants.map((participant) => ({
+              id: participant.id,
+              displayName: participant.displayName,
+              joinedAt: current?.participants.find((row) => row.id === participant.id)?.joinedAt ?? snapshot.updatedAt,
+              teamId: participant.teamId,
+            })),
+            teams: snapshot.teams.map((team, index) => ({
+              id: team.id,
+              name: team.name,
+              sortOrder: team.sortOrder ?? index,
+            })),
+            responses: snapshot.responses
+              .filter((response) => response.blockId === activeBlockId)
+              .map((response) => ({
+                participantId: response.participantId,
+                displayName: participantNames.get(response.participantId) ?? 'Student',
+                answer: response.answer as StudentAnswer,
+                updatedAt: snapshot.updatedAt,
+              })),
+            teamResponses: (snapshot.teamResponses ?? [])
+              .filter((response) => response.blockId === activeBlockId)
+              .map((response) => ({
+                teamId: response.teamId,
+                text: response.text,
+                updatedByParticipantId: response.updatedByParticipantId ?? null,
+                updatedByDisplayName: response.updatedByParticipantId
+                  ? participantNames.get(response.updatedByParticipantId) ?? 'Student'
+                  : null,
+                updatedAt: snapshot.updatedAt,
+              })),
+          };
+
+          hasSessionRef.current = true;
+          sessionRef.current = recovered;
+          setSession(recovered);
+          setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu.');
+        } else if (!hasSessionRef.current) {
+          setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        }
       } finally {
         refreshInFlightRef.current = null;
       }
