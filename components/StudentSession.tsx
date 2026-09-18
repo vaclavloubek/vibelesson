@@ -346,6 +346,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                     sessionId={sessionId}
                     block={state.activeBlock}
                     teamName={state.myTeam.name}
+                    teamId={state.myTeam.id}
                     response={state.myTeamResponse}
                     onSaved={() => void refresh()}
                   />
