@@ -189,7 +189,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
           {canRefresh ? (
             <div className="actions" style={{ marginTop: 10 }}>
               <button className="secondary" type="button" disabled={regrading} onClick={() => { void refreshSubmission(); }}>
-                {regrading ? 'Připravuji…' : 'Připravit novou verzi k hodnocení'}
+                {regrading ? ui('Připravuji…', 'Preparing…') : ui('Připravit novou verzi k hodnocení', 'Prepare newer version for grading')}
               </button>
             </div>
           ) : (
@@ -207,12 +207,12 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
         <>
           <p className="muted-copy" style={{ margin: '8px 0 0' }}>
             {evaluation.teacherConfirmed
-              ? 'Potvrzeno učitelem.'
+              ? ui('Potvrzeno učitelem.', 'Confirmed by teacher.')
               : evaluation.manualOnly
-                ? 'Čeká na ruční hodnocení.'
+                ? ui('Čeká na ruční hodnocení.', 'Waiting for manual grading.')
                 : evaluation.status === 'needs_review'
-                  ? 'Ke kontrole kvůli nižší jistotě AI.'
-                  : 'AI návrh čeká na potvrzení.'}
+                  ? ui('Ke kontrole kvůli nižší jistotě AI.', 'Needs review because AI confidence is lower.')
+                  : ui('AI návrh čeká na potvrzení.', 'AI suggestion is waiting for confirmation.')}
             {!evaluation.manualOnly && confidence !== null ? (english ? ` AI confidence: ${confidence}%.` : ` Jistota AI: ${confidence} %.`) : ''}
           </p>
           {evaluation.teacherConfirmed && evaluation.teacherNote ? (
@@ -227,7 +227,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
                   <div className="item" key={criterion.id} style={{ padding: 10 }}>
                     <div className="teacher-response-item-head">
                       <strong>{criterion.title}</strong>
-                      <strong>{criterion.maxPoints} b.</strong>
+                      <strong>{criterion.maxPoints} {ui('b.', 'pts')}</strong>
                     </div>
                     <p className="muted-copy" style={{ margin: '4px 0 0' }}>{criterion.description}</p>
                   </div>

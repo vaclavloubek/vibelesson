@@ -35,6 +35,7 @@ const [
   presenterRoute,
   presenterMode,
   liveBlock,
+  evaluationReviewQueue,
 ] = await Promise.all([
   source('lib/i18n.ts'),
   source('proxy.ts'),
@@ -49,6 +50,7 @@ const [
   source('app/api/sessions/[id]/presenter/route.ts'),
   source('components/PresenterMode.tsx'),
   source('components/LiveBlock.tsx'),
+  source('components/EvaluationReviewQueue.tsx'),
 ]);
 
 requireText(i18n, "UI_LOCALES = ['cs', 'en']", 'supported UI locales must remain Czech and English.');
@@ -93,5 +95,8 @@ requireText(presenterMode, 'lessonLanguage: string | null;', 'Presenter state mu
 requireText(presenterMode, 'lang={data.lessonLanguage ?? undefined}', 'Presenter content must expose lesson language in the DOM.');
 requireText(liveBlock, 'contentLanguage?: string | null;', 'live lesson block must accept content language.');
 requireText(liveBlock, "dir={contentLanguage ? 'auto' : undefined}", 'lesson content must preserve automatic text direction for RTL languages.');
+requireText(evaluationReviewQueue, "ui('Připravit novou verzi k hodnocení', 'Prepare newer version for grading')", 'evaluation regrade action must remain localized.');
+requireText(evaluationReviewQueue, "ui('Potvrzeno učitelem.', 'Confirmed by teacher.')", 'evaluation review states must remain localized.');
+requireText(evaluationReviewQueue, "ui('b.', 'pts')", 'grading criterion point suffix must remain localized.');
 
 console.log('i18n source checks passed.');
