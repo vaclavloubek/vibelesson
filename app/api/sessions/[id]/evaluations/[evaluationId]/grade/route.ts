@@ -137,6 +137,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
     return NextResponse.json({
       evaluationId,
+      activityType: block.type,
       status: result.needsReview ? 'needs_review' : 'graded',
       score: result.score,
       maxPoints: result.maxPoints,
