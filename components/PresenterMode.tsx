@@ -180,11 +180,11 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
   const presenterOpenedTrackedRef = useRef(false);
 
   const ensureLiveAccess = useCallback(async () => {
-    if (getLiveControlAccess(sessionId, 'teacher')) return true;
+    if (getLiveControlAccess(sessionId, 'presenter')) return true;
 
     try {
       const response = await fetchWithTimeout(
-        `/api/sessions/${sessionId}/live-control`,
+        `/api/sessions/${sessionId}/live-control?role=presenter`,
         { cache: 'no-store' },
         4_500,
       );
@@ -194,20 +194,20 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
         degraded?: boolean;
       };
       if (!body.liveControl) return false;
-      saveLiveControlAccess(sessionId, 'teacher', body.liveControl);
+      saveLiveControlAccess(sessionId, 'presenter', body.liveControl);
       setCapabilityVersion((current) => current + 1);
       if (body.degraded) setConnectionMode('fallback');
       return true;
     } catch {
-      return Boolean(getLiveControlAccess(sessionId, 'teacher'));
+      return Boolean(getLiveControlAccess(sessionId, 'presenter'));
     }
   }, [sessionId]);
 
   const loadFallback = useCallback(async () => {
-    const accessReady = getLiveControlAccess(sessionId, 'teacher') || await ensureLiveAccess();
+    const accessReady = getLiveControlAccess(sessionId, 'presenter') || await ensureLiveAccess();
     if (!accessReady) return false;
 
-    const live = await fetchLiveControlState(sessionId, 'teacher');
+    const live = await fetchLiveControlState(sessionId, 'presenter');
     if (!live) return false;
 
     const recoveredData = presenterFromLiveControl(live);
@@ -260,7 +260,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
   }, [ensureLiveAccess, load]);
 
   useEffect(() => {
-    const socket = connectLiveControl(sessionId, 'teacher', () => {
+    const socket = connectLiveControl(sessionId, 'presenter', () => {
       void loadFallback();
     });
     if (!socket) return;
