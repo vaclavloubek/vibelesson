@@ -176,7 +176,7 @@ export async function createLesson(
     providerOptions: {
       gateway: materials
         ? { only: ['bedrock', 'azure'], sort: 'cost', zeroDataRetention: true }
-        : { only: ['openai'], zeroDataRetention: true },
+        : { sort: 'cost', zeroDataRetention: true },
     },
     system: baseRules,
     prompt: `Vytvoř interaktivní lekci podle tohoto zadání:\n\n${input.prompt.trim() || 'Učitel nepřidal další volný popis; vyjdi z parametrů a podkladů.'}\n\nCílová skupina: ${input.audience}\nPožadovaná délka: ${input.duration} minut\nVelikost týmu: ${input.groupSize}\nTón: ${input.tone}${materialInstruction}\n\nLekce má působit jako hotová interaktivní aplikace, ne jako osnovy pro učitele.`,
@@ -190,7 +190,7 @@ export async function reviseLesson(lesson: Lesson, instruction: string) {
   const { output, providerMetadata } = await generateText({
     model,
     output: Output.object({ schema: AILessonSchema }),
-    providerOptions: { gateway: { only: ['openai'], zeroDataRetention: true } },
+    providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
     system: baseRules,
     prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění.\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
   });
@@ -202,7 +202,7 @@ export async function reviseBlock(block: LessonBlock, instruction: string, lesso
   const { output, providerMetadata } = await generateText({
     model,
     output: Output.object({ schema: AILessonBlockSchema }),
-    providerOptions: { gateway: { only: ['openai'], zeroDataRetention: true } },
+    providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
     system: baseRules,
     prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
   });
