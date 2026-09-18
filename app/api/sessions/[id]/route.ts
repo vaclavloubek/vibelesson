@@ -270,7 +270,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           subject: userId,
           type: 'teacher.command',
           operationId: action.operationId,
-          payload: { action: action.action },
+          payload: {
+            action: action.action,
+            ...('expectedActiveBlockId' in action ? { expectedActiveBlockId: action.expectedActiveBlockId } : {}),
+          },
         }),
       ]);
     });
