@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
+import SiteFooter from '@/components/SiteFooter';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
@@ -253,10 +254,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
         </div>
       </section>
 
-      <footer className={landing.footer}>
-        <span>© 2026 Syllonaut</span>
-        <span>AI navigátor pro interaktivní výuku.</span>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import PasswordField from '@/components/PasswordField';
@@ -144,6 +144,7 @@ export default function AuthControls({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [turnstileReady, setTurnstileReady] = useState(false);
@@ -151,6 +152,7 @@ export default function AuthControls({
   const [captchaVersion, setCaptchaVersion] = useState(0);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const marketingConsentId = useId();
 
   async function loadQuota(nextUser: User | null) {
     if (!nextUser) {
@@ -307,6 +309,9 @@ export default function AuthControls({
       options: {
         emailRedirectTo: authRedirectOrigin(),
         captchaToken: token,
+        data: {
+          marketing_email_consent: marketingConsent,
+        },
       },
     });
     setBusy(false);
@@ -439,6 +444,18 @@ export default function AuthControls({
                 <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label="Heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <PasswordField label="Heslo znovu" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <div className="auth-marketing-consent">
+                  <input
+                    id={marketingConsentId}
+                    type="checkbox"
+                    checked={marketingConsent}
+                    onChange={(event) => setMarketingConsent(event.target.checked)}
+                  />
+                  <label htmlFor={marketingConsentId}>
+                    Chci dostávat e-mailem novinky, případové studie a občasné nabídky Syllonautu. Souhlas je dobrovolný
+                    a můžu ho kdykoli odvolat. <a href="/gdpr" target="_blank" rel="noreferrer">Více o zpracování údajů.</a>
+                  </label>
+                </div>
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
                 <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Vytvářím účet…' : 'Vytvořit účet'}</button>
               </form>
