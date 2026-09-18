@@ -217,7 +217,7 @@ export default function PricingPage({
   const [audience, setAudience] = useState<Audience>('teachers');
   const [billing, setBilling] = useState<Billing>('monthly');
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
-  const [checkoutCountry, setCheckoutCountry] = useState(() => {
+  const [checkoutCountry, setCheckoutCountry] = useState<string>(() => {
     const candidate = initialCountry?.toUpperCase() ?? '';
     if (isSupportedCountryCode(candidate)) return candidate;
     if (currency === 'czk') return 'CZ';
