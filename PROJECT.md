@@ -1,10 +1,10 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-17 po dokončení bezpečnostního auditu SEC-001 až SEC-015, zavedení veřejného Ceníku, prémiových složek/podsložek, nového folder UX, responzivní navigace a rozsáhlé accessibility/ATAG remediace.
+Aktualizováno: 2026-09-18 po dokončení GDPR/cookies/privacy baseline, migraci e-mailové domény Syllonautu na kořenové `syllonaut.com`, ověření Supabase Auth SMTP end-to-end a paralelním zpřesnění live resilience reconciliation.
 
 Aktuální produkční `main` před touto dokumentační aktualizací:
 
-`f6ff9f354960b6a30e8e9cde62fcca80eab16cc7` — **Improve accessibility and ATAG authoring support**.
+`6d72267578e7f51ca0d23fef7b617c72c5edfb5f` — **Refine live resilience reconciliation**.
 
 Vercel deployment tohoto HEAD je úspěšný. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
@@ -32,6 +32,8 @@ Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; ten
 - Zod 4.1
 - Vercel AI SDK 7 + Vercel AI Gateway
 - Supabase Auth + Postgres + RLS + Realtime
+- Resend pro transakční/auth e-maily; ověřená odesílací doména `syllonaut.com`
+- Spaceship Email Forwarding pro příjem `vaclav@syllonaut.com` → cílový Gmail
 - AI model: `openai/gpt-5.6-sol`
 - Vercel projekt: `edupilot2` (legacy technický název), plán Pro
 - autoritativní branch: `main`
@@ -286,7 +288,7 @@ Složky jsou osobní pro ownera; nejde zatím o sdílený školní/team filesyst
 
 Ukázková lekce **„Mediální mise – Jak přežít internet a neztratit důstojnost“** je seeddovaná/duplikovaná pod uživatelský účet jako běžná vlastní lesson.
 
-## 9. Auth — stav 2026-09-17
+## 9. Auth — stav 2026-09-18
 
 Implementováno:
 
@@ -312,7 +314,11 @@ Hosted Supabase Auth hardening:
 - redirect allowlist přesně `https://www.syllonaut.com`;
 - password minimum 8 znaků;
 - Turnstile aktivní;
-- Resend SMTP/doména ověřené;
+- Resend SMTP/domain ověřené na kořenové doméně `syllonaut.com`;
+- stará Resend doména `auth.syllonaut.com` byla odstraněna;
+- Supabase Custom SMTP používá sender `Syllonaut <noreply@syllonaut.com>`;
+- pro Supabase SMTP je použit samostatný Resend API credential omezený pouze na odesílání z `syllonaut.com`;
+- reset hesla byl 2026-09-18 ověřen end-to-end: Supabase → Resend → Gmail, stav `delivered`;
 - signup/recovery templates funkční.
 
 **SEC-006 — REMEDIATED / CLOSED.**
@@ -322,6 +328,25 @@ Hosted Supabase Auth hardening:
 ### Auth accessibility
 
 Auth popover má dialog semantics, vazbu trigger/dialog, Escape close, přesun fokusu dovnitř při otevření a návrat fokusu na trigger při zavření. Free signup z Pricing využívá stejné zabezpečené auth UI.
+
+### Privacy, cookies, GDPR a analytika
+
+Privacy/cookies baseline je produkčně dokončený a ověřený.
+
+- veřejná route `/gdpr`, verze 1.0, účinná od 18. 9. 2026;
+- správce: Václav Loubek, Slepá 868, 289 23 Milovice, Česká republika;
+- kontaktní e-mail pro ochranu soukromí: `vaclav@syllonaut.com`;
+- příjem na `vaclav@syllonaut.com` je řešen nativním Spaceship forwardingem a byl ověřen end-to-end;
+- globální cookie consent je nasazený přes `components/CookieConsent.tsx`;
+- consent cookie `syllonaut_cookie_consent_v1` má verzi `2026-09-18-v1` a max. dobu 180 dní;
+- Google Analytics 4 se smí načíst pouze po explicitním souhlasu s analytikou;
+- reklamní storage/signály, Google Signals a personalizace reklam zůstávají vypnuté;
+- po odvolání analytického souhlasu se GA4 zablokuje a aplikace se pokusí odstranit `_ga*` cookies;
+- Nastavení cookies je kdykoli dostupné ze sdílené patičky;
+- marketingový e-mailový souhlas je oddělený od registrace, není předzaškrtnutý a má self-service withdrawal cestu;
+- privacy regression check je součástí `npm run check`.
+
+GA4 je nyní pouze **technicky připravené**: loader/config je consent-gated a očekává `NEXT_PUBLIC_GA_MEASUREMENT_ID`. Produkční Measurement ID a produktová eventová taxonomie ještě nejsou zavedené. Další analytický krok má nejprve vytvořit GA4 property/web data stream, bezpečně nastavit Measurement ID a potom zavést explicitní produktové eventy bez PII a bez studentského obsahu.
 
 ## 10. Student a live session
 
@@ -636,6 +661,28 @@ Zbývá před skutečným prodejem:
 - organization membership/roles;
 - fakturace, upgrade/downgrade/cancel.
 
+### Milník A.4 — Privacy / GDPR / analytics readiness
+
+**GDPR/cookies baseline dokončen; GA4 připraveno k aktivaci.**
+
+Hotovo:
+
+- GDPR stránka + správce + funkční privacy kontakt;
+- consent-gated GA4 loader;
+- analytics opt-in/withdrawal;
+- marketing consent audit/self-service withdrawal;
+- privacy regression checks;
+- ověřená e-mailová infrastruktura pro auth i privacy kontakt.
+
+Zbývá:
+
+- vytvořit/napojit GA4 property a web data stream;
+- nastavit `NEXT_PUBLIC_GA_MEASUREMENT_ID` v Production/Preview podle zvolené strategie;
+- zavést a zdokumentovat produktové eventy;
+- ověřit eventy v GA4 DebugView/Realtime;
+- definovat klíčové eventy/conversions až podle skutečných produktových funnelů;
+- nepřenášet do analytiky e-mail, jméno, lesson text, student answers ani jiné PII/content payloady.
+
 ### Milník B — live hodina
 
 **Hlavní MVP dokončeno.**
@@ -674,7 +721,8 @@ Zbývá před formální conformance claim:
 - skutečné školní/organizační účty, membership a správa rolí;
 - billing/checkout/subscription lifecycle;
 - OCR;
-- pokročilá analytika/lokalizace.
+- produktová analytika GA4: Measurement ID, event taxonomy, funnel/reporting;
+- lokalizace.
 
 ## 19. Beta feedback — uzavřené body
 
@@ -685,7 +733,7 @@ Zbývá před formální conformance claim:
 5. Projektor před scoreboardem zobrazuje aktuální úlohu podle teacher-controlled průchodu lekcí a zároveň join QR/link/code.
 6. Přesun již vytvořených lekcí do složek byl po prvním testu přepracován na move dialog + lesson menu + bulk + desktop drag-and-drop.
 
-## 20. Významné operace 2026-09-17
+## 20. Významné operace 2026-09-17 až 2026-09-18
 
 Bezpečnostní a produktové změny:
 
@@ -711,7 +759,14 @@ Bezpečnostní a produktové změny:
 - `365d6e5` — sdílená responsive hamburger navigation
 - `f6ff9f3` — WCAG/ATAG accessibility remediation + accessibility CI/release baseline
 
-Poslední uvedený stav prošel PR workflow, Accessibility workflow, Security headers a Vercel checkem.
+Další významné změny 2026-09-18:
+
+- `4104941` — cookie consent, GDPR page, marketing opt-in a privacy regression checks;
+- `93932cf` — doplnění identity správce GDPR;
+- `51ff11d` — aktivní privacy kontakt `vaclav@syllonaut.com`;
+- `6d72267` — zpřesnění live resilience reconciliation.
+
+Aktuální uvedený `main` má úspěšný Vercel deployment.
 
 ## 21. Pravidla další práce
 
@@ -740,14 +795,15 @@ Poslední uvedený stav prošel PR workflow, Accessibility workflow, Security he
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-015 je dokončen a dispositioned. Accessibility technický baseline je implementovaný a nasazený. Produktově jsou hotové také prémiové složky/podsložky s přepracovaným move UX, veřejný Ceník a responzivní landing/Pricing navigace.
+Security audit SEC-001 až SEC-015 je dokončen a dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený a ověřený; GA4 je připravené v kódu, ale zatím bez produkčního Measurement ID a bez vlastní eventové taxonomie.
 
 Nejbližší smysluplné produktové priority:
 
-1. pokračovat ve sběru a zapracování beta feedbacku;
-2. doplnit hybridní scoring do post-session reportu/CSV;
-3. rozhodnout o billing/provisioning architektuře před aktivací placených tarifů;
-4. navrhnout organization membership/role model pro Team/School/Campus;
-5. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
+1. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
+2. pokračovat ve sběru a zapracování beta feedbacku;
+3. doplnit hybridní scoring do post-session reportu/CSV;
+4. rozhodnout o billing/provisioning architektuře před aktivací placených tarifů;
+5. navrhnout organization membership/role model pro Team/School/Campus;
+6. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
 Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán).
