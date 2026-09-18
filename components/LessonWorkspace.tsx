@@ -2,13 +2,25 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
 import LessonPreview from '@/components/LessonPreview';
 import SyllonautMark from '@/components/SyllonautMark';
 import { demoLesson } from '@/lib/demo';
+import {
+  bucketBlockCount,
+  bucketDuration,
+  bucketGroupSize,
+  bucketMaterialSize,
+  fileTypeGroup,
+  generationErrorCode,
+  revisionErrorCode,
+  trackEvent,
+  type GenerationFailureStage,
+  type MaterialMode,
+} from '@/lib/analytics';
 import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
 import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema';
@@ -49,6 +61,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
   const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '');
   const [tone, setTone] = useState('');
+  const [materialMode, setMaterialMode] = useState<MaterialMode>('primary');
   const [gradingStrictness, setGradingStrictness] = useState<GradingStrictness>(initialLesson?.gradingStrictness ?? 'neutral');
   const [aiGradingEnabled, setAiGradingEnabled] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
@@ -66,6 +79,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [recovery, setRecovery] = useState<RecoverySnapshot | null>(null);
   const [generationStage, setGenerationStage] = useState<GenerationStage | null>(null);
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
+  const lessonCreationTrackedRef = useRef(false);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
 
@@ -129,6 +143,12 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     return () => window.removeEventListener('beforeunload', warn);
   }, [saveStatus]);
 
+  function markLessonCreationStarted() {
+    if (initialLessonId || lessonCreationTrackedRef.current) return;
+    lessonCreationTrackedRef.current = true;
+    trackEvent('lesson_creation_started');
+  }
+
   function requireAuth() {
     if (authUser) return true;
     setError('Pro AI funkce se nejdřív přihlas vpravo nahoře. Ukázková lekce funguje i bez účtu.');
@@ -164,7 +184,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
     const formData = new FormData(e.currentTarget);
     const files = formData.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
-    const materialMode = String(formData.get('materialMode') ?? 'primary');
+    const hasMaterials = files.length > 0;
+    const requestedDuration = Number(duration);
 
     if (!prompt.trim() && files.length === 0) {
       setError('Popiš hodinu nebo nahraj alespoň jeden podklad.');
@@ -179,6 +200,21 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       return;
     }
 
+    if (hasMaterials) {
+      trackEvent('source_materials_added', {
+        file_count: files.length,
+        file_type_group: fileTypeGroup(files),
+        size_bucket: bucketMaterialSize(files.reduce((sum, file) => sum + file.size, 0)),
+        material_mode: materialMode,
+      });
+    }
+    trackEvent('lesson_generation_started', {
+      has_materials: hasMaterials,
+      material_mode: materialMode,
+      duration_bucket: bucketDuration(requestedDuration),
+      group_size_bucket: bucketGroupSize(groupSize),
+    });
+
     setBusy(true);
     setError('');
     setUndoLesson(null);
@@ -186,8 +222,11 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setGenerationStartedAt(Date.now());
     setGenerationStage('requesting');
 
+    let failureStage: GenerationFailureStage = 'materials';
+
     try {
       const materials = await extractMaterialsInBrowser(files);
+      failureStage = 'request';
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -198,7 +237,13 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (!res.ok || !contentType.includes('application/x-ndjson')) {
         const data = await res.json() as LessonApiResponse;
         if (!res.ok) throw new Error(data.error || 'Generování selhalo.');
+        failureStage = 'result';
         applyLessonResponse(data);
+        trackEvent('lesson_generation_completed', {
+          has_materials: hasMaterials,
+          block_count_bucket: bucketBlockCount(data.lesson?.blocks.length ?? 0),
+          duration_bucket: bucketDuration(data.lesson?.totalMinutes ?? requestedDuration),
+        });
         setQuotaRefreshKey((value) => value + 1);
         if (data.lessonId) router.replace(`/lessons/${data.lessonId}`);
         return;
@@ -206,6 +251,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
       if (!res.body) throw new Error('Server nevrátil průběh generování.');
 
+      failureStage = 'stream';
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -239,10 +285,20 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (buffer.trim()) handleLine(buffer);
       if (!resultLesson || !resultLessonId) throw new Error('Generování skončilo bez hotové lekce.');
 
+      failureStage = 'result';
       applyLessonResponse({ lesson: resultLesson, lessonId: resultLessonId });
+      trackEvent('lesson_generation_completed', {
+        has_materials: hasMaterials,
+        block_count_bucket: bucketBlockCount(resultLesson.blocks.length),
+        duration_bucket: bucketDuration(resultLesson.totalMinutes),
+      });
       setQuotaRefreshKey((value) => value + 1);
       router.replace(`/lessons/${resultLessonId}`);
     } catch (err) {
+      trackEvent('lesson_generation_failed', {
+        failure_stage: failureStage,
+        error_code: generationErrorCode(err, failureStage),
+      });
       const rawMessage = err instanceof Error ? err.message : '';
       const isTransportError = /string did not match|failed to fetch|load failed|network|connection/i.test(rawMessage);
       setError(isTransportError
@@ -259,6 +315,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     e.preventDefault();
     if (!lesson || !requireAuth()) return;
     const before = lesson;
+    trackEvent('lesson_revision_started', { revision_scope: 'whole_lesson' });
     setBusy(true);
     setError('');
     if (lessonId) setSaveStatus('saving');
@@ -274,7 +331,9 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       setUndoLesson(data.lessonId ? before : null);
       setRevision('');
       setQuotaRefreshKey((value) => value + 1);
+      trackEvent('lesson_revision_completed', { revision_scope: 'whole_lesson' });
     } catch (err) {
+      trackEvent('lesson_revision_failed', { revision_scope: 'whole_lesson', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
       setError(err instanceof Error ? err.message : 'Úprava selhala.');
     } finally {
@@ -286,6 +345,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     e.preventDefault();
     if (!lesson || !selectedBlock || !requireAuth()) return;
     const before = lesson;
+    trackEvent('lesson_revision_started', { revision_scope: 'activity' });
     setBusy(true);
     setError('');
     if (lessonId) setSaveStatus('saving');
@@ -301,7 +361,9 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
       setQuotaRefreshKey((value) => value + 1);
+      trackEvent('lesson_revision_completed', { revision_scope: 'activity' });
     } catch (err) {
+      trackEvent('lesson_revision_failed', { revision_scope: 'activity', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
       setError(err instanceof Error ? err.message : 'Úprava aktivity selhala.');
     } finally {
@@ -426,7 +488,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">Nová lekce</span>
               <h1>Co mají studenti dnes zažít?</h1>
               {initialFolderId ? <p className="auth-hint">Nová lekce se po vytvoření uloží přímo do vybrané složky.</p> : null}
-              <form onSubmit={generate}>
+              <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
                 <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
                 <div className="form-grid">
                   <label>Cílovka<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="např. 1. ročník vysoké školy" required /></label>
@@ -459,7 +521,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                     </label>
                     <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 10 MB.</p>
                     <label style={{ marginTop: 12 }}>Jak s podklady pracovat
-                      <select name="materialMode" defaultValue="primary" className="materials-mode-select">
+                      <select name="materialMode" value={materialMode} onChange={(event) => setMaterialMode(event.target.value as MaterialMode)} className="materials-mode-select">
                         <option value="primary">Vycházet z podkladů</option>
                         <option value="strict">Držet se podkladů</option>
                         <option value="inspiration">Použít jako inspiraci</option>
