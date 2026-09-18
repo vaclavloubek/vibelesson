@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po hardeningu service-worker cache živých stránek ve verzi 0.8.13.
+Aktualizováno: 2026-09-18 po přípravě least-privilege Presenter capability a verzovaného Cloudflare health endpointu ve verzi 0.8.14.
 
-**Aktuální produktová verze: 0.8.13** — service worker už pod URL živé Teacher/Presenter/student stránky nikdy neuloží přesměrovanou nebo jinou 200 odpověď; cache live navigace přijímá jen ne-redirectovanou odpověď stejného originu a stejné cesty.
+**Aktuální produktová verze: 0.8.14** — Cloudflare live-control Worker podporuje samostatnou read-only roli `presenter`, která nesmí zapisovat do event streamu; `/health` zveřejňuje přesnou Worker a protocol verzi. Aplikační Presenter zůstává do potvrzeného Worker deploymentu dočasně na kompatibilní teacher capability.
 
 Produkční release 0.8:
 
@@ -452,7 +452,8 @@ Stejné rozlišení je i v lesson preview.
 - Presenter při výpadku primárního endpointu automaticky skládá obraz z Cloudflare snapshotu a po návratu primární vrstvy se vrátí bez ručního přepínače;
 - raw browser AbortError se už nezobrazuje; timeouty jsou normalizované a teacher/presenter ukazují jen srozumitelný stav Primární / Záložní / Synchronizuji;
 - live resume podpis je server-only, domain-separated HMAC nad existujícím live bootstrap trust boundary; Cloudflare bearer capability zůstává pouze v `sessionStorage`, ne v persistentním browser storage;
-- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; ověřený Worker Version ID: `e4940eb9-7862-4717-b9b9-2160ff510d21`.
+- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; poslední dříve ověřený Worker Version ID: `e4940eb9-7862-4717-b9b9-2160ff510d21`;
+- Worker kód od 0.8.14 podporuje least-privilege `presenter` capability: může číst state/WebSocket, ale `/events` pro ni fail-closed vrací 403; `/health` vrací `workerVersion` a `protocolVersion`, aby šla nasazená verze jednoznačně ověřit.
 
 ### Join abuse protection
 
@@ -926,7 +927,8 @@ Další významné změny 2026-09-18:
 - **0.8.11** — simulation isolation: subscription eventy ze Stripe `test_clock` se explicitně ignorují, takže Simulations mohou generovat renewal/failure webhooky bez rizika `billing_customer_mismatch` nebo přepsání skutečné sandbox subscription.
 - **0.8.12** — live resume auth-boundary hardening: Teacher, Presenter i live-control capability mohou použít session-scoped recovery ticket pouze tehdy, když primární auth lookup skutečně selže; čisté odhlášení vždy skončí standardním přihlášením. End-session dál maže konkrétní resume ticket.
 - **0.8.13** — live navigation cache hardening: service worker odmítne cachovat redirectovanou odpověď nebo odpověď pro jinou cestu, takže auth incident nemůže pod URL živé hodiny uložit homepage či jiný nesouvisející 200 response.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.13`.
+- **0.8.14** — Cloudflare control-plane hardening, fáze 1: Worker přijímá samostatnou `presenter` capability pouze pro read-only state/WebSocket, explicitně zakazuje Presenter zápis do `/events` a jeho `/health` nyní jednoznačně hlásí `workerVersion=0.8.14` + `protocolVersion=2`. Presenter UI se na novou roli přepne až po potvrzeném produkčním Worker deploymentu, aby nevzniklo nekompatibilní mezidobí.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.14`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
