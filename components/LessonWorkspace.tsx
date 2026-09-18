@@ -284,14 +284,15 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
       buffer += decoder.decode();
       if (buffer.trim()) handleLine(buffer);
-      if (!resultLesson || !resultLessonId) throw new Error('Generování skončilo bez hotové lekce.');
+      const completedLesson = resultLesson as Lesson | null;
+      if (!completedLesson || !resultLessonId) throw new Error('Generování skončilo bez hotové lekce.');
 
       failureStage = 'result';
-      applyLessonResponse({ lesson: resultLesson, lessonId: resultLessonId });
+      applyLessonResponse({ lesson: completedLesson, lessonId: resultLessonId });
       trackEvent('lesson_generation_completed', {
         has_materials: hasMaterials,
-        block_count_bucket: bucketBlockCount(resultLesson.blocks.length),
-        duration_bucket: bucketDuration(resultLesson.totalMinutes),
+        block_count_bucket: bucketBlockCount(completedLesson.blocks.length),
+        duration_bucket: bucketDuration(completedLesson.totalMinutes),
       });
       setQuotaRefreshKey((value) => value + 1);
       router.replace(`/lessons/${resultLessonId}`);
