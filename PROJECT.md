@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po doplnění admin-only Stripe sandbox Checkout flow ve verzi 0.8.06.
+Aktualizováno: 2026-09-18 po zpřísnění auth hranice live resume recovery ve verzi 0.8.12.
 
-**Aktuální produktová verze: 0.8.11** — webhook bezpečně rozlišuje Stripe Billing simulations/test clocks: subscription lifecycle eventy z `test_clock` se ignorují, aby nikdy nepřepsaly skutečné sandbox Customer/subscription vazby; payment invoice eventy zůstávají dostupné pro izolované failure/recovery testy.
+**Aktuální produktová verze: 0.8.12** — live resume ticket pomáhá pouze při skutečné chybě primární Supabase Auth/API vrstvy; korektně odhlášený uživatel už nemůže resume cookie použít jako náhradu přihlášení. Normální ukončení hodiny resume ticket dál explicitně maže.
 
 Produkční release 0.8:
 
@@ -444,7 +444,8 @@ Stejné rozlišení je i v lesson preview.
 - autosave retry backoff cca 2–30 s;
 - při konfliktu se lokální text nepřepíše vzdálenou verzí bez rozhodnutí studenta;
 - Teacher po normálním ownership ověření dostane krátkodobý, HttpOnly/Secure, session-scoped live resume ticket; při dočasné ztrátě Supabase identity/API se konkrétní live session obnoví automaticky bez zásahu učitele;
-- explicitní logout všechny live resume tickety serverově maže; ticket proto není náhradou běžného účtového přihlášení;
+- explicitní logout všechny live resume tickety serverově maže; normální ukončení session maže ticket konkrétní hodiny;
+- resume fallback se aktivuje pouze při skutečné chybě primární auth/ownership vrstvy; korektní stav „uživatel není přihlášen“ vždy fail-closed a ticket neslouží jako alternativní login;
 - teacher commandy používají stejný `operationId` pro primární i Cloudflare cestu a obě cesty se spouštějí souběžně; první úspěšná vyhrává;
 - navigace přes fallback před odesláním porovná očekávaný aktivní blok se snapshotem; Durable Object navíc validuje `expectedActiveBlockId`, stav session, timer a reveal akce;
 - Presenter při výpadku primárního endpointu automaticky skládá obraz z Cloudflare snapshotu a po návratu primární vrstvy se vrátí bez ručního přepínače;
@@ -922,7 +923,8 @@ Další významné změny 2026-09-18:
 - **0.8.09** — admin-only Stripe Customer Portal: server-authenticated Portal Session, Customer ID pouze z `billing_customers`, sanitizované chyby, krátkodobý Stripe-hosted redirect a CTA v Ceníku. Portal se používá pro platební metody, faktury a cancellation; změnu tarifu v Portalu záměrně nezapínáme kvůli řízenému country/currency routingu.
 - **0.8.10** — payment recovery event log: webhook přijímá `invoice.payment_failed` a `invoice.paid`, validuje Stripe-signed Syllonaut metadata a idempotentně je ukládá do `billing_events`. Payment event neprovisionuje ani nedeprovisionuje přístup; entitlement zůstává subscription-authoritative.
 - **0.8.11** — simulation isolation: subscription eventy ze Stripe `test_clock` se explicitně ignorují, takže Simulations mohou generovat renewal/failure webhooky bez rizika `billing_customer_mismatch` nebo přepsání skutečné sandbox subscription.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.11`.
+- **0.8.12** — live resume auth-boundary hardening: Teacher, Presenter i live-control capability mohou použít session-scoped recovery ticket pouze tehdy, když primární auth lookup skutečně selže; čisté odhlášení vždy skončí standardním přihlášením. End-session dál maže konkrétní resume ticket.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.12`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
