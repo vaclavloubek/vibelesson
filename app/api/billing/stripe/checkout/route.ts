@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
-import { createStripeSandboxCheckout, isStripeSandboxSecretKey } from '@/lib/stripe-checkout';
+import {
+  createStripeSandboxCheckout,
+  isStripeSandboxSecretKey,
+  StripeCheckoutApiError,
+} from '@/lib/stripe-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -15,8 +19,12 @@ const InputSchema = z.object({
   country: z.string().trim().length(2).transform((value) => value.toUpperCase()),
 });
 
-function jsonError(status: number, error: string) {
-  return NextResponse.json({ error }, {
+function jsonError(status: number, error: string, diagnostics?: {
+  stripeType?: string | null;
+  stripeCode?: string | null;
+  stripeMessage?: string | null;
+}) {
+  return NextResponse.json({ error, diagnostics }, {
     status,
     headers: { 'Cache-Control': 'no-store' },
   });
@@ -65,7 +73,8 @@ export async function POST(request: Request) {
   const planCode = input.planId === 'teacher-pro' ? 'teacher_pro' : 'teacher';
   const admin = createAdminClient();
 
-  const { data: price, error: priceError } = await admin
+  const [{ data: price, error: priceError }, { data: billingCustomer, error: customerError }] = await Promise.all([
+    admin
     .from('billing_prices')
     .select('external_price_id')
     .eq('provider', 'stripe')
@@ -74,7 +83,15 @@ export async function POST(request: Request) {
     .eq('billing_period', input.billing)
     .eq('currency', route.currency)
     .eq('active', true)
-    .maybeSingle();
+    .maybeSingle(),
+    admin
+      .from('billing_customers')
+      .select('external_customer_id')
+      .eq('user_id', userId)
+      .eq('provider', 'stripe')
+      .eq('livemode', false)
+      .maybeSingle(),
+  ]);
 
   if (priceError) {
     console.error('sandbox checkout price lookup failed', { code: priceError.code });
@@ -85,12 +102,18 @@ export async function POST(request: Request) {
     return jsonError(409, 'billing_price_not_configured');
   }
 
+  if (customerError) {
+    console.error('sandbox checkout customer lookup failed', { code: customerError.code });
+    return jsonError(500, 'billing_customer_lookup_failed');
+  }
+
   try {
     const session = await createStripeSandboxCheckout({
       secretKey,
       priceId: price.external_price_id,
       userId,
       userEmail: authData.user.email,
+      customerId: billingCustomer?.external_customer_id ?? null,
       billingCountry: input.country,
       managedPayments: route.managedPayments,
       planCode,
@@ -114,6 +137,13 @@ export async function POST(request: Request) {
       currency: route.currency,
       managedPayments: route.managedPayments,
     });
+    if (error instanceof StripeCheckoutApiError) {
+      return jsonError(502, 'checkout_creation_failed', {
+        stripeType: error.stripeType,
+        stripeCode: error.stripeCode,
+        stripeMessage: error.stripeMessage,
+      });
+    }
     return jsonError(502, 'checkout_creation_failed');
   }
 }

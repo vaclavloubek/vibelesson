@@ -64,6 +64,7 @@ type AnalyticsEventParameters = {
     source: 'pricing_sandbox';
   };
   checkout_complete: { source: 'stripe_sandbox' };
+  billing_portal_open: { source: 'pricing_sandbox' };
 
   signup_started: undefined;
   signup_completed: undefined;
@@ -140,6 +141,7 @@ const EVENT_PARAMETER_KEYS: { [K in AnalyticsEventName]: readonly (keyof NonNull
   plan_select: ['plan', 'billing_period', 'source'],
   checkout_start: ['plan', 'billing_period', 'billing_country', 'source'],
   checkout_complete: ['source'],
+  billing_portal_open: ['source'],
 
   signup_started: [],
   signup_completed: [],

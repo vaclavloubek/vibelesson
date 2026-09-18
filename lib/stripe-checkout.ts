@@ -5,6 +5,7 @@ export type CreateStripeCheckoutInput = {
   priceId: string;
   userId: string;
   userEmail: string;
+  customerId?: string | null;
   billingCountry: string;
   managedPayments: boolean;
   planCode: string;
@@ -37,7 +38,11 @@ export function buildStripeCheckoutParams(input: Omit<CreateStripeCheckoutInput,
   params.set('line_items[0][price]', input.priceId);
   params.set('line_items[0][quantity]', '1');
   params.set('client_reference_id', input.userId);
-  params.set('customer_email', input.userEmail);
+  if (input.customerId) {
+    params.set('customer', input.customerId);
+  } else {
+    params.set('customer_email', input.userEmail);
+  }
   params.set('billing_address_collection', 'required');
   params.set('submit_type', 'subscribe');
   params.set('managed_payments[enabled]', input.managedPayments ? 'true' : 'false');
@@ -60,6 +65,29 @@ export function buildStripeCheckoutParams(input: Omit<CreateStripeCheckoutInput,
   params.set('integration_identifier', `syllonaut_web_${randomIntegrationSuffix()}`);
 
   return params;
+}
+
+export class StripeCheckoutApiError extends Error {
+  readonly stripeType: string | null;
+  readonly stripeCode: string | null;
+  readonly stripeMessage: string | null;
+
+  constructor(
+    stripeType: string | null,
+    stripeCode: string | null,
+    stripeMessage: string | null,
+  ) {
+    super('stripe_checkout_create_failed');
+    this.name = 'StripeCheckoutApiError';
+    this.stripeType = stripeType;
+    this.stripeCode = stripeCode;
+    this.stripeMessage = stripeMessage;
+  }
+}
+
+function sanitizeStripeMessage(value: string | undefined) {
+  if (!value) return null;
+  return value.replace(/(?:sk|rk|whsec)_(?:test|live)?_[A-Za-z0-9_]+/g, '[redacted]').slice(0, 280);
 }
 
 export async function createStripeSandboxCheckout(input: CreateStripeCheckoutInput) {
@@ -88,7 +116,11 @@ export async function createStripeSandboxCheckout(input: CreateStripeCheckoutInp
       type: payload.error?.type,
       code: payload.error?.code,
     });
-    throw new Error('stripe_checkout_create_failed');
+    throw new StripeCheckoutApiError(
+      payload.error?.type ?? null,
+      payload.error?.code ?? null,
+      sanitizeStripeMessage(payload.error?.message),
+    );
   }
 
   if (!payload.id?.startsWith('cs_test_') || !payload.url?.startsWith('https://checkout.stripe.com/')) {
