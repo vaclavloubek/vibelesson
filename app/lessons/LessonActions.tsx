@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 
 type Props = {
   lessonId: string;
@@ -45,6 +46,7 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
       const res = await fetch(`/api/lessons/${lessonId}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok || !data.lessonId) throw new Error(data.error || 'Duplikace selhala.');
+      trackEvent('lesson_duplicated');
       router.push(`/lessons/${data.lessonId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Duplikace selhala.');
