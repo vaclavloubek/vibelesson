@@ -195,7 +195,7 @@ Produkční property se tím nekontaminuje Preview provozem.
 
 `npm run check` obsahuje:
 
-`tsc --noEmit → verify-ai-zdr → verify-privacy → verify-live-resilience → verify-analytics`
+`tsc --noEmit → verify-ai-zdr → verify-age-appropriateness → verify-privacy → verify-live-resilience → verify-analytics`
 
 Analytics check hlídá zejména:
 
