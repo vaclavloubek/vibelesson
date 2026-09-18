@@ -189,6 +189,125 @@ textarea { min-height: 130px; resize: vertical; }
   color: var(--ink);
   font: inherit;
 }
+
+/* AI grading strictness: an accessible three-stop control with a slider-like visual scale. */
+.grading-strictness-control {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 14px 15px 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-soft);
+}
+.grading-strictness-control--compact { max-width: 430px; }
+.grading-strictness-control > legend {
+  padding: 0 4px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 740;
+}
+.grading-strictness-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.grading-strictness-scale {
+  --strictness-position: 50%;
+  --strictness-color: #c29a20;
+  position: relative;
+  margin-top: 12px;
+}
+.grading-strictness-scale[data-value="lenient"] {
+  --strictness-position: 0%;
+  --strictness-color: #2f9a68;
+}
+.grading-strictness-scale[data-value="neutral"] {
+  --strictness-position: 50%;
+  --strictness-color: #c29a20;
+}
+.grading-strictness-scale[data-value="strict"] {
+  --strictness-position: 100%;
+  --strictness-color: #c84f56;
+}
+.grading-strictness-track-shell {
+  position: absolute;
+  top: 9px;
+  left: 13px;
+  right: 13px;
+  pointer-events: none;
+}
+.grading-strictness-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3ca873 0%, #d6aa31 50%, #d9585e 100%);
+  box-shadow: inset 0 0 0 1px rgba(21,23,33,.08);
+}
+.grading-strictness-thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--strictness-position);
+  width: 24px;
+  height: 24px;
+  border: 4px solid var(--strictness-color);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(21,23,33,.18);
+  transform: translate(-50%, -50%);
+  transition: left .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.grading-strictness-options {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.grading-strictness-option {
+  position: relative;
+  min-width: 0;
+  margin-top: -2px;
+  padding: 34px 6px 5px;
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  transition: color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.grading-strictness-option[data-active="true"] {
+  color: var(--ink);
+  font-weight: 780;
+}
+.grading-strictness-option:hover { background: rgba(255,255,255,.58); }
+.grading-strictness-option:focus-within {
+  outline: 3px solid rgba(91,87,232,.2);
+  outline-offset: 1px;
+}
+.grading-strictness-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.grading-strictness-selected {
+  min-height: 35px;
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.grading-strictness-selected strong { color: var(--ink); }
+.grading-strictness-control:disabled {
+  opacity: .58;
+}
+.grading-strictness-control:disabled .grading-strictness-option { cursor: not-allowed; }
+
 .actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
 button {
   border: 0;
