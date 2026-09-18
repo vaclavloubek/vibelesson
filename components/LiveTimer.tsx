@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import VisuallyHidden from '@/components/VisuallyHidden';
+import { useUiLocale } from '@/components/LocaleProvider';
 import type { LiveTimerState } from '@/lib/live';
 
 type Props = {
@@ -16,14 +17,16 @@ function formatSeconds(totalSeconds: number) {
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
-function milestoneMessage(seconds: number, label: string) {
-  if (seconds === 60) return `${label}: zbývá jedna minuta.`;
-  if (seconds === 30) return `${label}: zbývá 30 sekund.`;
-  if (seconds === 10) return `${label}: zbývá 10 sekund.`;
-  return `${label}: čas vypršel.`;
+function milestoneMessage(seconds: number, label: string, english: boolean) {
+  if (seconds === 60) return english ? `${resolvedLabel}: one minute remaining.` : `${resolvedLabel}: zbývá jedna minuta.`;
+  if (seconds === 30) return english ? `${resolvedLabel}: 30 seconds remaining.` : `${resolvedLabel}: zbývá 30 sekund.`;
+  if (seconds === 10) return english ? `${resolvedLabel}: 10 seconds remaining.` : `${resolvedLabel}: zbývá 10 sekund.`;
+  return english ? `${resolvedLabel}: time is up.` : `${resolvedLabel}: čas vypršel.`;
 }
 
-export default function LiveTimer({ timer, label = 'Čas' }: Props) {
+export default function LiveTimer({ timer, label }: Props) {
+  const english = useUiLocale() === 'en';
+  const resolvedLabel = label ?? (english ? 'Time' : 'Čas');
   const [remaining, setRemaining] = useState(timer.remainingSeconds);
   const [announcement, setAnnouncement] = useState('');
   const previousSecondsRef = useRef(Math.max(0, Math.ceil(timer.remainingSeconds)));
@@ -54,25 +57,25 @@ export default function LiveTimer({ timer, label = 'Čas' }: Props) {
     const currentSeconds = Math.max(0, Math.ceil(remaining));
     const previousSeconds = previousSecondsRef.current;
     const crossed = [60, 30, 10, 0].find((milestone) => previousSeconds > milestone && currentSeconds <= milestone);
-    if (crossed !== undefined) setAnnouncement(milestoneMessage(crossed, label));
+    if (crossed !== undefined) setAnnouncement(milestoneMessage(crossed, resolvedLabel, english));
     previousSecondsRef.current = currentSeconds;
-  }, [label, remaining]);
+  }, [english, remaining, resolvedLabel]);
 
   const finished = remaining <= 0;
   const statusText = finished
-    ? 'Čas vypršel'
+    ? (english ? 'Time is up' : 'Čas vypršel')
     : timer.status === 'running'
-      ? 'Odpočet běží'
+      ? (english ? 'Countdown running' : 'Odpočet běží')
       : timer.status === 'paused'
-        ? 'Odpočet je pozastavený'
-        : 'Čeká na spuštění';
+        ? (english ? 'Countdown paused' : 'Odpočet je pozastavený')
+        : (english ? 'Waiting to start' : 'Čeká na spuštění');
 
   return (
-    <section className="panel" style={{ textAlign: 'center' }} aria-label={label}>
-      <span className="eyebrow">{label}</span>
+    <section className="panel" style={{ textAlign: 'center' }} aria-label={resolvedLabel}>
+      <span className="eyebrow">{resolvedLabel}</span>
       <div
         role="timer"
-        aria-label={`${label}: ${formatSeconds(remaining)}. ${statusText}.`}
+        aria-label={`${resolvedLabel}: ${formatSeconds(remaining)}. ${statusText}.`}
         style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-.04em', margin: '8px 0 4px' }}
       >
         {formatSeconds(remaining)}

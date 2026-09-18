@@ -71,7 +71,7 @@ requirePattern(authLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'auth routes lost
 requirePattern(joinLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'join routes lost a specific page title.');
 requirePattern(newLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'new-lesson route lost a specific page title.');
 requirePattern(lessonsLayout, /My lessons – Syllonaut.*Moje lekce – Syllonaut|Moje lekce – Syllonaut.*My lessons – Syllonaut/s, 'lesson-library routes lost localized specific page titles.');
-requirePattern(sessionsLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'teacher-session routes lost a specific page title.');
+requirePattern(sessionsLayout, /Control centre – Syllonaut.*Řídicí centrum – Syllonaut|Řídicí centrum – Syllonaut.*Control centre – Syllonaut/s, 'teacher-session routes lost localized specific page titles.');
 requirePattern(studentLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'student routes lost a specific page title.');
 requirePattern(pricingRoute, /title\s*=\s*['"]Ceník[^'"]*Syllonaut['"]/, 'pricing route lost its specific page title.');
 requirePattern(pricingPage, /aria-pressed=\{audience === 'teachers'\}/, 'pricing audience selection state is not exposed.');
@@ -110,7 +110,7 @@ requirePattern(lessonLibrary, /Stejný přesun je vždy dostupný i přes nabíd
 requirePattern(lessonActions, /Přesunout do….*Move to|Move to….*Přesunout do/s, 'lesson menu lost the localized non-drag move alternative.');
 requirePattern(lessonActions, /role="alert"/, 'lesson action errors are not exposed as alerts.');
 requirePattern(teacherSession, /role="progressbar"/, 'teacher live progressbar semantics are missing.');
-requirePattern(teacherSession, /aria-valuetext=\{`Blok \$\{activeIndex \+ 1\} z \$\{session\.lessonSnapshot\.blocks\.length\}`\}/, 'teacher live progress lacks meaningful value text.');
+requirePattern(teacherSession, /Block.*of.*Blok.*z|Blok.*z.*Block.*of/s, 'teacher live progress lacks localized meaningful value text.');
 requirePattern(ai, /Pravidla přístupnosti vytvářeného obsahu \(ATAG\/WCAG by default\)/, 'AI authoring accessibility guardrails are missing.');
 requirePattern(ai, /caption:\s*z\.string\(\)\.min\(1\)/, 'AI-generated tables no longer require a caption.');
 requirePattern(authoring, /drag-only-instruction/, 'deterministic drag-only authoring check is missing.');

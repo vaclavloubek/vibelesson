@@ -5,8 +5,10 @@ import { createPortal } from 'react-dom';
 import EvaluationReviewQueue from '@/components/EvaluationReviewQueue';
 import TeacherScoreboard from '@/components/TeacherScoreboard';
 import styles from '@/components/TeacherLiveTools.module.css';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 export default function TeacherLiveTools({ sessionId }: { sessionId: string }) {
+  const english = useUiLocale() === 'en';
   const [target, setTarget] = useState<Element | null>(null);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function TeacherLiveTools({ sessionId }: { sessionId: string }) {
   if (!target) return null;
 
   return createPortal(
-    <div className={styles.tools} aria-label="Nástroje učitele">
+    <div className={styles.tools} aria-label={english ? 'Teacher tools' : 'Nástroje učitele'}>
       <TeacherScoreboard sessionId={sessionId} />
       <EvaluationReviewQueue sessionId={sessionId} />
     </div>,
