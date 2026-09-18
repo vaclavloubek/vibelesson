@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
+import { mirrorLiveSnapshot, pushLiveControlEvent } from '@/lib/live-control-plane';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
 
@@ -121,8 +122,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
       }
     : null;
 
-  return NextResponse.json({
-    session: {
+  const sessionPayload = {
       id: session.id,
       lessonId: session.lesson_id,
       joinCode: session.join_code,
@@ -145,8 +145,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
       })),
       responses,
       teamResponses,
-    },
+    };
+
+  after(async () => {
+    await mirrorLiveSnapshot(id, 'teacher', sessionPayload);
   });
+
+  return NextResponse.json({ session: sessionPayload });
 }
 
 export async function PATCH(req: Request, { params }: RouteContext) {
@@ -252,7 +257,12 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
     after(async () => {
-      await broadcastSessionInvalidate(updated.realtime_key as string);
+      await Promise.all([
+        broadcastSessionInvalidate(updated.realtime_key as string),
+        action.operationId
+          ? pushLiveControlEvent(id, 'teacher.action', { action: action.action }, action.operationId)
+          : Promise.resolve(null),
+      ]);
     });
 
     return NextResponse.json({

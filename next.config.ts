@@ -33,6 +33,8 @@ const connectSources = [
   "'self'",
   'https://*.supabase.co',
   'wss://*.supabase.co',
+  'https://live.syllonaut.com',
+  'wss://live.syllonaut.com',
   'https://challenges.cloudflare.com',
   'https://www.google-analytics.com',
   'https://*.google-analytics.com',

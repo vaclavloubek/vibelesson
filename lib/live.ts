@@ -29,16 +29,16 @@ export type PublicScoreboardState = {
 };
 
 export const SessionActionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('start') }),
-  z.object({ action: z.literal('next') }),
-  z.object({ action: z.literal('previous') }),
-  z.object({ action: z.literal('end') }),
-  z.object({ action: z.literal('reveal_results') }),
-  z.object({ action: z.literal('reveal_scoreboard') }),
-  z.object({ action: z.literal('hide_scoreboard') }),
-  z.object({ action: z.literal('timer_start') }),
-  z.object({ action: z.literal('timer_pause') }),
-  z.object({ action: z.literal('timer_reset') }),
+  z.object({ action: z.literal('start'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('next'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('previous'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('end'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('reveal_results'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('reveal_scoreboard'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('hide_scoreboard'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('timer_start'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('timer_pause'), operationId: z.string().uuid().optional() }),
+  z.object({ action: z.literal('timer_reset'), operationId: z.string().uuid().optional() }),
 ]);
 export type SessionAction = z.infer<typeof SessionActionSchema>;
 

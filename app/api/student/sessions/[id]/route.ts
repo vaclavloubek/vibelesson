@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { participantCookieName, type PublicScoreboardState } from '@/lib/live';
+import { mirrorLiveSnapshot } from '@/lib/live-control-plane';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -39,9 +40,9 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const data = await response.json() as Record<string, unknown>;
     if (!response.ok) return NextResponse.json(data, { status: response.status });
 
+    const participantTokenHash = createHash('sha256').update(participantToken).digest('hex');
     let scoreboard: PublicScoreboardState | null = null;
     try {
-      const participantTokenHash = createHash('sha256').update(participantToken).digest('hex');
       const scoreResponse = await fetch(`${url}/rest/v1/rpc/get_student_public_scoreboard`, {
         method: 'POST',
         headers: {
@@ -64,7 +65,11 @@ export async function GET(_req: Request, { params }: RouteContext) {
       console.error('student public scoreboard lookup failed', scoreError);
     }
 
-    return NextResponse.json({ ...data, scoreboard }, { status: response.status });
+    const payload = { ...data, scoreboard };
+    after(async () => {
+      await mirrorLiveSnapshot(id, `student:${participantTokenHash}`, payload);
+    });
+    return NextResponse.json(payload, { status: response.status });
   } catch (error) {
     console.error('student state proxy failed', error);
     return NextResponse.json({ error: 'Hodinu se nepodařilo načíst.' }, { status: 500 });
