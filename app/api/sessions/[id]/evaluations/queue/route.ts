@@ -58,7 +58,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const { id: sessionId } = await params;
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
-    .select('lesson_snapshot')
+    .select('lesson_snapshot, active_block_id')
     .eq('id', sessionId)
     .eq('teacher_id', userId)
     .maybeSingle();
@@ -160,5 +160,5 @@ export async function GET(_req: Request, { params }: RouteContext) {
     });
   }
 
-  return NextResponse.json({ evaluations });
+  return NextResponse.json({ evaluations, activeBlockId: session.active_block_id as string | null });
 }

@@ -40,13 +40,14 @@ type ReviewPatch = {
   teacherNote: string | null;
 };
 
-function reviewPriority(item: QueueEvaluation) {
-  if (item.hasNewerSubmission) return 0;
-  if (!item.teacherConfirmed && item.status === 'needs_review') return 1;
-  if (!item.teacherConfirmed && item.status === 'graded') return 2;
-  if (item.status === 'pending' || item.status === 'grading') return 3;
-  if (item.status === 'failed') return 4;
-  return 5;
+function reviewPriority(item: QueueEvaluation, activeBlockId: string | null) {
+  const blockPriority = item.blockId === activeBlockId ? 0 : 10;
+  if (item.hasNewerSubmission) return blockPriority;
+  if (!item.teacherConfirmed && item.status === 'needs_review') return blockPriority + 1;
+  if (!item.teacherConfirmed && item.status === 'graded') return blockPriority + 2;
+  if (item.status === 'pending' || item.status === 'grading') return blockPriority + 3;
+  if (item.status === 'failed') return blockPriority + 4;
+  return blockPriority + 5;
 }
 
 function ReviewForm({ evaluation, sessionId, onReviewed }: {
@@ -242,6 +243,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
 export default function EvaluationReviewQueue({ sessionId }: { sessionId: string }) {
   const [evaluations, setEvaluations] = useState<QueueEvaluation[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -249,10 +251,11 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
     const load = async () => {
       try {
         const response = await fetch(`/api/sessions/${sessionId}/evaluations/queue`, { cache: 'no-store' });
-        const data = await response.json() as { evaluations?: QueueEvaluation[]; error?: string };
+        const data = await response.json() as { evaluations?: QueueEvaluation[]; activeBlockId?: string | null; error?: string };
         if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || 'Hodnocení se nepodařilo načíst.');
         if (cancelled) return;
         setEvaluations(data.evaluations);
+        setActiveBlockId(typeof data.activeBlockId === 'string' ? data.activeBlockId : null);
         setError('');
         setLoaded(true);
       } catch (err) {
@@ -308,7 +311,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   const visibleEvaluations = evaluations.filter((item) => !item.teacherConfirmed || item.hasNewerSubmission);
   if (!visibleEvaluations.length && !error) return null;
 
-  const sorted = [...visibleEvaluations].sort((a, b) => reviewPriority(a) - reviewPriority(b) || a.blockIndex - b.blockIndex);
+  const sorted = [...visibleEvaluations].sort((a, b) => reviewPriority(a, activeBlockId) - reviewPriority(b, activeBlockId) || a.blockIndex - b.blockIndex);
   const newer = visibleEvaluations.filter((item) => item.hasNewerSubmission).length;
   const toReview = visibleEvaluations.filter((item) => !item.teacherConfirmed && (item.status === 'graded' || item.status === 'needs_review')).length;
   const waiting = visibleEvaluations.filter((item) => item.status === 'pending' || item.status === 'grading').length;

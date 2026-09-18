@@ -20,8 +20,8 @@ import { createClient } from '@/lib/supabase/client';
 
 type Participant = { id: string; displayName: string; joinedAt: string; teamId: string | null };
 type Team = { id: string; name: string; sortOrder: number };
-type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string };
-type TeamResponse = { teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string };
+type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string; submitted: boolean };
+type TeamResponse = { teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string; submitted: boolean };
 async function reconcileLiveControl(sessionId: string) {
   try {
     const response = await fetchWithTimeout(
@@ -130,6 +130,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                 displayName: participantNames.get(response.participantId) ?? 'Student',
                 answer: response.answer as StudentAnswer,
                 updatedAt: snapshot.updatedAt,
+                submitted: Boolean(response.submitted),
               })),
             teamResponses: (snapshot.teamResponses ?? [])
               .filter((response) => response.blockId === activeBlockId)
@@ -141,6 +142,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                   ? participantNames.get(response.updatedByParticipantId) ?? 'Student'
                   : null,
                 updatedAt: snapshot.updatedAt,
+                submitted: Boolean(response.submitted),
               })),
           };
 
