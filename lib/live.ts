@@ -77,6 +77,7 @@ export const TeamCreateSchema = z.object({
 
 export const StudentTeamChoiceSchema = z.object({
   teamId: z.string().uuid(),
+  operationId: z.string().uuid().optional(),
 });
 
 export const TeamResponseSubmissionSchema = z.object({
@@ -87,6 +88,7 @@ export const TeamResponseSubmissionSchema = z.object({
 const TeamEditTextActionSchema = z.object({
   blockId: z.string().min(1).max(200),
   text: z.string().trim().min(1).max(4000),
+  operationId: z.string().uuid().optional(),
 });
 
 export const TeamEditRequestSchema = z.discriminatedUnion('action', [
