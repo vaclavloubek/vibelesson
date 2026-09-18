@@ -365,21 +365,29 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder="např. 3–4 studenti" required /></label>
                   <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="např. živý, praktický a lehce vtipný" required /></label>
                 </div>
-                <div style={{ marginTop: 16, padding: 14, border: '1px solid var(--line)', borderRadius: 14, background: 'var(--panel-soft)' }}>
-                  <span className="eyebrow">Podklady k lekci · volitelné</span>
-                  <label style={{ marginTop: 9 }}>Prezentace, pracovní listy nebo textové materiály
-                    <input name="materials" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain,text/markdown" />
-                  </label>
-                  <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 10 MB.</p>
-                  <label style={{ marginTop: 12 }}>Jak s podklady pracovat
-                    <select name="materialMode" defaultValue="primary" style={{ width: '100%', border: '1px solid var(--line-strong)', borderRadius: 12, background: 'white', padding: '11px 12px', color: 'var(--ink)', font: 'inherit' }}>
-                      <option value="primary">Vycházet z podkladů</option>
-                      <option value="strict">Držet se podkladů</option>
-                      <option value="inspiration">Použít jako inspiraci</option>
-                    </select>
-                  </label>
-                  <p className="muted-copy" style={{ marginTop: 8 }}>Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.</p>
-                </div>
+                <details className="materials-disclosure">
+                  <summary>
+                    <span className="materials-disclosure-label">
+                      <strong>Přidat podklady k lekci</strong>
+                      <span>volitelné</span>
+                    </span>
+                    <span className="materials-disclosure-chevron" aria-hidden="true">⌄</span>
+                  </summary>
+                  <div className="materials-disclosure-body">
+                    <label>Prezentace, pracovní listy nebo textové materiály
+                      <input name="materials" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain,text/markdown" />
+                    </label>
+                    <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 10 MB.</p>
+                    <label style={{ marginTop: 12 }}>Jak s podklady pracovat
+                      <select name="materialMode" defaultValue="primary" className="materials-mode-select">
+                        <option value="primary">Vycházet z podkladů</option>
+                        <option value="strict">Držet se podkladů</option>
+                        <option value="inspiration">Použít jako inspiraci</option>
+                      </select>
+                    </label>
+                    <p className="muted-copy" style={{ marginTop: 8 }}>Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.</p>
+                  </div>
+                </details>
                 <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>Ukázková lekce</button></div>
                 {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
               </form>
