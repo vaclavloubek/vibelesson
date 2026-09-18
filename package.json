@@ -10,9 +10,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "check": "tsc --noEmit && node scripts/verify-ai-zdr.mjs && node scripts/verify-age-appropriateness.mjs && node scripts/verify-privacy.mjs && node scripts/verify-live-resilience.mjs && node scripts/verify-analytics.mjs",
+    "check": "tsc --noEmit && node scripts/verify-ai-zdr.mjs && node scripts/verify-age-appropriateness.mjs && node scripts/verify-privacy.mjs && node scripts/verify-live-resilience.mjs && node scripts/verify-analytics.mjs && node --check scripts/setup-ga4.mjs",
     "check:security-headers": "node scripts/verify-security-headers.mjs",
-    "check:accessibility": "node scripts/verify-accessibility.mjs"
+    "check:accessibility": "node scripts/verify-accessibility.mjs",
+    "ga4:setup": "node scripts/setup-ga4.mjs",
+    "ga4:setup:apply": "node scripts/setup-ga4.mjs --apply"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

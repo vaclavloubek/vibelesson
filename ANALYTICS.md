@@ -207,3 +207,30 @@ Analytics check hlídá zejména:
 - zákaz přímých custom `gtag('event')` mimo helper;
 - runtime parametr allowlist;
 - nejrizikovější PII/ID/token parametry.
+
+
+## 13. Dávkové nastavení GA4 Admin API
+
+Repo obsahuje idempotentní setup skript pro produkční property `554871574`:
+
+`npm run ga4:setup`
+
+Výchozí režim je pouze DRY RUN. Změny se provedou až přes:
+
+`npm run ga4:setup:apply`
+
+Skript:
+- načte existující custom dimensions a Key Events;
+- vytvoří pouze chybějících 15 event-scoped custom dimensions;
+- vytvoří pouze chybějící Key Events `signup_completed`, `lesson_generation_completed`, `live_session_started`;
+- u existujících Key Events případně opraví counting method na `ONCE_PER_EVENT`;
+- po APPLY znovu načte konfiguraci a ověří výsledek.
+
+Autorizace se dodává pouze lokálně, nikdy ne do repozitáře:
+
+- krátkodobý OAuth access token v `GOOGLE_OAUTH_ACCESS_TOKEN`, nebo
+- cesta k service-account JSON mimo repo v `GOOGLE_APPLICATION_CREDENTIALS`.
+
+Credential musí mít přístup Editor k GA4 property a OAuth scope `https://www.googleapis.com/auth/analytics.edit`.
+
+Property lze přepsat proměnnou `GA4_PROPERTY_ID`, ale pro Syllonaut je výchozí hodnota `554871574`.
