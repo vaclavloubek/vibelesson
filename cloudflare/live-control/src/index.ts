@@ -532,7 +532,6 @@ export class LiveSession extends DurableObject<Env> {
         if (!teamId || !snapshot.teams.some((team) => team.id === teamId)) {
           return json({ error: 'Team does not exist.' }, 409);
         }
-        if (snapshot.status === 'ended') return json({ error: 'Session has ended.' }, 410);
         if (snapshot.status === 'live' && participant?.teamId && participant.teamId !== teamId) {
           return json({ error: 'Team is already locked.' }, 409);
         }
