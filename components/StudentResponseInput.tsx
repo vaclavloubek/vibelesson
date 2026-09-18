@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
+import { enqueueLiveOperation } from '@/lib/live-offline';
+import { postLiveControlEvent } from '@/lib/live-control-client';
 
 type Props = {
   sessionId: string;
@@ -39,6 +41,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [submitted, setSubmitted] = useState(responseSubmitted);
   const [text, setText] = useState(initialText);
   const [ranking, setRanking] = useState<string[]>(initialRanking);
@@ -66,14 +69,16 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
   async function save(answer: StudentAnswer, responseAction: ResponseAction = 'save') {
     if (busy) return;
+    const operationId = crypto.randomUUID();
     setBusy(true);
     setError('');
     setSaved(false);
+    setQueued(false);
     try {
       const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blockId: block.id, answer, responseAction }),
+        body: JSON.stringify({ blockId: block.id, answer, responseAction, operationId }),
       }, SAVE_TIMEOUT_MS);
       const data = await result.json() as {
         answer?: StudentAnswer;
@@ -81,6 +86,9 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         error?: string;
       };
       if (!result.ok || !data.answer) {
+        if (result.status === 408 || result.status === 429 || result.status >= 500) {
+          throw new Error(data.error || 'Transient response save failure.');
+        }
         setError(data.error || 'Odpověď se nepodařilo uložit.');
         return;
       }
@@ -88,6 +96,14 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       onSaved(data.answer, submittedCurrent);
       if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
       setSaved(true);
+      setQueued(false);
+      void postLiveControlEvent(
+        sessionId,
+        'student',
+        'student.response',
+        { blockId: block.id, answer: data.answer, submitted: submittedCurrent, source: 'primary' },
+        operationId,
+      );
     } catch {
       try {
         const verification = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, {
@@ -107,7 +123,28 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       } catch {
         // The connection is still unavailable. Let the user retry without keeping the UI stuck.
       }
-      setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
+      const liveFallbackSaved = await postLiveControlEvent(
+        sessionId,
+        'student',
+        'student.response',
+        { blockId: block.id, answer, submitted: responseAction === 'submit', source: 'fallback' },
+        operationId,
+      );
+      const queuedLocally = await enqueueLiveOperation({
+        id: operationId,
+        sessionId,
+        kind: 'student-response',
+        url: `/api/student/sessions/${sessionId}/response`,
+        method: 'POST',
+        body: { blockId: block.id, answer, responseAction, operationId },
+        createdAt: Date.now(),
+      });
+      if (queuedLocally || liveFallbackSaved) {
+        setQueued(true);
+        setError('');
+      } else {
+        setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
+      }
     } finally {
       setBusy(false);
     }
@@ -140,6 +177,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
           </div>
         ) : <div className="error" role="alert">Tento blok nemá žádné možnosti odpovědi.</div>}
         {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená.</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert">{error}</div> : null}
       </section>
     );
@@ -212,6 +250,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
           </form>
         ) : <div className="error" role="alert" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
         {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">Pořadí je bezpečně uložené v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
@@ -262,6 +301,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         ) : saved ? (
           <p className="student-save-success" role="status" aria-live="polite">✓ Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.</p>
         ) : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );

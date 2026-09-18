@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import {
+  fetchLiveControlState,
+  postLiveControlEvent,
+  saveLiveControlAccess,
+  type LiveControlAccess,
+} from '@/lib/live-control-client';
 import JoinQrCode from '@/components/JoinQrCode';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
@@ -15,6 +22,21 @@ type Participant = { id: string; displayName: string; joinedAt: string; teamId: 
 type Team = { id: string; name: string; sortOrder: number };
 type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string };
 type TeamResponse = { teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string };
+async function reconcileLiveControl(sessionId: string) {
+  try {
+    const response = await fetchWithTimeout(
+      `/api/sessions/${sessionId}/live-control/reconcile`,
+      { method: 'POST', cache: 'no-store' },
+      7_000,
+    );
+    if (!response.ok) return 0;
+    const data = await response.json() as { reconciled?: number };
+    return Number.isFinite(data.reconciled) ? Number(data.reconciled) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 type TeacherSessionData = {
   id: string;
   lessonId: string | null;
@@ -40,24 +62,145 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [teamCount, setTeamCount] = useState(4);
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const hasSessionRef = useRef(false);
+  const sessionRef = useRef<TeacherSessionData | null>(null);
+  const reconciliationRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}`, { cache: 'no-store' });
-      const data = await response.json() as { session?: TeacherSessionData; error?: string };
-      if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
-      setSession(data.session);
-      setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
-    }
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+
+    const operation = (async () => {
+      try {
+        const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
+        const data = await response.json() as { session?: TeacherSessionData; error?: string };
+        if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+        hasSessionRef.current = true;
+        sessionRef.current = data.session;
+        setSession(data.session);
+        setError('');
+      } catch (err) {
+        const live = await fetchLiveControlState(sessionId, 'teacher');
+        if (live) {
+          const snapshot = live.snapshot;
+          const current = sessionRef.current;
+          const lesson = snapshot.lessonSnapshot as unknown as Lesson;
+          const activeBlockId = snapshot.activeBlockId;
+          const participantNames = new Map(snapshot.participants.map((participant) => [participant.id, participant.displayName]));
+          const rawTimer = snapshot.timer && typeof snapshot.timer === 'object'
+            ? snapshot.timer as { status?: unknown; startedAt?: unknown; remainingSeconds?: unknown }
+            : null;
+          let timer: LiveTimerState | null = null;
+          if (rawTimer && (rawTimer.status === 'idle' || rawTimer.status === 'running' || rawTimer.status === 'paused')) {
+            let remainingSeconds = typeof rawTimer.remainingSeconds === 'number' ? Math.max(0, rawTimer.remainingSeconds) : 0;
+            if (rawTimer.status === 'running' && typeof rawTimer.startedAt === 'string') {
+              remainingSeconds = Math.max(0, remainingSeconds - Math.max(0, Math.floor((Date.now() - Date.parse(rawTimer.startedAt)) / 1000)));
+            }
+            timer = { status: rawTimer.status, remainingSeconds, syncedAt: new Date().toISOString() };
+          }
+
+          const recovered: TeacherSessionData = {
+            id: sessionId,
+            lessonId: current?.lessonId ?? null,
+            joinCode: snapshot.joinCode ?? current?.joinCode ?? '',
+            status: snapshot.status,
+            activeBlockId,
+            lessonSnapshot: lesson,
+            realtimeKey: current?.realtimeKey ?? '',
+            createdAt: current?.createdAt ?? snapshot.updatedAt,
+            startedAt: current?.startedAt ?? (snapshot.status === 'lobby' ? null : snapshot.updatedAt),
+            endedAt: snapshot.status === 'ended' ? snapshot.updatedAt : current?.endedAt ?? null,
+            resultsRevealed: Boolean(activeBlockId && snapshot.revealedBlockIds.includes(activeBlockId)),
+            timer,
+            participants: snapshot.participants.map((participant) => ({
+              id: participant.id,
+              displayName: participant.displayName,
+              joinedAt: current?.participants.find((row) => row.id === participant.id)?.joinedAt ?? snapshot.updatedAt,
+              teamId: participant.teamId,
+            })),
+            teams: snapshot.teams.map((team, index) => ({
+              id: team.id,
+              name: team.name,
+              sortOrder: team.sortOrder ?? index,
+            })),
+            responses: snapshot.responses
+              .filter((response) => response.blockId === activeBlockId)
+              .map((response) => ({
+                participantId: response.participantId,
+                displayName: participantNames.get(response.participantId) ?? 'Student',
+                answer: response.answer as StudentAnswer,
+                updatedAt: snapshot.updatedAt,
+              })),
+            teamResponses: (snapshot.teamResponses ?? [])
+              .filter((response) => response.blockId === activeBlockId)
+              .map((response) => ({
+                teamId: response.teamId,
+                text: response.text,
+                updatedByParticipantId: response.updatedByParticipantId ?? null,
+                updatedByDisplayName: response.updatedByParticipantId
+                  ? participantNames.get(response.updatedByParticipantId) ?? 'Student'
+                  : null,
+                updatedAt: snapshot.updatedAt,
+              })),
+          };
+
+          hasSessionRef.current = true;
+          sessionRef.current = recovered;
+          setSession(recovered);
+          setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu.');
+        } else if (!hasSessionRef.current) {
+          setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        }
+      } finally {
+        refreshInFlightRef.current = null;
+      }
+    })();
+
+    refreshInFlightRef.current = operation;
+    return operation;
   }, [sessionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = () => {
+      if (cancelled || reconciliationRef.current) return;
+      const operation = reconcileLiveControl(sessionId)
+        .then((reconciled) => {
+          if (!cancelled && reconciled > 0) void refresh();
+        })
+        .finally(() => {
+          if (reconciliationRef.current === operation) reconciliationRef.current = null;
+        });
+      reconciliationRef.current = operation;
+    };
+
+    void run();
+    const timer = window.setInterval(run, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [refresh, sessionId]);
   useEffect(() => {
     if (!session?.joinCode) return;
     setJoinUrl(`${window.location.origin}/join/${session.joinCode}`);
   }, [session?.joinCode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(`/api/sessions/${sessionId}/live-control`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json() as { liveControl?: LiveControlAccess | null };
+        if (!cancelled && data.liveControl) saveLiveControlAccess(sessionId, 'teacher', data.liveControl);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [sessionId]);
 
   useEffect(() => {
     if (!session?.realtimeKey) return;
@@ -74,23 +217,87 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  function applyFallbackAction(action: SessionAction['action']) {
+    setSession((current) => {
+      if (!current) return current;
+      const index = current.activeBlockId
+        ? current.lessonSnapshot.blocks.findIndex((block) => block.id === current.activeBlockId)
+        : -1;
+
+      if (action === 'start' && current.lessonSnapshot.blocks[0]) {
+        return { ...current, status: 'live', activeBlockId: current.lessonSnapshot.blocks[0].id };
+      }
+      if (action === 'next' && index >= 0 && current.lessonSnapshot.blocks[index + 1]) {
+        return { ...current, activeBlockId: current.lessonSnapshot.blocks[index + 1].id, resultsRevealed: false, timer: null };
+      }
+      if (action === 'previous' && index > 0 && current.lessonSnapshot.blocks[index - 1]) {
+        return { ...current, activeBlockId: current.lessonSnapshot.blocks[index - 1].id, resultsRevealed: false, timer: null };
+      }
+      if (action === 'end') return { ...current, status: 'ended' };
+      if (action === 'reveal_results') return { ...current, resultsRevealed: true };
+      if (action === 'timer_reset' && index >= 0) {
+        const block = current.lessonSnapshot.blocks[index];
+        return block.type === 'timer'
+          ? { ...current, timer: { status: 'idle', remainingSeconds: block.durationMinutes * 60, syncedAt: new Date().toISOString() } }
+          : current;
+      }
+      if (action === 'timer_start' && current.timer) {
+        return { ...current, timer: { ...current.timer, status: 'running', syncedAt: new Date().toISOString() } };
+      }
+      if (action === 'timer_pause' && current.timer) {
+        return { ...current, timer: { ...current.timer, status: 'paused', syncedAt: new Date().toISOString() } };
+      }
+      return current;
+    });
+  }
+
   async function act(action: SessionAction['action']) {
     if (busy) return;
     if (action === 'end' && !window.confirm('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.')) return;
     if (action === 'reveal_results' && !window.confirm('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.')) return;
+    const operationId = crypto.randomUUID();
     setBusy(true);
     setError('');
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`, {
+      const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
+        body: JSON.stringify({
+          action,
+          operationId,
+          ...((action === 'next' || action === 'previous') && session?.activeBlockId
+            ? { expectedActiveBlockId: session.activeBlockId }
+            : {}),
+        }),
+      }, 8_000);
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
+      if (!response.ok) {
+        if (response.status < 500 && response.status !== 408 && response.status !== 429) {
+          throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
+        }
+        throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
+      }
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Stav hodiny se nepodařilo změnit.');
+      const fallbackOk = await postLiveControlEvent(
+        sessionId,
+        'teacher',
+        'teacher.command',
+        {
+          action,
+          source: 'fallback',
+          ...((action === 'next' || action === 'previous') && session?.activeBlockId
+            ? { expectedActiveBlockId: session.activeBlockId }
+            : {}),
+        },
+        operationId,
+      );
+      if (fallbackOk) {
+        applyFallbackAction(action);
+        setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu a po obnovení se dosynchronizuje.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Stav hodiny se nepodařilo změnit.');
+      }
     } finally {
       setBusy(false);
     }

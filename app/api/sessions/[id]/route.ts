@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
+import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
 
@@ -227,6 +228,15 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       }
     } else {
       if (session.status !== 'live') return NextResponse.json({ error: 'Blok lze měnit pouze během živé hodiny.' }, { status: 409 });
+      if (action.expectedActiveBlockId && action.expectedActiveBlockId !== session.active_block_id) {
+        return NextResponse.json({
+          ok: true,
+          status: session.status,
+          activeBlockId: session.active_block_id,
+          scoreboardRevealed: Boolean(session.scoreboard_revealed),
+          replayed: true,
+        });
+      }
       const currentIndex = lesson.blocks.findIndex((block) => block.id === session.active_block_id);
       if (currentIndex < 0) return NextResponse.json({ error: 'Aktuální blok není ve snapshotu lekce.' }, { status: 500 });
       const nextIndex = action.action === 'next' ? currentIndex + 1 : currentIndex - 1;
@@ -251,7 +261,23 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       .single();
 
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
-    await broadcastSessionInvalidate(updated.realtime_key as string);
+    after(async () => {
+      await Promise.allSettled([
+        broadcastSessionInvalidate(updated.realtime_key as string),
+        mirrorLiveControlEvent({
+          sessionId: id,
+          role: 'teacher',
+          subject: userId,
+          type: 'teacher.command',
+          operationId: action.operationId,
+          payload: {
+            action: action.action,
+            source: 'primary',
+            ...('expectedActiveBlockId' in action ? { expectedActiveBlockId: action.expectedActiveBlockId } : {}),
+          },
+        }),
+      ]);
+    });
 
     return NextResponse.json({
       ok: true,

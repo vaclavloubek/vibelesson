@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { participantCookieName } from '@/lib/live';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { mintLiveCapability, mirrorLiveControlEvent } from '@/lib/live-control-server';
 
 const JoinSchema = z.object({
   joinCode: z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{7}$/),
@@ -16,13 +18,19 @@ type EdgeJoinResponse = {
 };
 
 export async function POST(req: Request) {
+  let body: z.infer<typeof JoinSchema>;
   try {
-    const body = JoinSchema.parse(await req.json());
+    body = JoinSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Zkontroluj kód hodiny a jméno.' }, { status: 400 });
+  }
+
+  try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
 
-    const edgeResponse = await fetch(`${url}/functions/v1/student-session`, {
+    const edgeResponse = await fetchWithTimeout(`${url}/functions/v1/student-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -30,7 +38,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({ action: 'join', ...body }),
       cache: 'no-store',
-    });
+    }, 8_000);
     const data = await edgeResponse.json() as EdgeJoinResponse;
 
     if (!edgeResponse.ok || !data.sessionId || !data.participantToken || !data.participantTokenExpiresAt) {
@@ -43,7 +51,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ke hodině se nepodařilo připojit.' }, { status: 502 });
     }
 
-    const response = NextResponse.json({ sessionId: data.sessionId });
+    const liveControl = data.participantId
+      ? mintLiveCapability({
+          sessionId: data.sessionId,
+          subject: data.participantId,
+          role: 'student',
+        })
+      : null;
+
+    if (data.participantId) {
+      after(async () => {
+        await mirrorLiveControlEvent({
+          sessionId: data.sessionId!,
+          role: 'student',
+          subject: data.participantId!,
+          type: 'student.joined',
+          payload: { displayName: body.displayName, source: 'primary' },
+        });
+      });
+    }
+
+    const response = NextResponse.json({ sessionId: data.sessionId, liveControl });
     response.cookies.set(participantCookieName(data.sessionId), data.participantToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -53,7 +81,10 @@ export async function POST(req: Request) {
     });
     return response;
   } catch (error) {
-    console.error('student join failed', error);
-    return NextResponse.json({ error: 'Zkontroluj kód hodiny a jméno.' }, { status: 400 });
+    console.error('student join upstream failed', error);
+    return NextResponse.json(
+      { error: 'Spojení se službou je dočasně nedostupné. Zkus připojení znovu.' },
+      { status: 503 },
+    );
   }
 }

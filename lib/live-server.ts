@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 const JOIN_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -19,7 +20,7 @@ export async function broadcastSessionInvalidate(realtimeKey: string) {
   if (!url || !key) return false;
 
   try {
-    const response = await fetch(`${url}/realtime/v1/api/broadcast`, {
+    const response = await fetchWithTimeout(`${url}/realtime/v1/api/broadcast`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -34,7 +35,7 @@ export async function broadcastSessionInvalidate(realtimeKey: string) {
         }],
       }),
       cache: 'no-store',
-    });
+    }, 2_500);
     return response.ok;
   } catch (error) {
     console.error('Realtime invalidate broadcast failed', error);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { participantCookieName, TeamEditRequestSchema } from '@/lib/live';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 type RouteContext = { params: Promise<{ id: string }> };
 type EdgeResponse = { error?: string; [key: string]: unknown };
@@ -17,7 +18,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
 
-    const edgeResponse = await fetch(`${url}/functions/v1/team-edit`, {
+    const edgeResponse = await fetchWithTimeout(`${url}/functions/v1/team-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: key },
       body: JSON.stringify({
@@ -26,11 +27,11 @@ export async function POST(req: Request, { params }: RouteContext) {
         participantToken,
       }),
       cache: 'no-store',
-    });
+    }, input.action === 'save' || input.action === 'submit' ? 10_000 : 5_000);
     const data = await edgeResponse.json() as EdgeResponse;
     return NextResponse.json(data, { status: edgeResponse.status });
   } catch (error) {
     console.error('student team edit failed', error);
-    return NextResponse.json({ error: 'Týmový editor se nepodařilo obsloužit.' }, { status: 400 });
+    return NextResponse.json({ error: 'Týmový editor je dočasně nedostupný.' }, { status: 503 });
   }
 }
