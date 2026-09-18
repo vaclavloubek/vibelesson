@@ -257,6 +257,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           has_materials: hasMaterials,
           block_count_bucket: bucketBlockCount(data.lesson?.blocks.length ?? 0),
           duration_bucket: bucketDuration(data.lesson?.totalMinutes ?? requestedDuration),
+          lesson_language: data.lesson?.language ?? 'unknown',
         });
         setQuotaRefreshKey((value) => value + 1);
         if (data.lessonId) router.replace(`/lessons/${data.lessonId}`);
@@ -306,6 +307,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         has_materials: hasMaterials,
         block_count_bucket: bucketBlockCount(completedLesson.blocks.length),
         duration_bucket: bucketDuration(completedLesson.totalMinutes),
+        lesson_language: completedLesson.language ?? 'unknown',
       });
       setQuotaRefreshKey((value) => value + 1);
       router.replace(`/lessons/${resultLessonId}`);

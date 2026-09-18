@@ -87,6 +87,7 @@ type AnalyticsEventParameters = {
     has_materials: boolean;
     block_count_bucket: BlockCountBucket;
     duration_bucket: DurationBucket;
+    lesson_language: string;
   };
   lesson_generation_failed: {
     failure_stage: GenerationFailureStage;
@@ -150,7 +151,7 @@ const EVENT_PARAMETER_KEYS: { [K in AnalyticsEventName]: readonly (keyof NonNull
   lesson_creation_started: [],
   source_materials_added: ['file_count', 'file_type_group', 'size_bucket', 'material_mode'],
   lesson_generation_started: ['has_materials', 'material_mode', 'duration_bucket', 'group_size_bucket'],
-  lesson_generation_completed: ['has_materials', 'block_count_bucket', 'duration_bucket'],
+  lesson_generation_completed: ['has_materials', 'block_count_bucket', 'duration_bucket', 'lesson_language'],
   lesson_generation_failed: ['failure_stage', 'error_code'],
 
   lesson_revision_started: ['revision_scope'],
@@ -232,8 +233,11 @@ export function trackEvent<N extends AnalyticsEventName>(name: N, ...args: Event
       }
     }
 
+    const uiLocale = document.documentElement.lang === 'en' ? 'en' : 'cs';
+
     window.gtag('event', name, {
       ...safeParameters,
+      ui_locale: uiLocale,
       ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
     });
     return true;
