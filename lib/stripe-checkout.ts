@@ -21,7 +21,7 @@ type StripeCheckoutSessionResponse = {
   };
 };
 
-export function isStripeSandboxSecretKey(value: string | undefined) {
+export function isStripeSandboxSecretKey(value: string | undefined): value is string {
   return Boolean(value && /^(?:sk|rk)_test_/.test(value));
 }
 
