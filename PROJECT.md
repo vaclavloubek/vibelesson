@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po synchronizaci paralelních prací: produkční live hardening 0.8.12–0.8.16, dokončený Stripe sandbox lifecycle, aktivní GA4 produktová analytika, rozpracovaná i18n 0.9 a rozhodovací bod Supabase → Neon po ostrých testech 2026-09-21.
+Aktualizováno: 2026-09-18 po synchronizaci paralelních prací: release 0.9 (CS/EN + multilingual lessons), zachovaný live hardening 0.8.12–0.8.16, dokončený Stripe sandbox lifecycle, aktivní GA4 produktová analytika a rozhodovací bod Supabase → Neon po ostrých testech 2026-09-21.
 
 **Aktuální produktová verze: 0.9** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka, persistentní ruční přepínač a oddělený jazyk generované lekce. Lekce lze vytvářet v libovolném jazyce podporovaném modelem; UI locale, billing country/currency a lesson language jsou samostatné veličiny. Live student, Presenter, teacher workspace, Pricing, auth, GDPR i metadata jsou locale-aware. Produkční live-control hardening z verze 0.8.16 zůstává zachovaný.
 
@@ -867,31 +867,24 @@ Zbývá:
 
 ### Milník A.5 — Lokalizace / multilingual lessons 0.9
 
-**Rozpracováno mimo produkční `main` na `feature/i18n-0.9`, PR #60. PR je k 2026-09-18 mergeable/clean, ale nesmí se sloučit před dokončením Preview E2E a finálním sladěním s aktuálním `main`.**
+**Dokončeno a sloučeno do produkčního `main` jako Syllonaut 0.9.**
 
-Schválený produktový model:
+Produkční model:
 
-- návštěvník v ČR/SR dostane české UI, ostatní anglické;
-- ruční volba jazyka UI přebíjí geolokaci a je persistentní;
+- návštěvník v ČR/SR dostane ve výchozím stavu české UI, ostatní anglické;
+- ruční volba jazyka UI přebíjí regionální default a je persistentní;
 - měna ceníku/billing routing je na jazyku UI nezávislá;
-- při tvorbě lekce musí být přímo viditelné, že zadání lze psát v potřebném/libovolném jazyce;
-- jazyk lekce podporuje volbu **Automaticky podle zadání** i explicitně zvolený jazyk;
-- zvolený/odvozený jazyk lekce se zachovává při AI revizích.
+- při tvorbě lekce je přímo viditelné, že zadání lze psát v potřebném/libovolném jazyce;
+- jazyk lekce podporuje volbu **Automaticky podle zadání** i explicitní override;
+- zvolený/odvozený jazyk lekce se zachovává při AI revizích;
+- lesson language je ukládán jako BCP-47 `lang` metadata a není svázán s UI locale;
+- locale-aware jsou auth, cookies, lesson creation/workspace/library, live teacher, student, Presenter, grading/reporting, Pricing, GDPR, metadata/SEO;
+- 0.9 zachovává Stripe/Customer Portal i live resilience/hardening z aktuálního `main`;
+- analytika může anonymně rozlišovat `ui_locale` a `lesson_language` bez přenosu lesson content/PII.
 
-Na větvi je implementováno:
+Release 0.9 prošel před merge Preview/build, `npm run check`, security a accessibility kontrolami; produkční `main` je nyní 0.9.
 
-- locale routing a persistentní CZ/EN;
-- lokalizace auth, cookies, tvorby lekce, knihovny, live UI, gradingu, Presenteru, join/student částí a Pricingu;
-- lesson-language engine a metadata;
-- zachování současných Stripe/Customer Portal změn z `main`;
-- build, `npm run check` a accessibility kontroly byly na posledním ověření zelené.
-
-Před vydáním 0.9 zbývá:
-
-- dokončit/ověřit zbylé systémové stránky včetně GDPR/privacy;
-- znovu sladit větev s nejnovějším `main`;
-- kompletní Preview E2E pro české i anglické UI a multilingual lesson flow;
-- teprve poté merge a vydání 0.9.
+Další práce na lokalizaci má být už pouze inkrementální: doplnění dalších jazyků/UI locale nebo copy úpravy podle reálného používání, nikoli nový paralelní i18n základ.
 
 ### Milník B — live hodina
 
@@ -1033,7 +1026,7 @@ Další významné změny 2026-09-18:
 - `278200f2` — privacy-safe GA4 product analytics + funnel/event taxonomy;
 - `329c5526` — oprava GA4 `gtag` command queue semantics;
 - `d287aec7` — idempotentní GA4 Admin batch setup pro property `554871574`;
-- `PR #60` / `feature/i18n-0.9` — rozpracovaná verze 0.9: CZ/EN UI + multilingual lesson language; k 2026-09-18 mergeable/clean, zatím mimo `main`;
+- **0.9** / release commit v `main` — CZ/EN UI, regionální locale routing, persistentní override a multilingual lesson engine s odděleným lesson language;
 
 - `4104941` — cookie consent, GDPR page, marketing opt-in a privacy regression checks;
 - `93932cf` — doplnění identity správce GDPR;
@@ -1101,7 +1094,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-015 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. Stripe sandbox lifecycle je ve výrazně pokročilém stavu, ale ostrý prodej zůstává vypnutý. Produkční live vrstva je na 0.8.16 / Worker 0.8.14 protocol 2. Lokalizace 0.9 je rozpracovaná mimo `main`.
+Security audit SEC-001 až SEC-015 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. Stripe sandbox lifecycle je ve výrazně pokročilém stavu, ale ostrý prodej zůstává vypnutý. Aktuální produktová verze je 0.9; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 
@@ -1109,9 +1102,9 @@ Nejbližší priority v tomto pořadí:
 2. 2026-09-21 provést reálný acceptance test a bezprostřední post-session audit Teacher/Presenter/student writes/AI grading/fallback-recovery;
 3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
-5. dokončit Preview E2E a merge i18n 0.9 až po sladění s nejnovějším `main`;
+5. po releasu 0.9 udělat v pondělním acceptance testu zároveň krátkou kontrolu českého i anglického UI a multilingual lesson flow, ale neměnit locale architekturu před ostrou výukou;
 6. dokončit live Stripe onboarding/credentials/country verification a produkční billing acceptance; placená CTA zapnout až poté;
-7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions;
+7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions; zkontrolovat i nové anonymní parametry `ui_locale` a `lesson_language`;
 8. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
 9. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
