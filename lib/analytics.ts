@@ -52,6 +52,18 @@ type AnalyticsEventParameters = {
   pricing_segment_change: { segment: 'teacher' | 'school' };
   pricing_billing_period_change: { billing_period: 'monthly' | 'annual' };
   free_signup_click: { location: 'pricing' | 'auth' | 'landing' };
+  plan_select: {
+    plan: 'teacher' | 'teacher-pro';
+    billing_period: 'monthly' | 'annual';
+    source: 'pricing_sandbox';
+  };
+  checkout_start: {
+    plan: 'teacher' | 'teacher-pro';
+    billing_period: 'monthly' | 'annual';
+    billing_country: string;
+    source: 'pricing_sandbox';
+  };
+  checkout_complete: { source: 'stripe_sandbox' };
 
   signup_started: undefined;
   signup_completed: undefined;
@@ -125,6 +137,9 @@ const EVENT_PARAMETER_KEYS: { [K in AnalyticsEventName]: readonly (keyof NonNull
   pricing_segment_change: ['segment'],
   pricing_billing_period_change: ['billing_period'],
   free_signup_click: ['location'],
+  plan_select: ['plan', 'billing_period', 'source'],
+  checkout_start: ['plan', 'billing_period', 'billing_country', 'source'],
+  checkout_complete: ['source'],
 
   signup_started: [],
   signup_completed: [],

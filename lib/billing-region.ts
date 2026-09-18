@@ -29,12 +29,18 @@ export function pricingCurrencyForCountry(country?: string | null): BillingCurre
   return 'usd';
 }
 
+export function resolvePricingCountry(
+  countryHeader?: string | null,
+  acceptLanguage?: string | null,
+) {
+  return normalizeCountry(countryHeader) ?? countryFromAcceptLanguage(acceptLanguage);
+}
+
 export function resolvePricingCurrency(
   countryHeader?: string | null,
   acceptLanguage?: string | null,
 ): BillingCurrency {
-  const country = normalizeCountry(countryHeader) ?? countryFromAcceptLanguage(acceptLanguage);
-  return pricingCurrencyForCountry(country);
+  return pricingCurrencyForCountry(resolvePricingCountry(countryHeader, acceptLanguage));
 }
 
 export function billingRouteForCountry(country?: string | null) {

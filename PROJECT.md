@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po doplnění bezpečného Stripe subscription webhooku ve verzi 0.8.05.
+Aktualizováno: 2026-09-18 po doplnění admin-only Stripe sandbox Checkout flow ve verzi 0.8.06.
 
-**Aktuální produktová verze: 0.8.05** — individuální billing má bezpečný Stripe subscription webhook s raw-body HMAC ověřením, test/live secret isolation, fail-closed validací routing invariants a atomickým Supabase provisioningem; placené CTA zůstávají vypnuté do dokončení checkoutu a sandbox E2E lifecycle.
+**Aktuální produktová verze: 0.8.06** — přihlášený admin může z Ceníku spustit skutečný Stripe sandbox Checkout pro Teacher/Teacher Pro; server podle zvolené fakturační země vybírá DB Price, měnu a standardní Stripe vs. Managed Payments. Veřejná placená CTA zůstávají vypnutá.
 
 Produkční release 0.8:
 
@@ -772,6 +772,7 @@ Hotovo:
 - School/Campus obsahují AI grading + folders;
 - responzivní header/hamburger;
 - Stripe sandbox katalog CZK/EUR/USD;
+- admin-only sandbox Checkout Session flow pro Teacher / Teacher Pro s country routingem a Price lookupem z DB;
 - DB plan/price/subscription/event model pro individuální plány;
 - idempotentní service-role provisioning RPC;
 - striktní oddělení sandbox/live entitlementů;
@@ -779,8 +780,8 @@ Hotovo:
 
 Zbývá před skutečným prodejem:
 
-- checkout vytvořený z aplikace a bezpečné propojení Stripe Customer ↔ user;
-- sandbox event destination + serverové secrets v deploymentu a reálný webhook delivery test;
+- doplnit `STRIPE_SECRET_KEY_TEST` do deploymentu a ověřit sandbox Checkout end-to-end;
+- před live prodejem ověřovat skutečnou billing country z `checkout.session.completed`; předem zvolená země nesmí sama rozhodnout live routing;
 - end-to-end sandbox lifecycle (purchase, renew, fail, cancel, upgrade/downgrade);
 - Customer Portal;
 - live Stripe Price IDs a ostré Stripe credentials;
@@ -914,8 +915,9 @@ Další významné změny 2026-09-18:
 - **0.8.02** — veřejný Ceník doplňuje EUR vedle CZK a USD u všech individuálních i školních plánů; Stripe sandbox katalog obsahuje odpovídající CZK/EUR/USD price objekty, placené CTA však zůstávají deaktivované do dokončení subscription provisioningu.
 - **0.8.03** — Ceník už nezobrazuje tři měny současně: server podle země návštěvníka zobrazuje pouze CZK (ČR), EUR (eurozóna) nebo USD (ostatní). Stejná regionální utilita je připravená pro budoucí checkout routing; fakturační země bude při nákupu vždy znovu ověřena.
 - **0.8.04** / migrace `20260918162429`, `20260918162500`, `20260918162640` — billing foundation: plan/price/customer/subscription/event model, service-role-only idempotentní Stripe sync, sandbox/live isolation, manual entitlement overrides a FK indexy. Placené CTA zůstávají vypnuté.
-- **0.8.05** — Stripe subscription webhook: raw-body HMAC signature verification, replay tolerance + DB event idempotence, test/live secret binding, server-only Supabase admin client, strict user/country/price/routing validation a auth proxy bypass pro webhook route. Checkout zatím zůstává vypnutý.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.05`.
+- **0.8.05** — Stripe subscription webhook: raw-body HMAC signature verification, replay tolerance + DB event idempotence, test/live secret binding, server-only Supabase admin client, strict user/country/price/routing validation a auth proxy bypass pro webhook route.
+- **0.8.06** — admin-only sandbox Checkout pro Teacher/Teacher Pro: autentizovaný endpoint, serverový DB Price lookup, ISO billing-country selector, regionální CZK/EUR/USD routing, explicitní `managed_payments`, Stripe subscription metadata pro webhook a CI regression checks. Veřejné placené CTA zůstávají `Připravujeme`.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.06`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
@@ -957,7 +959,7 @@ Nejbližší smysluplné produktové priority:
 2. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
 3. pokračovat ve sběru a zapracování beta feedbacku;
 4. doplnit hybridní scoring do post-session reportu/CSV;
-5. dokončit Stripe checkout nad hotovým webhookem, nakonfigurovat sandbox event destination/secrets a ověřit celý subscription lifecycle end-to-end;
+5. doplnit sandbox Checkout API key, otestovat nákup CZ i zahraničí z aplikace a následně doplnit live country verification + celý subscription lifecycle;
 6. navrhnout organization membership/role model pro Team/School/Campus;
 7. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 

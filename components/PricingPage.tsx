@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
@@ -9,7 +9,8 @@ import SyllonautMark from '@/components/SyllonautMark';
 import SiteFooter from '@/components/SiteFooter';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import { trackEvent } from '@/lib/analytics';
-import type { BillingCurrency } from '@/lib/billing-region';
+import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
+import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -144,7 +145,19 @@ function priceValue(plan: Plan, billing: Billing, currency: BillingCurrency) {
   return billing === 'annual' ? plan.price.annualUsd : plan.price.monthlyUsd;
 }
 
-function PlanCard({ plan, billing, currency }: { plan: Plan; billing: Billing; currency: BillingCurrency }) {
+function PlanCard({
+  plan,
+  billing,
+  currency,
+  canSandboxCheckout,
+  onSandboxCheckout,
+}: {
+  plan: Plan;
+  billing: Billing;
+  currency: BillingCurrency;
+  canSandboxCheckout: boolean;
+  onSandboxCheckout: (plan: Plan) => void;
+}) {
   const annual = billing === 'annual';
   const primary = priceValue(plan, billing, currency);
   const annualPrice = priceValue(plan, 'annual', currency);
@@ -178,6 +191,8 @@ function PlanCard({ plan, billing, currency }: { plan: Plan; billing: Billing; c
 
       {plan.free ? (
         <a className={styles.activeCta} href="/pricing?signup=1" onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>Vytvořit Free účet</a>
+      ) : canSandboxCheckout && (plan.id === 'teacher' || plan.id === 'teacher-pro') ? (
+        <button type="button" className={styles.activeCta} onClick={() => onSandboxCheckout(plan)}>Otestovat nákup</button>
       ) : (
         <button type="button" className={styles.disabledCta} disabled>Připravujeme</button>
       )}
@@ -188,14 +203,43 @@ function PlanCard({ plan, billing, currency }: { plan: Plan; billing: Billing; c
 export default function PricingPage({
   startSignup = false,
   currency,
+  initialCountry,
+  sandboxCheckoutEnabled = false,
+  checkoutResult = null,
 }: {
   startSignup?: boolean;
   currency: BillingCurrency;
+  initialCountry?: string | null;
+  sandboxCheckoutEnabled?: boolean;
+  checkoutResult?: 'success' | 'cancelled' | null;
 }) {
   const [user, setUser] = useState<User | null>(null);
   const [audience, setAudience] = useState<Audience>('teachers');
   const [billing, setBilling] = useState<Billing>('monthly');
+  const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
+  const [checkoutCountry, setCheckoutCountry] = useState<string>(() => {
+    const candidate = initialCountry?.toUpperCase() ?? '';
+    if (isSupportedCountryCode(candidate)) return candidate;
+    if (currency === 'czk') return 'CZ';
+    if (currency === 'eur') return 'DE';
+    return 'US';
+  });
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+  const checkoutDialogRef = useRef<HTMLDivElement | null>(null);
   const pricingViewTrackedRef = useRef(false);
+  const countryOptions = useMemo(() => {
+    let displayNames: Intl.DisplayNames | null = null;
+    try {
+      displayNames = new Intl.DisplayNames(['cs'], { type: 'region' });
+    } catch {
+      displayNames = null;
+    }
+
+    return COUNTRY_CODES
+      .map((code) => ({ code, label: displayNames?.of(code) ?? code }))
+      .sort((left, right) => left.label.localeCompare(right.label, 'cs'));
+  }, []);
   const plans = audience === 'teachers' ? teacherPlans : schoolPlans;
   const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}, měna ${currency.toUpperCase()}.`;
 
@@ -204,6 +248,32 @@ export default function PricingPage({
     pricingViewTrackedRef.current = true;
     trackEvent('pricing_view', { segment: 'teacher', billing_period: 'monthly' });
   }, []);
+
+  useEffect(() => {
+    if (checkoutResult === 'success') {
+      trackEvent('checkout_complete', { source: 'stripe_sandbox' });
+    }
+  }, [checkoutResult]);
+
+  useEffect(() => {
+    if (!checkoutPlan) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      checkoutDialogRef.current?.querySelector<HTMLElement>('select, button:not([disabled])')?.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || checkoutBusy) return;
+      event.preventDefault();
+      setCheckoutPlan(null);
+      setCheckoutError('');
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [checkoutBusy, checkoutPlan]);
 
   function changeAudience(next: Audience) {
     if (next === audience) return;
@@ -216,6 +286,57 @@ export default function PricingPage({
     setBilling(next);
     trackEvent('pricing_billing_period_change', { billing_period: next });
   }
+
+  function openSandboxCheckout(plan: Plan) {
+    if (plan.id !== 'teacher' && plan.id !== 'teacher-pro') return;
+    setCheckoutPlan(plan);
+    setCheckoutError('');
+    trackEvent('plan_select', {
+      plan: plan.id,
+      billing_period: billing,
+      source: 'pricing_sandbox',
+    });
+  }
+
+  async function startSandboxCheckout() {
+    if (!checkoutPlan || checkoutBusy) return;
+    if (checkoutPlan.id !== 'teacher' && checkoutPlan.id !== 'teacher-pro') return;
+    const planId = checkoutPlan.id;
+    setCheckoutBusy(true);
+    setCheckoutError('');
+
+    try {
+      const response = await fetch('/api/billing/stripe/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({
+          planId,
+          billing,
+          country: checkoutCountry,
+        }),
+      });
+      const payload = await response.json() as { url?: string; error?: string };
+
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error ?? 'checkout_creation_failed');
+      }
+
+      trackEvent('checkout_start', {
+        plan: planId,
+        billing_period: billing,
+        billing_country: checkoutCountry,
+        source: 'pricing_sandbox',
+      });
+      window.location.assign(payload.url);
+    } catch (error) {
+      console.error('sandbox checkout start failed', error);
+      setCheckoutError('Testovací Checkout se nepodařilo spustit. Zkontroluj serverové nastavení Stripe.');
+      setCheckoutBusy(false);
+    }
+  }
+
+  const checkoutRoute = checkoutPlan ? billingRouteForCountry(checkoutCountry) : null;
 
   return (
     <main className={landing.page}>
@@ -250,6 +371,14 @@ export default function PricingPage({
         </p>
       </section>
 
+      {checkoutResult && sandboxCheckoutEnabled ? (
+        <div className={styles.checkoutNotice} role="status">
+          {checkoutResult === 'success'
+            ? 'Sandbox Checkout byl dokončen. Stav předplatného ověří webhook v databázi.'
+            : 'Sandbox Checkout byl zrušen. Nic se nezměnilo.'}
+        </div>
+      ) : null}
+
       <section className={styles.controls} aria-label="Nastavení ceníku">
         <div className={styles.controlGroup}>
           <span>Typ předplatného</span>
@@ -272,8 +401,91 @@ export default function PricingPage({
       </div>
 
       <section className={styles.cards}>
-        {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billing={billing} currency={currency} />)}
+        {plans.map((plan) => (
+          <PlanCard
+            key={plan.id}
+            plan={plan}
+            billing={billing}
+            currency={currency}
+            canSandboxCheckout={sandboxCheckoutEnabled && Boolean(user)}
+            onSandboxCheckout={openSandboxCheckout}
+          />
+        ))}
       </section>
+
+      {checkoutPlan && checkoutRoute ? (
+        <div
+          className={styles.checkoutOverlay}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !checkoutBusy) {
+              setCheckoutPlan(null);
+              setCheckoutError('');
+            }
+          }}
+        >
+          <div
+            ref={checkoutDialogRef}
+            className={styles.checkoutDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sandbox-checkout-title"
+          >
+            <span className={styles.checkoutKicker}>Stripe sandbox</span>
+            <h2 id="sandbox-checkout-title">Otestovat {checkoutPlan.name}</h2>
+            <p>
+              Vyber fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby.
+              Ve Stripe Checkout pak použij stejnou fakturační zemi.
+            </p>
+
+            <label className={styles.checkoutField}>
+              Fakturační země
+              <select
+                value={checkoutCountry}
+                onChange={(event) => {
+                  setCheckoutCountry(event.target.value);
+                  setCheckoutError('');
+                }}
+                disabled={checkoutBusy}
+              >
+                {countryOptions.map((option) => (
+                  <option key={option.code} value={option.code}>{option.label} ({option.code})</option>
+                ))}
+              </select>
+            </label>
+
+            <div className={styles.checkoutRoute}>
+              <span>Měna</span>
+              <strong>{checkoutRoute.currency.toUpperCase()}</strong>
+              <span>Zpracování</span>
+              <strong>{checkoutRoute.managedPayments ? 'Managed Payments' : 'Standardní Stripe'}</strong>
+            </div>
+
+            {checkoutError ? <div className={styles.checkoutError} role="alert">{checkoutError}</div> : null}
+
+            <div className={styles.checkoutActions}>
+              <button
+                type="button"
+                className={styles.dialogSecondary}
+                onClick={() => {
+                  setCheckoutPlan(null);
+                  setCheckoutError('');
+                }}
+                disabled={checkoutBusy}
+              >
+                Zrušit
+              </button>
+              <button
+                type="button"
+                className={styles.activeCta}
+                onClick={startSandboxCheckout}
+                disabled={checkoutBusy}
+              >
+                {checkoutBusy ? 'Otevírám Stripe…' : 'Pokračovat do Stripe'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section className={styles.notes}>
         <div>
