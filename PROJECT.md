@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po doplnění EUR cen do veřejného ceníku a přípravě tří měnových cenových kotev ve verzi 0.8.02.
+Aktualizováno: 2026-09-18 po zavedení regionálního zobrazování jediné relevantní měny ve veřejném ceníku ve verzi 0.8.03.
 
-**Aktuální produktová verze: 0.8.02** — veřejný Ceník uvádí CZK, EUR a USD u všech tarifů; placené CTA zůstávají vypnuté do dokončení bezpečného billing provisioningu.
+**Aktuální produktová verze: 0.8.03** — veřejný Ceník zobrazuje jen jednu regionálně relevantní měnu: CZK pro ČR, EUR pro eurozónu a USD pro ostatní návštěvníky; placené CTA zůstávají vypnuté do dokončení bezpečného billing provisioningu.
 
 Produkční release 0.8:
 
@@ -753,7 +753,7 @@ Hotovo:
 
 - teacher/school segment;
 - monthly/annual;
-- CZK/EUR/USD;
+- regionální pricing: CZK pro ČR, EUR pro eurozónu, USD pro ostatní;
 - Free signup CTA;
 - paid `Připravujeme`;
 - Teacher Pro premium features;
@@ -895,7 +895,8 @@ Další významné změny 2026-09-18:
 - **0.8** / `20260918114341` — live resilience redesign po reálné beta hodině: automatický Teacher/Presenter failover, live resume ticket, paralelní primární + Cloudflare command cesta, srozumitelné timeout UX a server-driven AI grading s jednorázovými capability tokeny a DB retry; produkční Vercel/Supabase část byla ověřena a Cloudflare Worker byl následně nasazen s Version ID `e4940eb9-7862-4717-b9b9-2160ff510d21`;
 - **0.8.01** / `b90a2ec` — věková a vývojová přiměřenost je závazná součást AI authoringu při generování i revizích; `npm run check` obsahuje regresní kontrolu pravidel, dashboard zobrazuje `v0.8.01` a chování bylo po nasazení prakticky potvrzeno v produkci.
 - **0.8.02** — veřejný Ceník doplňuje EUR vedle CZK a USD u všech individuálních i školních plánů; Stripe sandbox katalog obsahuje odpovídající CZK/EUR/USD price objekty, placené CTA však zůstávají deaktivované do dokončení subscription provisioningu.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.02`.
+- **0.8.03** — Ceník už nezobrazuje tři měny současně: server podle země návštěvníka zobrazuje pouze CZK (ČR), EUR (eurozóna) nebo USD (ostatní). Stejná regionální utilita je připravená pro budoucí checkout routing; fakturační země bude při nákupu vždy znovu ověřena.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.03`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
