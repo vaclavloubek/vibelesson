@@ -1,12 +1,14 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po dokončení GDPR/cookies/privacy baseline, migraci e-mailové domény Syllonautu na kořenové `syllonaut.com`, ověření Supabase Auth SMTP end-to-end a paralelním zpřesnění live resilience reconciliation.
+Aktualizováno: 2026-09-18 po dokončení dnešního beta-feedback cyklu: zpřesnění live odpovědí a completion stavů, prioritizace/čištění AI review queue, třístupňová přísnost AI hodnocení, reconnect UX studentů a nový přetahovatelný ovladač přísnosti.
 
-Aktuální produkční `main` před touto dokumentační aktualizací:
+**Aktuální produktová verze: 0.7.01** — první patch nad baseline 0.7; opravuje P2 Cloudflare → Supabase reconciliation.
 
-`6d72267578e7f51ca0d23fef7b617c72c5edfb5f` — **Refine live resilience reconciliation**.
+Produkční funkční baseline před touto dokumentační aktualizací:
 
-Vercel deployment tohoto HEAD je úspěšný. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
+`57539ceb532175d8bdab287076eb62a2745cc0f1` — **Make grading strictness slider draggable**.
+
+Vercel Production deployment této funkční baseline je úspěšný. Verze 0.7.01 navíc obsahuje produkční Supabase migraci `20260918093706_allow_live_reconciliation_trigger_bypass`, která umožňuje důvěryhodné P2 snapshot reconciliation obejít pouze interaktivní SEC-005 trigger guards pomocí transaction-scoped advisory markeru; běžné write cesty zůstávají chráněné. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -23,6 +25,21 @@ Hlavní doména: `syllonaut.com`.
 `PROJECT.md` je zdroj pravdy pro produkt, architekturu, bezpečnost, stav a priority. Mění se pouze na výslovný pokyn uživatele.
 
 Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; tento dokument nesmí nahrazovat kontrolu aktuálního `main`.
+
+### Versionování produktu
+
+Od verze **0.7** se Syllonaut čísluje podle následujícího projektového pravidla:
+
+- **0.7** je výchozí baseline zavedená 2026-09-18;
+- **větší funkční změna / nový významný produktový celek** posouvá verzi o jednu desetinu, např. `0.7 → 0.8`;
+- **menší samostatná funkční úprava** zvyšuje třetí část verze o jednu, zapisovanou dvěma číslicemi: `0.7.01`, `0.7.02` … `0.7.99`;
+- číslo za druhou tečkou vždy představuje **jednu koherentní funkční změnu**, nikoli jeden commit nebo jeden změněný soubor;
+- při posunu o desetinu se patch část zahazuje/resetuje, např. `0.7.14 → 0.8`;
+- čistě dokumentační, testovací, CI, formátovací nebo interní refaktor bez změny produktového chování sám o sobě verzi neposouvá;
+- pracovní Preview větev verzi neposouvá; nová verze se stává platnou až po sloučení funkční změny do produkčního `main`;
+- pokud není změna zjevně „větší“, výchozí interpretace je **menší funkční úprava** a tedy zvýšení třetí části;
+- při každé budoucí produkční funkční změně se má automaticky aktualizovat tento `PROJECT.md`: aktuální verze + stručný changelog/stav relevantní funkce. Není potřeba čekat na zvláštní pokyn k verzování;
+- `PROJECT.md` se jinak stále mění pouze na výslovný pokyn uživatele; výjimkou je právě tato automatická aktualizace verze/stavu jako součást už schválené produkční funkční změny.
 
 ## 2. Stack a deployment
 
@@ -128,6 +145,17 @@ Aktuální hranice:
 ### Formulář přípravy lekce
 
 Po beta úpravě nejsou pomocné hodnoty v parametrech přípravy lekce skutečnými předvyplněnými daty. Slouží pouze jako zesvětlené příklady vstupu; uživatel musí hodnoty skutečně vyplnit.
+
+### Authoring kontrakt interaktivních bloků
+
+Po beta testu 2026-09-18 platí navíc:
+
+- `intro`, `reveal` a `timer` jsou display-only bloky a AI v nich nesmí zadat studentovi text, který má v aplikaci odevzdat;
+- individuální odevzdávaný text patří do `open_text` / `exit_ticket`;
+- týmový odevzdávaný text patří do `team_task`;
+- `reveal` může vybízet k ústní diskusi, ne k submitu do aplikace;
+- sekvenční číslované instrukce se mají generovat jako jednotlivé kroky/řádky, ne jako jeden hustý odstavec;
+- lesson preview, student live i Presenter umí takové číslované instrukce/reveal text deterministicky renderovat jako skutečný sémantický seznam `<ol><li>`, bez HTML injection.
 
 ### Structured `dataTable`
 
@@ -417,6 +445,26 @@ Neaktivita studenta **není** signál, že je odpověď hotová.
 - novější odpověď po proběhlém gradingu sama nový placený call nevytvoří;
 - teacher případný regrade spouští explicitně.
 
+### Aktuální submitted/completion semantika
+
+Po beta testu 2026-09-18 se stav „odevzdáno“ počítá podle **aktuální verze odpovědi**, ne pouze podle existence historického `submitted_at`:
+
+- odpověď je aktuálně odevzdaná jen tehdy, když existuje submit a současný `answer` odpovídá `submitted_answer`;
+- pokud student po submitu text znovu upraví, stav se vrátí na **Rozepsaná** a completion counter se sníží, dokud student znovu neodevzdá;
+- stejné pravidlo používají student, teacher live a Presenter;
+- `ranking` má explicitní submit; poll/quiz zůstávají instant-choice interakce;
+- teacher live rozlišuje `Čeká`, **Rozepsaná** (žlutý stav) a `Odevzdáno`;
+- completion počty u open/ranking/team odpovědí počítají pouze aktuálně odevzdané snapshoty.
+
+### Reconnect po odevzdání
+
+Při výpadku spojení se lokální koncept zachovává. Po obnovení spojení student UI znovu vyhodnotí serverový stav:
+
+- pokud server/fallback už submit potvrdil, staré chybové varování se automaticky vyčistí a UI přejde na `Odevzdáno`;
+- pokud submit potvrzený není, student dostane konkrétní instrukci, že text je bezpečně uložený a stačí znovu klepnout na odevzdání;
+- týmový editor umí při fallback submitu zobrazit stav záložní live vrstvy a po konvergenci odstranit zastaralou chybu;
+- není nutné odpověď znovu opisovat.
+
 **SEC-001 — REMEDIATED / CLOSED.**
 
 ## 12. Hybridní scoring + grading
@@ -438,6 +486,26 @@ Implementováno a nasazeno:
 - public student score vrací jen vlastní `score`, `maxPoints`, `rank`.
 
 `response_evaluations` ukládá answer/rubric snapshot, criterion scores, `ai_score`, `teacher_score`, confidence, status, model a skutečný `cost_usd`.
+
+### Přísnost AI hodnocení a review queue
+
+Pro účty s AI grading entitlementem má lesson volitelné `gradingStrictness`:
+
+- `lenient` — **Mírná**;
+- `neutral` — **Neutrální**; zároveň bezpečný default pro starší lekce bez pole;
+- `strict` — **Přísná**.
+
+Přísnost nemění rubriku ani nepřidává nová kritéria. Mění pouze způsob interpretace hraničních/částečně splněných odpovědí. Teacher override je vždy autoritativní.
+
+UI používá třístupňový barevný slider zelená → žlutá → červená. Jezdec lze táhnout plynule myší/prstem a po puštění zacvakne na nejbližší ze tří hodnot; kliknutí na hodnoty i klávesnicové/radio semantics zůstávají zachované.
+
+Nastavení je viditelné jen uživatelům s AI grading entitlementem a používá se při vytvoření i uložení lekce. Non-neutral volba při generování je serverově guardovaná entitlementem.
+
+Review queue:
+
+- teacher-confirmed položka po potvrzení zmizí z aktivní fronty;
+- pokud vznikne novější submit, položka se může znovu objevit;
+- unresolved hodnocení aktuálně aktivního bloku se řadí před starší bloky, aby se teacher lépe orientoval v probíhající hodině.
 
 Hybridní scoring zatím není součástí post-session reportu/CSV.
 
@@ -687,10 +755,11 @@ Zbývá:
 
 **Hlavní MVP dokončeno.**
 
-Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables.
+Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables. P2 Cloudflare Worker/Durable Object mirroring je aktivní; databázová reconciliation oprava `20260918093706` je nasazená.
 
 Zbývá:
 
+- finální end-to-end ověření P2 po reconciliation opravě (`live_control_revision > 0`) a následný chaos test A–G;
 - hybridní scoring v post-session reportu/CSV;
 - případné další statistiky.
 
@@ -732,6 +801,12 @@ Zbývá před formální conformance claim:
 4. U parametrů přípravy lekce jsou příklady jen placeholdery; uživatel vyplňuje vlastní hodnoty.
 5. Projektor před scoreboardem zobrazuje aktuální úlohu podle teacher-controlled průchodu lekcí a zároveň join QR/link/code.
 6. Přesun již vytvořených lekcí do složek byl po prvním testu přepracován na move dialog + lesson menu + bulk + desktop drag-and-drop.
+7. Číslované kroky/otázky se v lesson preview, student live a Presenter zobrazují vertikálně jako sémantický seznam.
+8. AI generation už nesmí vytvořit display-only `reveal/intro/timer`, který současně požaduje odevzdávanou odpověď; submit požadavky musí používat interaktivní block type.
+9. Teacher live rozlišuje koncept `Rozepsaná` od skutečně odevzdané aktuální verze a progress počítá jen aktuální submit snapshoty.
+10. Potvrzené AI hodnocení mizí z aktivní review queue; aktuální blok má při řazení přednost.
+11. AI grading má tři volitelné úrovně přísnosti pro oprávněné účty; UI je barevný třípolohový slider s plynulým tahem a snapem.
+12. Po výpadku spojení se zastaralá submit error hláška po potvrzené synchronizaci sama vyčistí; při nepotvrzeném submitu UI jasně říká, že koncept zůstal uložený a stačí znovu odevzdat.
 
 ## 20. Významné operace 2026-09-17 až 2026-09-18
 
@@ -764,9 +839,18 @@ Další významné změny 2026-09-18:
 - `4104941` — cookie consent, GDPR page, marketing opt-in a privacy regression checks;
 - `93932cf` — doplnění identity správce GDPR;
 - `51ff11d` — aktivní privacy kontakt `vaclav@syllonaut.com`;
-- `6d72267` — zpřesnění live resilience reconciliation.
+- `6d72267` — zpřesnění live resilience reconciliation;
+- `c773b38` — hotfix student live navigation: fail-open při service worker/cache a Cloudflare WebSocket problému;
+- `f703d1b` — číslované instrukce/revealy + generation guard proti display-only blokům vyžadujícím submit;
+- `0e4e0f0` — lesson-level `gradingStrictness` a entitlement-gated Mírná/Neutrální/Přísná;
+- `42d7531` — submitted typy ve live fallbacku + prioritizace review queue podle aktivního bloku;
+- `8ee9e6e` — completion sjednocený podle aktuálního `answer === submitted_answer`;
+- `f9b3c32` — reconnect UX: odstranění zastaralých submit error stavů po synchronizaci;
+- `76d47d1` — přístupný barevný třístupňový ovladač přísnosti AI hodnocení;
+- `57539ce` — plynulé drag ovládání slideru se snapem na tři platné hodnoty;
+- `20260918093706` — Supabase P2 reconciliation fix: transaction-scoped advisory marker umožní historickému Cloudflare snapshotu projít SEC-005 live-write triggery bez oslabení běžných write cest.
 
-Aktuální uvedený `main` má úspěšný Vercel deployment.
+**Funkční baseline verze 0.7 je `57539ce`; aktuální produktová verze 0.7.01 přidává produkční P2 reconciliation opravu `20260918093706`.**
 
 ## 21. Pravidla další práce
 
@@ -791,7 +875,10 @@ Aktuální uvedený `main` má úspěšný Vercel deployment.
 - nevytvářet umělé placené AI cally jen kvůli testu, pokud lze bezpečnost ověřit strukturálně;
 - accessibility změny musí chránit jak samotné authoring UI, tak výsledný obsah lekcí;
 - automatický accessibility test není náhrada manuálního testu;
-- `PROJECT.md` měnit pouze na výslovný pokyn uživatele.
+- každá schválená produkční **funkční** změna musí automaticky dostat novou verzi podle pravidel v sekci „Versionování produktu“ a současně aktualizovat příslušný stav/changelog v `PROJECT.md`;
+- menší funkční změna standardně inkrementuje třetí část (`0.7.01`, `0.7.02` …), větší produktový/funkční celek desetinu (`0.8`, `0.9` …);
+- čistě interní/docs/test/CI změna bez změny chování verzi neposouvá;
+- `PROJECT.md` jinak měnit pouze na výslovný pokyn uživatele.
 
 ## 22. Bezprostřední další krok
 
