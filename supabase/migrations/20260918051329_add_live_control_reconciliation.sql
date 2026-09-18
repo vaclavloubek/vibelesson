@@ -1,0 +1,5 @@
+-- Historical marker.
+-- A snapshot-based reconciliation prototype was briefly applied directly.
+-- The merged runtime uses the monotonic event-based reconcile_live_control_events
+-- path instead. The prototype objects are removed by
+-- 20260918071000_cleanup_redundant_live_resilience_objects.sql.
