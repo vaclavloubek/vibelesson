@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import LessonLibrary, { type LessonFolderItem, type LessonListItem } from './LessonLibrary';
 import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
+import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -29,7 +30,11 @@ function formatSessionDuration(startedAt: string | null, endedAt: string) {
   return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
-export default async function LessonsPage() {
+type Props = { searchParams: Promise<{ signup?: string | string[] }> };
+
+export default async function LessonsPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const signup = Array.isArray(params.signup) ? params.signup[0] : params.signup;
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
@@ -107,6 +112,7 @@ export default async function LessonsPage() {
 
   return (
     <main className="shell lessons-shell">
+      {signup === 'completed' ? <SignupCompletedAnalytics /> : null}
       <header className="brand lessons-brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
         <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
