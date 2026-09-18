@@ -17,8 +17,14 @@ type EdgeJoinResponse = {
 };
 
 export async function POST(req: Request) {
+  let body: z.infer<typeof JoinSchema>;
   try {
-    const body = JoinSchema.parse(await req.json());
+    body = JoinSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Zkontroluj kód hodiny a jméno.' }, { status: 400 });
+  }
+
+  try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
@@ -54,7 +60,10 @@ export async function POST(req: Request) {
     });
     return response;
   } catch (error) {
-    console.error('student join failed', error);
-    return NextResponse.json({ error: 'Zkontroluj kód hodiny a jméno.' }, { status: 400 });
+    console.error('student join upstream failed', error);
+    return NextResponse.json(
+      { error: 'Spojení se službou je dočasně nedostupné. Zkus připojení znovu.' },
+      { status: 503 },
+    );
   }
 }
