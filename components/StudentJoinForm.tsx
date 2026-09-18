@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import SyllonautMark from '@/components/SyllonautMark';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 import { trackEvent } from '@/lib/analytics';
 import { saveLiveControlAccess, type LiveControlAccess } from '@/lib/live-control-client';
 
@@ -30,7 +31,7 @@ export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
         body: JSON.stringify({ joinCode, displayName }),
       });
       const data = await response.json() as { sessionId?: string; liveControl?: LiveControlAccess | null; error?: string };
-      if (!response.ok || !data.sessionId) throw new Error(data.error || ui('Ke hodině se nepodařilo připojit.', 'Could not join the lesson.'));
+      if (!response.ok || !data.sessionId) throw new Error(localizedApiError(data.error, locale, 'Ke hodině se nepodařilo připojit.', 'Could not join the lesson.'));
       trackEvent('student_join_completed');
       saveLiveControlAccess(data.sessionId, 'student', data.liveControl ?? null);
       router.replace(`/student/${data.sessionId}`);

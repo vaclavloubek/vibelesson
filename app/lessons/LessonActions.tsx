@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type Props = {
   lessonId: string;
@@ -33,7 +34,7 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
         body: JSON.stringify({ title: nextTitle }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ui('Přejmenování selhalo.', 'Renaming failed.'));
+      if (!res.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Přejmenování selhalo.', 'Renaming failed.'));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Přejmenování selhalo.', 'Renaming failed.'));
@@ -48,7 +49,7 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
     try {
       const res = await fetch(`/api/lessons/${lessonId}`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok || !data.lessonId) throw new Error(data.error || ui('Duplikace selhala.', 'Duplication failed.'));
+      if (!res.ok || !data.lessonId) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Duplikace selhala.', 'Duplication failed.'));
       trackEvent('lesson_duplicated');
       router.push(`/lessons/${data.lessonId}`);
     } catch (err) {
@@ -72,7 +73,7 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
     try {
       const res = await fetch(`/api/lessons/${lessonId}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ui('Smazání selhalo.', 'Deletion failed.'));
+      if (!res.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Smazání selhalo.', 'Deletion failed.'));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Smazání selhalo.', 'Deletion failed.'));

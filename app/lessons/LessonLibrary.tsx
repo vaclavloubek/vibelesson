@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LessonActions from './LessonActions';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 import { bucketItemCount, trackEvent } from '@/lib/analytics';
 import styles from './LessonLibrary.module.css';
 
@@ -143,7 +144,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
   async function requestJson(url: string, init: RequestInit) {
     const res = await fetch(url, init);
     const data = await res.json() as { error?: string };
-    if (!res.ok) throw new Error(data.error || ui('Operace se nepodařila.', 'The operation failed.'));
+    if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Operace se nepodařila.', 'The operation failed.'));
     return data;
   }
 

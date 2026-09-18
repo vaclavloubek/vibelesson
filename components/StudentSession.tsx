@@ -21,6 +21,7 @@ import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
+import { localizedApiError } from '@/lib/i18n';
 
 type Team = { id: string; name: string; memberCount: number };
 type StudentState = {
@@ -139,7 +140,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       try {
         const response = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
         const data = await response.json() as StudentState & { error?: string };
-        if (!response.ok) throw new Error(data.error || ui('Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.'));
+        if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.'));
 
         const recovered = disconnectedRef.current;
         disconnectedRef.current = false;

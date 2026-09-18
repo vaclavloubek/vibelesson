@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { postLiveControlEvent } from '@/lib/live-control-client';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type Team = { id: string; name: string; memberCount: number };
 
@@ -34,9 +35,9 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
       const data = await response.json() as { error?: string };
       if (!response.ok) {
         if (response.status < 500 && response.status !== 408 && response.status !== 429) {
-          throw new Error(data.error || ui('Tým se nepodařilo vybrat.', 'The team could not be selected.'));
+          throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Tým se nepodařilo vybrat.', 'The team could not be selected.'));
         }
-        throw new TypeError(data.error || ui('Primární live služba je dočasně nedostupná.', 'The primary live service is temporarily unavailable.'));
+        throw new TypeError(localizedApiError(data.error, english ? 'en' : 'cs', 'Primární live služba je dočasně nedostupná.', 'The primary live service is temporarily unavailable.'));
       }
       void postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId, source: 'primary' }, operationId);
       onChanged();

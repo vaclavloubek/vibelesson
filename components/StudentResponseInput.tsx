@@ -7,6 +7,7 @@ import { enqueueLiveOperation } from '@/lib/live-offline';
 import { postLiveControlEvent } from '@/lib/live-control-client';
 import { activityMode, trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type Props = {
   sessionId: string;
@@ -114,7 +115,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         if (result.status === 408 || result.status === 429 || result.status >= 500) {
           throw new Error(data.error || 'Transient response save failure.');
         }
-        setError(data.error || ui('Odpověď se nepodařilo uložit.', 'The answer could not be saved.'));
+        setError(localizedApiError(data.error, english ? 'en' : 'cs', 'Odpověď se nepodařilo uložit.', 'The answer could not be saved.'));
         return;
       }
       const submittedCurrent = Boolean(data.submittedCurrent);

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 import type { SessionReportBlock, SessionReportData } from '@/lib/session-report';
 
 const TYPE_LABELS = {
@@ -140,7 +141,7 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
       try {
         const response = await fetch(`/api/sessions/${sessionId}/report`, { cache: 'no-store' });
         const data = await response.json() as { ready?: boolean; report?: SessionReportData; error?: string };
-        if (!response.ok) throw new Error(data.error || ui('Report se nepodařilo načíst.', 'The report could not be loaded.'));
+        if (!response.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Report se nepodařilo načíst.', 'The report could not be loaded.'));
         if (cancelled) return;
 
         if (!data.ready || !data.report) {

@@ -6,6 +6,7 @@ import { postLiveControlEvent } from '@/lib/live-control-client';
 import { cacheLiveDraft, deleteCachedLiveDraft, getCachedLiveDraft } from '@/lib/live-offline';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type Props = {
   sessionId: string;
@@ -173,7 +174,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         const result = await request('claim');
         setLock(result.lock ?? null);
         if (!result.responseOk) {
-          setError(result.error || ui('Týmový editor se nepodařilo zamknout. Neuložený text zůstává v této kartě.', 'The team editor could not be locked. Unsaved text stays in this tab.'));
+          setError(localizedApiError(result.error, english ? 'en' : 'cs', 'Týmový editor se nepodařilo zamknout. Neuložený text zůstává v této kartě.', 'The team editor could not be locked. Unsaved text stays in this tab.'));
           return false;
         }
         if (!result.acquired) {
@@ -263,7 +264,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
             return 'retry';
           }
 
-          setError(result.error || ui('Týmovou odpověď se nepodařilo uložit.', 'The team answer could not be saved.'));
+          setError(localizedApiError(result.error, english ? 'en' : 'cs', 'Týmovou odpověď se nepodařilo uložit.', 'The team answer could not be saved.'));
           return result.status === 408 || result.status === 429 || result.status >= 500 ? 'retry' : 'blocked';
         }
 
@@ -553,7 +554,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       const result = await request('submit', value);
       if (result.lock !== undefined) setLock(result.lock ?? null);
       if (!result.responseOk || !result.submitted) {
-        setError(result.error || ui('Týmovou odpověď se nepodařilo odevzdat.', 'The team answer could not be submitted.'));
+        setError(localizedApiError(result.error, english ? 'en' : 'cs', 'Týmovou odpověď se nepodařilo odevzdat.', 'The team answer could not be submitted.'));
         return;
       }
 

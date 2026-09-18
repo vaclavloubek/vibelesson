@@ -18,6 +18,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type PresenterBlock = {
   id: string;
@@ -236,7 +237,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
         5_000,
       );
       const body = await response.json() as PresenterData & { error?: string };
-      if (!response.ok) throw new Error(body.error || ui('Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
       if (!presenterOpenedTrackedRef.current) {
         presenterOpenedTrackedRef.current = true;
         trackEvent('presenter_opened', { session_state: body.status });

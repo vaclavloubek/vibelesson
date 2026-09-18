@@ -92,9 +92,11 @@ if (ai.includes('Jazyk výstupu je čeština')) {
 requireText(studentEdge, 'lessonLanguage: typeof lesson.language === "string" ? lesson.language : null', 'student primary state must expose lesson language.');
 requireText(studentSession, 'lessonLanguage: string | null;', 'student live state must carry lesson language.');
 requireText(studentSession, 'contentLanguage={state.lessonLanguage}', 'student live lesson content must receive lesson language.');
+requireText(studentSession, "localizedApiError(data.error, locale, 'Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.')", 'student live errors must remain localized instead of leaking server text.');
 requireText(presenterRoute, 'lessonLanguage: lesson.data.language ?? null', 'Presenter primary API must expose lesson language.');
 requireText(presenterMode, 'lessonLanguage: string | null;', 'Presenter state must carry lesson language.');
 requireText(presenterMode, 'lang={data.lessonLanguage ?? undefined}', 'Presenter content must expose lesson language in the DOM.');
+requireText(presenterMode, "localizedApiError(body.error, english ? 'en' : 'cs', 'Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.')", 'presenter errors must remain localized instead of leaking server text.');
 requireText(liveBlock, 'contentLanguage?: string | null;', 'live lesson block must accept content language.');
 requireText(liveBlock, "dir={contentLanguage ? 'auto' : undefined}", 'lesson content must preserve automatic text direction for RTL languages.');
 requireText(evaluationReviewQueue, "ui('Připravit novou verzi k hodnocení', 'Prepare newer version for grading')", 'evaluation regrade action must remain localized.');

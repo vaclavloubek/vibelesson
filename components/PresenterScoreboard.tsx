@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterScoreboard.module.css';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/client';
 
 type PresenterRow = {
@@ -85,7 +86,7 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
     try {
       const response = await fetch(`/api/sessions/${sessionId}/presenter`, { cache: 'no-store' });
       const body = await response.json() as PresenterData & { error?: string };
-      if (!response.ok) throw new Error(body.error || ui('Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
       setData(body);
       setError('');
     } catch (err) {
