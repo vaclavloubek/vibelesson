@@ -10,7 +10,7 @@ type Props = {
   block: PublicLessonBlock;
   teamName: string;
   teamId: string;
-  response: { text: string; updatedByParticipantId: string | null } | null;
+  response: { text: string; updatedByParticipantId: string | null; submitted?: boolean; submittedText?: string | null; submittedAt?: string | null } | null;
   onSaved: () => void;
 };
 
@@ -60,6 +60,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
 
 export default function TeamTaskResponseInput({ sessionId, block, teamName, teamId, response, onSaved }: Props) {
   const serverText = response?.text ?? '';
+  const serverSubmitted = Boolean(response?.submitted || (response?.submittedAt && response.submittedText === response.text));
   const draftKey = `syllonaut-team-draft-v1:${sessionId}:${block.id}:${teamName}`;
   const statusId = `team-response-status-${block.id}`;
   const [text, setText] = useState(serverText);
@@ -70,7 +71,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   const [draftRecovered, setDraftRecovered] = useState(false);
   const [draftConflict, setDraftConflict] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(serverSubmitted);
 
   const lockRef = useRef<LockInfo>(null);
   const focusedRef = useRef(false);
@@ -141,10 +142,10 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
     setSaveState('idle');
     setDraftRecovered(false);
     setDraftConflictState(false);
-    setSubmitted(false);
+    setSubmitted(serverSubmitted);
     clearDraft();
     setError(message ?? '');
-  }, [clearDraft, setDraftConflictState]);
+  }, [clearDraft, serverSubmitted, setDraftConflictState]);
 
   const ensureLock = useCallback(async () => {
     if (lockRef.current?.mine) return true;
@@ -381,9 +382,10 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       setSaveState('idle');
       setDraftRecovered(false);
       setDraftConflictState(false);
+      setSubmitted(serverSubmitted);
       clearDraft();
     }
-  }, [clearDraft, serverText, setDraftConflictState]);
+  }, [clearDraft, serverSubmitted, serverText, setDraftConflictState]);
 
   useEffect(() => {
     let cancelled = false;

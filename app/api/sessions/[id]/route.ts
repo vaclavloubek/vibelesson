@@ -9,6 +9,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 type SupabaseClient = Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase'];
 type TimerStatus = 'idle' | 'running' | 'paused';
 
+function sameJson(left: unknown, right: unknown) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
 async function loadOwnedSession(id: string, userId: string, supabase: SupabaseClient) {
   return supabase
     .from('sessions')
@@ -66,7 +70,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   if (session.active_block_id && activeBlock?.type === 'team_task') {
     const { data: teamResponseRows, error: teamResponseError } = await supabase
       .from('team_responses')
-      .select('team_id, answer, updated_by_participant_id, updated_at, submitted_at')
+      .select('team_id, answer, submitted_answer, updated_by_participant_id, updated_at, submitted_at')
       .eq('session_id', id)
       .eq('block_id', session.active_block_id)
       .order('updated_at', { ascending: true });
@@ -86,13 +90,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
         updatedByParticipantId: updaterId,
         updatedByDisplayName: updaterId ? participantNames.get(updaterId) ?? 'Student' : null,
         updatedAt: response.updated_at as string,
-        submitted: Boolean(response.submitted_at),
+        submitted: Boolean(response.submitted_at && sameJson(response.answer, response.submitted_answer)),
       });
     }
   } else if (session.active_block_id) {
     const { data: responseRows, error: responseError } = await supabase
       .from('responses')
-      .select('participant_id, answer, updated_at, submitted_at')
+      .select('participant_id, answer, submitted_answer, updated_at, submitted_at')
       .eq('session_id', id)
       .eq('block_id', session.active_block_id)
       .order('updated_at', { ascending: true });
@@ -110,7 +114,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
         displayName: participantNames.get(response.participant_id as string) ?? 'Student',
         answer: parsedAnswer.data,
         updatedAt: response.updated_at as string,
-        submitted: Boolean(response.submitted_at),
+        submitted: Boolean(response.submitted_at && sameJson(response.answer, response.submitted_answer)),
       });
     }
   }

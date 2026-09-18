@@ -38,7 +38,7 @@ type StudentState = {
   timer: LiveTimerState | null;
   teams: Team[];
   myTeam: Team | null;
-  myTeamResponse: { text: string; updatedByParticipantId: string | null } | null;
+  myTeamResponse: { text: string; updatedByParticipantId: string | null; submitted?: boolean; submittedText?: string | null; submittedAt?: string | null } | null;
   scoreboard: PublicScoreboardState | null;
 };
 
@@ -113,7 +113,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       teams,
       myTeam,
       myTeamResponse: teamResponse
-        ? { text: teamResponse.text, updatedByParticipantId: null }
+        ? { text: teamResponse.text, updatedByParticipantId: null, submitted: Boolean(teamResponse.submitted) }
         : current?.myTeamResponse ?? null,
       scoreboard: current?.scoreboard ?? null,
     }));

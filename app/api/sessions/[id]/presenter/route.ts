@@ -7,6 +7,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 type TimerStatus = 'idle' | 'running' | 'paused';
 
+function sameJson(left: unknown, right: unknown) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
 function toPresenterBlock(block: LessonBlock | null) {
   if (!block) return null;
   return {
@@ -59,37 +63,43 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   let submission: { submitted: number; total: number; unit: 'student' | 'team' } | null = null;
 
-  if (activeBlock && ['poll', 'quiz', 'open_text', 'ranking', 'exit_ticket'].includes(activeBlock.type)) {
-    let query = supabase
+  if (activeBlock && (activeBlock.type === 'poll' || activeBlock.type === 'quiz')) {
+    const { count, error } = await supabase
       .from('responses')
       .select('id', { count: 'exact', head: true })
       .eq('session_id', sessionId)
       .eq('block_id', activeBlock.id);
-
-    if (['open_text', 'ranking', 'exit_ticket'].includes(activeBlock.type)) {
-      query = query.not('submitted_at', 'is', null);
+    if (error) {
+      console.error('presenter choice response count failed', error);
+    } else {
+      submission = { submitted: count ?? 0, total: result.data.rows.length, unit: 'student' };
     }
-
-    const { count, error } = await query;
+  } else if (activeBlock && ['open_text', 'ranking', 'exit_ticket'].includes(activeBlock.type)) {
+    const { data: responseRows, error } = await supabase
+      .from('responses')
+      .select('answer, submitted_answer, submitted_at')
+      .eq('session_id', sessionId)
+      .eq('block_id', activeBlock.id);
     if (error) {
       console.error('presenter response count failed', error);
     } else {
-      submission = { submitted: count ?? 0, total: result.data.rows.length, unit: 'student' };
+      const submitted = (responseRows ?? []).filter((row) => row.submitted_at && sameJson(row.answer, row.submitted_answer)).length;
+      submission = { submitted, total: result.data.rows.length, unit: 'student' };
     }
   } else if (activeBlock?.type === 'team_task') {
     const [teamsResult, responsesResult] = await Promise.all([
       supabase.from('teams').select('id', { count: 'exact', head: true }).eq('session_id', sessionId),
       supabase
         .from('team_responses')
-        .select('team_id', { count: 'exact', head: true })
+        .select('answer, submitted_answer, submitted_at')
         .eq('session_id', sessionId)
-        .eq('block_id', activeBlock.id)
-        .not('submitted_at', 'is', null),
+        .eq('block_id', activeBlock.id),
     ]);
     if (teamsResult.error || responsesResult.error) {
       console.error('presenter team response count failed', { teams: teamsResult.error, responses: responsesResult.error });
     } else {
-      submission = { submitted: responsesResult.count ?? 0, total: teamsResult.count ?? 0, unit: 'team' };
+      const submitted = (responsesResult.data ?? []).filter((row) => row.submitted_at && sameJson(row.answer, row.submitted_answer)).length;
+      submission = { submitted, total: teamsResult.count ?? 0, unit: 'team' };
     }
   }
 
