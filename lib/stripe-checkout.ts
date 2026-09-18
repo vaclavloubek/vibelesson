@@ -5,6 +5,7 @@ export type CreateStripeCheckoutInput = {
   priceId: string;
   userId: string;
   userEmail: string;
+  customerId?: string | null;
   billingCountry: string;
   managedPayments: boolean;
   planCode: string;
@@ -37,7 +38,11 @@ export function buildStripeCheckoutParams(input: Omit<CreateStripeCheckoutInput,
   params.set('line_items[0][price]', input.priceId);
   params.set('line_items[0][quantity]', '1');
   params.set('client_reference_id', input.userId);
-  params.set('customer_email', input.userEmail);
+  if (input.customerId) {
+    params.set('customer', input.customerId);
+  } else {
+    params.set('customer_email', input.userEmail);
+  }
   params.set('billing_address_collection', 'required');
   params.set('submit_type', 'subscribe');
   params.set('managed_payments[enabled]', input.managedPayments ? 'true' : 'false');
