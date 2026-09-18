@@ -11,6 +11,7 @@ export type LiveControlAccess = {
 export type LiveControlState = {
   snapshot: {
     sessionId: string;
+    joinCode?: string;
     revision: number;
     status: 'lobby' | 'live' | 'ended';
     activeBlockId: string | null;
@@ -21,7 +22,7 @@ export type LiveControlState = {
     teams: Array<{ id: string; name: string; sortOrder?: number }>;
     participants: Array<{ id: string; displayName: string; teamId: string | null }>;
     responses: Array<{ participantId: string; blockId: string; answer: unknown; submitted?: boolean }>;
-    teamResponses?: Array<{ teamId: string; blockId: string; text: string; submitted?: boolean }>;
+    teamResponses?: Array<{ teamId: string; blockId: string; text: string; submitted?: boolean; updatedByParticipantId?: string | null }>;
     revealedBlockIds: string[];
     timer: unknown;
     updatedAt: string;
