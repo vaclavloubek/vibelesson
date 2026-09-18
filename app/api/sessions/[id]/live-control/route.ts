@@ -28,8 +28,11 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const { supabase, userId, error: authError } = await getAuthenticatedUserId();
 
   if (!userId) {
-    if (authError && resume) {
-      console.warn('live control capability restored from resume ticket', { sessionId: id });
+    if (resume) {
+      console.warn('live control capability restored from resume ticket', {
+        sessionId: id,
+        authError: Boolean(authError),
+      });
       return degradedAccess(id, resume.userId);
     }
     return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
