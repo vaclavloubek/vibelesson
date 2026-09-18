@@ -55,10 +55,13 @@ const enHome = await expectHtml('/en', [
   '<html lang="en"',
   'From an idea to a live interactive lesson.',
   'Write in the language you want to teach in.',
-  'hreflang="cs"',
-  'hreflang="en"',
-  'hreflang="x-default"',
 ]);
+const enHomeLower = enHome.toLowerCase();
+for (const hreflang of ['cs', 'en', 'x-default']) {
+  if (!enHomeLower.includes(`hreflang="${hreflang}"`)) {
+    fail(`/en is missing hreflang="${hreflang}"`);
+  }
+}
 if (enHome.includes('Z nápadu do živé interaktivní hodiny.')) {
   fail('/en contains the Czech hero headline');
 }
