@@ -203,10 +203,10 @@ function EvaluationCard({
       <p className="muted-copy" style={{ margin: '6px 0 0' }}>
         {confidence === null ? ui('Jistota AI není k dispozici.', 'AI confidence is not available.') : (english ? `AI confidence: ${confidence}%.` : `Jistota AI: ${confidence} %.`)}
         {evaluation.teacherConfirmed
-          ? '{ui(' Výsledek zkontroloval učitel.', ' The result was reviewed by the teacher.')}'
+          ? ui(' Výsledek zkontroloval učitel.', ' The result was reviewed by the teacher.')
           : evaluation.status === 'needs_review'
-            ? '{ui(' Výsledek má nízkou jistotu a měl by ho zkontrolovat učitel.', ' The result has low confidence and should be reviewed by the teacher.')}'
-            : '{ui(' AI skóre je návrh pro učitele.', ' The AI score is a suggestion for the teacher.')}'}
+            ? ui(' Výsledek má nízkou jistotu a měl by ho zkontrolovat učitel.', ' The result has low confidence and should be reviewed by the teacher.')
+            : ui(' AI skóre je návrh pro učitele.', ' The AI score is a suggestion for the teacher.')}
       </p>
       {evaluation.teacherConfirmed && evaluation.teacherNote ? (
         <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}><strong>{ui('Poznámka učitele:', 'Teacher note:')}</strong> {evaluation.teacherNote}</p>
