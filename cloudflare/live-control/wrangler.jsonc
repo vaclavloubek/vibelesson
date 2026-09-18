@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "syllonaut-live-control",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-18",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "LIVE_SESSION",
+        "class_name": "LiveSession"
+      }
+    ]
+  },
+  "exports": {
+    "LiveSession": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
+  "observability": {
+    "enabled": true
+  }
+}
