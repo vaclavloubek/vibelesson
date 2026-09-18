@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 export default function LandingBackToTop() {
   const [visible, setVisible] = useState(false);
+  const locale = useUiLocale();
+  const english = locale === 'en';
 
   useEffect(() => {
     const update = () => setVisible(window.scrollY > window.innerHeight * 0.7);
@@ -25,7 +28,7 @@ export default function LandingBackToTop() {
     <button
       type="button"
       onClick={goTop}
-      aria-label="Zpět nahoru"
+      aria-label={english ? 'Back to top' : 'Zpět nahoru'}
       tabIndex={visible ? 0 : -1}
       style={{
         position: 'fixed',
@@ -70,7 +73,7 @@ export default function LandingBackToTop() {
       >
         ↑
       </span>
-      <span>Nahoru</span>
+      <span>{english ? 'Top' : 'Nahoru'}</span>
     </button>
   );
 }

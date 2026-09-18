@@ -1,0 +1,31 @@
+.switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+
+.switcher button {
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.switcher button:hover,
+.switcher button:focus-visible {
+  color: var(--foreground);
+}
+
+.switcher .active {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
