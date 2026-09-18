@@ -3,12 +3,15 @@ import { redirect } from 'next/navigation';
 import LessonLibrary, { type LessonFolderItem, type LessonListItem } from './LessonLibrary';
 import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
+import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
 import { APP_VERSION } from '@/lib/version';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+
+type Props = { searchParams?: Promise<{ signup?: string | string[] }> };
 
 function formatUpdatedAt(value: string) {
   return new Intl.DateTimeFormat('cs-CZ', {
@@ -30,7 +33,9 @@ function formatSessionDuration(startedAt: string | null, endedAt: string) {
   return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
-export default async function LessonsPage() {
+export default async function LessonsPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const signupCompleted = params?.signup === 'completed';
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
@@ -108,6 +113,7 @@ export default async function LessonsPage() {
 
   return (
     <main className="shell lessons-shell">
+      {signupCompleted ? <SignupCompletedAnalytics /> : null}
       <header className="brand lessons-brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="dashboard-version-stack"><span className="beta">BETA</span><span className="dashboard-version">v{APP_VERSION}</span></span></div>
         <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>

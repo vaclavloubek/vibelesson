@@ -7,6 +7,7 @@ import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
 import SiteFooter from '@/components/SiteFooter';
+import { trackEvent } from '@/lib/analytics';
 import styles from './LandingPage.module.css';
 import polish from './LandingPagePolish.module.css';
 
@@ -41,7 +42,7 @@ export default function LandingPage() {
         </nav>
         <div className={styles.headerActions}>
           <AuthControls onAuthChange={setUser} />
-          <Link href="/new" className={`${styles.headerCta} ${polish.headerCta}`}>Připravit hodinu</Link>
+          <Link href="/new" className={`${styles.headerCta} ${polish.headerCta}`} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'header' })}>Připravit hodinu</Link>
           <HeaderMobileNav signedIn={Boolean(user)} current="home" />
         </div>
       </header>
@@ -52,7 +53,7 @@ export default function LandingPage() {
           <h1>Z nápadu do živé interaktivní hodiny.</h1>
           <p className={styles.lead}>Popište, co chcete učit. Syllonaut připraví strukturovanou lekci, kterou můžete upravit přirozeným jazykem a rovnou vést se studenty.</p>
           <div className={styles.heroActions}>
-            <Link href="/new" className={styles.primaryCta}>Připravit hodinu</Link>
+            <Link href="/new" className={styles.primaryCta} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'hero' })}>Připravit hodinu</Link>
             <a href="#jak-to-funguje" className={styles.secondaryCta}>Jak to funguje</a>
           </div>
           <p className={styles.microcopy}>Začněte zadáním. Účet je potřeba až ve chvíli, kdy necháte AI lekci vytvořit.</p>
@@ -169,7 +170,7 @@ export default function LandingPage() {
         <span className={styles.eyebrow}>Syllonaut</span>
         <h2>Připravte si další hodinu jinak.</h2>
         <p>Začněte popisem toho, co mají studenti zažít. Syllonaut připraví zbytek trasy.</p>
-        <Link href="/new" className={styles.primaryCta}>Připravit hodinu</Link>
+        <Link href="/new" className={styles.primaryCta} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'other' })}>Připravit hodinu</Link>
       </section>
 
       <SiteFooter />

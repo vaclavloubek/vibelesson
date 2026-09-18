@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicLessonBlock } from '@/lib/live';
 import { postLiveControlEvent } from '@/lib/live-control-client';
 import { cacheLiveDraft, deleteCachedLiveDraft, getCachedLiveDraft } from '@/lib/live-offline';
+import { trackEvent } from '@/lib/analytics';
 
 type Props = {
   sessionId: string;
@@ -88,6 +89,16 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   const draftHydratedRef = useRef(false);
   const draftConflictRef = useRef(false);
   const primaryUnavailableRef = useRef(false);
+  const submissionTrackedRef = useRef(false);
+
+  function trackTeamSubmission() {
+    if (submissionTrackedRef.current) return;
+    submissionTrackedRef.current = true;
+    trackEvent('activity_response_submitted', {
+      activity_type: 'team_task',
+      activity_mode: 'team',
+    });
+  }
 
   const setLock = useCallback((next: LockInfo) => {
     lockRef.current = next;
@@ -549,6 +560,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       setDraftConflictState(false);
       clearDraft();
       setSubmitted(true);
+      trackTeamSubmission();
       setSubmitUnconfirmed(false);
       setRecoveryNotice('');
       void postLiveControlEvent(
@@ -575,6 +587,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         dirtyRef.current = false;
         setSaveState('saved');
         setSubmitted(true);
+        trackTeamSubmission();
         setSubmitUnconfirmed(false);
         clearDraft();
         setError('');

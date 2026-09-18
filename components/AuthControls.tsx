@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/analytics';
 import PasswordField from '@/components/PasswordField';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
@@ -153,6 +154,7 @@ export default function AuthControls({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const marketingConsentId = useId();
+  const signupStartedRef = useRef(false);
 
   async function loadQuota(nextUser: User | null) {
     if (!nextUser) {
@@ -240,6 +242,12 @@ export default function AuthControls({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
+    signupStartedRef.current = true;
+    trackEvent('signup_started');
+  }, [initialMode, initialOpen]);
+
   function resetCaptcha() {
     setCaptchaToken('');
     setCaptchaVersion((value) => value + 1);
@@ -251,6 +259,15 @@ export default function AuthControls({
     setPassword('');
     setPasswordConfirm('');
     resetCaptcha();
+  }
+
+  function startSignupFromAuth() {
+    trackEvent('free_signup_click', { location: 'auth' });
+    if (!signupStartedRef.current) {
+      signupStartedRef.current = true;
+      trackEvent('signup_started');
+    }
+    switchMode('signup');
   }
 
   function authRedirectOrigin() {
@@ -275,7 +292,10 @@ export default function AuthControls({
     setBusy(false);
     resetCaptcha();
 
-    if (!error) return;
+    if (!error) {
+      trackEvent('login_completed');
+      return;
+    }
     if (error.code === 'email_not_confirmed') {
       setMessage('Nejdřív potvrď e-mail odkazem, který jsme poslali při registraci.');
       return;
@@ -325,6 +345,7 @@ export default function AuthControls({
     }
 
     if (data.session) {
+      trackEvent('signup_completed');
       setMessage('Účet je vytvořený a jsi přihlášený.');
       return;
     }
@@ -441,7 +462,7 @@ export default function AuthControls({
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>Zapomenuté heslo</button>
               <span aria-hidden="true"> · </span>
-              <button type="button" className="auth-link" onClick={() => switchMode('signup')} disabled={busy}>Vytvořit účet zdarma</button>
+              <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>Vytvořit účet zdarma</button>
             </>
           ) : null}
 

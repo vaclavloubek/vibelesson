@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { trackEvent, trackEventOnce, type ActivityType } from '@/lib/analytics';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
 type GradingMode = 'ai' | 'manual';
@@ -39,6 +40,10 @@ type ReviewPatch = {
   teacherConfirmed: boolean;
   teacherNote: string | null;
 };
+
+function gradableActivityType(value: string): Extract<ActivityType, 'open_text' | 'exit_ticket' | 'team_task'> | null {
+  return value === 'open_text' || value === 'exit_ticket' || value === 'team_task' ? value : null;
+}
 
 function reviewPriority(item: QueueEvaluation, activeBlockId: string | null) {
   const blockPriority = item.blockId === activeBlockId ? 0 : 10;
@@ -80,6 +85,19 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
       });
       const data = await response.json() as ReviewPatch & { error?: string };
       if (!response.ok) throw new Error(data.error || 'Hodnocení se nepodařilo uložit.');
+      const activityType = gradableActivityType(evaluation.blockType);
+      if (activityType) {
+        if ((evaluation.manualOnly || evaluation.aiScore === null) && !evaluation.teacherConfirmed) {
+          trackEvent('manual_grading_completed', { activity_type: activityType });
+        } else if (
+          !evaluation.manualOnly
+          && evaluation.aiScore !== null
+          && score !== evaluation.aiScore
+          && score !== evaluation.teacherScore
+        ) {
+          trackEvent('teacher_grade_override', { activity_type: activityType });
+        }
+      }
       onReviewed(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hodnocení se nepodařilo uložit.');
@@ -245,6 +263,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   const [loaded, setLoaded] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const previousStatusesRef = useRef(new Map<string, EvaluationStatus>());
 
   useEffect(() => {
     let cancelled = false;
@@ -254,6 +273,25 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         const data = await response.json() as { evaluations?: QueueEvaluation[]; activeBlockId?: string | null; error?: string };
         if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || 'Hodnocení se nepodařilo načíst.');
         if (cancelled) return;
+
+        for (const evaluation of data.evaluations) {
+          const previousStatus = previousStatusesRef.current.get(evaluation.id);
+          const completedNow = previousStatus === 'pending' || previousStatus === 'grading';
+          const resultState = evaluation.status === 'graded' || evaluation.status === 'needs_review'
+            ? evaluation.status
+            : null;
+          const activityType = gradableActivityType(evaluation.blockType);
+
+          if (!evaluation.manualOnly && completedNow && resultState && activityType) {
+            trackEventOnce(`ai-grading:${evaluation.id}`, 'ai_grading_completed', {
+              activity_type: activityType,
+              result_state: resultState,
+            });
+          }
+
+          previousStatusesRef.current.set(evaluation.id, evaluation.status);
+        }
+
         setEvaluations(data.evaluations);
         setActiveBlockId(typeof data.activeBlockId === 'string' ? data.activeBlockId : null);
         setError('');

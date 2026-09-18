@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { activityMode, bucketBlockCount, bucketDuration, bucketParticipantCount, trackEvent } from '@/lib/analytics';
 import {
   fetchLiveControlState,
   postLiveControlEvent,
@@ -229,6 +230,41 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  function trackSuccessfulSessionAction(action: SessionAction['action']) {
+    const current = sessionRef.current;
+    if (!current) return;
+
+    const index = current.activeBlockId
+      ? current.lessonSnapshot.blocks.findIndex((block) => block.id === current.activeBlockId)
+      : -1;
+
+    if (action === 'start') {
+      trackEvent('live_session_started', {
+        block_count_bucket: bucketBlockCount(current.lessonSnapshot.blocks.length),
+        planned_duration_bucket: bucketDuration(current.lessonSnapshot.totalMinutes),
+      });
+      return;
+    }
+
+    if (action === 'next' && index >= 0) {
+      const nextBlock = current.lessonSnapshot.blocks[index + 1];
+      if (nextBlock) {
+        trackEvent('activity_advanced', {
+          activity_type: nextBlock.type,
+          activity_mode: activityMode(nextBlock.type),
+        });
+      }
+      return;
+    }
+
+    if (action === 'end') {
+      trackEvent('live_session_ended', {
+        participant_count_bucket: bucketParticipantCount(current.participants.length),
+        completed_activity_count_bucket: bucketBlockCount(Math.max(0, index + 1)),
+      });
+    }
+  }
+
   function applyFallbackAction(action: SessionAction['action']) {
     setSession((current) => {
       if (!current) return current;
@@ -330,6 +366,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         setConnectionMode('fallback');
         await refresh();
       } else if (winner.source === 'fallback') {
+        trackSuccessfulSessionAction(action);
         applyFallbackAction(action);
         setConnectionMode('fallback');
 
@@ -342,6 +379,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
           })
           .catch(() => undefined);
       } else {
+        trackSuccessfulSessionAction(action);
         setConnectionMode('primary');
         await refresh();
       }

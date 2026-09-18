@@ -1,7 +1,7 @@
 'use client';
 
 import QRCode from 'react-qr-code';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PresenterScoreboard from '@/components/PresenterScoreboard';
 import FormattedInstructions from '@/components/FormattedInstructions';
 import SyllonautMark from '@/components/SyllonautMark';
@@ -16,6 +16,7 @@ import {
   type LiveControlState,
 } from '@/lib/live-control-client';
 import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/analytics';
 
 type PresenterBlock = {
   id: string;
@@ -176,6 +177,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [connectionMode, setConnectionMode] = useState<PresenterConnectionMode>('primary');
   const [capabilityVersion, setCapabilityVersion] = useState(0);
+  const presenterOpenedTrackedRef = useRef(false);
 
   const ensureLiveAccess = useCallback(async () => {
     if (getLiveControlAccess(sessionId, 'teacher')) return true;
@@ -208,7 +210,12 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
     const live = await fetchLiveControlState(sessionId, 'teacher');
     if (!live) return false;
 
-    setData(presenterFromLiveControl(live));
+    const recoveredData = presenterFromLiveControl(live);
+    if (!presenterOpenedTrackedRef.current) {
+      presenterOpenedTrackedRef.current = true;
+      trackEvent('presenter_opened', { session_state: recoveredData.status });
+    }
+    setData(recoveredData);
     setConnectionMode('fallback');
     setError('');
     return true;
@@ -223,6 +230,10 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
       );
       const body = await response.json() as PresenterData & { error?: string };
       if (!response.ok) throw new Error(body.error || 'Prezentační režim se nepodařilo načíst.');
+      if (!presenterOpenedTrackedRef.current) {
+        presenterOpenedTrackedRef.current = true;
+        trackEvent('presenter_opened', { session_state: body.status });
+      }
       setData(body);
       setConnectionMode('primary');
       setError('');

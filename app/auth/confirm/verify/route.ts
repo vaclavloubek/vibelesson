@@ -9,7 +9,9 @@ function isSupportedType(value: FormDataEntryValue | null): value is EmailOtpTyp
 }
 
 function destinationFor(type: EmailOtpType) {
-  return type === 'recovery' ? '/auth/update-password' : '/lessons';
+  if (type === 'recovery') return '/auth/update-password';
+  if (type === 'signup') return '/lessons?signup=completed';
+  return '/lessons';
 }
 
 export async function POST(request: NextRequest) {
