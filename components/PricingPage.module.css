@@ -230,6 +230,24 @@
   font-weight: 900;
 }
 
+.features li.premiumFeature {
+  padding: 9px 10px 9px 32px;
+  border: 1px solid rgba(91,87,232,.18);
+  border-radius: 11px;
+  background: rgba(91,87,232,.065);
+  color: var(--ink);
+  font-weight: 740;
+  letter-spacing: -.01em;
+}
+
+.features li.premiumFeature::before {
+  left: 10px;
+  top: 11px;
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(91,87,232,.08);
+}
+
 .activeCta,
 .disabledCta {
   width: 100%;
