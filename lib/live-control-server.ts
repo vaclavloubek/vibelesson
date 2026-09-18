@@ -2,12 +2,13 @@ import { createHmac, randomUUID } from 'node:crypto';
 import type { Lesson } from '@/lib/schema';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
-type Role = 'teacher' | 'student';
+export type LiveControlRole = 'teacher' | 'student' | 'presenter';
+type WritableLiveControlRole = 'teacher' | 'student';
 
 type LiveCapabilityInput = {
   sessionId: string;
   subject: string;
-  role: Role;
+  role: LiveControlRole;
   ttlSeconds?: number;
 };
 
@@ -15,7 +16,7 @@ export type LiveControlAccess = {
   url: string;
   token: string;
   expiresAt: string;
-  role: Role;
+  role: LiveControlRole;
   subject: string;
 };
 
@@ -145,7 +146,7 @@ export async function bootstrapLiveControl(snapshot: LiveControlSnapshot) {
 
 export async function mirrorLiveControlEvent(input: {
   sessionId: string;
-  role: Role;
+  role: WritableLiveControlRole;
   subject: string;
   type: string;
   payload?: unknown;
