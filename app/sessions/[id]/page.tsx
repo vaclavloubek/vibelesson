@@ -4,6 +4,7 @@ import SessionReport from '@/components/SessionReport';
 import TeacherLiveTools from '@/components/TeacherLiveTools';
 import TeacherScoreboardQuickAction from '@/components/TeacherScoreboardQuickAction';
 import TeacherSession from '@/components/TeacherSession';
+import { readLiveResume } from '@/lib/live-resume';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -53,15 +54,7 @@ async function loadOwnedSession(supabase: SupabaseServerClient, id: string, user
   throw lastError ?? new Error('Teacher session lookup failed.');
 }
 
-export default async function TeacherSessionPage({ params }: Props) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const userId = await getTeacherUserId(supabase);
-  if (!userId) redirect('/');
-
-  const session = await loadOwnedSession(supabase, id, userId);
-  if (!session) notFound();
-
+function teacherSurface(id: string) {
   return (
     <>
       <EvaluationBackgroundPump sessionId={id} />
@@ -72,3 +65,34 @@ export default async function TeacherSessionPage({ params }: Props) {
     </>
   );
 }
+
+export default async function TeacherSessionPage({ params }: Props) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const resume = await readLiveResume(id);
+
+  let userId: string | null = null;
+  let authFailure: unknown = null;
+  try {
+    userId = await getTeacherUserId(supabase);
+  } catch (error) {
+    authFailure = error;
+  }
+
+  if (!userId) {
+    if (!authFailure || !resume) redirect('/');
+    console.warn('teacher live page restored from resume ticket', { sessionId: id });
+    return teacherSurface(id);
+  }
+
+  try {
+    const session = await loadOwnedSession(supabase, id, userId);
+    if (!session) notFound();
+  } catch (error) {
+    if (resume?.userId !== userId) throw error;
+    console.warn('teacher live ownership lookup degraded; using resume ticket', { sessionId: id });
+  }
+
+  return teacherSurface(id);
+}
+
