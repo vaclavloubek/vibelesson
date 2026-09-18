@@ -311,7 +311,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     if (!blockId) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
     const existing = snapshot.responses.find((row) => row.participantId === event.actorId && row.blockId === blockId);
     const answer = payload.answer ?? null;
-    const source = payload.source === 'primary' ? 'primary' : 'fallback';
+    const source: 'primary' | 'fallback' = payload.source === 'primary' ? 'primary' : 'fallback';
     const submittedAt = typeof payload.submittedAt === 'string' ? payload.submittedAt : event.createdAt;
     const updatedAt = typeof payload.updatedAt === 'string' ? payload.updatedAt : event.createdAt;
     const next = {
@@ -342,7 +342,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     const text = typeof payload.text === 'string' ? payload.text.slice(0, 4000) : '';
     if (!teamId || !blockId || !text) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
     const existing = (snapshot.teamResponses ?? []).find((row) => row.teamId === teamId && row.blockId === blockId);
-    const source = payload.source === 'primary' ? 'primary' : 'fallback';
+    const source: 'primary' | 'fallback' = payload.source === 'primary' ? 'primary' : 'fallback';
     const submittedAt = typeof payload.submittedAt === 'string' ? payload.submittedAt : event.createdAt;
     const updatedAt = typeof payload.updatedAt === 'string' ? payload.updatedAt : event.createdAt;
     const next = {
