@@ -161,6 +161,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { sessionRef.current = session; }, [session]);
 
   useEffect(() => {
     let cancelled = false;
