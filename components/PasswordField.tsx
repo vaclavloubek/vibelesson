@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 type Props = {
   label: string;
@@ -21,7 +22,10 @@ export default function PasswordField({
   required,
 }: Props) {
   const [revealed, setRevealed] = useState(false);
-  const toggleLabel = revealed ? 'Skrýt heslo' : 'Zobrazit heslo';
+  const english = useUiLocale() === 'en';
+  const toggleLabel = revealed
+    ? (english ? 'Hide password' : 'Skrýt heslo')
+    : (english ? 'Show password' : 'Zobrazit heslo');
 
   return (
     <label>

@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
 import PasswordField from '@/components/PasswordField';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
 const AUTH_POPOVER_ID = 'auth-popover';
@@ -63,6 +64,7 @@ type TurnstileChallengeProps = {
 };
 
 function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps) {
+  const english = useUiLocale() === 'en';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<ChallengeStatus>('loading');
 
@@ -106,18 +108,18 @@ function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps)
   }, [action, onToken, ready]);
 
   const statusText = !ready || status === 'loading'
-    ? 'Načítám bezpečnostní ověření…'
+    ? (english ? 'Loading security verification…' : 'Načítám bezpečnostní ověření…')
     : status === 'checking'
-      ? 'Kontroluji zabezpečení…'
+      ? (english ? 'Checking security…' : 'Kontroluji zabezpečení…')
       : status === 'retrying'
-        ? 'Ověření se nezdařilo, zkouším znovu…'
+        ? (english ? 'Verification failed, trying again…' : 'Ověření se nezdařilo, zkouším znovu…')
         : status === 'verified'
-          ? 'Bezpečnostní ověření dokončeno.'
+          ? (english ? 'Security verification complete.' : 'Bezpečnostní ověření dokončeno.')
           : '';
 
   return (
     <div
-      aria-label="Bezpečnostní ověření"
+      aria-label={english ? 'Security verification' : 'Bezpečnostní ověření'}
       aria-live="polite"
       style={{ minHeight: 65, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
@@ -137,6 +139,7 @@ export default function AuthControls({
   initialOpen = false,
   initialMode = 'signin',
 }: Props) {
+  const english = useUiLocale() === 'en';
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
@@ -277,7 +280,7 @@ export default function AuthControls({
   async function signIn(e: FormEvent) {
     e.preventDefault();
     if (!captchaToken) {
-      setMessage('Dokonči prosím bezpečnostní ověření.');
+      setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
     }
 
@@ -297,10 +300,10 @@ export default function AuthControls({
       return;
     }
     if (error.code === 'email_not_confirmed') {
-      setMessage('Nejdřív potvrď e-mail odkazem, který jsme poslali při registraci.');
+      setMessage(english ? 'Confirm your email first using the link we sent when you registered.' : 'Nejdřív potvrď e-mail odkazem, který jsme poslali při registraci.');
       return;
     }
-    setMessage('Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
+    setMessage(english ? 'Sign-in failed. Check your email and password.' : 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
   }
 
   async function signUp(e: FormEvent) {
@@ -308,15 +311,15 @@ export default function AuthControls({
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail || password.length < 8) {
-      setMessage('Zadej platný e-mail a heslo alespoň o 8 znacích.');
+      setMessage(english ? 'Enter a valid email address and a password of at least 8 characters.' : 'Zadej platný e-mail a heslo alespoň o 8 znacích.');
       return;
     }
     if (password !== passwordConfirm) {
-      setMessage('Hesla se neshodují.');
+      setMessage(english ? 'The passwords do not match.' : 'Hesla se neshodují.');
       return;
     }
     if (!captchaToken) {
-      setMessage('Dokonči prosím bezpečnostní ověření.');
+      setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
     }
 
@@ -339,14 +342,14 @@ export default function AuthControls({
 
     if (error) {
       setMessage(error.code === 'weak_password'
-        ? 'Heslo nesplňuje bezpečnostní požadavky. Použij delší heslo a kombinaci různých typů znaků.'
-        : 'Registraci se nepodařilo dokončit. Zkontroluj zadané údaje nebo to zkus později.');
+        ? (english ? 'The password does not meet the security requirements. Use a longer password with a mix of character types.' : 'Heslo nesplňuje bezpečnostní požadavky. Použij delší heslo a kombinaci různých typů znaků.')
+        : (english ? 'We could not complete the registration. Check the details or try again later.' : 'Registraci se nepodařilo dokončit. Zkontroluj zadané údaje nebo to zkus později.'));
       return;
     }
 
     if (data.session) {
       trackEvent('signup_completed');
-      setMessage('Účet je vytvořený a jsi přihlášený.');
+      setMessage(english ? 'Your account has been created and you are signed in.' : 'Účet je vytvořený a jsi přihlášený.');
       return;
     }
 
@@ -359,11 +362,11 @@ export default function AuthControls({
     e.preventDefault();
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
-      setMessage('Zadej e-mail, který používáš pro přihlášení.');
+      setMessage(english ? 'Enter the email address you use to sign in.' : 'Zadej e-mail, který používáš pro přihlášení.');
       return;
     }
     if (!captchaToken) {
-      setMessage('Dokonči prosím bezpečnostní ověření.');
+      setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
     }
 
@@ -379,7 +382,7 @@ export default function AuthControls({
 
     if (error) console.error('password recovery request failed', error);
     setMode('check-email');
-    setMessage('Pokud pro tuto adresu existuje účet, pošleme na ni odkaz pro nastavení nového hesla.');
+    setMessage(english ? 'If an account exists for this address, we will send a link to set a new password.' : 'Pokud pro tuto adresu existuje účet, pošleme na ni odkaz pro nastavení nového hesla.');
   }
 
   async function signOut() {
@@ -401,22 +404,22 @@ export default function AuthControls({
 
   if (user) {
     const lessonText = quota?.lesson_unlimited
-      ? 'lekce neomezeně'
+      ? (english ? 'lessons unlimited' : 'lekce neomezeně')
       : quota && quota.lesson_limit !== null
-        ? `lekce ${quota.lesson_remaining ?? 0}/${quota.lesson_limit}`
-        : 'lekce načítám';
+        ? (english ? `lessons ${quota.lesson_remaining ?? 0}/${quota.lesson_limit}` : `lekce ${quota.lesson_remaining ?? 0}/${quota.lesson_limit}`)
+        : (english ? 'lessons loading' : 'lekce načítám');
 
     const revisionText = quota?.revision_unlimited
-      ? 'úpravy neomezeně'
+      ? (english ? 'edits unlimited' : 'úpravy neomezeně')
       : quota && quota.revision_limit !== null
-        ? `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`
-        : 'úpravy načítám';
+        ? (english ? `edits ${quota.revision_remaining ?? 0}/${quota.revision_limit}` : `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`)
+        : (english ? 'edits loading' : 'úpravy načítám');
 
     return (
       <div className="auth-signed-in">
         <span title={user.email ?? ''}>{user.email}</span>
         <span className="auth-quota">AI: {lessonText} · {revisionText}</span>
-        <button type="button" className="auth-link" onClick={signOut} disabled={busy}>Odhlásit</button>
+        <button type="button" className="auth-link" onClick={signOut} disabled={busy}>{english ? 'Sign out' : 'Odhlásit'}</button>
       </div>
     );
   }
@@ -439,7 +442,7 @@ export default function AuthControls({
         aria-haspopup="dialog"
         aria-controls={AUTH_POPOVER_ID}
       >
-        Přihlásit se
+        {english ? 'Sign in' : 'Přihlásit se'}
       </button>
       {open ? (
         <div
@@ -452,28 +455,28 @@ export default function AuthControls({
         >
           {mode === 'signin' ? (
             <>
-              <strong id={AUTH_POPOVER_TITLE_ID}>Přihlášení do Syllonautu</strong>
-              <p>Účet je potřeba pro AI funkce a ukládání vlastních lekcí.</p>
+              <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Sign in to Syllonaut' : 'Přihlášení do Syllonautu' }</strong>
+              <p>{english ? 'An account is required for AI features and saving your own lessons.' : 'Účet je potřeba pro AI funkce a ukládání vlastních lekcí.' }</p>
               <form onSubmit={signIn}>
-                <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-                <PasswordField label="Heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required />
+                <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
+                <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required />
                 <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Přihlašuji…' : 'Přihlásit se'}</button>
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Signing in…' : 'Přihlašuji…') : (english ? 'Sign in' : 'Přihlásit se')}</button>
               </form>
-              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>Zapomenuté heslo</button>
+              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>{english ? 'Forgot password' : 'Zapomenuté heslo' }</button>
               <span aria-hidden="true"> · </span>
-              <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>Vytvořit účet zdarma</button>
+              <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</button>
             </>
           ) : null}
 
           {mode === 'signup' ? (
             <>
-              <strong id={AUTH_POPOVER_TITLE_ID}>Vytvořit účet zdarma</strong>
-              <p>Free účet obsahuje 5 nových AI lekcí a 20 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.</p>
+              <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</strong>
+              <p>{english ? 'The Free account includes 5 new AI lessons and 20 AI edits per calendar month. No plan selection and no payment card required.' : 'Free účet obsahuje 5 nových AI lekcí a 20 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.' }</p>
               <form onSubmit={signUp}>
-                <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-                <PasswordField label="Heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
-                <PasswordField label="Heslo znovu" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
+                <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <PasswordField label={english ? 'Password again' : 'Heslo znovu'} value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <div className="auth-marketing-consent">
                   <input
                     id={marketingConsentId}
@@ -482,38 +485,40 @@ export default function AuthControls({
                     onChange={(event) => setMarketingConsent(event.target.checked)}
                   />
                   <label htmlFor={marketingConsentId}>
-                    Chci dostávat e-mailem novinky, případové studie a občasné nabídky Syllonautu. Souhlas je dobrovolný
-                    a můžu ho kdykoli odvolat. <a href="/gdpr" target="_blank" rel="noreferrer">Více o zpracování údajů.</a>
+                    {english
+                      ? 'I want to receive Syllonaut news, case studies and occasional offers by email. Consent is optional and can be withdrawn at any time. '
+                      : 'Chci dostávat e-mailem novinky, případové studie a občasné nabídky Syllonautu. Souhlas je dobrovolný a můžu ho kdykoli odvolat. '}
+                    <a href="/gdpr" target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
                   </label>
                 </div>
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Vytvářím účet…' : 'Vytvořit účet'}</button>
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
               </form>
-              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>Už mám účet</button>
+              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'I already have an account' : 'Už mám účet' }</button>
             </>
           ) : null}
 
           {mode === 'forgot' ? (
             <>
-              <strong id={AUTH_POPOVER_TITLE_ID}>Obnovení hesla</strong>
-              <p>Zadej e-mail k účtu. Kvůli ochraně soukromí neprozrazujeme, zda je adresa v systému registrovaná.</p>
+              <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Reset password' : 'Obnovení hesla' }</strong>
+              <p>{english ? 'Enter the email address for your account. To protect privacy, we do not reveal whether an address is registered.' : 'Zadej e-mail k účtu. Kvůli ochraně soukromí neprozrazujeme, zda je adresa v systému registrovaná.' }</p>
               <form onSubmit={requestPasswordReset}>
-                <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
+                <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <TurnstileChallenge key={`recovery-${captchaVersion}`} ready={turnstileReady} action="recovery" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? 'Odesílám…' : 'Poslat odkaz pro obnovu'}</button>
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Sending…' : 'Odesílám…') : (english ? 'Send reset link' : 'Poslat odkaz pro obnovu')}</button>
               </form>
-              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>Zpět k přihlášení</button>
+              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>
             </>
           ) : null}
 
           {mode === 'check-email' ? (
             <>
-              <strong id={AUTH_POPOVER_TITLE_ID}>Zkontrolujte e-mail</strong>
+              <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Check your email' : 'Zkontrolujte e-mail' }</strong>
               <p>
-                {message || 'Pokud je tato adresa nová, poslali jsme na ni potvrzovací odkaz. Registraci dokončíš jedním kliknutím.'}
+                {message || (english ? 'If this is a new address, we sent a confirmation link. Complete registration with one click.' : 'Pokud je tato adresa nová, poslali jsme na ni potvrzovací odkaz. Registraci dokončíš jedním kliknutím.')}
               </p>
-              {!message ? <p>Pokud už účet na této adrese existuje, nový účet se nevytvoří. Můžeš se přihlásit nebo obnovit heslo.</p> : null}
-              <button type="button" className="auth-link" onClick={() => switchMode('signin')}>Zpět k přihlášení</button>
+              {!message ? <p>{english ? 'If an account already exists for this address, a new one will not be created. You can sign in or reset your password.' : 'Pokud už účet na této adrese existuje, nový účet se nevytvoří. Můžeš se přihlásit nebo obnovit heslo.' }</p> : null}
+              <button type="button" className="auth-link" onClick={() => switchMode('signin')}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>
             </>
           ) : null}
 
