@@ -27,7 +27,7 @@ requirePattern(cookieConsent, /COOKIE_MAX_AGE_SECONDS = 60 \* 60 \* 24 \* 180/, 
 requirePattern(cookieConsent, /allow_google_signals:\s*false/, 'GA4 must not enable advertising signals under analytics-only consent.');
 requirePattern(cookieConsent, /ad_personalization:\s*'denied'/, 'Google ad personalization must stay denied.');
 requirePattern(cookieConsent, /clearGaCookies\(\)/, 'withdrawing analytics consent must clear GA cookies.');
-requirePattern(footer, /href="\/gdpr"/, 'GDPR link is missing from the shared footer.');
+requirePattern(footer, /href=\{\`\/\$\{locale\}\/gdpr\`\}/, 'Locale-aware GDPR link is missing from the shared footer.');
 requirePattern(footer, /COOKIE_SETTINGS_EVENT/, 'cookie settings action is missing from the shared footer.');
 requirePattern(gdpr, /Ochrana osobních údajů \(GDPR\)/, 'GDPR page content is missing.');
 requirePattern(gdpr, /Google Analytics 4 se načte pouze po aktivním/, 'GA4 opt-in explanation is missing.');
