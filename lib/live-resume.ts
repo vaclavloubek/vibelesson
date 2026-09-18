@@ -114,3 +114,17 @@ export async function clearLiveResumeCookie(sessionId: string) {
     maxAge: 0,
   });
 }
+
+export async function clearAllLiveResumeCookies() {
+  const store = await cookies();
+  for (const cookie of store.getAll()) {
+    if (!cookie.name.startsWith('syllonaut_live_resume_')) continue;
+    store.set(cookie.name, '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
+  }
+}
