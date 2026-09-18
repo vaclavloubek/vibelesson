@@ -66,8 +66,8 @@ function clearGaCookies() {
 function ensureGoogleAnalytics(measurementId: string) {
   (window as unknown as Record<string, unknown>)[gaDisableKey(measurementId)] = false;
   window.dataLayer = window.dataLayer ?? [];
-  window.gtag = window.gtag ?? function gtag(...args: unknown[]) {
-    window.dataLayer?.push(args);
+  window.gtag = window.gtag ?? function gtag() {
+    window.dataLayer?.push(arguments);
   };
 
   window.gtag?.('consent', 'default', {
