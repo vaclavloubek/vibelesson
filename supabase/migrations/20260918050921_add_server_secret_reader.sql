@@ -1,0 +1,4 @@
+-- Historical marker.
+-- This migration version was briefly applied directly while prototyping P2.
+-- The server-secret reader was never used by the merged runtime and is removed
+-- by 20260918071000_cleanup_redundant_live_resilience_objects.sql.
