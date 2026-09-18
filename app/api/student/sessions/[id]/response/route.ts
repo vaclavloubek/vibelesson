@@ -37,6 +37,7 @@ export async function POST(req: Request, { params }: RouteContext) {
         blockId: submission.blockId,
         answer: submission.answer,
         responseAction: submission.responseAction,
+        operationId: submission.operationId,
       }),
       cache: 'no-store',
     }, 8_000);
