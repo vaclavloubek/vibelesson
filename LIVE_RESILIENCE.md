@@ -76,6 +76,8 @@ Set for Production and the intended Preview environment:
 - `LIVE_BOOTSTRAP_SECRET` — exactly the same value as the Worker secret;
 - `LIVE_CAPABILITY_SECRET` — exactly the same value as the Worker secret.
 
+Browser capabilities default to 8 hours so they cover the product's maximum six-hour lesson plus recovery margin.
+
 If any of these three variables is absent, P2 stays disabled and the normal Vercel/Supabase path continues to operate.
 
 ### Activation order
