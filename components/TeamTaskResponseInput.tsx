@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicLessonBlock } from '@/lib/live';
+import { postLiveControlEvent } from '@/lib/live-control-client';
 
 type Props = {
   sessionId: string;
   block: PublicLessonBlock;
   teamName: string;
+  teamId: string;
   response: { text: string; updatedByParticipantId: string | null } | null;
   onSaved: () => void;
 };
@@ -55,7 +57,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
   }
 }
 
-export default function TeamTaskResponseInput({ sessionId, block, teamName, response, onSaved }: Props) {
+export default function TeamTaskResponseInput({ sessionId, block, teamName, teamId, response, onSaved }: Props) {
   const serverText = response?.text ?? '';
   const draftKey = `syllonaut-team-draft-v1:${sessionId}:${block.id}:${teamName}`;
   const statusId = `team-response-status-${block.id}`;
@@ -80,6 +82,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
   const retryAttemptRef = useRef(0);
   const draftHydratedRef = useRef(false);
   const draftConflictRef = useRef(false);
+  const primaryUnavailableRef = useRef(false);
 
   const setLock = useCallback((next: LockInfo) => {
     lockRef.current = next;
@@ -121,6 +124,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       cache: 'no-store',
     }, carriesText ? 10_000 : 5_000);
     const data = await result.json() as TeamEditResult;
+    primaryUnavailableRef.current = result.status === 408 || result.status === 429 || result.status >= 500;
     return { ...data, responseOk: result.ok, status: result.status };
   }, [block.id, sessionId]);
 
@@ -160,7 +164,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
         setError('');
         return true;
       } catch {
-        setError('Týmový editor se nepodařilo zamknout. Neuložený text zůstává v této kartě.');
+        primaryUnavailableRef.current = true;
+        setError('Primární týmový editor je dočasně nedostupný. Text zůstává zachovaný a Syllonaut použije záložní live vrstvu.');
         return false;
       } finally {
         claimPromiseRef.current = null;
@@ -199,6 +204,24 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
 
       const acquired = await ensureLock();
       if (!acquired) {
+        if (primaryUnavailableRef.current) {
+          const operationId = crypto.randomUUID();
+          const fallbackSaved = await postLiveControlEvent(
+            sessionId,
+            'student',
+            'student.team_response',
+            { teamId, blockId: block.id, text: value, submitted: false },
+            operationId,
+          );
+          if (fallbackSaved) {
+            lastSavedTextRef.current = value;
+            dirtyRef.current = false;
+            setSaveState('saved');
+            setError('Primární spojení je dočasně nedostupné. Koncept je uložený v záložní live vrstvě.');
+            clearDraft();
+            return 'saved';
+          }
+        }
         setSaveState('dirty');
         return 'retry';
       }
@@ -206,6 +229,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       setSaveState('saving');
       setError('');
       try {
+        const operationId = crypto.randomUUID();
         const result = await request('save', value);
         if (result.lock !== undefined) setLock(result.lock ?? null);
         if (!result.responseOk) {
@@ -231,10 +255,34 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
           persistDraft(latestTextRef.current);
           setSaveState('dirty');
         }
+        void postLiveControlEvent(
+          sessionId,
+          'student',
+          'student.team_response',
+          { teamId, blockId: block.id, text: value, submitted: false },
+          operationId,
+        );
         onSaved();
         return 'saved';
       } catch {
-        setError('Spojení se při ukládání přerušilo. Text zůstává v této kartě a Syllonaut zkusí uložení znovu.');
+        primaryUnavailableRef.current = true;
+        const operationId = crypto.randomUUID();
+        const fallbackSaved = await postLiveControlEvent(
+          sessionId,
+          'student',
+          'student.team_response',
+          { teamId, blockId: block.id, text: value, submitted: false },
+          operationId,
+        );
+        if (fallbackSaved) {
+          lastSavedTextRef.current = value;
+          dirtyRef.current = false;
+          setSaveState('saved');
+          setError('Spojení se Supabase je přerušené. Koncept je uložený v záložní live vrstvě.');
+          clearDraft();
+          return 'saved';
+        }
+        setError('Spojení se při ukládání přerušilo. Text zůstává v tomto zařízení a Syllonaut zkusí uložení znovu.');
         setSaveState('dirty');
         return 'retry';
       }
@@ -439,6 +487,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
     setSubmitting(true);
     setError('');
     try {
+      const operationId = crypto.randomUUID();
       const result = await request('submit', value);
       if (result.lock !== undefined) setLock(result.lock ?? null);
       if (!result.responseOk || !result.submitted) {
@@ -456,9 +505,35 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, resp
       setDraftConflictState(false);
       clearDraft();
       setSubmitted(true);
+      void postLiveControlEvent(
+        sessionId,
+        'student',
+        'student.team_response',
+        { teamId, blockId: block.id, text: value, submitted: true },
+        operationId,
+      );
       onSaved();
     } catch {
-      setError('Spojení se při odevzdávání přerušilo. Koncept zůstává uložený; zkus odevzdání znovu.');
+      primaryUnavailableRef.current = true;
+      const operationId = crypto.randomUUID();
+      const fallbackSaved = await postLiveControlEvent(
+        sessionId,
+        'student',
+        'student.team_response',
+        { teamId, blockId: block.id, text: value, submitted: true },
+        operationId,
+      );
+      if (fallbackSaved) {
+        latestTextRef.current = value;
+        lastSavedTextRef.current = value;
+        dirtyRef.current = false;
+        setSaveState('saved');
+        setSubmitted(true);
+        clearDraft();
+        setError('Odpověď je odevzdaná do záložní live vrstvy a po obnovení primární služby se dosynchronizuje.');
+      } else {
+        setError('Spojení se při odevzdávání přerušilo. Koncept zůstává uložený; zkus odevzdání znovu.');
+      }
     } finally {
       setSubmitting(false);
     }
