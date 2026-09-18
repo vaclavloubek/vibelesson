@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { billingRouteForCountry } from './billing-region.ts';
 
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -189,7 +188,15 @@ function unixSecondsToIso(value: unknown, errorCode: string) {
   return date.toISOString();
 }
 
-export function normalizeStripeSubscriptionEvent(event: StripeWebhookEvent): StripeSubscriptionSync | null {
+export type BillingRouteResolver = (country: string | null | undefined) => {
+  currency: 'czk' | 'eur' | 'usd';
+  managedPayments: boolean;
+};
+
+export function normalizeStripeSubscriptionEvent(
+  event: StripeWebhookEvent,
+  billingRouteForCountry: BillingRouteResolver,
+): StripeSubscriptionSync | null {
   if (!SUPPORTED_STRIPE_SUBSCRIPTION_EVENTS.has(event.type)) return null;
   if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
 
