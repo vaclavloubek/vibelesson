@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SyllonautMark from '@/components/SyllonautMark';
+import { saveLiveControlAccess, type LiveControlAccess } from '@/lib/live-control-client';
 
 export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
   const router = useRouter();
@@ -22,8 +23,9 @@ export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ joinCode, displayName }),
       });
-      const data = await response.json() as { sessionId?: string; error?: string };
+      const data = await response.json() as { sessionId?: string; liveControl?: LiveControlAccess | null; error?: string };
       if (!response.ok || !data.sessionId) throw new Error(data.error || 'Ke hodině se nepodařilo připojit.');
+      saveLiveControlAccess(data.sessionId, 'student', data.liveControl ?? null);
       router.replace(`/student/${data.sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ke hodině se nepodařilo připojit.');
