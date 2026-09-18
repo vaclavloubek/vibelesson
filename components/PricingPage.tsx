@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
 import SiteFooter from '@/components/SiteFooter';
 import VisuallyHidden from '@/components/VisuallyHidden';
+import { trackEvent } from '@/lib/analytics';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -166,7 +167,7 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
       </ul>
 
       {plan.free ? (
-        <a className={styles.activeCta} href="/pricing?signup=1">Vytvořit Free účet</a>
+        <a className={styles.activeCta} href="/pricing?signup=1" onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>Vytvořit Free účet</a>
       ) : (
         <button type="button" className={styles.disabledCta} disabled>Připravujeme</button>
       )}
@@ -178,8 +179,27 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
   const [user, setUser] = useState<User | null>(null);
   const [audience, setAudience] = useState<Audience>('teachers');
   const [billing, setBilling] = useState<Billing>('monthly');
+  const pricingViewTrackedRef = useRef(false);
   const plans = audience === 'teachers' ? teacherPlans : schoolPlans;
   const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}.`;
+
+  useEffect(() => {
+    if (pricingViewTrackedRef.current) return;
+    pricingViewTrackedRef.current = true;
+    trackEvent('pricing_view', { segment: 'teacher', billing_period: 'monthly' });
+  }, []);
+
+  function changeAudience(next: Audience) {
+    if (next === audience) return;
+    setAudience(next);
+    trackEvent('pricing_segment_change', { segment: next === 'teachers' ? 'teacher' : 'school' });
+  }
+
+  function changeBilling(next: Billing) {
+    if (next === billing) return;
+    setBilling(next);
+    trackEvent('pricing_billing_period_change', { billing_period: next });
+  }
 
   return (
     <main className={landing.page}>
@@ -200,7 +220,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
             initialOpen={startSignup}
             initialMode={startSignup ? 'signup' : 'signin'}
           />
-          <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }}>Připravit hodinu</Link>
+          <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'pricing' })}>Připravit hodinu</Link>
           <HeaderMobileNav signedIn={Boolean(user)} current="pricing" />
         </div>
       </header>
@@ -218,15 +238,15 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
         <div className={styles.controlGroup}>
           <span>Typ předplatného</span>
           <div className={styles.segmented} role="group" aria-label="Typ předplatného">
-            <button type="button" className={audience === 'teachers' ? styles.selected : ''} aria-pressed={audience === 'teachers'} onClick={() => setAudience('teachers')}>Pro učitele</button>
-            <button type="button" className={audience === 'schools' ? styles.selected : ''} aria-pressed={audience === 'schools'} onClick={() => setAudience('schools')}>Pro školy</button>
+            <button type="button" className={audience === 'teachers' ? styles.selected : ''} aria-pressed={audience === 'teachers'} onClick={() => changeAudience('teachers')}>Pro učitele</button>
+            <button type="button" className={audience === 'schools' ? styles.selected : ''} aria-pressed={audience === 'schools'} onClick={() => changeAudience('schools')}>Pro školy</button>
           </div>
         </div>
         <div className={styles.controlGroup}>
           <span>Fakturace</span>
           <div className={styles.segmented} role="group" aria-label="Fakturace">
-            <button type="button" className={billing === 'monthly' ? styles.selected : ''} aria-pressed={billing === 'monthly'} onClick={() => setBilling('monthly')}>Měsíčně</button>
-            <button type="button" className={billing === 'annual' ? styles.selected : ''} aria-pressed={billing === 'annual'} onClick={() => setBilling('annual')}>Ročně <em>2 měsíce zdarma</em></button>
+            <button type="button" className={billing === 'monthly' ? styles.selected : ''} aria-pressed={billing === 'monthly'} onClick={() => changeBilling('monthly')}>Měsíčně</button>
+            <button type="button" className={billing === 'annual' ? styles.selected : ''} aria-pressed={billing === 'annual'} onClick={() => changeBilling('annual')}>Ročně <em>2 měsíce zdarma</em></button>
           </div>
         </div>
       </section>
