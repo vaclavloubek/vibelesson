@@ -42,6 +42,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const hasSessionRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
@@ -51,10 +52,11 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
         const data = await response.json() as { session?: TeacherSessionData; error?: string };
         if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+        hasSessionRef.current = true;
         setSession(data.session);
         setError('');
       } catch (err) {
-        if (!session) setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        if (!hasSessionRef.current) setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
       } finally {
         refreshInFlightRef.current = null;
       }
@@ -62,7 +64,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
     refreshInFlightRef.current = operation;
     return operation;
-  }, [sessionId, session]);
+  }, [sessionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
