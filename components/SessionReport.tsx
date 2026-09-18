@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import type { SessionReportBlock, SessionReportData } from '@/lib/session-report';
 
 const TYPE_LABELS: Record<SessionReportBlock['type'], string> = {
@@ -127,6 +128,7 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
   const [report, setReport] = useState<SessionReportData | null>(null);
   const [error, setError] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const reportViewedTrackedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +147,10 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
         }
 
         setReport(data.report);
+        if (!reportViewedTrackedRef.current) {
+          reportViewedTrackedRef.current = true;
+          trackEvent('session_report_viewed');
+        }
         setError('');
       } catch (err) {
         if (cancelled) return;
@@ -189,7 +195,7 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
               <h2 style={{ marginBottom: 8 }}>{report.title}</h2>
               <p className="muted-copy">{formatDateTime(report.startedAt)} → {formatDateTime(report.endedAt)} · délka {formatDuration(report.durationSeconds)}</p>
             </div>
-            <button className="secondary" onClick={() => downloadCsv(report)}>Stáhnout CSV odpovědí</button>
+            <button className="secondary" onClick={() => { downloadCsv(report); trackEvent('session_csv_exported'); }}>Stáhnout CSV odpovědí</button>
           </div>
           <div className="items" style={{ marginTop: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
             <div className="item"><span className="eyebrow">Účast</span><h2 style={{ marginBottom: 0 }}>{report.participantCount}</h2></div>
