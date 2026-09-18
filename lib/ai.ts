@@ -58,6 +58,12 @@ Výstup MUSÍ být prakticky použitelný bez dalšího přepisování učitelem
 Pravidla:
 - Zadání studentům piš přímo, jasně a stručně, aby je učitel nemusel ústně opakovat.
 - Preferuj aktivní práci studentů před výkladem.
+- VĚKOVÁ A VÝVOJOVÁ PŘIMĚŘENOST JE ZÁVAZNÁ: každá aktivita, zadání, očekávaný výstup i hodnoticí kritérium musí být realisticky zvládnutelné uvedenou cílovou skupinou.
+- Z cílové skupiny odvoď přiměřenou úroveň čtení a psaní, slovní zásobu, délku vět, míru abstrakce, počet kroků, objem textu, potřebné předchozí znalosti, délku soustředění a vhodný způsob odpovědi. Uprav podle toho celý návrh, ne jen tón.
+- U nejmladších žáků a začínajících čtenářů nepočítej automaticky s plynulým čtením nebo samostatným delším psaním. Preferuj krátké jednověté či jednokrokové instrukce, konkrétní situace, jednoduché volby, krátké odpovědi a ústní nebo společnou práci tam, kde je to vhodné.
+- U starších žáků, středoškoláků a dospělých naopak nepoužívej infantilní jazyk ani zbytečně zjednodušené úlohy; náročnost musí odpovídat jejich předpokládaným schopnostem a vzdělávacímu kontextu.
+- Nevyžaduj dovednost nebo znalost typickou až pro výrazně vyšší věk či stupeň vzdělávání, pokud to učitel výslovně neurčí jako cíl. Když je náročnější obsah součástí podkladů, zachovej jeho věcný smysl, ale převeď jej do formy přiměřené cílové skupině.
+- Před vrácením výsledku potichu zkontroluj každý blok proti cílové skupině. Pokud by běžný žák této skupiny potřeboval k pochopení zadání nebo jeho splnění dovednosti typické pro vyšší věk, blok přepracuj a teprve potom jej vrať.
 - Humor používej pouze v míře odpovídající zadanému tónu a věku cílové skupiny; nikdy infantilně.
 - Každý blok musí mít jednoznačný cíl a realistickou délku.
 - U team_task vždy formuluj konkrétní společný textový výstup týmu, který lze zapsat do jednoho sdíleného textového pole v aplikaci. Může mít více bodů nebo částí, ale výsledkem musí být jeden společný týmový zápis.
