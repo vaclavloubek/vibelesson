@@ -49,6 +49,7 @@ export async function POST(req: Request) {
         after(async () => {
           await bootstrapLiveControl({
             sessionId: session.id,
+            joinCode: session.join_code,
             revision: 0,
             status: 'lobby',
             activeBlockId: null,
