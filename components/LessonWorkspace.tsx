@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
+import GradingStrictnessControl from '@/components/GradingStrictnessControl';
 import LessonPreview from '@/components/LessonPreview';
 import SyllonautMark from '@/components/SyllonautMark';
 import { demoLesson } from '@/lib/demo';
@@ -406,18 +407,12 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <h1>{lesson.title}</h1>
               <p className="muted-copy">Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.</p>
               {aiGradingEnabled ? (
-                <label style={{ maxWidth: 360, marginTop: 12 }}>
-                  Přísnost AI hodnocení odpovědí
-                  <select
-                    value={gradingStrictness}
-                    disabled={busy || saveStatus === 'saving'}
-                    onChange={(event) => { void changeGradingStrictness(event.target.value as GradingStrictness); }}
-                  >
-                    <option value="lenient">Mírná</option>
-                    <option value="neutral">Neutrální</option>
-                    <option value="strict">Přísná</option>
-                  </select>
-                </label>
+                <GradingStrictnessControl
+                  value={gradingStrictness}
+                  disabled={busy || saveStatus === 'saving'}
+                  onChange={(next) => { void changeGradingStrictness(next); }}
+                  compact
+                />
               ) : null}
               <div className="actions"><Link href="/lessons" className="secondary button-link">← Moje lekce</Link><Link href="/new" className="primary button-link">+ Nová lekce</Link></div>
             </div>
@@ -435,15 +430,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="např. živý, praktický a lehce vtipný" required /></label>
                 </div>
                 {aiGradingEnabled ? (
-                  <label style={{ marginTop: 14 }}>
-                    Přísnost AI hodnocení odpovědí
-                    <select value={gradingStrictness} onChange={(event) => setGradingStrictness(event.target.value as GradingStrictness)}>
-                      <option value="lenient">Mírná</option>
-                      <option value="neutral">Neutrální</option>
-                      <option value="strict">Přísná</option>
-                    </select>
-                    <span className="muted-copy" style={{ display: 'block', marginTop: 6 }}>Ovlivňuje pouze AI hodnocení bodovaných otevřených a týmových odpovědí. Učitel může výsledek vždy upravit.</span>
-                  </label>
+                  <GradingStrictnessControl
+                    value={gradingStrictness}
+                    onChange={setGradingStrictness}
+                  />
                 ) : null}
                 <details className="materials-disclosure">
                   <summary>
