@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { billingRouteForCountry } from '../lib/billing-region.ts';
 import {
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
@@ -55,7 +56,7 @@ const verified = verifyStripeWebhook(
 );
 assert(verified.id === event.id, 'valid Stripe signature should verify');
 
-const normalized = normalizeStripeSubscriptionEvent(verified);
+const normalized = normalizeStripeSubscriptionEvent(verified, billingRouteForCountry);
 assert(normalized?.billingCountry === 'DE', 'DE billing country should survive normalization');
 assert(normalized?.merchantOfRecord === true, 'DE must require Managed Payments');
 assert(normalized?.priceId === 'price_regression001', 'price should normalize');
@@ -88,7 +89,7 @@ const wrongRoute = structuredClone(event);
 wrongRoute.data.object.managed_payments.enabled = false;
 let routingRejected = false;
 try {
-  normalizeStripeSubscriptionEvent(wrongRoute);
+  normalizeStripeSubscriptionEvent(wrongRoute, billingRouteForCountry);
 } catch {
   routingRejected = true;
 }
@@ -99,7 +100,7 @@ cz.data.object.metadata.syllonaut_billing_country = 'CZ';
 cz.data.object.managed_payments.enabled = false;
 cz.data.object.items.data[0].price.currency = 'czk';
 assert(
-  normalizeStripeSubscriptionEvent(cz)?.merchantOfRecord === false,
+  normalizeStripeSubscriptionEvent(cz, billingRouteForCountry)?.merchantOfRecord === false,
   'CZ subscription must use standard Stripe',
 );
 
