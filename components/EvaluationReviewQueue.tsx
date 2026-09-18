@@ -3,6 +3,7 @@
 import { trackEvent, trackEventOnce, type ActivityType } from '@/lib/analytics';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
 type GradingMode = 'ai' | 'manual';
@@ -87,7 +88,7 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
         body: JSON.stringify({ score, note }),
       });
       const data = await response.json() as ReviewPatch & { error?: string };
-      if (!response.ok) throw new Error(data.error || ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
+      if (!response.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
       const activityType = gradableActivityType(evaluation.blockType);
       if (activityType) {
         if ((evaluation.manualOnly || evaluation.aiScore === null) && !evaluation.teacherConfirmed) {
@@ -161,7 +162,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
       });
       const data = await response.json() as { requeued?: boolean; gradingMode?: GradingMode; error?: string };
       if (!response.ok || !data.requeued || !data.gradingMode) {
-        throw new Error(data.error || ui('Novější verzi se nepodařilo připravit k hodnocení.', 'The newer version could not be prepared for grading.'));
+        throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Novější verzi se nepodařilo připravit k hodnocení.', 'The newer version could not be prepared for grading.'));
       }
       onRequeued(evaluation.id, data.gradingMode);
     } catch (err) {
@@ -278,7 +279,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
       try {
         const response = await fetch(`/api/sessions/${sessionId}/evaluations/queue`, { cache: 'no-store' });
         const data = await response.json() as { evaluations?: QueueEvaluation[]; activeBlockId?: string | null; error?: string };
-        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || ui('Hodnocení se nepodařilo načíst.', 'Grading could not be loaded.'));
+        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Hodnocení se nepodařilo načíst.', 'Grading could not be loaded.'));
         if (cancelled) return;
 
         for (const evaluation of data.evaluations) {

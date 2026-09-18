@@ -55,6 +55,7 @@ const [
 
 requireText(i18n, "UI_LOCALES = ['cs', 'en']", 'supported UI locales must remain Czech and English.');
 requirePattern(i18n, /normalized === 'CZ' \|\| normalized === 'SK' \? 'cs' : 'en'/, 'CZ and SK must default to Czech UI while other valid countries default to English.');
+requireText(i18n, "if (locale === 'en') return enFallback;", 'English UI errors must not expose untranslated server messages.');
 requireOrder(i18n, [
   'normalizeUiLocale(pathLocale)',
   'normalizeUiLocale(cookieLocale)',
@@ -78,6 +79,7 @@ requireText(schema, 'language: LanguageTagSchema.optional()', 'saved lessons mus
 requireText(ai, 'language: LanguageTagSchema,', 'new AI lessons must emit a language tag.');
 requireText(workspace, "lessonLanguage: requestedLessonLanguage || 'auto'", 'lesson-language selection must be sent to generation.');
 requireText(workspace, 'uiLocale: locale', 'UI locale must be sent separately from lesson language.');
+requireText(workspace, "localizedApiError(data.error, locale, 'Generování selhalo.', 'Lesson generation failed.')", 'lesson authoring errors must remain localized instead of leaking server text.');
 requireText(workspace, 'Write your brief in the language you want to use for the lesson.', 'lesson authoring must explicitly tell users they can write in the lesson language.');
 requireText(ai, 'JAZYK LEKCE:', 'AI generation must receive an explicit lesson-language instruction.');
 requireText(ai, 'Jazyk podkladů nesmí sám o sobě jazyk lekce změnit.', 'source-material language must not override lesson language.');

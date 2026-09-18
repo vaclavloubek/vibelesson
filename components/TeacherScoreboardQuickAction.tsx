@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type ScoreboardControlState = {
   status: 'lobby' | 'live' | 'ended';
@@ -82,7 +83,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
         body: JSON.stringify({ action: revealing ? 'reveal_scoreboard' : 'hide_scoreboard' }),
       });
       const body = await response.json() as { error?: string; scoreboardRevealed?: boolean };
-      if (!response.ok) throw new Error(body.error || ui('Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
 
       const nextRevealed = typeof body.scoreboardRevealed === 'boolean'
         ? body.scoreboardRevealed

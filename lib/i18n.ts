@@ -64,3 +64,14 @@ export function resolveUiLocale({
     ?? localeFromAcceptLanguage(acceptLanguage)
     ?? 'en';
 }
+
+
+export function localizedApiError(
+  serverError: string | null | undefined,
+  locale: UiLocale,
+  csFallback: string,
+  enFallback: string,
+) {
+  if (locale === 'en') return enFallback;
+  return serverError?.trim() || csFallback;
+}

@@ -20,6 +20,7 @@ import TeacherResponses from '@/components/TeacherResponses';
 import type { LiveTimerState, SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
+import { localizedApiError } from '@/lib/i18n';
 
 type Participant = { id: string; displayName: string; joinedAt: string; teamId: string | null };
 type Team = { id: string; name: string; sortOrder: number };
@@ -82,7 +83,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       try {
         const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
         const data = await response.json() as { session?: TeacherSessionData; error?: string };
-        if (!response.ok || !data.session) throw new Error(data.error || ui('Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.'));
+        if (!response.ok || !data.session) throw new Error(localizedApiError(data.error, locale, 'Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.'));
         hasSessionRef.current = true;
         sessionRef.current = data.session;
         setSession(data.session);
@@ -338,7 +339,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       if (!response.ok) {
         throw new Error(
           response.status < 500 && response.status !== 408 && response.status !== 429
-            ? data.error || ui('Stav hodiny se nepodařilo změnit.', 'The lesson state could not be changed.')
+            ? localizedApiError(data.error, locale, 'Stav hodiny se nepodařilo změnit.', 'The lesson state could not be changed.')
             : ui('Primární live služba je dočasně nedostupná.', 'The primary live service is temporarily unavailable.'),
         );
       }
@@ -406,7 +407,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         body: JSON.stringify({ count: teamCount }),
       });
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || ui('Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
+      if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
@@ -422,7 +423,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     try {
       const response = await fetch(`/api/sessions/${sessionId}/teams`, { method: 'DELETE' });
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || ui('Týmy se nepodařilo resetovat.', 'Teams could not be reset.'));
+      if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Týmy se nepodařilo resetovat.', 'Teams could not be reset.'));
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Týmy se nepodařilo resetovat.', 'Teams could not be reset.'));

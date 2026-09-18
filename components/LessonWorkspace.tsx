@@ -26,6 +26,7 @@ import {
 } from '@/lib/analytics';
 import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
+import { localizedApiError } from '@/lib/i18n';
 import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
@@ -171,7 +172,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   }
 
   function applyLessonResponse(data: LessonApiResponse) {
-    if (!data.lesson) throw new Error(data.error || ui('Server nevrátil lekci.', 'The server did not return a lesson.'));
+    if (!data.lesson) throw new Error(localizedApiError(data.error, locale, 'Server nevrátil lekci.', 'The server did not return a lesson.'));
     const parsed = LessonSchema.parse(data.lesson);
     setLesson(parsed);
     setGradingStrictness(parsed.gradingStrictness ?? 'neutral');
@@ -249,7 +250,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const contentType = res.headers.get('content-type') ?? '';
       if (!res.ok || !contentType.includes('application/x-ndjson')) {
         const data = await res.json() as LessonApiResponse;
-        if (!res.ok) throw new Error(data.error || ui('Generování selhalo.', 'Lesson generation failed.'));
+        if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Generování selhalo.', 'Lesson generation failed.'));
         failureStage = 'result';
         applyLessonResponse(data);
         trackEvent('lesson_generation_completed', {
@@ -278,7 +279,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           setGenerationStage(event.stage);
           return;
         }
-        if (event.type === 'error') throw new Error(event.error);
+        if (event.type === 'error') throw new Error(localizedApiError(event.error, locale, 'Generování selhalo.', 'Lesson generation failed.'));
         if (event.type === 'result') {
           resultLesson = LessonSchema.parse(event.lesson);
           resultLessonId = event.lessonId;
@@ -340,7 +341,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ instruction: revision, lesson, lessonId }),
       });
       const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || ui('Úprava selhala.', 'The edit failed.'));
+      if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Úprava selhala.', 'The edit failed.'));
       applyLessonResponse(data);
       setUndoLesson(data.lessonId ? before : null);
       setRevision('');
@@ -370,7 +371,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ instruction: blockRevision, lesson, lessonId, blockId: selectedBlock.id }),
       });
       const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || ui('Úprava aktivity selhala.', 'The activity edit failed.'));
+      if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Úprava aktivity selhala.', 'The activity edit failed.'));
       applyLessonResponse(data);
       setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
@@ -397,7 +398,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ lesson: undoLesson }),
       });
       const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || ui('Předchozí verzi se nepodařilo obnovit.', 'The previous version could not be restored.'));
+      if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Předchozí verzi se nepodařilo obnovit.', 'The previous version could not be restored.'));
       applyLessonResponse(data);
       setUndoLesson(null);
     } catch (err) {
@@ -441,7 +442,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ lesson: nextLesson }),
       });
       const data = await response.json() as LessonApiResponse;
-      if (!response.ok || !data.lesson) throw new Error(data.error || ui('Nastavení hodnocení se nepodařilo uložit.', 'The grading setting could not be saved.'));
+      if (!response.ok || !data.lesson) throw new Error(localizedApiError(data.error, locale, 'Nastavení hodnocení se nepodařilo uložit.', 'The grading setting could not be saved.'));
 
       const parsed = LessonSchema.parse(data.lesson);
       setLesson(parsed);

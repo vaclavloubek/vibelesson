@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 import type { StudentAnswer } from '@/lib/live';
 import type { LessonBlock } from '@/lib/schema';
 
@@ -128,7 +129,7 @@ function EvaluationReviewForm({
         body: JSON.stringify({ score, note }),
       });
       const data = await response.json() as ReviewPatch & { error?: string };
-      if (!response.ok) throw new Error(data.error || ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
+      if (!response.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
       onReviewed(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
@@ -258,7 +259,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
       try {
         const response = await fetch(`/api/sessions/${sessionId}/evaluations?blockId=${encodeURIComponent(block.id)}`, { cache: 'no-store' });
         const data = await response.json() as { evaluations?: LiveEvaluation[]; error?: string };
-        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || ui('AI hodnocení se nepodařilo načíst.', 'AI grading could not be loaded.'));
+        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'AI hodnocení se nepodařilo načíst.', 'AI grading could not be loaded.'));
         if (cancelled) return;
         setEvaluations(data.evaluations);
         setEvaluationError('');
