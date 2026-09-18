@@ -19,7 +19,14 @@ export async function generateMetadata(): Promise<Metadata> {
     description: english
       ? 'How Syllonaut processes personal data, cookies, account data, live lesson data and marketing consent.'
       : 'Jak Syllonaut zpracovává osobní údaje, cookies, údaje z účtů, živých lekcí a marketingových souhlasů.',
-    alternates: { canonical: '/gdpr' },
+    alternates: {
+      canonical: `/${locale}/gdpr`,
+      languages: {
+        cs: '/cs/gdpr',
+        en: '/en/gdpr',
+        'x-default': '/en/gdpr',
+      },
+    },
     robots: { index: true, follow: true },
   };
 }
@@ -36,7 +43,7 @@ export default async function GdprPage() {
         <Link href={`/${locale}`} className={landing.brand} aria-label={ui('Syllonaut – domů', 'Syllonaut – home')}><SyllonautMark /><span>Syllonaut</span><span className={landing.beta}>BETA</span></Link>
         <nav className={landing.nav} aria-label={ui('Hlavní navigace', 'Main navigation')}>
           <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
-          <Link href="/pricing">{ui('Ceník', 'Pricing')}</Link>
+          <Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>
         </nav>
         <div className={landing.headerActions}>
           <LocaleSwitcher />

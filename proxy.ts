@@ -36,6 +36,14 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  if ((pathname === '/pricing' || pathname === '/gdpr') && request.method === 'GET') {
+    const target = request.nextUrl.clone();
+    target.pathname = `/${locale}${pathname}`;
+    const response = NextResponse.redirect(target);
+    persistLocale(response, request, locale);
+    return response;
+  }
+
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set(LOCALE_REQUEST_HEADER, locale);
   const response = await updateSession(request, forwardedHeaders);

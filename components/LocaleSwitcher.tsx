@@ -12,6 +12,7 @@ function targetPath(pathname: string, locale: UiLocale) {
     return `/${segments.join('/')}`;
   }
   if (pathname === '/') return `/${locale}`;
+  if (pathname === '/pricing' || pathname === '/gdpr') return `/${locale}${pathname}`;
   return pathname;
 }
 

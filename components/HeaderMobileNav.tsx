@@ -62,7 +62,7 @@ export default function HeaderMobileNav({ signedIn, current = 'home' }: Props) {
       {open ? (
         <nav id={navigationId} className={styles.menu} aria-label={english ? 'Mobile navigation' : 'Mobilní navigace'}>
           <a href={`/${locale}#jak-to-funguje`} onClick={() => setOpen(false)}>{english ? 'How it works' : 'Jak to funguje'}</a>
-          <Link href="/pricing" aria-current={current === 'pricing' ? 'page' : undefined} onClick={() => setOpen(false)}>{english ? 'Pricing' : 'Ceník'}</Link>
+          <Link href={`/${locale}/pricing`} aria-current={current === 'pricing' ? 'page' : undefined} onClick={() => setOpen(false)}>{english ? 'Pricing' : 'Ceník'}</Link>
           {signedIn ? <Link href="/lessons" onClick={() => setOpen(false)}>{english ? 'My lessons' : 'Moje lekce'}</Link> : null}
           <Link href="/new" className={styles.prepareItem} onClick={() => { trackEvent('prepare_lesson_cta_click', { location: 'header' }); setOpen(false); }}>{english ? 'Prepare a lesson' : 'Připravit hodinu'}</Link>
         </nav>

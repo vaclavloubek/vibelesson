@@ -175,7 +175,7 @@ export default function LandingPage() {
         </Link>
         <nav className={styles.nav} aria-label={t.navLabel}>
           <a href="#jak-to-funguje">{t.how}</a>
-          <Link href="/pricing">{t.pricing}</Link>
+          <Link href={`/${locale}/pricing`}>{t.pricing}</Link>
           {user ? <Link href="/lessons">{t.lessons}</Link> : null}
         </nav>
         <div className={styles.headerActions}>

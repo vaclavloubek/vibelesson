@@ -18,12 +18,17 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     alternates: {
-      canonical: '/pricing',
+      canonical: `/${locale}/pricing`,
+      languages: {
+        cs: '/cs/pricing',
+        en: '/en/pricing',
+        'x-default': '/en/pricing',
+      },
     },
     openGraph: {
       title,
       description,
-      url: '/pricing',
+      url: `/${locale}/pricing`,
       siteName: 'Syllonaut',
       locale: english ? 'en_US' : 'cs_CZ',
       type: 'website',

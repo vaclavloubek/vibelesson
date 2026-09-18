@@ -273,7 +273,7 @@ function PlanCard({
       </ul>
 
       {plan.free ? (
-        <a className={styles.activeCta} href="/pricing?signup=1" onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>{english ? 'Create Free account' : 'Vytvořit Free účet'}</a>
+        <a className={styles.activeCta} href={english ? '/en/pricing?signup=1' : '/cs/pricing?signup=1'} onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>{english ? 'Create Free account' : 'Vytvořit Free účet'}</a>
       ) : canSandboxCheckout && (plan.id === 'teacher' || plan.id === 'teacher-pro') ? (
         <button type="button" className={styles.activeCta} onClick={() => onSandboxCheckout(plan)}>{english ? 'Test purchase' : 'Otestovat nákup'}</button>
       ) : (
@@ -507,7 +507,7 @@ export default function PricingPage({
         </Link>
         <nav className={landing.nav} aria-label={ui('Hlavní navigace', 'Main navigation')}>
           <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
-          <Link href="/pricing" aria-current="page">{ui('Ceník', 'Pricing')}</Link>
+          <Link href={`/${locale}/pricing`} aria-current="page">{ui('Ceník', 'Pricing')}</Link>
           {user ? <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link> : null}
         </nav>
         <div className={landing.headerActions}>
