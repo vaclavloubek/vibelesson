@@ -197,13 +197,13 @@ type EventArgs<N extends AnalyticsEventName> =
     ? [] | [parameters: undefined]
     : [parameters: AnalyticsEventParameters[N]];
 
-export function trackEvent<N extends AnalyticsEventName>(name: N, ...args: EventArgs<N>) {
+export function trackEvent<N extends AnalyticsEventName>(name: N, ...args: EventArgs<N>): boolean {
   try {
-    if (!GA_MEASUREMENT_ID || typeof window === 'undefined') return;
-    if (!analyticsConsentGranted() || !window.gtag) return;
+    if (!GA_MEASUREMENT_ID || typeof window === 'undefined') return false;
+    if (!analyticsConsentGranted() || !window.gtag) return false;
 
     const runtime = window as unknown as Record<string, unknown>;
-    if (runtime[gaDisableKey()] === true) return;
+    if (runtime[gaDisableKey()] === true) return false;
 
     const source = (args[0] ?? {}) as Record<string, unknown>;
     const safeParameters: Record<string, string | number | boolean> = {};
@@ -219,9 +219,24 @@ export function trackEvent<N extends AnalyticsEventName>(name: N, ...args: Event
       ...safeParameters,
       ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
     });
+    return true;
   } catch {
     // Analytics is observational only and must never affect the product flow.
+    return false;
   }
+}
+
+const sentEventKeys = new Set<string>();
+
+export function trackEventOnce<N extends AnalyticsEventName>(
+  dedupKey: string,
+  name: N,
+  ...args: EventArgs<N>
+): boolean {
+  if (sentEventKeys.has(dedupKey)) return false;
+  const sent = trackEvent(name, ...args);
+  if (sent) sentEventKeys.add(dedupKey);
+  return sent;
 }
 
 export function bucketDuration(minutes: number): DurationBucket {
