@@ -305,6 +305,13 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     })();
 
     const fallback = (async () => {
+      if (expectedActiveBlockId) {
+        const current = await fetchLiveControlState(sessionId, 'teacher');
+        if (current && current.snapshot.activeBlockId !== expectedActiveBlockId) {
+          return { source: 'fallback-stale' as const };
+        }
+      }
+
       const ok = await postLiveControlEvent(
         sessionId,
         'teacher',
@@ -319,7 +326,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     try {
       const winner = await Promise.any([primary, fallback]);
 
-      if (winner.source === 'fallback') {
+      if (winner.source === 'fallback-stale') {
+        setConnectionMode('fallback');
+        await refresh();
+      } else if (winner.source === 'fallback') {
         applyFallbackAction(action);
         setConnectionMode('fallback');
 
