@@ -17,6 +17,8 @@ const [
   liveControlRoute,
   gradingWorker,
   liveControlClient,
+  authControls,
+  clearResumeRoute,
 ] = await Promise.all([
   source('lib/fetch-with-timeout.ts'),
   source('lib/live-resume.ts'),
@@ -26,13 +28,17 @@ const [
   source('app/api/sessions/[id]/live-control/route.ts'),
   source('app/api/internal/grading/jobs/route.ts'),
   source('lib/live-control-client.ts'),
+  source('components/AuthControls.tsx'),
+  source('app/api/auth/clear-live-resume/route.ts'),
 ]);
 
 requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be normalized before reaching live UI.');
 requirePattern(resume, /httpOnly:\s*true/, 'teacher live resume cookie must remain HttpOnly.');
 requirePattern(resume, /secure:\s*true/, 'teacher live resume cookie must remain Secure.');
 requirePattern(resume, /TOKEN_NAMESPACE = 'syllonaut-live-resume-v1'/, 'resume HMAC must remain domain-separated.');
-requirePattern(liveControlRoute, /if \(authError && resume\)/, 'resume fallback must require a real primary auth failure.');
+requirePattern(liveControlRoute, /if \(resume\)/, 'session-scoped resume fallback must survive loss of the primary identity.');
+requirePattern(authControls, /\/api\/auth\/clear-live-resume/, 'explicit teacher logout must clear live recovery tickets.');
+requirePattern(clearResumeRoute, /clearAllLiveResumeCookies\(\)/, 'logout cleanup endpoint must clear every live recovery ticket.');
 requirePattern(liveControlRoute, /setLiveResumeCookie\(id, userId\)/, 'healthy ownership verification must mint a live resume ticket.');
 if (/localStorage/.test(liveControlClient)) {
   throw new Error('Live resilience regression: live bearer capabilities must not persist in localStorage.');
