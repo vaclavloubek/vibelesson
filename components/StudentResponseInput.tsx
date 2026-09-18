@@ -51,6 +51,11 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
   useEffect(() => {
     setSubmitted(responseSubmitted);
+    if (responseSubmitted) {
+      setError('');
+      setQueued(false);
+      setSaved(true);
+    }
   }, [responseSubmitted]);
 
   useEffect(() => {
