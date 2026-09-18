@@ -70,7 +70,7 @@ requirePattern(accessibilityCss, /--line-strong:\s*#8b8d94/i, 'form-control boun
 requirePattern(authLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'auth routes lost a specific page title.');
 requirePattern(joinLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'join routes lost a specific page title.');
 requirePattern(newLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'new-lesson route lost a specific page title.');
-requirePattern(lessonsLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'lesson-library routes lost a specific page title.');
+requirePattern(lessonsLayout, /My lessons – Syllonaut.*Moje lekce – Syllonaut|Moje lekce – Syllonaut.*My lessons – Syllonaut/s, 'lesson-library routes lost localized specific page titles.');
 requirePattern(sessionsLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'teacher-session routes lost a specific page title.');
 requirePattern(studentLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'student routes lost a specific page title.');
 requirePattern(pricingRoute, /title\s*=\s*['"]Ceník[^'"]*Syllonaut['"]/, 'pricing route lost its specific page title.');
