@@ -10,6 +10,7 @@ type LiveResponse = {
   displayName: string;
   answer: StudentAnswer;
   updatedAt: string;
+  submitted: boolean;
 };
 type Team = { id: string; name: string };
 type TeamResponse = {
@@ -18,6 +19,7 @@ type TeamResponse = {
   updatedByParticipantId: string | null;
   updatedByDisplayName: string | null;
   updatedAt: string;
+  submitted: boolean;
 };
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
@@ -296,7 +298,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
     return (
       <section className="panel teacher-responses-panel">
         <span className="eyebrow">Týmové odpovědi</span>
-        <ResponseProgress count={teamResponses.length} total={teams.length} label="týmů hotovo" />
+        <ResponseProgress count={teamResponses.filter((response) => response.submitted).length} total={teams.length} label="týmů odevzdalo" />
         <p className="muted-copy">Každý tým má jednu společnou odpověď. Kdokoli z jeho členů ji může během aktivního bloku upravit.</p>
         {brokenGradingConfig ? <p className="muted-copy">Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.</p> : null}
         {evaluationError ? <p className="muted-copy">{evaluationError}</p> : null}
@@ -306,7 +308,12 @@ export default function TeacherResponses({ block, responses, participantCount, t
             const evaluation = gradingConfigured && response ? evaluationByTeam.get(team.id) ?? null : null;
             return (
               <div className={`item teacher-response-item${response ? ' answered' : ''}`} key={team.id}>
-                <div className="teacher-response-item-head"><strong>{team.name}</strong><span>{response ? 'Hotovo' : 'Čeká'}</span></div>
+                <div className="teacher-response-item-head">
+                  <strong>{team.name}</strong>
+                  <span style={response && !response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>
+                    {response ? (response.submitted ? 'Odevzdáno' : 'Rozepsaná') : 'Čeká'}
+                  </span>
+                </div>
                 {response ? (
                   <>
                     <p style={{ marginBottom: 6, whiteSpace: 'pre-wrap' }}>{response.text}</p>
@@ -351,6 +358,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
 
   if (block.type === 'ranking') {
     const rankingResponses = responses.filter((response) => 'ranking' in response.answer);
+    const submittedRankingResponses = rankingResponses.filter((response) => response.submitted);
     const items = block.items ?? [];
     const averages = items.map((item, sourceIndex) => {
       const positions = rankingResponses
@@ -364,7 +372,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
     return (
       <section className="panel teacher-responses-panel">
         <span className="eyebrow">Průběžné pořadí</span>
-        <ResponseProgress count={rankingResponses.length} total={participantCount} />
+        <ResponseProgress count={submittedRankingResponses.length} total={participantCount} />
         <p className="muted-copy">Stejné odstíny jako na studentských telefonech pomáhají sledovat položky i po změně pořadí. Nižší průměr znamená vyšší pozici.</p>
         <div className="teacher-ranking-results">
           {averages.map(({ item, average, sourceIndex }, index) => (
@@ -382,7 +390,10 @@ export default function TeacherResponses({ block, responses, participantCount, t
               {rankingResponses.map((response) => (
                 'ranking' in response.answer ? (
                   <div className="item teacher-response-item answered" key={response.participantId}>
-                    <strong>{response.displayName}</strong>
+                    <div className="teacher-response-item-head">
+                      <strong>{response.displayName}</strong>
+                      <span style={!response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>{response.submitted ? 'Odevzdáno' : 'Rozepsaná'}</span>
+                    </div>
                     <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p>
                   </div>
                 ) : null
@@ -394,17 +405,22 @@ export default function TeacherResponses({ block, responses, participantCount, t
     );
   }
 
+  const submittedResponses = responses.filter((response) => response.submitted);
+
   return (
     <section className="panel teacher-responses-panel">
       <span className="eyebrow">Průběžné odpovědi</span>
-      <ResponseProgress count={responses.length} total={participantCount} />
+      <ResponseProgress count={submittedResponses.length} total={participantCount} />
       {brokenGradingConfig ? <p className="muted-copy">Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.</p> : null}
       {evaluationError ? <p className="muted-copy">{evaluationError}</p> : null}
       {responses.length ? (
         <div className="teacher-response-list">
           {responses.map((response) => (
             <div className="item teacher-response-item answered" key={response.participantId}>
-              <strong>{response.displayName}</strong>
+              <div className="teacher-response-item-head">
+                <strong>{response.displayName}</strong>
+                <span style={!response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>{response.submitted ? 'Odevzdáno' : 'Rozepsaná'}</span>
+              </div>
               {'text' in response.answer ? <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p> : null}
               {gradingConfigured && 'text' in response.answer ? (
                 <EvaluationCard evaluation={evaluationByParticipant.get(response.participantId) ?? null} sessionId={sessionId} onReviewed={applyReview} />

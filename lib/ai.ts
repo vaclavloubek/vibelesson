@@ -64,6 +64,8 @@ Pravidla:
 - U reveal bloku vyplň revealText.
 - U ranking bloku vyplň items a v instructions vždy výslovně požaduj dvě části odpovědi: seřazení všech položek a krátké zdůvodnění pořadí (1–2 věty). Studentský formulář obě části vyžaduje.
 - U otevřených odpovědí a exit ticketu formuluj jednu konkrétní otázku.
+- Pokud zadání obsahuje číslované kroky, otázky nebo požadované části odpovědi, zapisuj každou položku na samostatný řádek ve tvaru „1. …“, „2. …“, „3. …“. Nikdy neslévej více číslovaných položek do jednoho souvislého řádku.
+- Typy intro, reveal a timer jsou pouze zobrazovací/společné bloky a nemají studentské odpovědní pole. Jejich instructions proto nesmí požadovat, aby student nebo tým něco zapsal, odevzdal nebo vyplnil v aplikaci. Pokud má student odevzdat individuální text, použij open_text; pokud má tým odevzdat společný text, použij team_task. Reveal může vyzvat k ústní diskusi, ale ne k odevzdání odpovědi.
 - Pokud blok pracuje se sadou nejméně tří souvisejících číselných údajů, časovou řadou, výsledky měření, webovou analytikou nebo jiným datasetem určeným k porovnávání, vyplň dataTable. Číselný dataset neschovávej do dlouhého odstavce instructions. Do instructions dej úkol a kontext, vlastní data dej přehledně do dataTable. Pokud tabulka není potřeba, nastav dataTable na null.
 - dataTable musí mít 2–8 sloupců a 1–30 řádků; každý řádek musí mít přesně stejný počet buněk jako columns. Hodnoty formátuj už pro zobrazení studentovi včetně jednotek, pokud jsou důležité. Každá dataTable MUSÍ mít krátký a výstižný caption, který popíše obsah nebo účel tabulky.
 - teacherNote používej pro stručnou metodickou poznámku, řešení nebo debrief; student ji nevidí.

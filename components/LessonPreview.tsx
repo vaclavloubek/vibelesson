@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ActivityModeBadge from '@/components/ActivityModeBadge';
 import LessonDataTable from '@/components/LessonDataTable';
+import FormattedInstructions from '@/components/FormattedInstructions';
 import { getLessonAccessibilityAuthoringIssues } from '@/lib/accessibility-authoring';
 import type { Lesson, LessonBlock } from '@/lib/schema';
 
@@ -68,12 +69,12 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute }: {
         </div>
         <span className="duration">{block.durationMinutes} min</span>
       </div>
-      <p className="instructions">{block.instructions}</p>
+      <FormattedInstructions text={block.instructions} className="instructions" />
       {block.dataTable ? <LessonDataTable data={block.dataTable} /> : null}
       {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
       {block.options?.length ? <div className="options" role="group" aria-label="Možnosti odpovědi">{block.options.map((option) => <button key={option} type="button" aria-pressed={selectedOption === option} onClick={() => setSelectedOption(option)} className={selectedOption === option ? 'option selected' : 'option'}>{option}</button>)}</div> : null}
       {['open_text', 'exit_ticket'].includes(block.type) ? <label>Odpověď studenta<textarea placeholder="Odpověď studenta…" /></label> : null}
-      {block.type === 'reveal' && block.revealText ? <div><button type="button" className="secondary" onClick={() => setRevealed((v) => !v)}>{revealed ? 'Skrýt pointu' : 'Odhalit pointu'}</button>{revealed ? <div className="reveal" role="status">{block.revealText}</div> : null}</div> : null}
+      {block.type === 'reveal' && block.revealText ? <div><button type="button" className="secondary" onClick={() => setRevealed((v) => !v)}>{revealed ? 'Skrýt pointu' : 'Odhalit pointu'}</button>{revealed ? <div role="status"><FormattedInstructions text={block.revealText} className="reveal" /></div> : null}</div> : null}
       {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal" role="status">Správná odpověď: <strong>{block.correctAnswer}</strong></div> : null}
       {block.type === 'timer' ? <div className="timerbox"><strong role="timer" aria-label={`Zbývající čas ${mm}:${ss}`}>{mm}:{ss}</strong><button type="button" className="secondary" onClick={() => setRunning((v) => !v)}>{running ? 'Pauza' : 'Start'}</button><button type="button" className="secondary" onClick={() => { setRunning(false); setSeconds(block.durationMinutes * 60); }}>Reset</button></div> : null}
       {teacherMode && block.teacherNote ? <details><summary>Poznámka pro učitele</summary><p>{block.teacherNote}</p></details> : null}

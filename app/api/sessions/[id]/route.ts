@@ -56,8 +56,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   const participantRows = participants ?? [];
   const participantNames = new Map(participantRows.map((participant) => [participant.id as string, participant.display_name as string]));
-  const responses: Array<{ participantId: string; displayName: string; answer: unknown; updatedAt: string }> = [];
-  const teamResponses: Array<{ teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string }> = [];
+  const responses: Array<{ participantId: string; displayName: string; answer: unknown; updatedAt: string; submitted: boolean }> = [];
+  const teamResponses: Array<{ teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string; submitted: boolean }> = [];
 
   const activeBlock = session.active_block_id
     ? parsedLesson.data.blocks.find((block) => block.id === session.active_block_id) ?? null
@@ -66,7 +66,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   if (session.active_block_id && activeBlock?.type === 'team_task') {
     const { data: teamResponseRows, error: teamResponseError } = await supabase
       .from('team_responses')
-      .select('team_id, answer, updated_by_participant_id, updated_at')
+      .select('team_id, answer, updated_by_participant_id, updated_at, submitted_at')
       .eq('session_id', id)
       .eq('block_id', session.active_block_id)
       .order('updated_at', { ascending: true });
@@ -86,12 +86,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
         updatedByParticipantId: updaterId,
         updatedByDisplayName: updaterId ? participantNames.get(updaterId) ?? 'Student' : null,
         updatedAt: response.updated_at as string,
+        submitted: Boolean(response.submitted_at),
       });
     }
   } else if (session.active_block_id) {
     const { data: responseRows, error: responseError } = await supabase
       .from('responses')
-      .select('participant_id, answer, updated_at')
+      .select('participant_id, answer, updated_at, submitted_at')
       .eq('session_id', id)
       .eq('block_id', session.active_block_id)
       .order('updated_at', { ascending: true });
@@ -109,6 +110,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
         displayName: participantNames.get(response.participant_id as string) ?? 'Student',
         answer: parsedAnswer.data,
         updatedAt: response.updated_at as string,
+        submitted: Boolean(response.submitted_at),
       });
     }
   }

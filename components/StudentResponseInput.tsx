@@ -94,7 +94,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       }
       const submittedCurrent = Boolean(data.submittedCurrent);
       onSaved(data.answer, submittedCurrent);
-      if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
+      if (block.type === 'open_text' || block.type === 'exit_ticket' || block.type === 'ranking') setSubmitted(submittedCurrent);
       setSaved(true);
       setQueued(false);
       void postLiveControlEvent(
@@ -116,7 +116,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         };
         if (verification.ok && state.activeBlock?.id === block.id && state.myResponse && sameAnswer(state.myResponse, answer)) {
           onSaved(state.myResponse, Boolean(state.myResponseSubmitted));
-          if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(Boolean(state.myResponseSubmitted));
+          if (block.type === 'open_text' || block.type === 'exit_ticket' || block.type === 'ranking') setSubmitted(Boolean(state.myResponseSubmitted));
           setSaved(true);
           return;
         }
@@ -196,13 +196,14 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       setRecentlyMoved(movedItem);
       setMoveStatus(`${movedItem} je teď na ${target + 1}. místě.`);
       setSaved(false);
+      setSubmitted(false);
     }
 
     function submitRanking(event: FormEvent) {
       event.preventDefault();
       const explanation = rankingText.trim();
       if (!explanation) return;
-      void save({ ranking, text: explanation });
+      void save({ ranking, text: explanation }, 'submit');
     }
 
     const sourceItems = block.items ?? [];
@@ -237,7 +238,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
               Krátké zdůvodnění (povinné)
               <textarea
                 value={rankingText}
-                onChange={(event) => { setRankingText(event.target.value); setSaved(false); }}
+                onChange={(event) => { setRankingText(event.target.value); setSaved(false); setSubmitted(false); }}
                 maxLength={2000}
                 rows={4}
                 placeholder="Jednou až dvěma větami vysvětli, proč je první volba silnější nebo relevantnější než poslední…"
@@ -249,7 +250,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
             </div>
           </form>
         ) : <div className="error" role="alert" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
-        {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
+        {submitted ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí je odevzdané.</p> : saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
         {queued ? <p className="muted-copy" role="status" aria-live="polite">Pořadí je bezpečně uložené v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
