@@ -19,10 +19,10 @@ export default async function PresenterPage({ params }: Props) {
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
 
   if (!userId) {
-    if (!resume) redirect('/');
-    console.warn('presenter page restored from resume ticket', {
+    if (!authError || !resume) redirect('/');
+    console.warn('presenter page restored from resume ticket after primary auth failure', {
       sessionId: id,
-      authError: Boolean(authError),
+      authError: true,
     });
     return <PresenterMode sessionId={id} />;
   }

@@ -28,10 +28,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const { supabase, userId, error: authError } = await getAuthenticatedUserId();
 
   if (!userId) {
-    if (resume) {
-      console.warn('live control capability restored from resume ticket', {
+    if (authError && resume) {
+      console.warn('live control capability restored from resume ticket after primary auth failure', {
         sessionId: id,
-        authError: Boolean(authError),
+        authError: true,
       });
       return degradedAccess(id, resume.userId);
     }
