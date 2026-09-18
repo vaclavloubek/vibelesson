@@ -6,6 +6,7 @@ const scriptSources = [
   "'self'",
   "'unsafe-inline'",
   'https://challenges.cloudflare.com',
+  'https://www.googletagmanager.com',
   ...(isPreview ? ['https://vercel.live'] : []),
 ];
 
@@ -33,6 +34,8 @@ const connectSources = [
   'https://*.supabase.co',
   'wss://*.supabase.co',
   'https://challenges.cloudflare.com',
+  'https://www.google-analytics.com',
+  'https://*.google-analytics.com',
   ...(isPreview ? ['https://vercel.live', 'wss://ws-us3.pusher.com'] : []),
 ];
 

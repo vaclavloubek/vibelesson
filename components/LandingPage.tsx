@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import SyllonautMark from '@/components/SyllonautMark';
+import SiteFooter from '@/components/SiteFooter';
 import styles from './LandingPage.module.css';
 import polish from './LandingPagePolish.module.css';
 
@@ -171,10 +172,7 @@ export default function LandingPage() {
         <Link href="/new" className={styles.primaryCta}>Připravit hodinu</Link>
       </section>
 
-      <footer className={styles.footer}>
-        <span>© 2026 Syllonaut</span>
-        <span>AI navigátor pro interaktivní výuku.</span>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
