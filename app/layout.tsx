@@ -6,6 +6,7 @@ import './flow-polish.css';
 import './mobile-focus.css';
 import './accessibility.css';
 import CookieConsent from '@/components/CookieConsent';
+import LiveServiceWorker from '@/components/LiveServiceWorker';
 
 const geist = Geist({
   subsets: ['latin'],
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
         <div id="main-content" tabIndex={-1}>{children}</div>
         <CookieConsent />
+        <LiveServiceWorker />
       </body>
     </html>
   );
