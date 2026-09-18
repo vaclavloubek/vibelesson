@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 import { enqueueLiveOperation } from '@/lib/live-offline';
+import { postLiveControlEvent } from '@/lib/live-control-client';
 
 type Props = {
   sessionId: string;
@@ -68,6 +69,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
   async function save(answer: StudentAnswer, responseAction: ResponseAction = 'save') {
     if (busy) return;
+    const operationId = crypto.randomUUID();
     setBusy(true);
     setError('');
     setSaved(false);
@@ -76,7 +78,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blockId: block.id, answer, responseAction }),
+        body: JSON.stringify({ blockId: block.id, answer, responseAction, operationId }),
       }, SAVE_TIMEOUT_MS);
       const data = await result.json() as {
         answer?: StudentAnswer;
@@ -95,6 +97,13 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
       setSaved(true);
       setQueued(false);
+      void postLiveControlEvent(
+        sessionId,
+        'student',
+        'student.response',
+        { blockId: block.id, answer: data.answer, submitted: submittedCurrent },
+        operationId,
+      );
     } catch {
       try {
         const verification = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, {
@@ -114,16 +123,23 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       } catch {
         // The connection is still unavailable. Let the user retry without keeping the UI stuck.
       }
+      const liveFallbackSaved = await postLiveControlEvent(
+        sessionId,
+        'student',
+        'student.response',
+        { blockId: block.id, answer, submitted: responseAction === 'submit' },
+        operationId,
+      );
       const queuedLocally = await enqueueLiveOperation({
-        id: crypto.randomUUID(),
+        id: operationId,
         sessionId,
         kind: 'student-response',
         url: `/api/student/sessions/${sessionId}/response`,
         method: 'POST',
-        body: { blockId: block.id, answer, responseAction },
+        body: { blockId: block.id, answer, responseAction, operationId },
         createdAt: Date.now(),
       });
-      if (queuedLocally) {
+      if (queuedLocally || liveFallbackSaved) {
         setQueued(true);
         setError('');
       } else {
