@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import JoinQrCode from '@/components/JoinQrCode';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
@@ -40,18 +41,28 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [teamCount, setTeamCount] = useState(4);
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}`, { cache: 'no-store' });
-      const data = await response.json() as { session?: TeacherSessionData; error?: string };
-      if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
-      setSession(data.session);
-      setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
-    }
-  }, [sessionId]);
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+
+    const operation = (async () => {
+      try {
+        const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
+        const data = await response.json() as { session?: TeacherSessionData; error?: string };
+        if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+        setSession(data.session);
+        setError('');
+      } catch (err) {
+        if (!session) setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+      } finally {
+        refreshInFlightRef.current = null;
+      }
+    })();
+
+    refreshInFlightRef.current = operation;
+    return operation;
+  }, [sessionId, session]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
