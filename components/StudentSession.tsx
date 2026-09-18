@@ -10,6 +10,7 @@ import {
   getLiveControlAccess,
 } from '@/lib/live-control-client';
 import ConnectionStatusBadge, { type StudentConnectionStatus } from '@/components/ConnectionStatusBadge';
+import { useUiLocale } from '@/components/LocaleProvider';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
@@ -20,12 +21,14 @@ import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
 import { createClient } from '@/lib/supabase/client';
+import { localizedApiError } from '@/lib/i18n';
 
 type Team = { id: string; name: string; memberCount: number };
 type StudentState = {
   sessionId: string;
   status: SessionStatus;
   title: string;
+  lessonLanguage: string | null;
   participantDisplayName: string;
   activeBlock: PublicLessonBlock | null;
   activeBlockIndex: number | null;
@@ -43,6 +46,9 @@ type StudentState = {
 };
 
 export default function StudentSession({ sessionId }: { sessionId: string }) {
+  const locale = useUiLocale();
+  const english = locale === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [state, setState] = useState<StudentState | null>(null);
   const [error, setError] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<StudentConnectionStatus>('connecting');
@@ -99,7 +105,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       status: snapshot.status,
       title: typeof snapshot.lessonSnapshot?.title === 'string'
         ? snapshot.lessonSnapshot.title
-        : current?.title ?? 'Hodina',
+        : current?.title ?? ui('Hodina', 'Lesson'),
+      lessonLanguage: typeof snapshot.lessonSnapshot?.language === 'string'
+        ? snapshot.lessonSnapshot.language
+        : current?.lessonLanguage ?? null,
       participantDisplayName: participant?.displayName ?? current?.participantDisplayName ?? 'Student',
       activeBlock,
       activeBlockIndex: activeBlockIndex >= 0 ? activeBlockIndex : null,
@@ -122,7 +131,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     setError('');
     setConnectionStatus('reconnecting');
     return true;
-  }, [sessionId]);
+  }, [english, sessionId]);
 
   const refresh = useCallback(async () => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
@@ -131,7 +140,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       try {
         const response = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
         const data = await response.json() as StudentState & { error?: string };
-        if (!response.ok) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+        if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.'));
 
         const recovered = disconnectedRef.current;
         disconnectedRef.current = false;
@@ -152,7 +161,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
             setState(cached);
             setError('');
           } else {
-            setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+            setError(err instanceof Error ? err.message : ui('Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.'));
           }
         }
       } finally {
@@ -162,7 +171,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
 
     refreshInFlightRef.current = operation;
     return operation;
-  }, [refreshFromLiveControl, sessionId]);
+  }, [english, refreshFromLiveControl, sessionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -235,10 +244,12 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     const activeBlock = state.activeBlock;
     if (previousBlockIdRef.current !== activeBlock.id) {
       const blockNumber = (state.activeBlockIndex ?? 0) + 1;
-      setActiveBlockAnnouncement(`Aktuální úkol ${blockNumber} z ${state.totalBlocks}: ${activeBlock.title}.`);
+      setActiveBlockAnnouncement(english
+        ? `Current task ${blockNumber} of ${state.totalBlocks}: ${activeBlock.title}.`
+        : `Aktuální úkol ${blockNumber} z ${state.totalBlocks}: ${activeBlock.title}.`);
       previousBlockIdRef.current = activeBlock.id;
     }
-  }, [state?.activeBlock, state?.activeBlockIndex, state?.status, state?.totalBlocks]);
+  }, [english, state?.activeBlock, state?.activeBlockIndex, state?.status, state?.totalBlocks]);
 
   const currentBlockNumber = (state?.activeBlockIndex ?? 0) + 1;
   const progress = state?.status === 'live' && state.totalBlocks > 0
@@ -251,20 +262,20 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   return (
     <main className="shell student-shell">
       <header className="brand student-brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
+        <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">STUDENT</span></div>
         <ConnectionStatusBadge status={connectionStatus} />
       </header>
       <VisuallyHidden><span role="status" aria-live="polite" aria-atomic="true">{activeBlockAnnouncement}</span></VisuallyHidden>
 
-      {error ? <div className="error" role="alert"><p style={{ marginTop: 0 }}>{error}</p><button className="secondary" type="button" onClick={() => void refresh()}>Zkusit znovu</button></div> : null}
-      {!state && !error ? <div className="panel" role="status"><p className="muted-copy">Navazuji spojení s hodinou…</p></div> : null}
+      {error ? <div className="error" role="alert"><p style={{ marginTop: 0 }}>{error}</p><button className="secondary" type="button" onClick={() => void refresh()}>{ui('Zkusit znovu', 'Try again')}</button></div> : null}
+      {!state && !error ? <div className="panel" role="status"><p className="muted-copy">{ui('Navazuji spojení s hodinou…', 'Connecting to the lesson…')}</p></div> : null}
 
       {state?.status === 'lobby' ? (
         <div style={{ display: 'grid', gap: 12 }}>
           <section className="panel" style={{ textAlign: 'center' }}>
-            <span className="eyebrow">Startovní zóna</span>
-            <h1>{state.title}</h1>
-            <p className="muted-copy">Jsi připojen jako <strong>{state.participantDisplayName}</strong>. Čekáme, až učitel hodinu odstartuje.</p>
+            <span className="eyebrow">{ui('Startovní zóna', 'Starting area')}</span>
+            <h1 lang={state.lessonLanguage ?? undefined} dir={state.lessonLanguage ? 'auto' : undefined}>{state.title}</h1>
+            <p className="muted-copy">{ui('Jsi připojen jako', 'You are connected as')} <strong>{state.participantDisplayName}</strong>. {ui('Čekáme, až učitel hodinu odstartuje.', 'Waiting for the teacher to start the lesson.')}</p>
           </section>
           <TeamPicker
             sessionId={sessionId}
@@ -283,31 +294,31 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               <span>{state.participantDisplayName}{state.myTeam ? ` · ${state.myTeam.name}` : ''}</span>
               <strong>{currentBlockNumber} / {state.totalBlocks}</strong>
             </div>
-            <h1 className="student-session-title">{state.title}</h1>
+            <h1 className="student-session-title" lang={state.lessonLanguage ?? undefined} dir={state.lessonLanguage ? 'auto' : undefined}>{state.title}</h1>
             <div
               className="student-progress-track"
               role="progressbar"
               aria-valuemin={1}
               aria-valuemax={state.totalBlocks}
               aria-valuenow={currentBlockNumber}
-              aria-valuetext={`Blok ${currentBlockNumber} z ${state.totalBlocks}`}
-              aria-label="Průběh hodiny"
+              aria-valuetext={english ? `Block ${currentBlockNumber} of ${state.totalBlocks}` : `Blok ${currentBlockNumber} z ${state.totalBlocks}`}
+              aria-label={ui('Průběh hodiny', 'Lesson progress')}
             >
               <div className="student-progress-fill" style={{ width: `${progress}%` }} />
             </div>
           </section>
 
           {state.scoreboard ? (
-            <section className="panel" aria-label="Moje průběžné skóre">
-              <span className="eyebrow">Průběžné pořadí</span>
+            <section className="panel" aria-label={ui('Moje průběžné skóre', 'My current score')}>
+              <span className="eyebrow">{ui('Průběžné pořadí', 'Current ranking')}</span>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 16, marginTop: 8 }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: 28, lineHeight: 1.1 }}>{state.scoreboard.score} / {state.scoreboard.maxPoints}</strong>
-                  <span className="muted-copy">Tvoje skóre</span>
+                  <span className="muted-copy">{ui('Tvoje skóre', 'Your score')}</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. místo</strong>
-                  <span className="muted-copy">Aktuální pořadí</span>
+                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. {ui('místo', 'place')}</strong>
+                  <span className="muted-copy">{ui('Aktuální pořadí', 'Current ranking')}</span>
                 </div>
               </div>
             </section>
@@ -315,7 +326,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
 
           {connectionStatus === 'reconnecting' ? (
             <div className="panel" role="status" style={{ padding: 12 }}>
-              <p className="muted-copy" style={{ margin: 0 }}>Spojení se přerušilo. Poslední známý stav zůstává na obrazovce a Syllonaut se pokusí hodinu automaticky dosynchronizovat.</p>
+              <p className="muted-copy" style={{ margin: 0 }}>{ui('Spojení se přerušilo. Poslední známý stav zůstává na obrazovce a Syllonaut se pokusí hodinu automaticky dosynchronizovat.', 'The connection was interrupted. The last known state stays on screen while Syllonaut automatically tries to resynchronise the lesson.')}</p>
             </div>
           ) : null}
 
@@ -335,9 +346,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                 block={state.activeBlock}
                 hideOptions={state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'}
                 hideItems={state.activeBlock.type === 'ranking'}
+                contentLanguage={state.lessonLanguage}
               />
 
-              {state.activeBlock.type === 'timer' && state.timer ? <LiveTimer timer={state.timer} label="Společný čas" /> : null}
+              {state.activeBlock.type === 'timer' && state.timer ? <LiveTimer timer={state.timer} label={ui('Společný čas', 'Shared timer')} /> : null}
 
               {state.activeBlock.type === 'team_task' ? (
                 state.myTeam ? (
@@ -352,10 +364,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                     onSaved={() => void refresh()}
                   />
                 ) : (
-                  <div className="error" role="alert">Pro týmový úkol si nejdřív vyber tým.</div>
+                  <div className="error" role="alert">{ui('Pro týmový úkol si nejdřív vyber tým.', 'Choose a team before working on the team task.')}</div>
                 )
               ) : choiceResultsLocked ? (
-                state.revealedResults ? <StudentRevealedResults results={state.revealedResults} /> : <div className="panel" role="status"><p className="muted-copy">Výsledky byly zveřejněné. Načítám je…</p></div>
+                state.revealedResults ? <StudentRevealedResults results={state.revealedResults} /> : <div className="panel" role="status"><p className="muted-copy">{ui('Výsledky byly zveřejněné. Načítám je…', 'Results have been revealed. Loading them…')}</p></div>
               ) : (
                 <StudentResponseInput
                   key={state.activeBlock.id}
@@ -363,6 +375,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                   block={state.activeBlock}
                   response={state.myResponse}
                   responseSubmitted={state.myResponseSubmitted ?? false}
+                  contentLanguage={state.lessonLanguage}
                   onSaved={(answer, submittedCurrent) => setState((current) => current ? {
                     ...current,
                     myResponse: answer,
@@ -371,29 +384,29 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                 />
               )}
             </>
-          ) : <div className="error" role="status">Čekám na aktivní blok…</div>}
+          ) : <div className="error" role="status">{ui('Čekám na aktivní blok…', 'Waiting for the active block…')}</div>}
         </div>
       ) : null}
 
       {state?.status === 'ended' ? (
         <div style={{ display: 'grid', gap: 12 }}>
           <section className="panel" style={{ textAlign: 'center' }}>
-            <span className="eyebrow">Mise dokončena</span>
-            <h1>Hodina skončila</h1>
-            <p className="muted-copy">Díky za účast, {state.participantDisplayName}.</p>
+            <span className="eyebrow">{ui('Mise dokončena', 'Mission complete')}</span>
+            <h1>{ui('Hodina skončila', 'The lesson has ended')}</h1>
+            <p className="muted-copy">{ui('Díky za účast', 'Thanks for taking part')}, {state.participantDisplayName}.</p>
           </section>
 
           {state.scoreboard ? (
-            <section className="panel" aria-label="Moje konečné skóre">
-              <span className="eyebrow">Konečné pořadí</span>
+            <section className="panel" aria-label={ui('Moje konečné skóre', 'My final score')}>
+              <span className="eyebrow">{ui('Konečné pořadí', 'Final ranking')}</span>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 16, marginTop: 8 }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: 28, lineHeight: 1.1 }}>{state.scoreboard.score} / {state.scoreboard.maxPoints}</strong>
-                  <span className="muted-copy">Tvoje skóre</span>
+                  <span className="muted-copy">{ui('Tvoje skóre', 'Your score')}</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. místo</strong>
-                  <span className="muted-copy">Konečné pořadí</span>
+                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. {ui('místo', 'place')}</strong>
+                  <span className="muted-copy">{ui('Konečné pořadí', 'Final ranking')}</span>
                 </div>
               </div>
             </section>

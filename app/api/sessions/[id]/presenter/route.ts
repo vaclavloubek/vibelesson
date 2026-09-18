@@ -119,6 +119,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   return NextResponse.json({
     status: data.status,
     title: data.title,
+    lessonLanguage: lesson.data.language ?? null,
     realtimeKey: data.realtimeKey,
     joinCode: session.join_code,
     participantCount: data.rows.length,

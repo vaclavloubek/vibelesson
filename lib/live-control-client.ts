@@ -20,6 +20,7 @@ export type LiveControlState = {
     activeBlockId: string | null;
     lessonSnapshot: {
       title?: string;
+      language?: string;
       blocks?: Array<Record<string, unknown>>;
     };
     teams: Array<{ id: string; name: string; sortOrder?: number }>;

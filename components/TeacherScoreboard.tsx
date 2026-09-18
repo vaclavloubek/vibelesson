@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import styles from '@/components/TeacherScoreboard.module.css';
+import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type ScoreSource = 'quiz' | 'ai' | 'teacher' | 'pending' | 'failed' | 'missing';
 
@@ -39,18 +41,20 @@ type ScoreboardData = {
   rows: ScoreboardRow[];
 };
 
-function sourceLabel(source: ScoreSource) {
+function sourceLabel(source: ScoreSource, english: boolean) {
   switch (source) {
     case 'quiz': return 'Quiz';
-    case 'teacher': return 'Potvrzeno učitelem';
-    case 'ai': return 'AI návrh';
-    case 'pending': return 'Čeká na AI';
-    case 'failed': return 'AI chyba';
-    case 'missing': return 'Bez odpovědi';
+    case 'teacher': return english ? 'Confirmed by teacher' : 'Potvrzeno učitelem';
+    case 'ai': return english ? 'AI suggestion' : 'AI návrh';
+    case 'pending': return english ? 'Waiting for AI' : 'Čeká na AI';
+    case 'failed': return english ? 'AI error' : 'AI chyba';
+    case 'missing': return english ? 'No response' : 'Bez odpovědi';
   }
 }
 
 export default function TeacherScoreboard({ sessionId }: { sessionId: string }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [data, setData] = useState<ScoreboardData | null>(null);
   const [error, setError] = useState('');
   const [revealBusy, setRevealBusy] = useState(false);
@@ -59,13 +63,13 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
     try {
       const response = await fetch(`/api/sessions/${sessionId}/scoreboard`, { cache: 'no-store' });
       const body = await response.json() as ScoreboardData & { error?: string };
-      if (!response.ok) throw new Error(body.error || 'Skóre se nepodařilo načíst.');
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Skóre se nepodařilo načíst.', 'Scores could not be loaded.'));
       setData(body);
       setError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Skóre se nepodařilo načíst.');
+      setError(err instanceof Error ? err.message : ui('Skóre se nepodařilo načíst.', 'Scores could not be loaded.'));
     }
-  }, [sessionId]);
+  }, [english, sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,10 +103,10 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
         body: JSON.stringify({ action: revealed ? 'reveal_scoreboard' : 'hide_scoreboard' }),
       });
       const body = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(body.error || 'Viditelnost pořadí se nepodařilo změnit.');
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Viditelnost pořadí se nepodařilo změnit.');
+      setError(err instanceof Error ? err.message : ui('Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
     } finally {
       setRevealBusy(false);
     }
@@ -112,8 +116,8 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
 
   const leader = data.rows[0];
   const summary = leader
-    ? `Skóre · ${leader.displayName} ${leader.score}/${leader.maxPoints}`
-    : 'Skóre · bez studentů';
+    ? `${ui('Skóre', 'Scores')} · ${leader.displayName} ${leader.score}/${leader.maxPoints}`
+    : ui('Skóre · bez studentů', 'Scores · no students');
   const hasRevealWarning = !data.scoreboardRevealed && Boolean(
     data.pendingEvaluations || data.needsReviewEvaluations || data.unconfirmedEvaluations,
   );
@@ -124,13 +128,13 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
       <div className={`panel ${styles.revealPanel}`}>
         <div className={styles.revealHead}>
           <div>
-            <strong>{data.scoreboardRevealed ? 'Pořadí je zveřejněné' : 'Pořadí je skryté'}</strong>
+            <strong>{data.scoreboardRevealed ? ui('Pořadí je zveřejněné', 'The scoreboard is visible') : ui('Pořadí je skryté', 'The scoreboard is hidden')}</strong>
             <span>
               {data.scoreboardRevealed
-                ? 'Studenti vidí jen své vlastní skóre a pořadí.'
+                ? ui('Studenti vidí jen své vlastní skóre a pořadí.', 'Students can see only their own score and rank.')
                 : canReveal
-                  ? 'Studenti zatím své skóre ani pořadí nevidí.'
-                  : 'Zatím není k dispozici žádný bodovaný blok.'}
+                  ? ui('Studenti zatím své skóre ani pořadí nevidí.', 'Students cannot see their score or rank yet.')
+                  : ui('Zatím není k dispozici žádný bodovaný blok.', 'No scored block is available yet.')}
             </span>
           </div>
           <button
@@ -140,22 +144,22 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
             onClick={() => void setScoreboardVisibility(!data.scoreboardRevealed)}
           >
             {revealBusy
-              ? 'Ukládám…'
+              ? ui('Ukládám…', 'Saving…')
               : data.scoreboardRevealed
-                ? 'Skrýt pořadí'
-                : 'Zveřejnit pořadí'}
+                ? ui('Skrýt pořadí', 'Hide scoreboard')
+                : ui('Zveřejnit pořadí', 'Reveal scoreboard')}
           </button>
         </div>
 
         {hasRevealWarning ? (
           <div className={styles.warning} role="status">
-            <strong>Před zveřejněním zkontroluj hodnocení:</strong>
+            <strong>{ui('Před zveřejněním zkontroluj hodnocení:', 'Review grading before revealing:')}</strong>
             <ul>
-              {data.pendingEvaluations ? <li>{data.pendingEvaluations} AI hodnocení ještě čeká.</li> : null}
-              {data.needsReviewEvaluations ? <li>{data.needsReviewEvaluations} AI hodnocení je označeno k ruční kontrole.</li> : null}
-              {data.unconfirmedEvaluations ? <li>{data.unconfirmedEvaluations} AI návrhů zatím není potvrzeno učitelem.</li> : null}
+              {data.pendingEvaluations ? <li>{data.pendingEvaluations} {ui('AI hodnocení ještě čeká.', 'AI grading items are still pending.')}</li> : null}
+              {data.needsReviewEvaluations ? <li>{data.needsReviewEvaluations} {ui('AI hodnocení je označeno k ruční kontrole.', 'AI grading items need manual review.')}</li> : null}
+              {data.unconfirmedEvaluations ? <li>{data.unconfirmedEvaluations} {ui('AI návrhů zatím není potvrzeno učitelem.', 'AI suggestions are not yet confirmed by the teacher.')}</li> : null}
             </ul>
-            <span>Pořadí můžeš zveřejnit i přesto.</span>
+            <span>{ui('Pořadí můžeš zveřejnit i přesto.', 'You can reveal the scoreboard anyway.')}</span>
           </div>
         ) : null}
 
@@ -166,15 +170,15 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
         <summary className={styles.summary}>{summary}</summary>
         <div className={styles.content}>
           <div className={styles.meta}>
-            <span>{data.scoredBlockCount} bodovaných bloků</span>
-            {data.unconfirmedEvaluations ? <span>{data.unconfirmedEvaluations} AI návrhů</span> : null}
-            {data.pendingEvaluations ? <span>{data.pendingEvaluations} čeká</span> : null}
-            {data.failedEvaluations ? <span>{data.failedEvaluations} chyb</span> : null}
+            <span>{data.scoredBlockCount} {english ? 'scored blocks' : 'bodovaných bloků'}</span>
+            {data.unconfirmedEvaluations ? <span>{data.unconfirmedEvaluations} {english ? 'AI suggestions' : 'AI návrhů'}</span> : null}
+            {data.pendingEvaluations ? <span>{data.pendingEvaluations} {english ? 'pending' : 'čeká'}</span> : null}
+            {data.failedEvaluations ? <span>{data.failedEvaluations} {english ? 'errors' : 'chyb'}</span> : null}
           </div>
           <p className="muted-copy" style={{ margin: '0 0 10px' }}>
             {data.scoreboardRevealed
-              ? 'Studenti vidí pouze své vlastní skóre a pořadí. Kompletní tabulka, zdroje bodů a stav AI hodnocení zůstávají pouze učiteli.'
-              : 'Průběžné pořadí vidí pouze učitel. AI skóre se započítává dočasně; potvrzené nebo upravené skóre učitele má přednost.'}
+              ? ui('Studenti vidí pouze své vlastní skóre a pořadí. Kompletní tabulka, zdroje bodů a stav AI hodnocení zůstávají pouze učiteli.', 'Students see only their own score and rank. The full table, score sources and AI grading state remain visible only to the teacher.')
+              : ui('Průběžné pořadí vidí pouze učitel. AI skóre se započítává dočasně; potvrzené nebo upravené skóre učitele má přednost.', 'Only the teacher sees the live ranking. AI scores count provisionally; confirmed or adjusted teacher scores take priority.')}
           </p>
 
           {!error && data.rows.length ? (
@@ -191,20 +195,20 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
 
                   {(row.provisionalCount || row.pendingCount || row.failedCount) ? (
                     <div className={styles.badges}>
-                      {row.provisionalCount ? <span>{row.provisionalCount}× AI návrh</span> : null}
-                      {row.pendingCount ? <span>{row.pendingCount}× čeká</span> : null}
-                      {row.failedCount ? <span>{row.failedCount}× chyba</span> : null}
+                      {row.provisionalCount ? <span>{row.provisionalCount}× {ui('AI návrh', 'AI suggestion')}</span> : null}
+                      {row.pendingCount ? <span>{row.pendingCount}× {ui('čeká', 'pending')}</span> : null}
+                      {row.failedCount ? <span>{row.failedCount}× {ui('chyba', 'error')}</span> : null}
                     </div>
                   ) : null}
 
                   <details className={styles.breakdown}>
-                    <summary>Rozpad bodů</summary>
+                    <summary>{ui('Rozpad bodů', 'Score breakdown')}</summary>
                     <div className={styles.breakdownList}>
                       {row.breakdown.map((item) => (
                         <div className={styles.breakdownItem} key={item.blockId}>
                           <div>
                             <strong>{item.blockTitle}</strong>
-                            <span>{sourceLabel(item.source)}</span>
+                            <span>{sourceLabel(item.source, english)}</span>
                           </div>
                           <strong>{item.points === null ? '—' : item.points} / {item.maxPoints}</strong>
                         </div>
@@ -216,7 +220,7 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
             </div>
           ) : null}
 
-          {!error && !data.rows.length ? <p className="muted-copy" style={{ margin: 0 }}>Zatím nejsou připojení studenti.</p> : null}
+          {!error && !data.rows.length ? <p className="muted-copy" style={{ margin: 0 }}>{ui('Zatím nejsou připojení studenti.', 'No students are connected yet.')}</p> : null}
         </div>
       </details>
     </aside>

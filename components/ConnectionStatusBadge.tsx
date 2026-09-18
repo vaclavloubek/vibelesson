@@ -1,16 +1,30 @@
 'use client';
 
+import { useUiLocale } from '@/components/LocaleProvider';
+
 export type StudentConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'restored';
 
-const STATUS_META: Record<StudentConnectionStatus, { label: string; color: string }> = {
-  connecting: { label: 'Navazuji spojení…', color: 'var(--amber)' },
-  connected: { label: 'Připojeno', color: 'var(--success)' },
-  reconnecting: { label: 'Obnovuji spojení…', color: 'var(--amber)' },
-  restored: { label: 'Připojeno znovu', color: 'var(--success)' },
+const COLORS: Record<StudentConnectionStatus, string> = {
+  connecting: 'var(--amber)',
+  connected: 'var(--success)',
+  reconnecting: 'var(--amber)',
+  restored: 'var(--success)',
 };
 
 export default function ConnectionStatusBadge({ status }: { status: StudentConnectionStatus }) {
-  const meta = STATUS_META[status];
+  const english = useUiLocale() === 'en';
+  const labels: Record<StudentConnectionStatus, string> = english ? {
+    connecting: 'Connecting…',
+    connected: 'Connected',
+    reconnecting: 'Reconnecting…',
+    restored: 'Connected again',
+  } : {
+    connecting: 'Navazuji spojení…',
+    connected: 'Připojeno',
+    reconnecting: 'Obnovuji spojení…',
+    restored: 'Připojeno znovu',
+  };
+
   return (
     <span
       role="status"
@@ -32,9 +46,9 @@ export default function ConnectionStatusBadge({ status }: { status: StudentConne
     >
       <span
         aria-hidden="true"
-        style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, flex: '0 0 7px' }}
+        style={{ width: 7, height: 7, borderRadius: '50%', background: COLORS[status], flex: '0 0 7px' }}
       />
-      {meta.label}
+      {labels[status]}
     </span>
   );
 }

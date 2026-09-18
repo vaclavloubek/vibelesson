@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type ScoreboardControlState = {
   status: 'lobby' | 'live' | 'ended';
@@ -14,6 +16,8 @@ type ScoreboardControlState = {
 };
 
 export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId: string }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [target, setTarget] = useState<Element | null>(null);
   const [data, setData] = useState<ScoreboardControlState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,11 +64,11 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     const revealing = !data.scoreboardRevealed;
     if (revealing) {
       const warnings: string[] = [];
-      if (data.pendingEvaluations) warnings.push(`${data.pendingEvaluations} AI hodnocení ještě čeká.`);
-      if (data.needsReviewEvaluations) warnings.push(`${data.needsReviewEvaluations} AI hodnocení je označeno k ruční kontrole.`);
-      if (data.unconfirmedEvaluations) warnings.push(`${data.unconfirmedEvaluations} AI návrhů zatím není potvrzeno učitelem.`);
+      if (data.pendingEvaluations) warnings.push(english ? `${data.pendingEvaluations} AI grading items are still pending.` : `${data.pendingEvaluations} AI hodnocení ještě čeká.`);
+      if (data.needsReviewEvaluations) warnings.push(english ? `${data.needsReviewEvaluations} AI grading items need manual review.` : `${data.needsReviewEvaluations} AI hodnocení je označeno k ruční kontrole.`);
+      if (data.unconfirmedEvaluations) warnings.push(english ? `${data.unconfirmedEvaluations} AI suggestions are not yet confirmed by the teacher.` : `${data.unconfirmedEvaluations} AI návrhů zatím není potvrzeno učitelem.`);
 
-      if (warnings.length && !window.confirm(`Před zveřejněním zkontroluj hodnocení:\n\n${warnings.join('\n')}\n\nZveřejnit pořadí i přesto?`)) {
+      if (warnings.length && !window.confirm(english ? `Review grading before revealing:\n\n${warnings.join('\n')}\n\nReveal the scoreboard anyway?` : `Před zveřejněním zkontroluj hodnocení:\n\n${warnings.join('\n')}\n\nZveřejnit pořadí i přesto?`)) {
         return;
       }
     }
@@ -79,16 +83,16 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
         body: JSON.stringify({ action: revealing ? 'reveal_scoreboard' : 'hide_scoreboard' }),
       });
       const body = await response.json() as { error?: string; scoreboardRevealed?: boolean };
-      if (!response.ok) throw new Error(body.error || 'Viditelnost pořadí se nepodařilo změnit.');
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
 
       const nextRevealed = typeof body.scoreboardRevealed === 'boolean'
         ? body.scoreboardRevealed
         : revealing;
       setData((current) => current ? { ...current, scoreboardRevealed: nextRevealed } : current);
-      setFeedback(nextRevealed ? 'Pořadí je zveřejněné studentům.' : 'Pořadí je skryté.');
+      setFeedback(nextRevealed ? ui('Pořadí je zveřejněné studentům.', 'The scoreboard is visible to students.') : ui('Pořadí je skryté.', 'The scoreboard is hidden.'));
       void load();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Viditelnost pořadí se nepodařilo změnit.');
+      setActionError(error instanceof Error ? error.message : ui('Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
     } finally {
       setBusy(false);
     }
@@ -99,12 +103,12 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
   const canReveal = data.hasScoring && data.availableMaxPoints > 0;
   const disabled = busy || (!data.scoreboardRevealed && !canReveal);
   const label = busy
-    ? 'Ukládám…'
+    ? ui('Ukládám…', 'Saving…')
     : data.scoreboardRevealed
-      ? 'Skrýt pořadí'
+      ? ui('Skrýt pořadí', 'Hide scoreboard')
       : canReveal
-        ? 'Zveřejnit pořadí'
-        : 'Pořadí zatím nelze zveřejnit';
+        ? ui('Zveřejnit pořadí', 'Reveal scoreboard')
+        : ui('Pořadí zatím nelze zveřejnit', 'Scoreboard cannot be revealed yet');
 
   return createPortal(
     <>
@@ -114,7 +118,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
         target="_blank"
         rel="noreferrer"
       >
-        Prezentační režim
+        {ui('Prezentační režim', 'Presenter mode')}
       </a>
       {data.status !== 'lobby' ? (
         <button
@@ -122,7 +126,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
           type="button"
           disabled={disabled}
           onClick={() => void changeVisibility()}
-          title={!canReveal && !data.scoreboardRevealed ? 'Zatím není k dispozici žádný bodovaný blok.' : undefined}
+          title={!canReveal && !data.scoreboardRevealed ? ui('Zatím není k dispozici žádný bodovaný blok.', 'No scored block is available yet.') : undefined}
         >
           {label}
         </button>
@@ -133,7 +137,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
           className={actionError ? 'error' : 'muted-copy'}
           style={{ alignSelf: 'center', margin: 0 }}
         >
-          {actionError || feedback || 'Pořadí je zveřejněné studentům.'}
+          {actionError || feedback || ui('Pořadí je zveřejněné studentům.', 'The scoreboard is visible to students.')}
         </span>
       ) : null}
     </>,

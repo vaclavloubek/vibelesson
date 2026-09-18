@@ -4,6 +4,8 @@ import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterScoreboard.module.css';
+import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/client';
 
 type PresenterRow = {
@@ -75,6 +77,8 @@ function CompactRow({ row, maxPoints }: { row: PresenterRow; maxPoints: number }
 }
 
 export default function PresenterScoreboard({ sessionId }: { sessionId: string }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [data, setData] = useState<PresenterData | null>(null);
   const [error, setError] = useState('');
 
@@ -82,11 +86,11 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
     try {
       const response = await fetch(`/api/sessions/${sessionId}/presenter`, { cache: 'no-store' });
       const body = await response.json() as PresenterData & { error?: string };
-      if (!response.ok) throw new Error(body.error || 'Prezentační režim se nepodařilo načíst.');
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
       setData(body);
       setError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Prezentační režim se nepodařilo načíst.');
+      setError(err instanceof Error ? err.message : ui('Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
     }
   }, [sessionId]);
 
@@ -115,8 +119,8 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
     return () => { void supabase.removeChannel(channel); };
   }, [data?.realtimeKey, load]);
 
-  const phaseLabel = data?.status === 'ended' ? 'Mise dokončena' : data?.status === 'live' ? 'Mise probíhá' : 'Startovní zóna';
-  const boardTitle = data?.status === 'ended' ? 'Konečné pořadí' : 'Závod k Měsíci';
+  const phaseLabel = data?.status === 'ended' ? ui('Mise dokončena', 'Lesson completed') : data?.status === 'live' ? ui('Mise probíhá', 'Lesson in progress') : ui('Startovní zóna', 'Starting area');
+  const boardTitle = data?.status === 'ended' ? ui('Konečné pořadí', 'Final ranking') : ui('Závod k Měsíci', 'Race to the Moon');
   const participantCount = data?.rows.length ?? 0;
   const raceLimit = participantCount <= 12 ? participantCount : participantCount <= 24 ? 10 : 5;
   const raceRows = data?.rows.slice(0, raceLimit) ?? [];
@@ -148,10 +152,10 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
             {data.scoreboardRevealed && data.hasScoring ? (
               <div className={styles.scoreMeta}>
                 <strong>{participantCount}</strong>
-                <span>{participantCount === 1 ? 'posádka' : participantCount >= 2 && participantCount <= 4 ? 'posádky' : 'posádek'}</span>
+                <span>{english ? (participantCount === 1 ? 'crew' : 'crews') : participantCount === 1 ? 'posádka' : participantCount >= 2 && participantCount <= 4 ? 'posádky' : 'posádek'}</span>
                 <i />
                 <strong>{data.maxPoints}</strong>
-                <span>bodů maximum</span>
+                <span>{ui('bodů maximum', 'maximum points')}</span>
               </div>
             ) : null}
           </div>
@@ -160,7 +164,7 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
         {error ? (
           <div className={styles.error} role="alert">
             <p>{error}</p>
-            <button className={styles.retry} type="button" onClick={() => void load()}>Zkusit znovu</button>
+            <button className={styles.retry} type="button" onClick={() => void load()}>{ui('Zkusit znovu', 'Try again')}</button>
           </div>
         ) : null}
 
@@ -168,7 +172,7 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
           <div className={styles.waiting}>
             <div className={styles.waitingInner}>
               <div className={styles.waitingOrb} />
-              <h2>Připravuji projekci…</h2>
+              <h2>{ui('Připravuji projekci…', 'Preparing projection…')}</h2>
             </div>
           </div>
         ) : null}
@@ -177,8 +181,8 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
           <div className={styles.waiting}>
             <div className={styles.waitingInner}>
               <div className={styles.waitingOrb} />
-              <h2>Tahle mise nemá bodované aktivity</h2>
-              <p>Prezentační pořadí se zobrazí jen u lekcí, ve kterých lze získávat body.</p>
+              <h2>{ui('Tahle mise nemá bodované aktivity', 'This lesson has no scored activities')}</h2>
+              <p>{ui('Prezentační pořadí se zobrazí jen u lekcí, ve kterých lze získávat body.', 'The presenter ranking appears only in lessons where students can earn points.')}</p>
             </div>
           </div>
         ) : null}
@@ -187,8 +191,8 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
           <div className={styles.waiting}>
             <div className={styles.waitingInner}>
               <div className={styles.waitingOrb} />
-              <h2>Pořadí je zatím skryté</h2>
-              <p>Až učitel zveřejní pořadí v Řídicím centru, tato obrazovka se aktualizuje automaticky.</p>
+              <h2>{ui('Pořadí je zatím skryté', 'The ranking is hidden')}</h2>
+              <p>{ui('Až učitel zveřejní pořadí v Řídicím centru, tato obrazovka se aktualizuje automaticky.', 'This screen updates automatically when the teacher reveals the ranking in the Control Centre.')}</p>
             </div>
           </div>
         ) : null}
@@ -197,19 +201,19 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
           <div className={styles.board}>
             <div className={styles.boardHead}>
               <div>
-                <p className={styles.kicker}>{isFinal ? 'Cíl mise' : 'Aktuální pozice'}</p>
+                <p className={styles.kicker}>{isFinal ? ui('Cíl mise', 'Mission finish') : ui('Aktuální pozice', 'Current positions')}</p>
                 <h2>{boardTitle}</h2>
               </div>
-              {isFinal ? <span className={styles.finalSequence}>Finální let · zrychlení → brzdění → přistání</span> : null}
+              {isFinal ? <span className={styles.finalSequence}>{ui('Finální let · zrychlení → brzdění → přistání', 'Final flight · acceleration → braking → landing')}</span> : null}
             </div>
 
             {data.rows.length ? (
               <div className={`${styles.raceLayout} ${participantCount >= 25 ? styles.raceLayoutLarge : ''}`}>
-                <section className={styles.racePanel} aria-label={isFinal ? 'Konečný závod k Měsíci' : 'Průběžný závod k Měsíci'}>
+                <section className={styles.racePanel} aria-label={isFinal ? ui('Konečný závod k Měsíci', 'Final race to the Moon') : ui('Průběžný závod k Měsíci', 'Live race to the Moon')}>
                   <div className={`${styles.raceCourse} ${raceRows.length >= 9 ? styles.raceCourseDense : ''}`}>
                     <div className={styles.spaceDust} aria-hidden="true" />
-                    <div className={styles.earth} aria-hidden="true"><span>Země</span></div>
-                    <div className={styles.moon} aria-hidden="true"><span>Měsíc</span></div>
+                    <div className={styles.earth} aria-hidden="true"><span>{ui('Země', 'Earth')}</span></div>
+                    <div className={styles.moon} aria-hidden="true"><span>{ui('Měsíc', 'Moon')}</span></div>
                     <div className={styles.routeLine} aria-hidden="true" />
 
                     <div className={styles.lanes}>
@@ -236,9 +240,9 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                     </div>
                   </div>
                   <div className={styles.raceLegend}>
-                    <span>Start</span>
-                    <span>Poloha rakety = získané body / aktuálně dostupné maximum</span>
-                    <span>Cíl</span>
+                    <span>{ui('Start', 'Start')}</span>
+                    <span>{ui('Poloha rakety = získané body / aktuálně dostupné maximum', 'Rocket position = points earned / currently available maximum')}</span>
+                    <span>{ui('Cíl', 'Finish')}</span>
                   </div>
                 </section>
 
@@ -246,10 +250,10 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
                   <aside className={styles.leaderboard}>
                     <div className={styles.leaderboardHead}>
                       <div>
-                        <p className={styles.kicker}>Přehled</p>
+                        <p className={styles.kicker}>{ui('Přehled', 'Overview')}</p>
                         <h3>Top 10</h3>
                       </div>
-                      {largeOverflow ? <span>+ {largeOverflow} dalších</span> : null}
+                      {largeOverflow ? <span>+ {largeOverflow} {ui('dalších', 'more')}</span> : null}
                     </div>
                     <div className={styles.compactRows}>
                       {largeLeaderboard.map((row, index) => <CompactRow key={`${row.displayName}-${index}`} row={row} maxPoints={data.maxPoints} />)}
@@ -260,8 +264,8 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
             ) : (
               <div className={styles.waiting}>
                 <div className={styles.waitingInner}>
-                  <h2>Zatím bez výsledků</h2>
-                  <p>Pořadí se doplní, jakmile budou k dispozici účastníci a body.</p>
+                  <h2>{ui('Zatím bez výsledků', 'No results yet')}</h2>
+                  <p>{ui('Pořadí se doplní, jakmile budou k dispozici účastníci a body.', 'The ranking will appear once participants and points are available.')}</p>
                 </div>
               </div>
             )}
@@ -269,8 +273,8 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
             {remainingRows.length ? (
               <section className={styles.remaining}>
                 <div className={styles.remainingHead}>
-                  <strong>Další posádky</strong>
-                  <span>{remainingRows.length} mimo hlavní letovou dráhu</span>
+                  <strong>{ui('Další posádky', 'More crews')}</strong>
+                  <span>{remainingRows.length} {ui('mimo hlavní letovou dráhu', 'outside the main flight path')}</span>
                 </div>
                 <div className={styles.remainingGrid}>
                   {remainingRows.map((row, index) => <CompactRow key={`${row.displayName}-${index}`} row={row} maxPoints={data.maxPoints} />)}

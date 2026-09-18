@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useUiLocale } from '@/components/LocaleProvider';
 import styles from './CookieConsent.module.css';
 import {
   ANALYTICS_CONSENT_COOKIE,
@@ -88,6 +89,7 @@ function ensureGoogleAnalytics(measurementId: string) {
 }
 
 export default function CookieConsent() {
+  const english = useUiLocale() === 'en';
   const [consent, setConsent] = useState<Consent | null>(null);
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -201,17 +203,18 @@ export default function CookieConsent() {
   return (
     <>
       {!consent && !settingsOpen ? (
-        <section className={styles.banner} aria-label="Nastavení cookies">
+        <section className={styles.banner} aria-label={english ? 'Cookie settings' : 'Nastavení cookies'}>
           <div className={styles.bannerCopy}>
-            <strong>Cookies pod kontrolou.</strong>
+            <strong>{english ? 'You control your cookies.' : 'Cookies pod kontrolou.'}</strong>
             <p>
-              Nezbytné cookies používáme pro přihlášení, bezpečnost a fungování Syllonautu.
-              Analytiku pomocí Google Analytics 4 zapneme jen s vaším souhlasem; reklamní a remarketingové signály v této verzi nepoužíváme.
+              {english
+                ? 'We use essential cookies for sign-in, security and core Syllonaut functionality. Google Analytics 4 is enabled only with your consent; this version does not use advertising or remarketing signals.'
+                : 'Nezbytné cookies používáme pro přihlášení, bezpečnost a fungování Syllonautu. Analytiku pomocí Google Analytics 4 zapneme jen s vaším souhlasem; reklamní a remarketingové signály v této verzi nepoužíváme.'}
             </p>
           </div>
           <div className={styles.bannerActions}>
-            <button type="button" className={styles.accept} onClick={() => save(true)}>Povolit analytické</button>
-            <button type="button" className={styles.reject} onClick={() => save(false)}>Jen nezbytné</button>
+            <button type="button" className={styles.accept} onClick={() => save(true)}>{english ? 'Allow analytics' : 'Povolit analytické'}</button>
+            <button type="button" className={styles.reject} onClick={() => save(false)}>{english ? 'Essential only' : 'Jen nezbytné'}</button>
             <button
               type="button"
               className={styles.settings}
@@ -221,7 +224,7 @@ export default function CookieConsent() {
                 setSettingsOpen(true);
               }}
             >
-              Nastavení
+              {english ? 'Settings' : 'Nastavení'}
             </button>
           </div>
         </section>
@@ -241,32 +244,32 @@ export default function CookieConsent() {
           >
             <div className={styles.dialogHeader}>
               <div>
-                <span>Soukromí</span>
-                <h2 id="cookie-settings-title">Nastavení cookies</h2>
+                <span>{english ? 'Privacy' : 'Soukromí'}</span>
+                <h2 id="cookie-settings-title">{english ? 'Cookie settings' : 'Nastavení cookies'}</h2>
               </div>
-              <button type="button" className={styles.close} aria-label="Zavřít nastavení cookies" onClick={closeSettings}>×</button>
+              <button type="button" className={styles.close} aria-label={english ? 'Close cookie settings' : 'Zavřít nastavení cookies'} onClick={closeSettings}>×</button>
             </div>
             <p id="cookie-settings-description" className={styles.dialogLead}>
-              Volbu můžete kdykoli změnit. Odmítnutí analytiky neomezí používání Syllonautu.
+              {english ? 'You can change this choice at any time. Refusing analytics does not limit your use of Syllonaut.' : 'Volbu můžete kdykoli změnit. Odmítnutí analytiky neomezí používání Syllonautu.'}
             </p>
             <div className={styles.preference}>
               <div>
-                <strong>Nezbytné cookies</strong>
-                <p>Přihlášení, bezpečnost, ochrana proti zneužití a uložení vaší volby cookies.</p>
+                <strong>{english ? 'Essential cookies' : 'Nezbytné cookies'}</strong>
+                <p>{english ? 'Sign-in, security, abuse protection and storing your cookie choice.' : 'Přihlášení, bezpečnost, ochrana proti zneužití a uložení vaší volby cookies.'}</p>
               </div>
-              <span className={styles.alwaysOn}>Vždy aktivní</span>
+              <span className={styles.alwaysOn}>{english ? 'Always active' : 'Vždy aktivní'}</span>
             </div>
             <label className={styles.preference}>
               <div>
-                <strong>Analytické cookies</strong>
-                <p>Pomohou nám pochopit používání služby. Google Analytics 4 se načte pouze po souhlasu, bez reklamních signálů a s analytickými cookies omezenými přibližně na 13 měsíců.</p>
+                <strong>{english ? 'Analytics cookies' : 'Analytické cookies'}</strong>
+                <p>{english ? 'They help us understand how the service is used. Google Analytics 4 loads only after consent, without advertising signals, and analytics cookies are limited to roughly 13 months.' : 'Pomohou nám pochopit používání služby. Google Analytics 4 se načte pouze po souhlasu, bez reklamních signálů a s analytickými cookies omezenými přibližně na 13 měsíců.'}</p>
               </div>
-              <input type="checkbox" checked={draftAnalytics} onChange={(event) => setDraftAnalytics(event.target.checked)} aria-label="Povolit analytické cookies" />
+              <input type="checkbox" checked={draftAnalytics} onChange={(event) => setDraftAnalytics(event.target.checked)} aria-label={english ? 'Allow analytics cookies' : 'Povolit analytické cookies'} />
             </label>
-            <p className={styles.legalNote}>Podrobnosti jsou na stránce <a href="/gdpr">Ochrana osobních údajů (GDPR)</a>.</p>
+            <p className={styles.legalNote}>{english ? 'Details are available in ' : 'Podrobnosti jsou na stránce '}<a href="/gdpr">{english ? 'Privacy (GDPR)' : 'Ochrana osobních údajů (GDPR)'}</a>.</p>
             <div className={styles.dialogActions}>
-              <button type="button" className={styles.save} onClick={() => save(draftAnalytics)}>Uložit volbu</button>
-              <button type="button" className={styles.reject} onClick={() => save(false)}>Jen nezbytné</button>
+              <button type="button" className={styles.save} onClick={() => save(draftAnalytics)}>{english ? 'Save choice' : 'Uložit volbu'}</button>
+              <button type="button" className={styles.reject} onClick={() => save(false)}>{english ? 'Essential only' : 'Jen nezbytné'}</button>
             </div>
           </div>
         </div>

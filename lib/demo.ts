@@ -2,6 +2,7 @@ import type { Lesson } from './schema';
 
 export const demoLesson: Lesson = {
   title: 'Mediální mise',
+  language: 'cs',
   subtitle: 'Jak přežít internet a neztratit důstojnost',
   audience: '1. ročník Digitální marketing',
   totalMinutes: 180,
@@ -22,5 +23,70 @@ export const demoLesson: Lesson = {
     { id: 'b7', type: 'reveal', title: 'Mediální CSI: kdo to vlastně řekl?', durationMinutes: 25, instructions: 'Zpráva tvrdí: „Lidé, kteří pijí tři kávy denně, jsou o 27 % produktivnější.“ Nejdřív navrhněte, co byste ověřovali. Pak odhalte původ informace.', revealText: 'DailyNews.cz → LifestyleToday → „britští vědci“ → průzkum výrobce kávy CoffeeLife. 27 % nebyl růst produktivity, ale rozdíl v subjektivní odpovědi mezi skupinami.', teacherNote: 'Pojmy: primární a sekundární zdroj, nezávislé potvrzení, source laundering.', points: 6 },
     { id: 'b8', type: 'team_task', title: 'BOSS FIGHT: Generace Z opouští vysoké školy!', durationMinutes: 20, instructions: 'Rozpitvejte fiktivní článek: „63 % mladých už nevěří, že má vysoká škola smysl.“ Článek vznikl ve spolupráci s dvanáctitýdenní vzdělávací akademií. Každý zásah musí mít formu: „Tohle je problém, protože…“ + správný pojem.', items: ['zdroj průzkumu', '63 % koho?', 'framing', 'komerční zájem', 'expert', 'influencer', 'algoritmická distribuce'], teacherNote: 'Finále: boduj jen obhájené zásahy, ne pouhé „tohle je divné“.', points: 10 },
     { id: 'b9', type: 'exit_ticket', title: 'Jedna otázka na cestu', durationMinutes: 5, instructions: 'Doplňte jednu větu: „Odteď se u mediálního sdělení nejdřív zeptám…“', teacherNote: 'Ideální reflex: Kdo to říká? Odkud to ví? Proč mi to říká? Co vybral a co vynechal?' },
+  ],
+};
+
+
+export const demoLessonEn: Lesson = {
+  title: 'Media Mission',
+  subtitle: 'How to survive the internet without losing your judgement',
+  audience: 'First-year Digital Marketing students',
+  totalMinutes: 90,
+  groupSize: '3–4 students',
+  language: 'en',
+  learningObjectives: [
+    'Distinguish a medium, platform, source and author.',
+    'Explain framing, gatekeeping and agenda-setting.',
+    'Separate fact, opinion, interpretation and advertising claims.',
+    'Assess commercial interests, algorithmic selection and source credibility.',
+  ],
+  blocks: [
+    {
+      id: 'en-b1',
+      type: 'poll',
+      title: 'Trust at first sight',
+      durationMinutes: 10,
+      instructions: 'Which signal would make you trust an online claim first? Choose one and be ready to explain why.',
+      options: ['Named author', 'Primary source', 'Many shares', 'Professional design'],
+      teacherNote: 'Use the spread of answers to open a discussion about credibility signals.',
+    },
+    {
+      id: 'en-b2',
+      type: 'team_task',
+      title: 'The newsroom from hell',
+      durationMinutes: 20,
+      instructions: 'Choose three stories, put them in publication order and write a headline for each. Your goal is maximum clicks without making a technically false claim.',
+      items: ['Economy grows by 1.8%', 'Peacock escapes from a park', 'Company cuts 2,000 jobs', 'New Alzheimer research', 'Influencer falls into a pool'],
+      teacherNote: 'Connect choices to news values, gatekeeping and agenda-setting.',
+      points: 6,
+    },
+    {
+      id: 'en-b3',
+      type: 'ranking',
+      title: 'Rank the credibility signals',
+      durationMinutes: 20,
+      instructions: 'Rank all items from strongest to weakest credibility signal. Then justify your ranking in 1–2 sentences.',
+      items: ['Primary evidence', 'Named expert with relevant expertise', 'Transparent methodology', 'Large number of shares', 'Polished visual design'],
+      teacherNote: 'Ask what each signal can and cannot prove.',
+      points: 5,
+    },
+    {
+      id: 'en-b4',
+      type: 'team_task',
+      title: 'One event, four realities',
+      durationMinutes: 20,
+      instructions: 'A city removes 120 parking spaces to build cycle lanes. Create a headline and two opening sentences for your assigned outlet. Then identify what your framing emphasizes and leaves out.',
+      items: ['Motoring website', 'Environmental magazine', 'Local neutral news outlet', 'Politician who supported the change'],
+      teacherNote: 'Different frames can use the same true facts while producing very different impressions.',
+      points: 5,
+    },
+    {
+      id: 'en-b5',
+      type: 'exit_ticket',
+      title: 'One question to take away',
+      durationMinutes: 20,
+      instructions: 'Complete this sentence: “From now on, when I see a media claim, the first thing I will ask is…” Then add one sentence explaining why.',
+      teacherNote: 'Look for source, evidence, motive, selection and omitted context.',
+    },
   ],
 };

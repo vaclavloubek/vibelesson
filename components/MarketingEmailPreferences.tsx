@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useUiLocale } from '@/components/LocaleProvider';
 import styles from './MarketingEmailPreferences.module.css';
 
 export default function MarketingEmailPreferences() {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const supabase = useMemo(() => createClient(), []);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [enabled, setEnabled] = useState(false);
@@ -20,7 +23,7 @@ export default function MarketingEmailPreferences() {
 
     if (error) {
       console.error('load marketing consent failed', error);
-      setMessage('Nastavení se nepodařilo načíst.');
+      setMessage(ui('Nastavení se nepodařilo načíst.', 'The setting could not be loaded.'));
       return;
     }
 
@@ -49,7 +52,7 @@ export default function MarketingEmailPreferences() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [english, supabase]);
 
   async function updatePreference(next: boolean) {
     setBusy(true);
@@ -59,29 +62,29 @@ export default function MarketingEmailPreferences() {
 
     if (error) {
       console.error('update marketing consent failed', error);
-      setMessage('Změnu se nepodařilo uložit. Zkuste to prosím znovu.');
+      setMessage(ui('Změnu se nepodařilo uložit. Zkuste to prosím znovu.', 'The change could not be saved. Please try again.'));
       return;
     }
 
     setEnabled(next);
     setMessage(next
-      ? 'Souhlas se zasíláním marketingových e-mailů je aktivní.'
-      : 'Marketingové e-maily jsou odhlášené.');
+      ? ui('Souhlas se zasíláním marketingových e-mailů je aktivní.', 'Marketing email consent is active.')
+      : ui('Marketingové e-maily jsou odhlášené.', 'Marketing emails are disabled.'));
   }
 
   if (signedIn === null) {
-    return <p className={styles.status}>Načítám vaše nastavení…</p>;
+    return <p className={styles.status}>{ui('Načítám vaše nastavení…', 'Loading your settings…')}</p>;
   }
 
   if (!signedIn) {
-    return <p className={styles.status}>Pro změnu marketingového souhlasu se nejdřív přihlaste ke svému účtu.</p>;
+    return <p className={styles.status}>{ui('Pro změnu marketingového souhlasu se nejdřív přihlaste ke svému účtu.', 'Sign in to your account to change marketing consent.')}</p>;
   }
 
   return (
     <div className={styles.card}>
       <div>
-        <strong>Marketingové e-maily</strong>
-        <p>Novinky, případové studie a akční nabídky. Změna nemá vliv na účet ani na provozní e-maily.</p>
+        <strong>{ui('Marketingové e-maily', 'Marketing emails')}</strong>
+        <p>{ui('Novinky, případové studie a akční nabídky. Změna nemá vliv na účet ani na provozní e-maily.', 'News, case studies and promotional offers. This setting does not affect your account or operational emails.')}</p>
       </div>
       <label className={styles.control}>
         <input
@@ -90,7 +93,7 @@ export default function MarketingEmailPreferences() {
           disabled={busy}
           onChange={(event) => void updatePreference(event.target.checked)}
         />
-        <span>{enabled ? 'Povoleno' : 'Nepovoleno'}</span>
+        <span>{enabled ? ui('Povoleno', 'Enabled') : ui('Nepovoleno', 'Disabled')}</span>
       </label>
       {message ? <p className={styles.message} role="status" aria-live="polite">{message}</p> : null}
     </div>

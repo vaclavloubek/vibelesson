@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import QRCode from 'react-qr-code';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 export default function JoinQrCode({ value }: { value: string }) {
+  const english = useUiLocale() === 'en';
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -28,12 +30,12 @@ export default function JoinQrCode({ value }: { value: string }) {
           value={value}
           size={184}
           level="M"
-          title="QR kód pro připojení ke Syllonaut hodině"
+          title={english ? 'QR code to join the Syllonaut lesson' : 'QR kód pro připojení ke Syllonaut hodině'}
           style={{ width: 184, maxWidth: '100%', height: 'auto' }}
         />
       </div>
       <button className="secondary" type="button" onClick={() => void copyLink()}>
-        {copied ? 'Odkaz zkopírován' : 'Kopírovat odkaz'}
+        {copied ? (english ? 'Link copied' : 'Odkaz zkopírován') : (english ? 'Copy link' : 'Kopírovat odkaz')}
       </button>
     </div>
   );

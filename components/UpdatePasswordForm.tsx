@@ -4,8 +4,11 @@ import Link from 'next/link';
 import { FormEvent, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import PasswordField from '@/components/PasswordField';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 export default function UpdatePasswordForm() {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const supabase = useMemo(() => createClient(), []);
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -18,11 +21,11 @@ export default function UpdatePasswordForm() {
     setMessage('');
 
     if (password.length < 8) {
-      setMessage('Nové heslo musí mít alespoň 8 znaků.');
+      setMessage(ui('Nové heslo musí mít alespoň 8 znaků.', 'The new password must be at least 8 characters long.'));
       return;
     }
     if (password !== passwordConfirm) {
-      setMessage('Hesla se neshodují.');
+      setMessage(ui('Hesla se neshodují.', 'The passwords do not match.'));
       return;
     }
 
@@ -32,8 +35,8 @@ export default function UpdatePasswordForm() {
 
     if (error) {
       setMessage(error.code === 'weak_password'
-        ? 'Heslo nesplňuje bezpečnostní požadavky. Použij delší heslo a kombinaci různých typů znaků.'
-        : 'Heslo se nepodařilo změnit. Odkaz mohl vypršet; v takovém případě požádej o nový.');
+        ? ui('Heslo nesplňuje bezpečnostní požadavky. Použij delší heslo a kombinaci různých typů znaků.', 'The password does not meet the security requirements. Use a longer password with a mix of character types.')
+        : ui('Heslo se nepodařilo změnit. Odkaz mohl vypršet; v takovém případě požádej o nový.', 'The password could not be changed. The link may have expired; if so, request a new one.'));
       return;
     }
 
@@ -45,11 +48,11 @@ export default function UpdatePasswordForm() {
   if (success) {
     return (
       <>
-        <span className="eyebrow">Hotovo</span>
-        <h1>Heslo bylo změněno</h1>
-        <p className="muted-copy">Nové heslo je aktivní. Můžeš pokračovat do svých lekcí.</p>
+        <span className="eyebrow">{ui('Hotovo', 'Done')}</span>
+        <h1>{ui('Heslo bylo změněno', 'Password changed')}</h1>
+        <p className="muted-copy">{ui('Nové heslo je aktivní. Můžeš pokračovat do svých lekcí.', 'Your new password is active. You can continue to your lessons.')}</p>
         <div className="actions">
-          <Link href="/lessons" className="button-link primary">Moje lekce</Link>
+          <Link href="/lessons" className="button-link primary">{ui('Moje lekce', 'My lessons')}</Link>
         </div>
       </>
     );
@@ -57,14 +60,14 @@ export default function UpdatePasswordForm() {
 
   return (
     <>
-      <span className="eyebrow">Obnovení přístupu</span>
-      <h1>Nastavit nové heslo</h1>
-      <p className="muted-copy">Zvol nové heslo alespoň o 8 znacích.</p>
+      <span className="eyebrow">{ui('Obnovení přístupu', 'Account recovery')}</span>
+      <h1>{ui('Nastavit nové heslo', 'Set a new password')}</h1>
+      <p className="muted-copy">{ui('Zvol nové heslo alespoň o 8 znacích.', 'Choose a new password with at least 8 characters.')}</p>
       <div className="vibe-editor">
         <form onSubmit={updatePassword}>
-          <PasswordField label="Nové heslo" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
-          <PasswordField label="Nové heslo znovu" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
-          <button className="primary" disabled={busy}>{busy ? 'Ukládám…' : 'Uložit nové heslo'}</button>
+          <PasswordField label={ui('Nové heslo', 'New password')} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <PasswordField label={ui('Nové heslo znovu', 'New password again')} value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <button className="primary" disabled={busy}>{busy ? ui('Ukládám…', 'Saving…') : ui('Uložit nové heslo', 'Save new password')}</button>
         </form>
       </div>
       {message ? <div className="auth-message" role="status">{message}</div> : null}

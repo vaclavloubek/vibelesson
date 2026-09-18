@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { useUiLocale } from '@/components/LocaleProvider';
 import type { GradingStrictness } from '@/lib/schema';
 
 type Props = {
@@ -10,32 +11,25 @@ type Props = {
   compact?: boolean;
 };
 
-const OPTIONS: Array<{
-  value: GradingStrictness;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: 'lenient',
-    label: 'Mírná',
-    description: 'V hraničních případech dává větší prostor rozumné interpretaci a částečným bodům.',
-  },
-  {
-    value: 'neutral',
-    label: 'Neutrální',
-    description: 'Vyváženě posuzuje, zda odpověď významově splnila požadavky rubriky.',
-  },
-  {
-    value: 'strict',
-    label: 'Přísná',
-    description: 'Plný počet vyžaduje jasné a úplné splnění všech částí hodnoticího kritéria.',
-  },
-];
+const OPTIONS = {
+  cs: [
+    { value: 'lenient', label: 'Mírná', description: 'V hraničních případech dává větší prostor rozumné interpretaci a částečným bodům.' },
+    { value: 'neutral', label: 'Neutrální', description: 'Vyváženě posuzuje, zda odpověď významově splnila požadavky rubriky.' },
+    { value: 'strict', label: 'Přísná', description: 'Plný počet vyžaduje jasné a úplné splnění všech částí hodnoticího kritéria.' },
+  ],
+  en: [
+    { value: 'lenient', label: 'Lenient', description: 'Allows more room for reasonable interpretation and partial credit in borderline cases.' },
+    { value: 'neutral', label: 'Neutral', description: 'Balances whether the answer meaningfully meets the rubric requirements.' },
+    { value: 'strict', label: 'Strict', description: 'Full credit requires clear and complete fulfilment of every part of the criterion.' },
+  ],
+} satisfies Record<'cs' | 'en', Array<{ value: GradingStrictness; label: string; description: string }>>;
 
 export default function GradingStrictnessControl({ value, onChange, disabled = false, compact = false }: Props) {
+  const locale = useUiLocale();
+  const options = OPTIONS[locale];
   const id = useId();
-  const selected = OPTIONS.find((option) => option.value === value) ?? OPTIONS[1];
-  const selectedIndex = Math.max(0, OPTIONS.findIndex((option) => option.value === value));
+  const selected = options.find((option) => option.value === value) ?? options[1];
+  const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const [dragPosition, setDragPosition] = useState<number | null>(null);
 
   function pointerPosition(element: HTMLElement, clientX: number) {
@@ -46,7 +40,7 @@ export default function GradingStrictnessControl({ value, onChange, disabled = f
 
   function snapToNearest(position: number) {
     const nextIndex = position < 25 ? 0 : position > 75 ? 2 : 1;
-    const next = OPTIONS[nextIndex]?.value ?? 'neutral';
+    const next = options[nextIndex]?.value ?? 'neutral';
     setDragPosition(null);
     if (next !== value) onChange(next);
   }
@@ -57,9 +51,11 @@ export default function GradingStrictnessControl({ value, onChange, disabled = f
       disabled={disabled}
       aria-describedby={`${id}-description ${id}-selected`}
     >
-      <legend>Přísnost AI hodnocení</legend>
+      <legend>{locale === 'en' ? 'AI grading strictness' : 'Přísnost AI hodnocení'}</legend>
       <p id={`${id}-description`} className="grading-strictness-help">
-        Ovlivňuje pouze AI hodnocení bodovaných otevřených a týmových odpovědí. Učitel může výsledek vždy upravit.
+        {locale === 'en'
+          ? 'Affects only AI grading of scored open and team responses. The teacher can always override the result.'
+          : 'Ovlivňuje pouze AI hodnocení bodovaných otevřených a týmových odpovědí. Učitel může výsledek vždy upravit.'}
       </p>
 
       <div
@@ -83,25 +79,17 @@ export default function GradingStrictnessControl({ value, onChange, disabled = f
           onPointerUp={(event) => {
             if (disabled) return;
             const position = pointerPosition(event.currentTarget, event.clientX);
-            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-              event.currentTarget.releasePointerCapture(event.pointerId);
-            }
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
             snapToNearest(position);
           }}
           onPointerCancel={() => setDragPosition(null)}
         >
-          <div className="grading-strictness-track">
-            <span className="grading-strictness-thumb" />
-          </div>
+          <div className="grading-strictness-track"><span className="grading-strictness-thumb" /></div>
         </div>
 
         <div className="grading-strictness-options">
-          {OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className="grading-strictness-option"
-              data-active={option.value === value ? 'true' : 'false'}
-            >
+          {options.map((option) => (
+            <label key={option.value} className="grading-strictness-option" data-active={option.value === value ? 'true' : 'false'}>
               <input
                 className="grading-strictness-radio"
                 type="radio"

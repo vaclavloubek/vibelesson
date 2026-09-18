@@ -1,14 +1,17 @@
-import { headers } from 'next/headers';
 import { ImageResponse } from 'next/og';
-import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { normalizeUiLocale } from '@/lib/i18n';
 
 export const alt = 'Syllonaut';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default async function Image() {
-  const requestHeaders = await headers();
-  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'en';
+type Props = {
+  params: Promise<{ locale: string }>;
+};
+
+export default async function Image({ params }: Props) {
+  const { locale: rawLocale } = await params;
+  const locale = normalizeUiLocale(rawLocale) ?? 'en';
   const english = locale === 'en';
 
   return new ImageResponse(
@@ -93,7 +96,7 @@ export default async function Image() {
           </div>
           <div style={{ marginTop: 28, fontSize: 25, lineHeight: 1.45, color: '#686B74', maxWidth: 670 }}>
             {english
-              ? 'Create a lesson, refine it in natural language and run it live with students.'
+              ? 'Create a lesson, refine it in natural language and run it live with your students.'
               : 'Připravte lekci, upravte ji přirozeným jazykem a rovnou ji veďte se studenty.'}
           </div>
         </div>

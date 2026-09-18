@@ -31,6 +31,9 @@ requirePattern(analytics, /analyticsConsentGranted\(\)/, 'custom events are not 
 requirePattern(analytics, /if \(!GA_MEASUREMENT_ID/, 'analytics helper must be a no-op without a Measurement ID.');
 requirePattern(analytics, /EVENT_PARAMETER_KEYS/, 'runtime event parameter allowlist is missing.');
 requirePattern(analytics, /window\.gtag\('event', name/, 'custom events must be emitted only through the central helper.');
+requirePattern(analytics, /ui_locale:\s*uiLocale/, 'all custom events must include the active UI locale.');
+requirePattern(analytics, /lesson_generation_completed:[\s\S]*lesson_language:\s*string;/, 'completed lesson generation must expose lesson language as an analytics dimension.');
+requirePattern(analytics, /lesson_generation_completed:\s*\[[^\]]*'lesson_language'/, 'lesson language must remain in the generation-completed parameter allowlist.');
 requirePattern(analytics, /catch \{[\s\S]*Analytics is observational only/, 'analytics failures must never break product flows.');
 
 const allowlistMatch = analytics.match(/const EVENT_PARAMETER_KEYS[\s\S]*?= \{([\s\S]*?)\n\};/);

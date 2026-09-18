@@ -49,6 +49,7 @@ export async function POST(req: Request) {
       title: lesson.title,
       audience: lesson.audience,
       groupSize: lesson.groupSize,
+      language: lesson.language,
       learningObjectives: lesson.learningObjectives,
     });
     const revisedBlock = revisedResult.block;

@@ -43,8 +43,8 @@ requirePattern(resume, /httpOnly:\s*true/, 'teacher live resume cookie must rema
 requirePattern(resume, /secure:\s*true/, 'teacher live resume cookie must remain Secure.');
 requirePattern(resume, /TOKEN_NAMESPACE = 'syllonaut-live-resume-v1'/, 'resume HMAC must remain domain-separated.');
 requirePattern(liveControlRoute, /if \(authError && resume\)/, 'live-control resume fallback must require a primary auth failure.');
-requirePattern(teacherPage, /if \(!authFailure \|\| !resume\) redirect\('\/'\)/, 'teacher resume must not bypass a clean signed-out state.');
-requirePattern(presenterPage, /if \(!authError \|\| !resume\) redirect\('\/'\)/, 'Presenter resume must not bypass a clean signed-out state.');
+requirePattern(teacherPage, /if \(!authFailure \|\| !resume\) redirect\((?:'\/'|\`\/\$\{locale\}\`)\)/, 'teacher resume must not bypass a clean signed-out state.');
+requirePattern(presenterPage, /if \(!authError \|\| !resume\) redirect\((?:'\/'|\`\/\$\{locale\}\`)\)/, 'Presenter resume must not bypass a clean signed-out state.');
 requirePattern(serviceWorker, /response\.redirected/, 'live navigation cache must reject redirected responses.');
 requirePattern(serviceWorker, /responseUrl\.pathname === requestUrl\.pathname/, 'live navigation cache must only store the requested live route.');
 requirePattern(serviceWorker, /CACHE_NAME = 'syllonaut-live-shell-v2'/, 'live shell cache epoch must invalidate pre-hardening cache entries.');

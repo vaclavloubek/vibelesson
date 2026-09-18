@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po dokončení least-privilege Presenter fallbacku ve verzi 0.8.16.
+Aktualizováno: 2026-09-18 pro release Syllonaut 0.9 — anglické rozhraní a multilingual lesson engine.
 
-**Aktuální produktová verze: 0.8.16** — Presenter fallback používá samostatnou read-only `presenter` capability pro state/WebSocket místo teacher capability. Produkční Cloudflare Worker byl před aktivací této změny ověřen na `workerVersion=0.8.14`, `protocolVersion=2`.
+**Aktuální produktová verze: 0.9** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka, persistentní ruční přepínač a oddělený jazyk generované lekce. Lekce lze vytvářet v libovolném jazyce podporovaném modelem; UI locale, billing country/currency a lesson language jsou samostatné veličiny. Live student, Presenter, teacher workspace, Pricing, auth, GDPR i metadata jsou locale-aware. Produkční live-control hardening z verze 0.8.16 zůstává zachovaný.
 
 Produkční release 0.8:
 
@@ -82,7 +82,8 @@ Dokud výjimka platí, Preview testy nesmí dělat destruktivní zásahy do prod
 
 ## 3. Hlavní routy
 
-- `/` — landing
+- `/` — locale gateway; explicitní preference → CZ/SK geo → Accept-Language → EN fallback
+- `/cs`, `/en` — lokalizované landing pages
 - `/pricing` — veřejný Pricing / Ceník
 - `/new` — tvorba nové lekce
 - `/lessons` — Moje lekce + Poslední výsledky + složky
@@ -97,6 +98,51 @@ Dokud výjimka platí, Preview testy nesmí dělat destruktivní zásahy do prod
 - `/auth/error` — bezpečný auth error stav
 
 Landing umožní začít návrhem zadání bez okamžité registrace; účet je nutný až pro skutečné AI generování a ukládání.
+
+### Internationalization / multilingual 0.9
+
+Syllonaut od 0.9 rozlišuje tři nezávislé veličiny:
+
+- **UI locale** — jazyk rozhraní, aktuálně `cs` / `en`;
+- **billing country/currency** — regionální cenová a platební logika; není odvozována z jazyka UI;
+- **lesson language** — jazyk obsahu lekce, uložený jako BCP-47-like tag (`cs`, `en`, `de`, `pt-BR` apod.).
+
+Výchozí UI locale:
+
+1. explicitní locale v URL;
+2. uložená volba v `syllonaut_locale` cookie;
+3. země návštěvníka: CZ/SK → čeština, ostatní validní země → angličtina;
+4. `Accept-Language`;
+5. fallback angličtina.
+
+Ruční přepínač CZ/EN je dostupný v hlavních veřejných i pracovních obrazovkách a explicitní volba má přednost před geolokací.
+
+Tvorba lekce:
+
+- formulář výslovně říká, že učitel může zadání napsat v jazyce, ve kterém chce učit;
+- `Jazyk lekce / Lesson language` má default `Automaticky podle zadání`;
+- lze vybrat běžný jazyk nebo zadat jiný vlastní jazyk bez pevného whitelistu;
+- při auto režimu má případný explicitní jazykový požadavek v zadání přednost, jinak se použije jazyk volného zadání; UI locale je pouze fallback pro nejednoznačný/absentující text;
+- jazyk podkladů sám o sobě nesmí změnit jazyk lekce;
+- AI revize zachovávají jazyk existující lekce, pokud učitel výslovně nepožádá o překlad;
+- lesson content používá vlastní `lang` a `dir=auto` tam, kde je potřeba, takže jazyk obsahu nemusí odpovídat jazyku UI.
+
+Lokalizované oblasti zahrnují landing, Pricing, auth/recovery, GDPR/cookies, lesson authoring/preview, knihovnu/složky, teacher live, grading/reporty, Presenter, join/student live, týmový editor a systémové stavy/error UX.
+
+SEO:
+
+- `/cs` a `/en` mají locale metadata, canonical/hreflang a `x-default=/en`;
+- root metadata a Open Graph preview reagují na UI locale;
+- `<html lang>` odpovídá aktivnímu jazyku rozhraní.
+
+Analytika:
+
+- custom GA4 eventy nesou anonymní `ui_locale`;
+- dokončené generování nese `lesson_language`;
+- do těchto parametrů se neposílá prompt, lesson text, student answer, jméno, e-mail ani jiné content/PII payloady;
+- regresní testy hlídají allowlist a zakázané high-risk parametry.
+
+Regresní ochrana je v `scripts/verify-i18n.mjs`, `scripts/verify-analytics.mjs`, TypeScript checku a accessibility CI.
 
 ### Header / responzivní navigace
 
@@ -134,7 +180,7 @@ Podporované bloky:
 
 Block může obsahovat:
 
-`id`, `type`, `title`, `durationMinutes`, `instructions`, `options?`, `items?`, `dataTable?`, `correctAnswer?`, `revealText?`, `teacherNote?`, `points?`, `gradingRubric?`.
+`id`, `type`, `title`, `durationMinutes`, `instructions`, `options?`, `items?`, `dataTable?`, `correctAnswer?`, `revealText?`, `teacherNote?`, `points?`, `gradingRubric?`. Lesson na nejvyšší úrovni navíc může nést `language?`; nové AI lekce jazykový tag povinně emitují, starší uložené lekce zůstávají zpětně kompatibilní.
 
 Aktuální hranice:
 
@@ -844,6 +890,29 @@ Zbývá před formální conformance claim:
 - VoiceOver/NVDA testy;
 - keyboard, 200/400 %, 320 px reflow, reduced motion a focus-obscured ověření.
 
+### Milník D — Internationalization / multilingual
+
+**0.9 dokončeno; připraveno k produkčnímu release.**
+
+Hotovo:
+
+- CS/EN UI locale routing a persistentní přepínač;
+- CZ/SK → CS, ostatní země → EN jako první návštěvní preference;
+- locale-aware metadata, hreflang, Open Graph, auth, Pricing, GDPR, workspace, live, Presenter a student UI;
+- oddělení UI locale od billing regionu;
+- lesson language metadata + auto podle zadání + explicitní override + vlastní jazyk;
+- zachování jazyka při AI revizích;
+- lesson-language `lang` / `dir=auto` v live/student/Presenter obsahu;
+- anglická demo lesson;
+- `ui_locale` + `lesson_language` analytické dimenze bez PII/content;
+- `verify-i18n.mjs` regresní gate.
+
+Zbývá do dalších verzí:
+
+- případné další lokalizace samotného UI nad CS/EN;
+- průběžné QA méně běžných písem a RTL jazyků;
+- lokalizace externě spravovaných e-mailových šablon podle potřeby.
+
 ### Další produktové položky
 
 - koš/verzování;
@@ -853,8 +922,7 @@ Zbývá před formální conformance claim:
 - skutečné školní/organizační účty, membership a správa rolí;
 - billing/checkout/subscription lifecycle;
 - OCR;
-- produktová analytika GA4: Measurement ID, event taxonomy, funnel/reporting;
-- lokalizace.
+- produktová analytika GA4: další funnel/reporting a vyhodnocení jazykových dimenzí.
 
 ## 19. Beta feedback — uzavřené body
 
@@ -930,9 +998,10 @@ Další významné změny 2026-09-18:
 - **0.8.14** — Cloudflare control-plane hardening, fáze 1: Worker přijímá samostatnou `presenter` capability pouze pro read-only state/WebSocket, explicitně zakazuje Presenter zápis do `/events` a jeho `/health` nyní jednoznačně hlásí `workerVersion=0.8.14` + `protocolVersion=2`. Presenter UI se na novou roli přepne až po potvrzeném produkčním Worker deploymentu, aby nevzniklo nekompatibilní mezidobí.
 - **0.8.15** — live cache epoch rotation: service worker používá `syllonaut-live-shell-v2`; při aktivaci smaže starší `syllonaut-live-shell-*` cache včetně před-hardeningové `v1`, takže dříve uložený chybný live navigation response nemůže přežít opravu 0.8.13.
 - **0.8.16** — Presenter least-privilege fáze 2: browser požaduje `?role=presenter`, ukládá capability odděleně pod presenter storage key a pro fallback state/WebSocket už nepoužívá teacher token; aktivováno až po potvrzeném produkčním Worker 0.8.14 / protocol 2.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a zobrazuje `v0.8.16`.
+- **0.9** — Internationalization + multilingual lessons: CS/EN rozhraní, locale routing podle explicitní preference/regionu, oddělený lesson language s auto detekcí podle zadání a explicitním override, zachování jazyka při revizích, locale-aware live/student/Presenter/auth/Pricing/GDPR/SEO a anonymní analytické dimenze `ui_locale` + `lesson_language`.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a ve verzi 0.9 zobrazuje `v0.9`.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine.**
 
 ## 21. Pravidla další práce
 

@@ -30,15 +30,15 @@ function parseNumberedList(text: string): ParsedNumberedList | null {
   };
 }
 
-export default function FormattedInstructions({ text, className }: { text: string; className?: string }) {
+export default function FormattedInstructions({ text, className, lang }: { text: string; className?: string; lang?: string | null }) {
   const parsed = parseNumberedList(text);
 
   if (!parsed) {
-    return <div className={className} style={{ whiteSpace: 'pre-line' }}>{text}</div>;
+    return <div className={className} lang={lang ?? undefined} dir={lang ? 'auto' : undefined} style={{ whiteSpace: 'pre-line' }}>{text}</div>;
   }
 
   return (
-    <div className={className}>
+    <div className={className} lang={lang ?? undefined} dir={lang ? 'auto' : undefined}>
       {parsed.prefix ? <p style={{ marginTop: 0, marginBottom: 8 }}>{parsed.prefix}</p> : null}
       <ol style={{ margin: 0, paddingLeft: '1.5em', display: 'grid', gap: 6 }}>
         {parsed.items.map((item, index) => <li key={index}>{item}</li>)}

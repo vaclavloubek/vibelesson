@@ -6,12 +6,15 @@ import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 import { enqueueLiveOperation } from '@/lib/live-offline';
 import { postLiveControlEvent } from '@/lib/live-control-client';
 import { activityMode, trackEvent } from '@/lib/analytics';
+import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type Props = {
   sessionId: string;
   block: PublicLessonBlock;
   response: StudentAnswer | null;
   responseSubmitted: boolean;
+  contentLanguage?: string | null;
   onSaved: (answer: StudentAnswer, submittedCurrent?: boolean) => void;
 };
 
@@ -34,7 +37,9 @@ function sameAnswer(left: StudentAnswer, right: StudentAnswer) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export default function StudentResponseInput({ sessionId, block, response, responseSubmitted, onSaved }: Props) {
+export default function StudentResponseInput({ sessionId, block, response, responseSubmitted, contentLanguage = null, onSaved }: Props) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const initialText = response && 'text' in response ? response.text ?? '' : '';
   const initialRanking = response && 'ranking' in response ? response.ranking : (block.items ?? []);
   const initialRankingText = response && 'ranking' in response ? response.text ?? '' : '';
@@ -110,7 +115,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         if (result.status === 408 || result.status === 429 || result.status >= 500) {
           throw new Error(data.error || 'Transient response save failure.');
         }
-        setError(data.error || 'Odpověď se nepodařilo uložit.');
+        setError(localizedApiError(data.error, english ? 'en' : 'cs', 'Odpověď se nepodařilo uložit.', 'The answer could not be saved.'));
         return;
       }
       const submittedCurrent = Boolean(data.submittedCurrent);
@@ -167,7 +172,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         setQueued(true);
         setError('');
       } else {
-        setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
+        setError(ui('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.', 'The connection was interrupted while saving. Try submitting the answer again.'));
       }
     } finally {
       setBusy(false);
@@ -180,11 +185,11 @@ export default function StudentResponseInput({ sessionId, block, response, respo
     return (
       <section className="panel" style={{ display: 'grid', gap: 12 }} aria-busy={busy}>
         <div>
-          <span className="eyebrow">Tvoje odpověď</span>
-          <p className="muted-copy" style={{ marginBottom: 0 }}>Vyber jednu možnost. Odpověď můžeš změnit, dokud učitel nepřejde dál.</p>
+          <span className="eyebrow">{ui('Tvoje odpověď', 'Your answer')}</span>
+          <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('Vyber jednu možnost. Odpověď můžeš změnit, dokud učitel nepřejde dál.', 'Choose one option. You can change your answer until the teacher moves on.')}</p>
         </div>
         {options.length ? (
-          <div style={{ display: 'grid', gap: 10 }} role="group" aria-label="Možnosti odpovědi">
+          <div style={{ display: 'grid', gap: 10 }} role="group" aria-label={ui('Možnosti odpovědi', 'Answer options')}>
             {options.map((option) => (
               <button
                 type="button"
@@ -194,14 +199,16 @@ export default function StudentResponseInput({ sessionId, block, response, respo
                 disabled={busy}
                 onClick={() => void save({ choice: option })}
                 style={{ textAlign: 'left', justifyContent: 'flex-start', whiteSpace: 'normal', height: 'auto', minHeight: 48 }}
+                lang={contentLanguage ?? undefined}
+                dir={contentLanguage ? 'auto' : undefined}
               >
                 {option}
               </button>
             ))}
           </div>
-        ) : <div className="error" role="alert">Tento blok nemá žádné možnosti odpovědi.</div>}
-        {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená.</p> : null}
-        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
+        ) : <div className="error" role="alert">{ui('Tento blok nemá žádné možnosti odpovědi.', 'This block has no answer options.')}</div>}
+        {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ {ui('Odpověď je uložená.', 'Your answer is saved.')}</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">{ui('Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.', 'Your answer is safely stored on this device and will be sent when the connection is restored.')}</p> : null}
         {error ? <div className="error" role="alert">{error}</div> : null}
       </section>
     );
@@ -218,7 +225,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         return next;
       });
       setRecentlyMoved(movedItem);
-      setMoveStatus(`${movedItem} je teď na ${target + 1}. místě.`);
+      setMoveStatus(english ? `${movedItem} is now in position ${target + 1}.` : `${movedItem} je teď na ${target + 1}. místě.`);
       setSaved(false);
       setSubmitted(false);
     }
@@ -234,8 +241,8 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
     return (
       <section className="panel" aria-busy={busy}>
-        <span className="eyebrow">Tvoje pořadí</span>
-        <p className="muted-copy">Seřaď všechny položky od 1. místa dolů. Každá má vlastní jemný odstín, takže ji můžeš při přesouvání snadno sledovat.</p>
+        <span className="eyebrow">{ui('Tvoje pořadí', 'Your ranking')}</span>
+        <p className="muted-copy">{ui('Seřaď všechny položky od 1. místa dolů. Každá má vlastní jemný odstín, takže ji můžeš při přesouvání snadno sledovat.', 'Rank all items from first place down. Each item has a subtle shade so it is easier to follow while moving it.')}</p>
         {ranking.length >= 2 ? (
           <form onSubmit={submitRanking} style={{ display: 'grid', gap: 12, marginTop: 14 }}>
             <div className="ranking-list">
@@ -248,10 +255,10 @@ export default function StudentResponseInput({ sessionId, block, response, respo
                     key={item}
                   >
                     <strong className="ranking-position">{index + 1}.</strong>
-                    <span className="ranking-copy">{item}</span>
+                    <span className="ranking-copy" lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{item}</span>
                     <div className="ranking-controls">
-                      <button type="button" className="secondary" aria-label={`Posunout ${item} nahoru`} disabled={busy || index === 0} onClick={() => move(index, -1)}>↑</button>
-                      <button type="button" className="secondary" aria-label={`Posunout ${item} dolů`} disabled={busy || index === ranking.length - 1} onClick={() => move(index, 1)}>↓</button>
+                      <button type="button" className="secondary" aria-label={english ? `Move ${item} up` : `Posunout ${item} nahoru`} disabled={busy || index === 0} onClick={() => move(index, -1)}>↑</button>
+                      <button type="button" className="secondary" aria-label={english ? `Move ${item} down` : `Posunout ${item} dolů`} disabled={busy || index === ranking.length - 1} onClick={() => move(index, 1)}>↓</button>
                     </div>
                   </div>
                 );
@@ -259,23 +266,23 @@ export default function StudentResponseInput({ sessionId, block, response, respo
             </div>
             <p className="ranking-move-status" aria-live="polite">{moveStatus}</p>
             <label>
-              Krátké zdůvodnění (povinné)
+              {ui('Krátké zdůvodnění (povinné)', 'Short explanation (required)')}
               <textarea
                 value={rankingText}
                 onChange={(event) => { setRankingText(event.target.value); setSaved(false); setSubmitted(false); }}
                 maxLength={2000}
                 rows={4}
-                placeholder="Jednou až dvěma větami vysvětli, proč je první volba silnější nebo relevantnější než poslední…"
+                placeholder={ui('Jednou až dvěma větami vysvětli, proč je první volba silnější nebo relevantnější než poslední…', 'In one or two sentences, explain why the first choice is stronger or more relevant than the last…')}
                 disabled={busy}
               />
             </label>
             <div className="actions" style={{ marginTop: 0 }}>
-              <button type="submit" className="primary" disabled={busy || !rankingChanged || !rankingText.trim()}>{busy ? 'Ukládám…' : response ? 'Uložit změnu' : 'Odeslat pořadí'}</button>
+              <button type="submit" className="primary" disabled={busy || !rankingChanged || !rankingText.trim()}>{busy ? ui('Ukládám…', 'Saving…') : response ? ui('Uložit změnu', 'Save change') : ui('Odeslat pořadí', 'Submit ranking')}</button>
             </div>
           </form>
-        ) : <div className="error" role="alert" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
-        {submitted ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí je odevzdané.</p> : saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
-        {queued ? <p className="muted-copy" role="status" aria-live="polite">Pořadí je bezpečně uložené v tomto zařízení a odešle se po obnovení spojení.</p> : null}
+        ) : <div className="error" role="alert" style={{ marginTop: 12 }}>{ui('Tento blok nemá dost položek k seřazení.', 'This block does not have enough items to rank.')}</div>}
+        {submitted ? <p className="student-save-success" role="status" aria-live="polite">✓ {ui('Pořadí je odevzdané.', 'Your ranking has been submitted.')}</p> : saved ? <p className="student-save-success" role="status" aria-live="polite">✓ {ui('Pořadí i zdůvodnění jsou uložené.', 'The ranking and explanation are saved.')}</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">{ui('Pořadí je bezpečně uložené v tomto zařízení a odešle se po obnovení spojení.', 'The ranking is safely stored on this device and will be sent when the connection is restored.')}</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
@@ -292,17 +299,17 @@ export default function StudentResponseInput({ sessionId, block, response, respo
     const isExit = block.type === 'exit_ticket';
     return (
       <section className="panel" aria-busy={busy}>
-        <span className="eyebrow">{isExit ? 'Tvoje závěrečná odpověď' : 'Tvoje odpověď'}</span>
-        <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Text můžeš průběžně ukládat jako koncept. AI hodnocení se zařadí až ve chvíli, kdy odpověď odevzdáš.</p>
+        <span className="eyebrow">{isExit ? ui('Tvoje závěrečná odpověď', 'Your final answer') : ui('Tvoje odpověď', 'Your answer')}</span>
+        <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>{ui('Text můžeš průběžně ukládat jako koncept. AI hodnocení se zařadí až ve chvíli, kdy odpověď odevzdáš.', 'You can save the text as a draft while working. AI grading is queued only after you submit the answer.')}</p>
         <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginTop: 10 }}>
           <label>
-            {isExit ? 'Závěrečná odpověď' : 'Odpověď'}
+            {isExit ? ui('Závěrečná odpověď', 'Final answer') : ui('Odpověď', 'Answer')}
             <textarea
               value={text}
               onChange={(event) => { setText(event.target.value); setSaved(false); setSubmitted(false); }}
               maxLength={2000}
               rows={isExit ? 4 : 6}
-              placeholder={isExit ? 'Napiš krátkou závěrečnou odpověď…' : 'Napiš svou odpověď…'}
+              placeholder={isExit ? ui('Napiš krátkou závěrečnou odpověď…', 'Write a short final answer…') : ui('Napiš svou odpověď…', 'Write your answer…')}
               disabled={busy}
               style={{ width: '100%', resize: 'vertical', minHeight: isExit ? 100 : 130, padding: 14, borderRadius: 12, border: '1px solid var(--line)', font: 'inherit' }}
             />
@@ -314,19 +321,19 @@ export default function StudentResponseInput({ sessionId, block, response, respo
               disabled={busy || !text.trim() || !textChanged}
               onClick={() => { void save({ text: text.trim() }, 'save'); }}
             >
-              {busy ? 'Ukládám…' : 'Uložit koncept'}
+              {busy ? ui('Ukládám…', 'Saving…') : ui('Uložit koncept', 'Save draft')}
             </button>
             <button type="submit" className="primary" disabled={busy || !text.trim() || submitted}>
-              {busy ? 'Odevzdávám…' : submitted ? 'Odevzdáno' : 'Odevzdat odpověď'}
+              {busy ? ui('Odevzdávám…', 'Submitting…') : submitted ? ui('Odevzdáno', 'Submitted') : ui('Odevzdat odpověď', 'Submit answer')}
             </button>
           </div>
         </form>
         {submitted ? (
-          <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je odevzdaná. Můžeš ji dál upravovat jako koncept, dokud učitel nepřejde dál.</p>
+          <p className="student-save-success" role="status" aria-live="polite">✓ {ui('Odpověď je odevzdaná. Můžeš ji dál upravovat jako koncept, dokud učitel nepřejde dál.', 'Your answer has been submitted. You can continue editing it as a draft until the teacher moves on.')}</p>
         ) : saved ? (
-          <p className="student-save-success" role="status" aria-live="polite">✓ Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.</p>
+          <p className="student-save-success" role="status" aria-live="polite">✓ {ui('Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.', 'The draft is saved. Submit the answer when you want it to be graded.')}</p>
         ) : null}
-        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">{ui('Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.', 'Your answer is safely stored on this device and will be sent when the connection is restored.')}</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
