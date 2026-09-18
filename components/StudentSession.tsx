@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { cacheLiveState, flushLiveOutbox, getCachedLiveState } from '@/lib/live-offline';
 import ConnectionStatusBadge, { type StudentConnectionStatus } from '@/components/ConnectionStatusBadge';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
@@ -61,11 +62,20 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
         setState(data);
         setError('');
         setConnectionStatus(recovered ? 'restored' : 'connected');
+        void cacheLiveState(sessionId, data);
+        void flushLiveOutbox(sessionId);
       } catch (err) {
         disconnectedRef.current = true;
         setConnectionStatus('reconnecting');
         if (!hasLoadedRef.current) {
-          setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+          const cached = await getCachedLiveState<StudentState>(sessionId);
+          if (cached) {
+            hasLoadedRef.current = true;
+            setState(cached);
+            setError('');
+          } else {
+            setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+          }
         }
       } finally {
         refreshInFlightRef.current = null;
@@ -114,7 +124,9 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       disconnectedRef.current = true;
       setConnectionStatus('reconnecting');
     };
-    const handleOnline = () => { void refresh(); };
+    const handleOnline = () => {
+      void flushLiveOutbox(sessionId).finally(() => { void refresh(); });
+    };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') void refresh();
     };
