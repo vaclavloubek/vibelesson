@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import ConnectionStatusBadge, { type StudentConnectionStatus } from '@/components/ConnectionStatusBadge';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
@@ -43,26 +44,36 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   const hasLoadedRef = useRef(false);
   const disconnectedRef = useRef(false);
   const previousBlockIdRef = useRef<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/student/sessions/${sessionId}`, { cache: 'no-store' });
-      const data = await response.json() as StudentState & { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
 
-      const recovered = disconnectedRef.current;
-      disconnectedRef.current = false;
-      hasLoadedRef.current = true;
-      setState(data);
-      setError('');
-      setConnectionStatus(recovered ? 'restored' : 'connected');
-    } catch (err) {
-      disconnectedRef.current = true;
-      setConnectionStatus('reconnecting');
-      if (!hasLoadedRef.current) {
-        setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+    const operation = (async () => {
+      try {
+        const response = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
+        const data = await response.json() as StudentState & { error?: string };
+        if (!response.ok) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+
+        const recovered = disconnectedRef.current;
+        disconnectedRef.current = false;
+        hasLoadedRef.current = true;
+        setState(data);
+        setError('');
+        setConnectionStatus(recovered ? 'restored' : 'connected');
+      } catch (err) {
+        disconnectedRef.current = true;
+        setConnectionStatus('reconnecting');
+        if (!hasLoadedRef.current) {
+          setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+        }
+      } finally {
+        refreshInFlightRef.current = null;
       }
-    }
+    })();
+
+    refreshInFlightRef.current = operation;
+    return operation;
   }, [sessionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -93,9 +104,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   }, [state?.realtimeKey, refresh]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => { void refresh(); }, 15000);
+    const intervalMs = connectionStatus === 'reconnecting' ? 4_000 : 20_000;
+    const timer = window.setInterval(() => { void refresh(); }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [refresh]);
+  }, [connectionStatus, refresh]);
 
   useEffect(() => {
     const handleOffline = () => {
