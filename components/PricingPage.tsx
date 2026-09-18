@@ -316,10 +316,26 @@ export default function PricingPage({
           country: checkoutCountry,
         }),
       });
-      const payload = await response.json() as { url?: string; error?: string };
+      const payload = await response.json() as {
+        url?: string;
+        error?: string;
+        diagnostics?: {
+          stripeType?: string | null;
+          stripeCode?: string | null;
+          stripeMessage?: string | null;
+        };
+      };
 
       if (!response.ok || !payload.url) {
-        throw new Error(payload.error ?? 'checkout_creation_failed');
+        const diagnosticParts = [
+          payload.diagnostics?.stripeCode,
+          payload.diagnostics?.stripeMessage,
+        ].filter(Boolean);
+        throw new Error(
+          diagnosticParts.length > 0
+            ? diagnosticParts.join(': ')
+            : (payload.error ?? 'checkout_creation_failed'),
+        );
       }
 
       trackEvent('checkout_start', {
@@ -331,7 +347,12 @@ export default function PricingPage({
       window.location.assign(payload.url);
     } catch (error) {
       console.error('sandbox checkout start failed', error);
-      setCheckoutError('Testovací Checkout se nepodařilo spustit. Zkontroluj serverové nastavení Stripe.');
+      const message = error instanceof Error ? error.message : '';
+      setCheckoutError(
+        message && message !== 'checkout_creation_failed'
+          ? `Stripe: ${message}`
+          : 'Testovací Checkout se nepodařilo spustit. Zkontroluj serverové nastavení Stripe.',
+      );
       setCheckoutBusy(false);
     }
   }
