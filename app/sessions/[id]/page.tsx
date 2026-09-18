@@ -80,8 +80,11 @@ export default async function TeacherSessionPage({ params }: Props) {
   }
 
   if (!userId) {
-    if (!authFailure || !resume) redirect('/');
-    console.warn('teacher live page restored from resume ticket', { sessionId: id });
+    if (!resume) redirect('/');
+    console.warn('teacher live page restored from resume ticket', {
+      sessionId: id,
+      authError: Boolean(authFailure),
+    });
     return teacherSurface(id);
   }
 
