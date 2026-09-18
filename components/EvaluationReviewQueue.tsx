@@ -277,13 +277,15 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         for (const evaluation of data.evaluations) {
           const previousStatus = previousStatusesRef.current.get(evaluation.id);
           const completedNow = previousStatus === 'pending' || previousStatus === 'grading';
-          const isCompleted = evaluation.status === 'graded' || evaluation.status === 'needs_review';
+          const resultState = evaluation.status === 'graded' || evaluation.status === 'needs_review'
+            ? evaluation.status
+            : null;
           const activityType = gradableActivityType(evaluation.blockType);
 
-          if (!evaluation.manualOnly && completedNow && isCompleted && activityType) {
+          if (!evaluation.manualOnly && completedNow && resultState && activityType) {
             trackEventOnce(`ai-grading:${evaluation.id}`, 'ai_grading_completed', {
               activity_type: activityType,
-              result_state: evaluation.status,
+              result_state: resultState,
             });
           }
 
