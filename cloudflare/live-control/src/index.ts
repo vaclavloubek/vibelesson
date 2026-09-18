@@ -630,7 +630,7 @@ export class LiveSession extends DurableObject<Env> {
         }
 
         if (action === 'reveal_scoreboard' || action === 'hide_scoreboard') {
-          if (snapshot.status !== 'live' && snapshot.status !== 'ended') {
+          if (snapshot.status !== 'live') {
             return json({ error: 'Scoreboard state cannot be changed now.' }, 409);
           }
         }
