@@ -75,7 +75,7 @@ export default function LiveTimer({ timer, label }: Props) {
       <span className="eyebrow">{resolvedLabel}</span>
       <div
         role="timer"
-        aria-label={`${label}: ${formatSeconds(remaining)}. ${statusText}.`}
+        aria-label={`${resolvedLabel}: ${formatSeconds(remaining)}. ${statusText}.`}
         style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-.04em', margin: '8px 0 4px' }}
       >
         {formatSeconds(remaining)}
