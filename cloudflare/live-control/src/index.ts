@@ -18,6 +18,7 @@ type Env = {
 
 type SessionSnapshot = {
   sessionId: string;
+  joinCode?: string;
   revision: number;
   status: 'lobby' | 'live' | 'ended';
   activeBlockId: string | null;
@@ -298,7 +299,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     const blockId = typeof payload.blockId === 'string' ? payload.blockId : '';
     const text = typeof payload.text === 'string' ? payload.text.slice(0, 4000) : '';
     if (!teamId || !blockId || !text) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
-    const next = { teamId, blockId, text, submitted: payload.submitted === true };
+    const next = { teamId, blockId, text, submitted: payload.submitted === true, updatedByParticipantId: event.actorId };
     return {
       ...snapshot,
       teamResponses: [
