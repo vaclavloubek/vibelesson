@@ -502,6 +502,30 @@ export class LiveSession extends DurableObject<Env> {
       if (teacherOnly && actorRole !== 'teacher') return json({ error: 'Forbidden.' }, 403);
       if (body.type.startsWith('student.') && actorRole !== 'student') return json({ error: 'Forbidden.' }, 403);
 
+      if (body.type === 'student.response') {
+        const responsePayload = body.payload && typeof body.payload === 'object'
+          ? body.payload as Record<string, unknown>
+          : {};
+        const blockId = typeof responsePayload.blockId === 'string' ? responsePayload.blockId : '';
+        if (!blockId || blockId !== snapshot.activeBlockId) {
+          return json({ error: 'The active block has changed.' }, 409);
+        }
+        const lesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
+          ? snapshot.lessonSnapshot as { blocks?: Array<Record<string, unknown>> }
+          : {};
+        const block = (lesson.blocks ?? []).find((item) => item.id === blockId);
+        if (!block) return json({ error: 'Active block not found.' }, 409);
+        if ((block.type === 'poll' || block.type === 'quiz') && snapshot.revealedBlockIds.includes(blockId)) {
+          return json({ error: 'Results have already been revealed.' }, 409);
+        }
+        if (!responsePayload.answer || typeof responsePayload.answer !== 'object') {
+          return json({ error: 'Invalid answer.' }, 400);
+        }
+        if (JSON.stringify(responsePayload.answer).length > 12_000) {
+          return json({ error: 'Answer is too large.' }, 413);
+        }
+      }
+
       const revision = snapshot.revision + 1;
       const event: LiveEvent = {
         id: crypto.randomUUID(),
