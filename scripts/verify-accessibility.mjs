@@ -73,7 +73,7 @@ requirePattern(newLayout, /New lesson – Syllonaut.*Nová lekce – Syllonaut|N
 requirePattern(lessonsLayout, /My lessons – Syllonaut.*Moje lekce – Syllonaut|Moje lekce – Syllonaut.*My lessons – Syllonaut/s, 'lesson-library routes lost localized specific page titles.');
 requirePattern(sessionsLayout, /Control centre – Syllonaut.*Řídicí centrum – Syllonaut|Řídicí centrum – Syllonaut.*Control centre – Syllonaut/s, 'teacher-session routes lost localized specific page titles.');
 requirePattern(studentLayout, /Live lesson – student – Syllonaut.*Živá hodina – student – Syllonaut|Živá hodina – student – Syllonaut.*Live lesson – student – Syllonaut/s, 'student routes lost localized specific page titles.');
-requirePattern(pricingRoute, /title\s*=\s*['"]Ceník[^'"]*Syllonaut['"]/, 'pricing route lost its specific page title.');
+requirePattern(pricingRoute, /Pricing — Syllonaut.*Ceník — Syllonaut|Ceník — Syllonaut.*Pricing — Syllonaut/s, 'pricing route lost localized specific page titles.');
 requirePattern(pricingPage, /aria-pressed=\{audience === 'teachers'\}/, 'pricing audience selection state is not exposed.');
 requirePattern(pricingPage, /aria-pressed=\{billing === 'monthly'\}/, 'pricing billing selection state is not exposed.');
 requirePattern(pricingPage, /role="status"[^>]+aria-live="polite"/, 'pricing changes are not announced succinctly.');

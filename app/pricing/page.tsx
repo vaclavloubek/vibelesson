@@ -3,34 +3,42 @@ import { headers } from 'next/headers';
 import PricingPage from '@/components/PricingPage';
 import { resolvePricingCountry, resolvePricingCurrency } from '@/lib/billing-region';
 import { createClient } from '@/lib/supabase/server';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 
-const title = 'Ceník — Syllonaut';
-const description = 'Ceník Syllonautu pro jednotlivé učitele a školy. Začněte zdarma a porovnejte připravované placené plány.';
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  const english = locale === 'en';
+  const title = english ? 'Pricing — Syllonaut' : 'Ceník — Syllonaut';
+  const description = english
+    ? 'Syllonaut pricing for individual teachers and schools. Start free and compare upcoming paid plans.'
+    : 'Ceník Syllonautu pro jednotlivé učitele a školy. Začněte zdarma a porovnejte připravované placené plány.';
 
-export const metadata: Metadata = {
-  title,
-  description,
-  alternates: {
-    canonical: '/pricing',
-  },
-  openGraph: {
+  return {
     title,
     description,
-    url: '/pricing',
-    siteName: 'Syllonaut',
-    locale: 'cs_CZ',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title,
-    description,
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+    alternates: {
+      canonical: '/pricing',
+    },
+    openGraph: {
+      title,
+      description,
+      url: '/pricing',
+      siteName: 'Syllonaut',
+      locale: english ? 'en_US' : 'cs_CZ',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 type PricingRouteProps = {
   searchParams: Promise<{
