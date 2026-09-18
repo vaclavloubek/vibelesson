@@ -502,6 +502,41 @@ export class LiveSession extends DurableObject<Env> {
       if (teacherOnly && actorRole !== 'teacher') return json({ error: 'Forbidden.' }, 403);
       if (body.type.startsWith('student.') && actorRole !== 'student') return json({ error: 'Forbidden.' }, 403);
 
+      if (body.type === 'teacher.command') {
+        const commandPayload = body.payload && typeof body.payload === 'object'
+          ? body.payload as Record<string, unknown>
+          : {};
+        const action = typeof commandPayload.action === 'string' ? commandPayload.action : '';
+        const allowed = new Set([
+          'start',
+          'next',
+          'previous',
+          'end',
+          'reveal_results',
+          'reveal_scoreboard',
+          'hide_scoreboard',
+          'timer_start',
+          'timer_pause',
+          'timer_reset',
+        ]);
+        if (!allowed.has(action)) return json({ error: 'Invalid teacher command.' }, 400);
+      }
+
+      if (body.type === 'student.team_selected') {
+        const teamPayload = body.payload && typeof body.payload === 'object'
+          ? body.payload as Record<string, unknown>
+          : {};
+        const teamId = typeof teamPayload.teamId === 'string' ? teamPayload.teamId : '';
+        const participant = snapshot.participants.find((row) => row.id === actorId);
+        if (!teamId || !snapshot.teams.some((team) => team.id === teamId)) {
+          return json({ error: 'Team does not exist.' }, 409);
+        }
+        if (snapshot.status === 'ended') return json({ error: 'Session has ended.' }, 410);
+        if (snapshot.status === 'live' && participant?.teamId && participant.teamId !== teamId) {
+          return json({ error: 'Team is already locked.' }, 409);
+        }
+      }
+
       if (body.type === 'student.response') {
         const responsePayload = body.payload && typeof body.payload === 'object'
           ? body.payload as Record<string, unknown>
@@ -514,7 +549,7 @@ export class LiveSession extends DurableObject<Env> {
           ? snapshot.lessonSnapshot as { blocks?: Array<Record<string, unknown>> }
           : {};
         const block = (lesson.blocks ?? []).find((item) => item.id === blockId);
-        if (!block) return json({ error: 'Active block not found.' }, 409);
+        if (!block || block.type === 'team_task') return json({ error: 'Active block does not accept an individual answer.' }, 409);
         if ((block.type === 'poll' || block.type === 'quiz') && snapshot.revealedBlockIds.includes(blockId)) {
           return json({ error: 'Results have already been revealed.' }, 409);
         }
@@ -524,6 +559,28 @@ export class LiveSession extends DurableObject<Env> {
         if (JSON.stringify(responsePayload.answer).length > 12_000) {
           return json({ error: 'Answer is too large.' }, 413);
         }
+      }
+
+      if (body.type === 'student.team_response') {
+        const teamPayload = body.payload && typeof body.payload === 'object'
+          ? body.payload as Record<string, unknown>
+          : {};
+        const teamId = typeof teamPayload.teamId === 'string' ? teamPayload.teamId : '';
+        const blockId = typeof teamPayload.blockId === 'string' ? teamPayload.blockId : '';
+        const text = typeof teamPayload.text === 'string' ? teamPayload.text.trim() : '';
+        const participant = snapshot.participants.find((row) => row.id === actorId);
+        const lesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
+          ? snapshot.lessonSnapshot as { blocks?: Array<Record<string, unknown>> }
+          : {};
+        const block = (lesson.blocks ?? []).find((item) => item.id === blockId);
+
+        if (!participant || !teamId || participant.teamId !== teamId || !snapshot.teams.some((team) => team.id === teamId)) {
+          return json({ error: 'Participant is not a member of this team.' }, 403);
+        }
+        if (!blockId || blockId !== snapshot.activeBlockId || block?.type !== 'team_task') {
+          return json({ error: 'The active team task has changed.' }, 409);
+        }
+        if (!text || text.length > 4000) return json({ error: 'Invalid team answer.' }, 400);
       }
 
       const revision = snapshot.revision + 1;
