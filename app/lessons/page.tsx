@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import LessonLibrary, { type LessonFolderItem, type LessonListItem } from './LessonLibrary';
 import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
+import { APP_VERSION } from '@/lib/version';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -108,7 +109,7 @@ export default async function LessonsPage() {
   return (
     <main className="shell lessons-shell">
       <header className="brand lessons-brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
+        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="dashboard-version-stack"><span className="beta">BETA</span><span className="dashboard-version">v{APP_VERSION}</span></span></div>
         <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
         <div className="lessons-user">{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : 'Přihlášený učitel'}</div>
       </header>

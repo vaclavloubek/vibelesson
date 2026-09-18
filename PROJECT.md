@@ -2,7 +2,7 @@
 
 Aktualizováno: 2026-09-18 po dokončení dnešního beta-feedback cyklu: zpřesnění live odpovědí a completion stavů, prioritizace/čištění AI review queue, třístupňová přísnost AI hodnocení, reconnect UX studentů a nový přetahovatelný ovladač přísnosti.
 
-**Aktuální produktová verze: 0.7** — výchozí číselná baseline pro další vývoj.
+**Aktuální produktová verze: 0.7.01** — první menší funkční změna nad výchozí baseline 0.7.
 
 Produkční funkční baseline před touto dokumentační aktualizací:
 
@@ -846,9 +846,10 @@ Další významné změny 2026-09-18:
 - `8ee9e6e` — completion sjednocený podle aktuálního `answer === submitted_answer`;
 - `f9b3c32` — reconnect UX: odstranění zastaralých submit error stavů po synchronizaci;
 - `76d47d1` — přístupný barevný třístupňový ovladač přísnosti AI hodnocení;
-- `57539ce` — plynulé drag ovládání slideru se snapem na tři platné hodnoty.
+- `57539ce` — plynulé drag ovládání slideru se snapem na tři platné hodnoty;
+- **0.7.01** — číslo verze aplikace je viditelné pouze v učitelském dashboardu pod badge BETA; UI používá centrální `APP_VERSION`, aby další verze měly jeden zdroj pravdy v kódu.
 
-**Funkční baseline verze 0.7 je `57539ce` a má úspěšný Vercel Production deployment.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Aktuální verze 0.7.01 přidává nenápadné zobrazení verze pouze do přihlášeného učitelského dashboardu `/lessons`, pod badge BETA; landing ani ostatní stránky verzi nezobrazují.**
 
 ## 21. Pravidla další práce
 
