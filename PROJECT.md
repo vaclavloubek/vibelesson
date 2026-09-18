@@ -1,14 +1,14 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po reálném beta incidentu a redesignu live resilience vrstvy.
+Aktualizováno: 2026-09-18 po dokončení a produkčním nasazení live resilience vrstvy 0.8.
 
 **Aktuální produktová verze: 0.8** — automatický Teacher/Presenter failover, session-scoped live recovery a server-driven AI grading.
 
-Předchozí produkční baseline před releasem 0.8:
+Produkční release 0.8:
 
-`d3b9669b2330c505d34636d719a8846adf764d59` — **Fix live-control reconciliation trigger bypass**.
+`45fe128e05bc9007ef9a927d70562d6d4c80ac77` — **Release Syllonaut 0.8 live resilience**.
 
-Vercel Production deployment této funkční baseline je úspěšný. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
+Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `e4940eb9-7862-4717-b9b9-2160ff510d21`. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -419,7 +419,8 @@ Stejné rozlišení je i v lesson preview.
 - navigace přes fallback před odesláním porovná očekávaný aktivní blok se snapshotem; Durable Object navíc validuje `expectedActiveBlockId`, stav session, timer a reveal akce;
 - Presenter při výpadku primárního endpointu automaticky skládá obraz z Cloudflare snapshotu a po návratu primární vrstvy se vrátí bez ručního přepínače;
 - raw browser AbortError se už nezobrazuje; timeouty jsou normalizované a teacher/presenter ukazují jen srozumitelný stav Primární / Záložní / Synchronizuji;
-- live resume podpis je server-only, domain-separated HMAC nad existujícím live bootstrap trust boundary; Cloudflare bearer capability zůstává pouze v `sessionStorage`, ne v persistentním browser storage.
+- live resume podpis je server-only, domain-separated HMAC nad existujícím live bootstrap trust boundary; Cloudflare bearer capability zůstává pouze v `sessionStorage`, ne v persistentním browser storage;
+- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; ověřený Worker Version ID: `e4940eb9-7862-4717-b9b9-2160ff510d21`.
 
 ### Join abuse protection
 
@@ -873,7 +874,8 @@ Další významné změny 2026-09-18:
 - `57539ce` — plynulé drag ovládání slideru se snapem na tři platné hodnoty;
 - **0.7.01** — číslo verze aplikace je viditelné pouze v učitelském dashboardu pod badge BETA; UI používá centrální `APP_VERSION`, aby další verze měly jeden zdroj pravdy v kódu;
 - **0.7.02** / `20260918093706` — P2 reconciliation fix: Cloudflare snapshot může bezpečně konvergovat historické odpovědi do Supabase přes úzce scopeovaný transaction advisory marker, aniž by se oslabily běžné SEC-005 live-write kontroly;
-- **0.8** / `20260918114341` — live resilience redesign po reálné beta hodině: automatický Teacher/Presenter failover, live resume ticket, paralelní primární + Cloudflare command cesta, srozumitelné timeout UX a server-driven AI grading s jednorázovými capability tokeny a DB retry.
+- **0.8** / `20260918114341` — live resilience redesign po reálné beta hodině: automatický Teacher/Presenter failover, live resume ticket, paralelní primární + Cloudflare command cesta, srozumitelné timeout UX a server-driven AI grading s jednorázovými capability tokeny a DB retry; produkční Vercel/Supabase část byla ověřena a Cloudflare Worker byl následně nasazen s Version ID `e4940eb9-7862-4717-b9b9-2160ff510d21`;
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; pro release 0.8 je tedy pod badge BETA zobrazeno `v0.8`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
@@ -911,7 +913,7 @@ Security audit SEC-001 až SEC-015 je dokončen a dispositioned. Accessibility t
 
 Nejbližší smysluplné produktové priority:
 
-1. po releasu 0.8 ověřit primary → fallback → recovery na nové disposable live session a provést chaos test A–G;
+1. ověřit 0.8 v nejbližší reálné výuce jako produkční acceptance test: bez umělého vyvolávání výpadků sledovat Teacher/Presenter, studentské zápisy, AI grading, `live_control_revision` a případné automatické primary → fallback → recovery; cílené chaos scénáře A–G doplnit až následně, pokud je reálná výuka sama neprověří;
 2. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
 3. pokračovat ve sběru a zapracování beta feedbacku;
 4. doplnit hybridní scoring do post-session reportu/CSV;
