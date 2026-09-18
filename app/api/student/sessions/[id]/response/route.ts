@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { participantCookieName, StudentResponseSubmissionSchema } from '@/lib/live';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 type RouteContext = { params: Promise<{ id: string }> };
 type EdgeResponse = { error?: string; [key: string]: unknown };
@@ -17,7 +18,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
 
-    const edgeResponse = await fetch(`${url}/functions/v1/student-session`, {
+    const edgeResponse = await fetchWithTimeout(`${url}/functions/v1/student-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -32,7 +33,7 @@ export async function POST(req: Request, { params }: RouteContext) {
         responseAction: submission.responseAction,
       }),
       cache: 'no-store',
-    });
+    }, 8_000);
     const data = await edgeResponse.json() as EdgeResponse;
     return NextResponse.json(data, { status: edgeResponse.status });
   } catch (error) {
