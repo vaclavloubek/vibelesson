@@ -18,10 +18,10 @@ function formatSeconds(totalSeconds: number) {
 }
 
 function milestoneMessage(seconds: number, label: string, english: boolean) {
-  if (seconds === 60) return english ? `${resolvedLabel}: one minute remaining.` : `${resolvedLabel}: zbývá jedna minuta.`;
-  if (seconds === 30) return english ? `${resolvedLabel}: 30 seconds remaining.` : `${resolvedLabel}: zbývá 30 sekund.`;
-  if (seconds === 10) return english ? `${resolvedLabel}: 10 seconds remaining.` : `${resolvedLabel}: zbývá 10 sekund.`;
-  return english ? `${resolvedLabel}: time is up.` : `${resolvedLabel}: čas vypršel.`;
+  if (seconds === 60) return english ? `${label}: one minute remaining.` : `${label}: zbývá jedna minuta.`;
+  if (seconds === 30) return english ? `${label}: 30 seconds remaining.` : `${label}: zbývá 30 sekund.`;
+  if (seconds === 10) return english ? `${label}: 10 seconds remaining.` : `${label}: zbývá 10 sekund.`;
+  return english ? `${label}: time is up.` : `${label}: čas vypršel.`;
 }
 
 export default function LiveTimer({ timer, label }: Props) {
@@ -75,7 +75,7 @@ export default function LiveTimer({ timer, label }: Props) {
       <span className="eyebrow">{resolvedLabel}</span>
       <div
         role="timer"
-        aria-label={`${resolvedLabel}: ${formatSeconds(remaining)}. ${statusText}.`}
+        aria-label={`${label}: ${formatSeconds(remaining)}. ${statusText}.`}
         style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-.04em', margin: '8px 0 4px' }}
       >
         {formatSeconds(remaining)}
