@@ -96,7 +96,7 @@ Pro DebugView přes Preview se má použít samostatná **testovací GA4 propert
 | `live_session_ended` | Učitel úspěšně ukončí session | `TeacherSession` | `participant_count_bucket`, `completed_activity_count_bucket` | Completion classroom funnel |
 | `session_report_viewed` | Hotový report se poprvé úspěšně načte | `SessionReport` | — | Post-session engagement |
 | `session_csv_exported` | Učitel spustí lokální CSV export | `SessionReport` | — | Reporting utility |
-| `ai_grading_completed` | Úspěšný AI grading request skutečně dokončí evaluaci | `EvaluationBackgroundPump` po `/grade` | `activity_type`, `result_state` | Teacher Pro AI grading usage |
+| `ai_grading_completed` | AI hodnocení skutečně dokončí evaluaci | přímý `/grade` výsledek nebo pozorovaný přechod stavu ve `EvaluationReviewQueue` | `activity_type`, `result_state` | Teacher Pro AI grading usage |
 | `manual_grading_completed` | První úspěšné ruční potvrzení manual-only evaluace | `EvaluationReviewQueue` | `activity_type` | Manual grading usage |
 | `teacher_grade_override` | Učitel úspěšně změní AI skóre na jinou hodnotu | `EvaluationReviewQueue` | `activity_type` | Human override usage |
 
@@ -195,7 +195,7 @@ Produkční property se tím nekontaminuje Preview provozem.
 
 `npm run check` obsahuje:
 
-`tsc --noEmit → verify-ai-zdr → verify-privacy → verify-analytics`
+`tsc --noEmit → verify-ai-zdr → verify-privacy → verify-live-resilience → verify-analytics`
 
 Analytics check hlídá zejména:
 
