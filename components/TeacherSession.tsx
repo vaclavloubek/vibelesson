@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { activityMode, bucketBlockCount, bucketDuration, bucketParticipantCount, trackEvent } from '@/lib/analytics';
 import {
   fetchLiveControlState,
   postLiveControlEvent,
@@ -217,6 +218,41 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  function trackSuccessfulSessionAction(action: SessionAction['action']) {
+    const current = sessionRef.current;
+    if (!current) return;
+
+    const index = current.activeBlockId
+      ? current.lessonSnapshot.blocks.findIndex((block) => block.id === current.activeBlockId)
+      : -1;
+
+    if (action === 'start') {
+      trackEvent('live_session_started', {
+        block_count_bucket: bucketBlockCount(current.lessonSnapshot.blocks.length),
+        planned_duration_bucket: bucketDuration(current.lessonSnapshot.totalMinutes),
+      });
+      return;
+    }
+
+    if (action === 'next' && index >= 0) {
+      const nextBlock = current.lessonSnapshot.blocks[index + 1];
+      if (nextBlock) {
+        trackEvent('activity_advanced', {
+          activity_type: nextBlock.type,
+          activity_mode: activityMode(nextBlock.type),
+        });
+      }
+      return;
+    }
+
+    if (action === 'end') {
+      trackEvent('live_session_ended', {
+        participant_count_bucket: bucketParticipantCount(current.participants.length),
+        completed_activity_count_bucket: bucketBlockCount(Math.max(0, index + 1)),
+      });
+    }
+  }
+
   function applyFallbackAction(action: SessionAction['action']) {
     setSession((current) => {
       if (!current) return current;
@@ -277,6 +313,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         }
         throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
       }
+      trackSuccessfulSessionAction(action);
       void postLiveControlEvent(
         sessionId,
         'teacher',
@@ -306,6 +343,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         operationId,
       );
       if (fallbackOk) {
+        trackSuccessfulSessionAction(action);
         applyFallbackAction(action);
         setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu a po obnovení se dosynchronizuje.');
       } else {
