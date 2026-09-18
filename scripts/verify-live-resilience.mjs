@@ -16,6 +16,7 @@ const [
   worker,
   liveControlRoute,
   gradingWorker,
+  liveControlClient,
 ] = await Promise.all([
   source('lib/fetch-with-timeout.ts'),
   source('lib/live-resume.ts'),
@@ -24,6 +25,7 @@ const [
   source('cloudflare/live-control/src/index.ts'),
   source('app/api/sessions/[id]/live-control/route.ts'),
   source('app/api/internal/grading/jobs/route.ts'),
+  source('lib/live-control-client.ts'),
 ]);
 
 requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be normalized before reaching live UI.');
@@ -32,6 +34,9 @@ requirePattern(resume, /secure:\s*true/, 'teacher live resume cookie must remain
 requirePattern(resume, /TOKEN_NAMESPACE = 'syllonaut-live-resume-v1'/, 'resume HMAC must remain domain-separated.');
 requirePattern(liveControlRoute, /if \(authError && resume\)/, 'resume fallback must require a real primary auth failure.');
 requirePattern(liveControlRoute, /setLiveResumeCookie\(id, userId\)/, 'healthy ownership verification must mint a live resume ticket.');
+if (/localStorage/.test(liveControlClient)) {
+  throw new Error('Live resilience regression: live bearer capabilities must not persist in localStorage.');
+}
 requirePattern(teacher, /Promise\.any\(\[primary, fallback\]\)/, 'teacher commands must race primary and fallback paths.');
 requirePattern(teacher, /const operationId = crypto\.randomUUID\(\)/, 'teacher primary/fallback paths must share an idempotency key.');
 requirePattern(worker, /expectedActiveBlockId && expectedActiveBlockId !== snapshot\.activeBlockId/, 'fallback navigation must reject stale teacher commands.');
