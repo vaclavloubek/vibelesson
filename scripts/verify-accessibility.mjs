@@ -118,7 +118,7 @@ requirePattern(authoring, /visual-only-cue/, 'deterministic visual-only authorin
 requirePattern(authoring, /unsupported-visual-reference/, 'deterministic unsupported visual-reference check is missing.');
 requirePattern(authoring, /suggestion:/, 'ATAG diagnostics no longer provide repair guidance.');
 requirePattern(presenterCss, /prefers-reduced-motion:\s*reduce/, 'presenter reduced-motion fallback is missing.');
-requirePattern(gdprRoute, /<h1>Ochrana osobních údajů \(GDPR\)<\/h1>/, 'GDPR page lost its primary heading.');
+requirePattern(gdprRoute, /Ochrana osobních údajů \\(GDPR\\).*Privacy and personal data \\(GDPR\\)|Privacy and personal data \\(GDPR\\).*Ochrana osobních údajů \\(GDPR\\)/s, 'GDPR page lost its localized primary heading.');
 requirePattern(cookieConsent, /aria-modal="true"/, 'cookie settings dialog must remain modal to assistive technology.');
 requirePattern(cookieConsent, /event\.key !== 'Tab'/, 'cookie settings dialog lost keyboard focus trapping.');
 
