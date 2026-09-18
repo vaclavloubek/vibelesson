@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po jednorázové rotaci live service-worker cache ve verzi 0.8.15.
+Aktualizováno: 2026-09-18 po přípravě aplikačního přechodu Presenter fallbacku na least-privilege capability ve verzi 0.8.16.
 
-**Aktuální produktová verze: 0.8.15** — live shell cache byla posunuta z `v1` na `v2`, takže aktivace nového service workeru odstraní i případné staré navigační cache položky vzniklé před 0.8.13 hardeningem.
+**Aktuální produktová verze na této pracovní větvi: 0.8.16** — Presenter fallback používá samostatnou `presenter` capability pro state/WebSocket místo teacher capability. Tato větev se nesmí sloučit do Production, dokud produkční Cloudflare Worker nepotvrdí `workerVersion=0.8.14` a `protocolVersion=2`.
 
 Produkční release 0.8:
 
@@ -929,7 +929,8 @@ Další významné změny 2026-09-18:
 - **0.8.13** — live navigation cache hardening: service worker odmítne cachovat redirectovanou odpověď nebo odpověď pro jinou cestu, takže auth incident nemůže pod URL živé hodiny uložit homepage či jiný nesouvisející 200 response.
 - **0.8.14** — Cloudflare control-plane hardening, fáze 1: Worker přijímá samostatnou `presenter` capability pouze pro read-only state/WebSocket, explicitně zakazuje Presenter zápis do `/events` a jeho `/health` nyní jednoznačně hlásí `workerVersion=0.8.14` + `protocolVersion=2`. Presenter UI se na novou roli přepne až po potvrzeném produkčním Worker deploymentu, aby nevzniklo nekompatibilní mezidobí.
 - **0.8.15** — live cache epoch rotation: service worker používá `syllonaut-live-shell-v2`; při aktivaci smaže starší `syllonaut-live-shell-*` cache včetně před-hardeningové `v1`, takže dříve uložený chybný live navigation response nemůže přežít opravu 0.8.13.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.15`.
+- **0.8.16 (připraveno, zatím nemergovat)** — Presenter least-privilege fáze 2: browser požaduje `?role=presenter`, ukládá capability odděleně pod presenter storage key a pro fallback state/WebSocket už nepoužívá teacher token. Merge až po potvrzeném produkčním Worker 0.8.14.
+- viditelné číslo verze v učitelském dashboardu na této větvi používá centrální `APP_VERSION` a zobrazuje `v0.8.16`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
