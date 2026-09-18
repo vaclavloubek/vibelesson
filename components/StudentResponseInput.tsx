@@ -234,6 +234,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
           </form>
         ) : <div className="error" role="alert" style={{ marginTop: 12 }}>Tento blok nemá dost položek k seřazení.</div>}
         {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Pořadí i zdůvodnění jsou uložené.</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">Pořadí je bezpečně uložené v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
@@ -284,6 +285,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         ) : saved ? (
           <p className="student-save-success" role="status" aria-live="polite">✓ Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.</p>
         ) : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );
