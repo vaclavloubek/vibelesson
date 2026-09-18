@@ -39,6 +39,7 @@ type PresenterTimer = {
 type PresenterData = {
   status: 'lobby' | 'live' | 'ended';
   title: string;
+  lessonLanguage: string | null;
   realtimeKey: string;
   joinCode: string;
   participantCount: number;
@@ -110,7 +111,7 @@ function parsePresenterBlock(raw: Record<string, unknown> | null, english: boole
 function presenterFromLiveControl(live: LiveControlState, english: boolean): PresenterData {
   const snapshot = live.snapshot;
   const rawLesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
-    ? snapshot.lessonSnapshot as { title?: unknown; blocks?: Array<Record<string, unknown>> }
+    ? snapshot.lessonSnapshot as { title?: unknown; language?: unknown; blocks?: Array<Record<string, unknown>> }
     : {};
   const blocks = Array.isArray(rawLesson.blocks) ? rawLesson.blocks : [];
   const activeBlockIndex = snapshot.activeBlockId
@@ -161,6 +162,7 @@ function presenterFromLiveControl(live: LiveControlState, english: boolean): Pre
   return {
     status: snapshot.status,
     title: typeof rawLesson.title === 'string' ? rawLesson.title : (english ? 'Lesson' : 'Hodina'),
+    lessonLanguage: typeof rawLesson.language === 'string' ? rawLesson.language : null,
     realtimeKey: '',
     joinCode: snapshot.joinCode ?? '',
     participantCount: snapshot.participants.length,
@@ -351,7 +353,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
         <section className={styles.lobby}>
           <div className={styles.lobbyIntro}>
             <p className={styles.kicker}>{ui('Připojte se k hodině', 'Join the lesson')}</p>
-            <h1>{data.title}</h1>
+            <h1 lang={data.lessonLanguage ?? undefined} dir={data.lessonLanguage ? 'auto' : undefined}>{data.title}</h1>
             <p>{ui('Naskenujte QR kód, nebo otevřete adresu a zadejte kód hodiny.', 'Scan the QR code, or open the address and enter the lesson code.')}</p>
           </div>
           <div className={styles.joinPanel}>
@@ -386,22 +388,22 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
 
           {block ? (
             <article className={styles.activityCard}>
-              <h1>{block.title}</h1>
-              <FormattedInstructions text={block.instructions} className={styles.instructions} />
+              <h1 lang={data.lessonLanguage ?? undefined} dir={data.lessonLanguage ? 'auto' : undefined}>{block.title}</h1>
+              <FormattedInstructions text={block.instructions} className={styles.instructions} lang={data.lessonLanguage} />
 
               {displayItems?.length ? (
                 <div className={styles.optionGrid}>
                   {displayItems.map((item, index) => (
                     <div className={styles.option} key={`${item}-${index}`}>
                       <span>{String.fromCharCode(65 + index)}</span>
-                      <strong>{item}</strong>
+                      <strong lang={data.lessonLanguage ?? undefined} dir={data.lessonLanguage ? 'auto' : undefined}>{item}</strong>
                     </div>
                   ))}
                 </div>
               ) : null}
 
               {block.type === 'reveal' && block.revealText ? (
-                <FormattedInstructions text={block.revealText} className={styles.revealBox} />
+                <FormattedInstructions text={block.revealText} className={styles.revealBox} lang={data.lessonLanguage} />
               ) : null}
 
               {block.type === 'timer' && timerSeconds !== null ? (

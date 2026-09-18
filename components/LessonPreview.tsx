@@ -34,8 +34,8 @@ function shortLabel(type: LessonBlock['type'], english: boolean) {
   return (english ? en : cs)[type];
 }
 
-function Block({ block, index, teacherMode, selected, onSelect, startMinute, english }: {
-  block: LessonBlock; index: number; teacherMode: boolean; selected: boolean; onSelect: () => void; startMinute?: number; english: boolean;
+function Block({ block, index, teacherMode, selected, onSelect, startMinute, english, contentLanguage }: {
+  block: LessonBlock; index: number; teacherMode: boolean; selected: boolean; onSelect: () => void; startMinute?: number; english: boolean; contentLanguage?: string | null;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string>('');
@@ -63,20 +63,20 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute, eng
         <div style={{ display: 'grid', gap: 6 }}>
           <span className="eyebrow">{index + 1}. {label(block.type, english)}</span>
           <ActivityModeBadge type={block.type} />
-          <h3>{block.title}</h3>
+          <h3 lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.title}</h3>
           {teacherMode && typeof startMinute === 'number' ? <span className="block-time-range">{startMinute}–{startMinute + block.durationMinutes}. {english ? 'minute' : 'minuta'}</span> : null}
         </div>
         <span className="duration">{block.durationMinutes} min</span>
       </div>
-      <FormattedInstructions text={block.instructions} className="instructions" />
-      {block.dataTable ? <LessonDataTable data={block.dataTable} /> : null}
-      {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
-      {block.options?.length ? <div className="options" role="group" aria-label={english ? 'Answer options' : 'Možnosti odpovědi'}>{block.options.map((option) => <button key={option} type="button" aria-pressed={selectedOption === option} onClick={() => setSelectedOption(option)} className={selectedOption === option ? 'option selected' : 'option'}>{option}</button>)}</div> : null}
+      <FormattedInstructions text={block.instructions} className="instructions" lang={contentLanguage} />
+      {block.dataTable ? <div lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}><LessonDataTable data={block.dataTable} /></div> : null}
+      {block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{item}</div>)}</div> : null}
+      {block.options?.length ? <div className="options" role="group" aria-label={english ? 'Answer options' : 'Možnosti odpovědi'}>{block.options.map((option) => <button key={option} type="button" aria-pressed={selectedOption === option} onClick={() => setSelectedOption(option)} className={selectedOption === option ? 'option selected' : 'option'} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{option}</button>)}</div> : null}
       {['open_text', 'exit_ticket'].includes(block.type) ? <label>{english ? 'Student answer' : 'Odpověď studenta'}<textarea placeholder={english ? 'Student answer…' : 'Odpověď studenta…'} /></label> : null}
-      {block.type === 'reveal' && block.revealText ? <div><button type="button" className="secondary" onClick={() => setRevealed((v) => !v)}>{revealed ? (english ? 'Hide reveal' : 'Skrýt pointu') : (english ? 'Reveal' : 'Odhalit pointu')}</button>{revealed ? <div role="status"><FormattedInstructions text={block.revealText} className="reveal" /></div> : null}</div> : null}
-      {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal" role="status">{english ? 'Correct answer:' : 'Správná odpověď:'} <strong>{block.correctAnswer}</strong></div> : null}
+      {block.type === 'reveal' && block.revealText ? <div><button type="button" className="secondary" onClick={() => setRevealed((v) => !v)}>{revealed ? (english ? 'Hide reveal' : 'Skrýt pointu') : (english ? 'Reveal' : 'Odhalit pointu')}</button>{revealed ? <div role="status"><FormattedInstructions text={block.revealText} className="reveal" lang={contentLanguage} /></div> : null}</div> : null}
+      {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal" role="status">{english ? 'Correct answer:' : 'Správná odpověď:'} <strong lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.correctAnswer}</strong></div> : null}
       {block.type === 'timer' ? <div className="timerbox"><strong role="timer" aria-label={`${english ? 'Time remaining' : 'Zbývající čas'} ${mm}:${ss}`}>{mm}:{ss}</strong><button type="button" className="secondary" onClick={() => setRunning((v) => !v)}>{running ? (english ? 'Pause' : 'Pauza') : 'Start'}</button><button type="button" className="secondary" onClick={() => { setRunning(false); setSeconds(block.durationMinutes * 60); }}>Reset</button></div> : null}
-      {teacherMode && block.teacherNote ? <details><summary>{english ? 'Teacher note' : 'Poznámka pro učitele'}</summary><p>{block.teacherNote}</p></details> : null}
+      {teacherMode && block.teacherNote ? <details><summary>{english ? 'Teacher note' : 'Poznámka pro učitele'}</summary><p lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.teacherNote}</p></details> : null}
       {typeof block.points === 'number' ? <div className="points">{english ? 'Max.' : 'Max.'} {block.points} {english ? 'points' : 'bodů'}</div> : null}
     </article>
   );
@@ -107,9 +107,9 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
           <span className="student-preview-counter">{studentPreviewIndex + 1} / {lesson.blocks.length}</span>
         </div>
 
-        <div className="student-preview-device" lang={lesson.language}>
+        <div className="student-preview-device">
           <div className="student-preview-device-head">
-            <div><span className="student-preview-name">Syllonaut</span><strong>{lesson.title}</strong></div>
+            <div><span className="student-preview-name">Syllonaut</span><strong lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.title}</strong></div>
             <span>{studentPreviewIndex + 1}/{lesson.blocks.length}</span>
           </div>
           <div
@@ -123,7 +123,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
           >
             <div className="student-progress-fill" style={{ width: `${studentProgress}%` }} />
           </div>
-          {studentBlock ? <Block block={studentBlock} index={studentPreviewIndex} teacherMode={false} selected={false} onSelect={() => {}} english={english} /> : null}
+          {studentBlock ? <Block block={studentBlock} index={studentPreviewIndex} teacherMode={false} selected={false} onSelect={() => {}} english={english} contentLanguage={lesson.language} /> : null}
           <div className="student-preview-nav">
             <button type="button" className="secondary" disabled={studentPreviewIndex === 0} onClick={() => setStudentPreviewIndex((index) => Math.max(0, index - 1))}>← {english ? 'Previous' : 'Předchozí'}</button>
             <button type="button" className="primary" disabled={studentPreviewIndex >= lesson.blocks.length - 1} onClick={() => setStudentPreviewIndex((index) => Math.min(lesson.blocks.length - 1, index + 1))}>{english ? 'Next' : 'Další'} →</button>
@@ -135,10 +135,10 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
 
   return (
     <div className="preview">
-      <div className="preview-header" lang={lesson.language}>
+      <div className="preview-header">
         <span className="eyebrow">{english ? 'Teacher preview' : 'Učitelský náhled'}</span>
-        <h2>{lesson.title}</h2>
-        {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
+        <h2 lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.title}</h2>
+        {lesson.subtitle ? <p lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.subtitle}</p> : null}
         <div className="meta"><span>{lesson.audience}</span><span>{lesson.groupSize}</span><span>{sum} min</span><span>{lesson.blocks.length} {english ? 'activities' : 'aktivit'}</span></div>
       </div>
 
@@ -178,8 +178,8 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
         ))}
       </div>
 
-      <div className="objectives"><strong>{english ? 'After the lesson, students will be able to:' : 'Po lekci studenti zvládnou:'}</strong><ul>{lesson.learningObjectives.map((o) => <li key={o}>{o}</li>)}</ul></div>
-      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} onSelect={() => onSelectBlock(block.id)} startMinute={starts[index]} english={english} />)}</div>
+      <div className="objectives"><strong>{english ? 'After the lesson, students will be able to:' : 'Po lekci studenti zvládnou:'}</strong><ul>{lesson.learningObjectives.map((o) => <li key={o} lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{o}</li>)}</ul></div>
+      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} onSelect={() => onSelectBlock(block.id)} startMinute={starts[index]} english={english} contentLanguage={lesson.language} />)}</div>
     </div>
   );
 }

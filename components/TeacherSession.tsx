@@ -464,7 +464,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         <div style={{ display: 'grid', gap: 14 }}>
           <section className="panel">
             <span className="eyebrow">{ui('Startovní zóna', 'Starting area')}</span>
-            <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
+            <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
             <p className="muted-copy">{ui('Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.', 'Students can join even after the lesson starts. The code stops working only when the lesson ends.')}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
               <div style={{ flex: '1 1 260px', minWidth: 0 }}>
@@ -527,7 +527,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <div className="live-control-layout">
               <div>
                 <span className="eyebrow"><span className="live-status-dot" aria-hidden="true" />{ui('Mise probíhá', 'Lesson in progress')}</span>
-                <h1 style={{ marginBottom: 8 }}>{session.lessonSnapshot.title}</h1>
+                <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
                 <p className="muted-copy">{ui('Blok', 'Block')} {activeIndex + 1} {ui('z', 'of')} {session.lessonSnapshot.blocks.length} · {session.participants.length} {english ? 'students' : 'studentů'}</p>
               </div>
               <div className="live-control-actions">
@@ -562,7 +562,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
           <div className={hasResponsePanel ? 'live-main-grid' : 'live-main-grid live-main-grid-single'}>
             <div className="live-current-column">
-              {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} /> : <div className="error" role="alert">{ui('Aktuální blok se nepodařilo najít ve snapshotu.', 'The current block could not be found in the lesson snapshot.')}</div>}
+              {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} contentLanguage={session.lessonSnapshot.language} /> : <div className="error" role="alert">{ui('Aktuální blok se nepodařilo najít ve snapshotu.', 'The current block could not be found in the lesson snapshot.')}</div>}
 
               {activeBlock?.type === 'timer' && session.timer ? (
                 <>

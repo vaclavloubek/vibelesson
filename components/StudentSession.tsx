@@ -27,6 +27,7 @@ type StudentState = {
   sessionId: string;
   status: SessionStatus;
   title: string;
+  lessonLanguage: string | null;
   participantDisplayName: string;
   activeBlock: PublicLessonBlock | null;
   activeBlockIndex: number | null;
@@ -104,6 +105,9 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       title: typeof snapshot.lessonSnapshot?.title === 'string'
         ? snapshot.lessonSnapshot.title
         : current?.title ?? ui('Hodina', 'Lesson'),
+      lessonLanguage: typeof snapshot.lessonSnapshot?.language === 'string'
+        ? snapshot.lessonSnapshot.language
+        : current?.lessonLanguage ?? null,
       participantDisplayName: participant?.displayName ?? current?.participantDisplayName ?? 'Student',
       activeBlock,
       activeBlockIndex: activeBlockIndex >= 0 ? activeBlockIndex : null,
@@ -269,7 +273,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
         <div style={{ display: 'grid', gap: 12 }}>
           <section className="panel" style={{ textAlign: 'center' }}>
             <span className="eyebrow">{ui('Startovní zóna', 'Starting area')}</span>
-            <h1>{state.title}</h1>
+            <h1 lang={state.lessonLanguage ?? undefined} dir={state.lessonLanguage ? 'auto' : undefined}>{state.title}</h1>
             <p className="muted-copy">{ui('Jsi připojen jako', 'You are connected as')} <strong>{state.participantDisplayName}</strong>. {ui('Čekáme, až učitel hodinu odstartuje.', 'Waiting for the teacher to start the lesson.')}</p>
           </section>
           <TeamPicker
@@ -289,7 +293,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               <span>{state.participantDisplayName}{state.myTeam ? ` · ${state.myTeam.name}` : ''}</span>
               <strong>{currentBlockNumber} / {state.totalBlocks}</strong>
             </div>
-            <h1 className="student-session-title">{state.title}</h1>
+            <h1 className="student-session-title" lang={state.lessonLanguage ?? undefined} dir={state.lessonLanguage ? 'auto' : undefined}>{state.title}</h1>
             <div
               className="student-progress-track"
               role="progressbar"
@@ -341,6 +345,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                 block={state.activeBlock}
                 hideOptions={state.activeBlock.type === 'poll' || state.activeBlock.type === 'quiz'}
                 hideItems={state.activeBlock.type === 'ranking'}
+                contentLanguage={state.lessonLanguage}
               />
 
               {state.activeBlock.type === 'timer' && state.timer ? <LiveTimer timer={state.timer} label={ui('Společný čas', 'Shared timer')} /> : null}
@@ -369,6 +374,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                   block={state.activeBlock}
                   response={state.myResponse}
                   responseSubmitted={state.myResponseSubmitted ?? false}
+                  contentLanguage={state.lessonLanguage}
                   onSaved={(answer, submittedCurrent) => setState((current) => current ? {
                     ...current,
                     myResponse: answer,

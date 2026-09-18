@@ -13,6 +13,7 @@ type Props = {
   block: PublicLessonBlock;
   response: StudentAnswer | null;
   responseSubmitted: boolean;
+  contentLanguage?: string | null;
   onSaved: (answer: StudentAnswer, submittedCurrent?: boolean) => void;
 };
 
@@ -35,7 +36,7 @@ function sameAnswer(left: StudentAnswer, right: StudentAnswer) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export default function StudentResponseInput({ sessionId, block, response, responseSubmitted, onSaved }: Props) {
+export default function StudentResponseInput({ sessionId, block, response, responseSubmitted, contentLanguage = null, onSaved }: Props) {
   const english = useUiLocale() === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const initialText = response && 'text' in response ? response.text ?? '' : '';
@@ -197,6 +198,8 @@ export default function StudentResponseInput({ sessionId, block, response, respo
                 disabled={busy}
                 onClick={() => void save({ choice: option })}
                 style={{ textAlign: 'left', justifyContent: 'flex-start', whiteSpace: 'normal', height: 'auto', minHeight: 48 }}
+                lang={contentLanguage ?? undefined}
+                dir={contentLanguage ? 'auto' : undefined}
               >
                 {option}
               </button>
@@ -251,7 +254,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
                     key={item}
                   >
                     <strong className="ranking-position">{index + 1}.</strong>
-                    <span className="ranking-copy">{item}</span>
+                    <span className="ranking-copy" lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{item}</span>
                     <div className="ranking-controls">
                       <button type="button" className="secondary" aria-label={english ? `Move ${item} up` : `Posunout ${item} nahoru`} disabled={busy || index === 0} onClick={() => move(index, -1)}>↑</button>
                       <button type="button" className="secondary" aria-label={english ? `Move ${item} down` : `Posunout ${item} dolů`} disabled={busy || index === ranking.length - 1} onClick={() => move(index, 1)}>↓</button>
