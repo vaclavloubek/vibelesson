@@ -15,6 +15,8 @@ export type LiveControlAccess = {
   url: string;
   token: string;
   expiresAt: string;
+  role: Role;
+  subject: string;
 };
 
 export type LiveControlSnapshot = {
@@ -70,6 +72,8 @@ export function mintLiveCapability(input: LiveCapabilityInput): LiveControlAcces
     url: current.url,
     token: `${payloadPart}.${signature}`,
     expiresAt: new Date(exp * 1000).toISOString(),
+    role: input.role,
+    subject: input.subject,
   };
 }
 
