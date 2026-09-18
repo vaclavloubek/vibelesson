@@ -17,6 +17,7 @@ import {
 } from '@/lib/live-control-client';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 type PresenterBlock = {
   id: string;
@@ -62,17 +63,18 @@ const presenterBlockTypes = new Set<PresenterBlock['type']>([
   'exit_ticket',
 ]);
 
-const blockLabels: Record<PresenterBlock['type'], string> = {
-  intro: 'Úvod',
-  team_task: 'Týmový úkol',
-  poll: 'Hlasování',
-  quiz: 'Kvíz',
-  open_text: 'Otevřená odpověď',
-  ranking: 'Seřazení',
-  reveal: 'Odhalení',
-  timer: 'Časový blok',
-  exit_ticket: 'Exit ticket',
-};
+const blockLabels = {
+  cs: {
+    intro: 'Úvod', team_task: 'Týmový úkol', poll: 'Hlasování', quiz: 'Kvíz',
+    open_text: 'Otevřená odpověď', ranking: 'Seřazení', reveal: 'Odhalení',
+    timer: 'Časový blok', exit_ticket: 'Exit ticket',
+  },
+  en: {
+    intro: 'Introduction', team_task: 'Team task', poll: 'Poll', quiz: 'Quiz',
+    open_text: 'Open response', ranking: 'Ranking', reveal: 'Reveal',
+    timer: 'Timed block', exit_ticket: 'Exit ticket',
+  },
+} satisfies Record<'cs' | 'en', Record<PresenterBlock['type'], string>>;
 
 function formatTime(totalSeconds: number) {
   const safe = Math.max(0, totalSeconds);
@@ -88,7 +90,7 @@ function currentTimerSeconds(timer: PresenterTimer | null, nowMs: number) {
   return Math.max(0, timer.remainingSeconds - elapsed);
 }
 
-function parsePresenterBlock(raw: Record<string, unknown> | null): PresenterBlock | null {
+function parsePresenterBlock(raw: Record<string, unknown> | null, english: boolean): PresenterBlock | null {
   if (!raw || typeof raw.id !== 'string' || typeof raw.type !== 'string' || !presenterBlockTypes.has(raw.type as PresenterBlock['type'])) {
     return null;
   }
@@ -96,7 +98,7 @@ function parsePresenterBlock(raw: Record<string, unknown> | null): PresenterBloc
   return {
     id: raw.id,
     type: raw.type as PresenterBlock['type'],
-    title: typeof raw.title === 'string' ? raw.title : 'Aktivita',
+    title: typeof raw.title === 'string' ? raw.title : (english ? 'Activity' : 'Aktivita'),
     durationMinutes: typeof raw.durationMinutes === 'number' ? raw.durationMinutes : 0,
     instructions: typeof raw.instructions === 'string' ? raw.instructions : '',
     options: Array.isArray(raw.options) ? raw.options.filter((item): item is string => typeof item === 'string') : null,
@@ -105,7 +107,7 @@ function parsePresenterBlock(raw: Record<string, unknown> | null): PresenterBloc
   };
 }
 
-function presenterFromLiveControl(live: LiveControlState): PresenterData {
+function presenterFromLiveControl(live: LiveControlState, english: boolean): PresenterData {
   const snapshot = live.snapshot;
   const rawLesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
     ? snapshot.lessonSnapshot as { title?: unknown; blocks?: Array<Record<string, unknown>> }
@@ -114,7 +116,7 @@ function presenterFromLiveControl(live: LiveControlState): PresenterData {
   const activeBlockIndex = snapshot.activeBlockId
     ? blocks.findIndex((block) => block.id === snapshot.activeBlockId)
     : -1;
-  const activeBlock = parsePresenterBlock(activeBlockIndex >= 0 ? blocks[activeBlockIndex] : null);
+  const activeBlock = parsePresenterBlock(activeBlockIndex >= 0 ? blocks[activeBlockIndex] : null, english);
 
   let submission: PresenterData['submission'] = null;
   if (activeBlock && ['quiz', 'poll', 'open_text', 'ranking', 'exit_ticket', 'team_task'].includes(activeBlock.type)) {
@@ -158,7 +160,7 @@ function presenterFromLiveControl(live: LiveControlState): PresenterData {
 
   return {
     status: snapshot.status,
-    title: typeof rawLesson.title === 'string' ? rawLesson.title : 'Hodina',
+    title: typeof rawLesson.title === 'string' ? rawLesson.title : (english ? 'Lesson' : 'Hodina'),
     realtimeKey: '',
     joinCode: snapshot.joinCode ?? '',
     participantCount: snapshot.participants.length,
@@ -171,6 +173,9 @@ function presenterFromLiveControl(live: LiveControlState): PresenterData {
 }
 
 export default function PresenterMode({ sessionId }: { sessionId: string }) {
+  const locale = useUiLocale();
+  const english = locale === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [data, setData] = useState<PresenterData | null>(null);
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('');
@@ -210,7 +215,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
     const live = await fetchLiveControlState(sessionId, 'teacher');
     if (!live) return false;
 
-    const recoveredData = presenterFromLiveControl(live);
+    const recoveredData = presenterFromLiveControl(live, english);
     if (!presenterOpenedTrackedRef.current) {
       presenterOpenedTrackedRef.current = true;
       trackEvent('presenter_opened', { session_state: recoveredData.status });
@@ -219,7 +224,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
     setConnectionMode('fallback');
     setError('');
     return true;
-  }, [ensureLiveAccess, sessionId]);
+  }, [english, ensureLiveAccess, sessionId]);
 
   const load = useCallback(async () => {
     try {
@@ -229,7 +234,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
         5_000,
       );
       const body = await response.json() as PresenterData & { error?: string };
-      if (!response.ok) throw new Error(body.error || 'Prezentační režim se nepodařilo načíst.');
+      if (!response.ok) throw new Error(body.error || ui('Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.'));
       if (!presenterOpenedTrackedRef.current) {
         presenterOpenedTrackedRef.current = true;
         trackEvent('presenter_opened', { session_state: body.status });
@@ -240,10 +245,10 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
     } catch {
       const recovered = await loadFallback();
       if (!recovered) {
-        setError('Projekci se nepodařilo spojit s primární ani záložní live službou. Syllonaut to zkusí znovu automaticky.');
+        setError(ui('Projekci se nepodařilo spojit s primární ani záložní live službou. Syllonaut to zkusí znovu automaticky.', 'The projection could not connect to either the primary or backup live service. Syllonaut will retry automatically.'));
       }
     }
-  }, [loadFallback, sessionId]);
+  }, [loadFallback, sessionId, ui]);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -316,49 +321,49 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
           <span>Syllonaut</span>
         </div>
         <div className={styles.meta}>
-          <span>{data?.status === 'live' ? 'Mise probíhá' : data?.status === 'ended' ? 'Mise dokončena' : 'Startovní zóna'}</span>
-          <span>{connectionMode === 'fallback' ? 'Záložní spojení' : 'Presenter'}</span>
+          <span>{data?.status === 'live' ? ui('Mise probíhá', 'Lesson in progress') : data?.status === 'ended' ? ui('Mise dokončena', 'Lesson completed') : ui('Startovní zóna', 'Starting area')}</span>
+          <span>{connectionMode === 'fallback' ? ui('Záložní spojení', 'Backup connection') : 'Presenter'}</span>
         </div>
       </header>
 
       {error ? (
         <section className={styles.centerState} role="alert">
-          <h1>Projekci se nepodařilo načíst</h1>
+          <h1>{ui('Projekci se nepodařilo načíst', 'Projection could not be loaded')}</h1>
           <p>{error}</p>
-          <button type="button" onClick={() => void load()}>Zkusit znovu</button>
+          <button type="button" onClick={() => void load()}>{ui('Zkusit znovu', 'Try again')}</button>
         </section>
       ) : null}
 
       {!data && !error ? (
         <section className={styles.centerState}>
-          <h1>Připravuji projekci…</h1>
+          <h1>{ui('Připravuji projekci…', 'Preparing projection…')}</h1>
         </section>
       ) : null}
 
       {data?.status === 'ended' && connectionMode === 'fallback' && !error ? (
         <section className={styles.centerState} role="status">
-          <h1>Hodina skončila</h1>
-          <p>Konečné pořadí se zobrazí automaticky po obnovení primárního spojení.</p>
+          <h1>{ui('Hodina skončila', 'The lesson has ended')}</h1>
+          <p>{ui('Konečné pořadí se zobrazí automaticky po obnovení primárního spojení.', 'The final ranking will appear automatically when the primary connection is restored.')}</p>
         </section>
       ) : null}
 
       {data?.status === 'lobby' && !error ? (
         <section className={styles.lobby}>
           <div className={styles.lobbyIntro}>
-            <p className={styles.kicker}>Připojte se k hodině</p>
+            <p className={styles.kicker}>{ui('Připojte se k hodině', 'Join the lesson')}</p>
             <h1>{data.title}</h1>
-            <p>Naskenujte QR kód, nebo otevřete adresu a zadejte kód hodiny.</p>
+            <p>{ui('Naskenujte QR kód, nebo otevřete adresu a zadejte kód hodiny.', 'Scan the QR code, or open the address and enter the lesson code.')}</p>
           </div>
           <div className={styles.joinPanel}>
             <div className={styles.qrWrap}>
-              {joinUrl ? <QRCode value={joinUrl} size={272} level="M" title="QR kód pro připojení k hodině" /> : null}
+              {joinUrl ? <QRCode value={joinUrl} size={272} level="M" title={ui('QR kód pro připojení k hodině', 'QR code to join the lesson')} /> : null}
             </div>
             <div className={styles.joinDetails}>
-              <span className={styles.detailLabel}>Adresa</span>
+              <span className={styles.detailLabel}>{ui('Adresa', 'Address')}</span>
               <strong className={styles.joinLink}>{shortJoinUrl}</strong>
-              <span className={styles.detailLabel}>Kód hodiny</span>
+              <span className={styles.detailLabel}>{ui('Kód hodiny', 'Lesson code')}</span>
               <strong className={styles.joinCode}>{data.joinCode}</strong>
-              <div className={styles.joinCount}><strong>{data.participantCount}</strong><span>připojeno</span></div>
+              <div className={styles.joinCount}><strong>{data.participantCount}</strong><span>{ui('připojeno', 'connected')}</span></div>
             </div>
           </div>
         </section>
@@ -368,12 +373,12 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
         <section className={styles.liveStage}>
           <div className={styles.lessonTopline}>
             <div>
-              <p className={styles.kicker}>{block ? blockLabels[block.type] : 'Aktuální aktivita'}</p>
-              <p className={styles.progress}>Blok {data.activeBlockIndex + 1} z {data.blockCount}</p>
+              <p className={styles.kicker}>{block ? blockLabels[locale][block.type] : ui('Aktuální aktivita', 'Current activity')}</p>
+              <p className={styles.progress}>{ui('Blok', 'Block')} {data.activeBlockIndex + 1} {ui('z', 'of')} {data.blockCount}</p>
             </div>
             <div className={styles.liveMeta}>
               {data.submission ? (
-                <span><strong>{data.submission.submitted}</strong> / {data.submission.total} {data.submission.unit === 'team' ? 'týmů odevzdalo' : 'odevzdalo'}</span>
+                <span><strong>{data.submission.submitted}</strong> / {data.submission.total} {data.submission.unit === 'team' ? ui('týmů odevzdalo', 'teams submitted') : ui('odevzdalo', 'submitted')}</span>
               ) : null}
               {block ? <span>{block.durationMinutes} min</span> : null}
             </div>
@@ -404,20 +409,20 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
               ) : null}
 
               {['quiz', 'poll', 'open_text', 'ranking', 'exit_ticket', 'team_task'].includes(block.type) ? (
-                <p className={styles.deviceHint}>Odpovězte ve svém telefonu.</p>
+                <p className={styles.deviceHint}>{ui('Odpovězte ve svém telefonu.', 'Answer on your phone.')}</p>
               ) : null}
             </article>
           ) : (
-            <section className={styles.centerState}><h1>Čekám na další aktivitu…</h1></section>
+            <section className={styles.centerState}><h1>{ui('Čekám na další aktivitu…', 'Waiting for the next activity…')}</h1></section>
           )}
         </section>
       ) : null}
 
       {data?.status === 'live' && !error ? (
         <footer className={styles.joinDock}>
-          <span>Připojit se: <strong>{shortJoinUrl}</strong></span>
-          <span>Kód <strong>{data.joinCode}</strong></span>
-          <span>{data.participantCount} připojeno</span>
+          <span>{ui('Připojit se', 'Join')}: <strong>{shortJoinUrl}</strong></span>
+          <span>{ui('Kód', 'Code')} <strong>{data.joinCode}</strong></span>
+          <span>{data.participantCount} {ui('připojeno', 'connected')}</span>
         </footer>
       ) : null}
     </main>
