@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LessonActions from './LessonActions';
+import { useUiLocale } from '@/components/LocaleProvider';
 import { bucketItemCount, trackEvent } from '@/lib/analytics';
 import styles from './LessonLibrary.module.css';
 
@@ -40,8 +41,8 @@ type MoveDialogState = {
 
 const MOVE_DIALOG_TITLE_ID = 'move-dialog-title';
 
-function formatUpdatedAt(value: string) {
-  return new Intl.DateTimeFormat('cs-CZ', {
+function formatUpdatedAt(value: string, locale: 'cs' | 'en') {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'cs-CZ', {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'Europe/Prague',
@@ -50,6 +51,9 @@ function formatUpdatedAt(value: string) {
 
 export default function LessonLibrary({ lessons, folders, canManageFolders }: Props) {
   const router = useRouter();
+  const locale = useUiLocale();
+  const english = locale === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [scope, setScope] = useState<Scope>('all');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
@@ -104,7 +108,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
   }, [busy, moveDialog]);
 
   const roots = useMemo(
-    () => folders.filter((folder) => !folder.parentId).sort((a, b) => a.name.localeCompare(b.name, 'cs')),
+    () => folders.filter((folder) => !folder.parentId).sort((a, b) => a.name.localeCompare(b.name, locale)),
     [folders],
   );
   const childrenByParent = useMemo(() => {
@@ -115,9 +119,9 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
       list.push(folder);
       map.set(folder.parentId, list);
     }
-    for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, 'cs'));
+    for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, locale));
     return map;
-  }, [folders]);
+  }, [folders, locale]);
 
   const visibleLessons = useMemo(() => {
     if (!canManageFolders || scope === 'all') return lessons;
@@ -139,13 +143,15 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
   async function requestJson(url: string, init: RequestInit) {
     const res = await fetch(url, init);
     const data = await res.json() as { error?: string };
-    if (!res.ok) throw new Error(data.error || 'Operace se nepodařila.');
+    if (!res.ok) throw new Error(data.error || ui('Operace se nepodařila.', 'The operation failed.'));
     return data;
   }
 
   async function createFolder(parentId: string | null) {
     const parent = parentId ? folders.find((folder) => folder.id === parentId) : null;
-    const name = window.prompt(parent ? `Název podsložky ve „${parent.name}“:` : 'Název nové složky:')?.trim();
+    const name = window.prompt(parent
+      ? (english ? `Subfolder name in “${parent.name}”:` : `Název podsložky ve „${parent.name}“:`)
+      : ui('Název nové složky:', 'New folder name:'))?.trim();
     if (!name) return;
     setBusy(true);
     setError('');
@@ -158,14 +164,14 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
       trackEvent('folder_created');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Složku se nepodařilo vytvořit.');
+      setError(err instanceof Error ? err.message : ui('Složku se nepodařilo vytvořit.', 'The folder could not be created.'));
     } finally {
       setBusy(false);
     }
   }
 
   async function renameFolder(folder: LessonFolderItem) {
-    const name = window.prompt('Nový název složky:', folder.name)?.trim();
+    const name = window.prompt(ui('Nový název složky:', 'New folder name:'), folder.name)?.trim();
     if (!name || name === folder.name) return;
     setBusy(true);
     setError('');
@@ -177,7 +183,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
       });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Složku se nepodařilo přejmenovat.');
+      setError(err instanceof Error ? err.message : ui('Složku se nepodařilo přejmenovat.', 'The folder could not be renamed.'));
     } finally {
       setBusy(false);
     }
@@ -185,10 +191,12 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
   async function deleteFolder(folder: LessonFolderItem) {
     if ((childrenByParent.get(folder.id) ?? []).length) {
-      setError('Nejdřív smaž podsložky. Smazání nadřazené složky se záměrně neprovádí automaticky.');
+      setError(ui('Nejdřív smaž podsložky. Smazání nadřazené složky se záměrně neprovádí automaticky.', 'Delete the subfolders first. Parent folders are intentionally not deleted automatically.'));
       return;
     }
-    if (!window.confirm(`Smazat složku „${folder.name}“? Lekce se nesmažou, přesunou se do „Bez složky“.`)) return;
+    if (!window.confirm(english
+      ? `Delete folder “${folder.name}”? Lessons will not be deleted; they will move to “Unfiled”.`
+      : `Smazat složku „${folder.name}“? Lekce se nesmažou, přesunou se do „Bez složky“.`)) return;
     setBusy(true);
     setError('');
     try {
@@ -196,7 +204,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
       if (scope === folder.id) setScope('unfiled');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Složku se nepodařilo smazat.');
+      setError(err instanceof Error ? err.message : ui('Složku se nepodařilo smazat.', 'The folder could not be deleted.'));
     } finally {
       setBusy(false);
     }
@@ -222,7 +230,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
       if (selectionMode) setSelectionMode(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lekce se nepodařilo přesunout.');
+      setError(err instanceof Error ? err.message : ui('Lekce se nepodařilo přesunout.', 'The lesson could not be moved.'));
     } finally {
       setBusy(false);
     }
@@ -244,7 +252,9 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
     setError('');
     setMoveDialog({
       lessonIds: selectedLessonIds,
-      label: `${selectedLessonIds.length} ${selectedLessonIds.length === 1 ? 'lekce' : selectedLessonIds.length < 5 ? 'lekce' : 'lekcí'}`,
+      label: english
+        ? `${selectedLessonIds.length} ${selectedLessonIds.length === 1 ? 'lesson' : 'lessons'}`
+        : `${selectedLessonIds.length} ${selectedLessonIds.length === 1 ? 'lekce' : selectedLessonIds.length < 5 ? 'lekce' : 'lekcí'}`,
     });
   }
 
@@ -287,13 +297,13 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
   function renderFolderNavigation() {
     return (
-      <nav className={styles.folderNavigation} aria-label="Složky lekcí">
+      <nav className={styles.folderNavigation} aria-label={ui('Složky lekcí', 'Lesson folders')}>
         <div className={styles.folderNavTop}>
-          <strong>Složky</strong>
-          <button type="button" onClick={() => createFolder(null)} disabled={busy}>+ Složka</button>
+          <strong>{ui('Složky', 'Folders')}</strong>
+          <button type="button" onClick={() => createFolder(null)} disabled={busy}>+ {ui('Složka', 'Folder')}</button>
         </div>
         <button type="button" aria-pressed={scope === 'all'} className={scope === 'all' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('all')}>
-          <span>Všechny lekce</span><small>{lessons.length}</small>
+          <span>{ui('Všechny lekce', 'All lessons')}</span><small>{lessons.length}</small>
         </button>
         <button
           type="button"
@@ -304,7 +314,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
           onDragLeave={() => setDropTarget(null)}
           onDrop={(event) => dropLesson(event, null)}
         >
-          <span>Bez složky</span><small>{lessonCount(null)}</small>
+          <span>{ui('Bez složky', 'Unfiled')}</span><small>{lessonCount(null)}</small>
         </button>
         <div className={styles.folderTree}>
           {roots.map((root) => (
@@ -319,9 +329,9 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
                   <span>{root.name}</span><small>{lessonCount(root.id)}</small>
                 </button>
                 <div className={styles.folderActions}>
-                  <button type="button" title="Přidat podsložku" aria-label={`Přidat podsložku do ${root.name}`} onClick={() => createFolder(root.id)} disabled={busy}>+</button>
-                  <button type="button" title="Přejmenovat" aria-label={`Přejmenovat složku ${root.name}`} onClick={() => renameFolder(root)} disabled={busy}>✎</button>
-                  <button type="button" title="Smazat" aria-label={`Smazat složku ${root.name}`} onClick={() => deleteFolder(root)} disabled={busy}>×</button>
+                  <button type="button" title={ui('Přidat podsložku', 'Add subfolder')} aria-label={english ? `Add subfolder to ${root.name}` : `Přidat podsložku do ${root.name}`} onClick={() => createFolder(root.id)} disabled={busy}>+</button>
+                  <button type="button" title={ui('Přejmenovat', 'Rename')} aria-label={english ? `Rename folder ${root.name}` : `Přejmenovat složku ${root.name}`} onClick={() => renameFolder(root)} disabled={busy}>✎</button>
+                  <button type="button" title={ui('Smazat', 'Delete')} aria-label={english ? `Delete folder ${root.name}` : `Smazat složku ${root.name}`} onClick={() => deleteFolder(root)} disabled={busy}>×</button>
                 </div>
               </div>
               {(childrenByParent.get(root.id) ?? []).map((child) => (
@@ -336,15 +346,15 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
                     <span>{child.name}</span><small>{lessonCount(child.id)}</small>
                   </button>
                   <div className={styles.folderActions}>
-                    <button type="button" title="Přejmenovat" aria-label={`Přejmenovat složku ${child.name}`} onClick={() => renameFolder(child)} disabled={busy}>✎</button>
-                    <button type="button" title="Smazat" aria-label={`Smazat složku ${child.name}`} onClick={() => deleteFolder(child)} disabled={busy}>×</button>
+                    <button type="button" title={ui('Přejmenovat', 'Rename')} aria-label={english ? `Rename folder ${child.name}` : `Přejmenovat složku ${child.name}`} onClick={() => renameFolder(child)} disabled={busy}>✎</button>
+                    <button type="button" title={ui('Smazat', 'Delete')} aria-label={english ? `Delete folder ${child.name}` : `Smazat složku ${child.name}`} onClick={() => deleteFolder(child)} disabled={busy}>×</button>
                   </div>
                 </div>
               ))}
             </div>
           ))}
         </div>
-        {lessons.length > 0 ? <p className={styles.dragHint}>Na počítači můžeš lekci přetáhnout přímo do složky. Stejný přesun je vždy dostupný i přes nabídku lekce „Přesunout do…“.</p> : null}
+        {lessons.length > 0 ? <p className={styles.dragHint}>{ui('Na počítači můžeš lekci přetáhnout přímo do složky. Stejný přesun je vždy dostupný i přes nabídku lekce „Přesunout do…“.', 'On desktop, you can drag a lesson directly into a folder. The same move is always available from the lesson menu via “Move to…”.')}</p> : null}
       </nav>
     );
   }
@@ -355,8 +365,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         {lessons.map((lesson) => (
           <article className="lesson-card" key={lesson.id}>
             <div className="lesson-card-top"><div><Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>{lesson.subtitle ? <p>{lesson.subtitle}</p> : null}</div><LessonActions lessonId={lesson.id} title={lesson.title} /></div>
-            <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} aktivit</span></div>
-            <div className="lesson-card-footer"><span>Upraveno {formatUpdatedAt(lesson.updatedAt)}</span><Link href={`/lessons/${lesson.id}`} className="auth-link">Otevřít</Link></div>
+            <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
+            <div className="lesson-card-footer"><span>{ui('Upraveno', 'Updated')} {formatUpdatedAt(lesson.updatedAt, locale)}</span><Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link></div>
           </article>
         ))}
       </section>
@@ -368,27 +378,27 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
       <aside className={styles.sidebar}>{renderFolderNavigation()}</aside>
       <div className={styles.libraryMain}>
         <details className={styles.mobileFolders}>
-          <summary>Složky</summary>
+          <summary>{ui('Složky', 'Folders')}</summary>
           {renderFolderNavigation()}
         </details>
 
         <div className={styles.libraryToolbar}>
           <div>
-            <span className="eyebrow">{activeFolder ? 'Vybraná složka' : scope === 'unfiled' ? 'Bez složky' : 'Knihovna'}</span>
-            <h2>{activeFolder?.name ?? (scope === 'unfiled' ? 'Bez složky' : 'Všechny lekce')}</h2>
+            <span className="eyebrow">{activeFolder ? ui('Vybraná složka', 'Selected folder') : scope === 'unfiled' ? ui('Bez složky', 'Unfiled') : ui('Knihovna', 'Library')}</span>
+            <h2>{activeFolder?.name ?? (scope === 'unfiled' ? ui('Bez složky', 'Unfiled') : ui('Všechny lekce', 'All lessons'))}</h2>
           </div>
           <div className={styles.toolbarActions}>
             <button type="button" className="secondary" aria-pressed={selectionMode} onClick={() => { setSelectionMode((value) => !value); setSelectedLessonIds([]); }} disabled={busy}>
-              {selectionMode ? 'Hotovo' : 'Vybrat'}
+              {selectionMode ? ui('Hotovo', 'Done') : ui('Vybrat', 'Select')}
             </button>
-            <Link href={newLessonHref} className="primary button-link">{activeFolder ? '+ Nová lekce v této složce' : '+ Nová lekce'}</Link>
+            <Link href={newLessonHref} className="primary button-link">{activeFolder ? ui('+ Nová lekce v této složce', '+ New lesson in this folder') : ui('+ Nová lekce', '+ New lesson')}</Link>
           </div>
         </div>
 
         {selectionMode ? (
-          <div className={styles.bulkToolbar} role="group" aria-label="Hromadný přesun lekcí">
-            <strong>Vybráno: {selectedLessonIds.length}</strong>
-            <button type="button" className="secondary" onClick={openBulkMove} disabled={busy || selectedLessonIds.length === 0}>Přesunout do…</button>
+          <div className={styles.bulkToolbar} role="group" aria-label={ui('Hromadný přesun lekcí', 'Bulk lesson move')}>
+            <strong>{ui('Vybráno', 'Selected')}: {selectedLessonIds.length}</strong>
+            <button type="button" className="secondary" onClick={openBulkMove} disabled={busy || selectedLessonIds.length === 0}>{ui('Přesunout do…', 'Move to…')}</button>
           </div>
         ) : null}
 
@@ -396,8 +406,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
         {visibleLessons.length === 0 ? (
           <div className={`panel ${styles.emptyFolder}`}>
-            <h3>{lessons.length === 0 ? 'Zatím tu není žádná lekce' : 'Tahle složka je zatím prázdná'}</h3>
-            <p>{lessons.length === 0 ? 'Vytvoř první lekci nebo si nejdřív připrav strukturu složek.' : 'Přesuň sem existující lekce nebo vytvoř novou rovnou v této složce.'}</p>
+            <h3>{lessons.length === 0 ? ui('Zatím tu není žádná lekce', 'No lessons yet') : ui('Tahle složka je zatím prázdná', 'This folder is empty')}</h3>
+            <p>{lessons.length === 0 ? ui('Vytvoř první lekci nebo si nejdřív připrav strukturu složek.', 'Create your first lesson or prepare your folder structure first.') : ui('Přesuň sem existující lekce nebo vytvoř novou rovnou v této složce.', 'Move existing lessons here or create a new one directly in this folder.')}</p>
           </div>
         ) : (
           <div className="lesson-grid">
@@ -411,15 +421,15 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
               >
                 <div className="lesson-card-top">
                   <div className={styles.cardTitleWrap}>
-                    {selectionMode ? <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={() => toggleLesson(lesson.id)} aria-label={`Vybrat lekci ${lesson.title}`} /> : null}
+                    {selectionMode ? <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={() => toggleLesson(lesson.id)} aria-label={english ? `Select lesson ${lesson.title}` : `Vybrat lekci ${lesson.title}`} /> : null}
                     <div><Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>{lesson.subtitle ? <p>{lesson.subtitle}</p> : null}</div>
                   </div>
                   <LessonActions lessonId={lesson.id} title={lesson.title} onMove={() => openSingleMove(lesson)} moveDisabled={selectionMode || busy} />
                 </div>
-                <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} aktivit</span></div>
+                <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
                 <div className={`lesson-card-footer ${styles.cardFooter}`}>
-                  <span>Upraveno {formatUpdatedAt(lesson.updatedAt)}</span>
-                  <Link href={`/lessons/${lesson.id}`} className="auth-link">Otevřít</Link>
+                  <span>{ui('Upraveno', 'Updated')} {formatUpdatedAt(lesson.updatedAt, locale)}</span>
+                  <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
                 </div>
               </article>
             ))}
@@ -439,11 +449,11 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
           >
             <div className={styles.dialogHeader}>
               <div>
-                <span className="eyebrow">Organizace knihovny</span>
-                <h3 id={MOVE_DIALOG_TITLE_ID}>Přesunout do…</h3>
+                <span className="eyebrow">{ui('Organizace knihovny', 'Library organization')}</span>
+                <h3 id={MOVE_DIALOG_TITLE_ID}>{ui('Přesunout do…', 'Move to…')}</h3>
                 <p>{moveDialog.label}</p>
               </div>
-              <button type="button" className={styles.dialogClose} aria-label="Zavřít dialog přesunu" onClick={closeMoveDialog} disabled={busy}>×</button>
+              <button type="button" className={styles.dialogClose} aria-label={ui('Zavřít dialog přesunu', 'Close move dialog')} onClick={closeMoveDialog} disabled={busy}>×</button>
             </div>
 
             <div className={styles.moveFolderList}>
@@ -453,8 +463,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
                 onClick={() => moveLessons(moveDialog.lessonIds, null)}
                 disabled={busy || isCurrentMoveTarget(null)}
               >
-                <span><strong>Bez složky</strong><small>{lessonCount(null)} lekcí</small></span>
-                {isCurrentMoveTarget(null) ? <em>Aktuálně</em> : <span aria-hidden="true">→</span>}
+                <span><strong>{ui('Bez složky', 'Unfiled')}</strong><small>{lessonCount(null)} {english ? 'lessons' : 'lekcí'}</small></span>
+                {isCurrentMoveTarget(null) ? <em>{ui('Aktuálně', 'Current')}</em> : <span aria-hidden="true">→</span>}
               </button>
 
               {roots.map((root) => (
@@ -466,10 +476,10 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
                       onClick={() => moveLessons(moveDialog.lessonIds, root.id)}
                       disabled={busy || isCurrentMoveTarget(root.id)}
                     >
-                      <span><strong>{root.name}</strong><small>{lessonCount(root.id)} lekcí</small></span>
-                      {isCurrentMoveTarget(root.id) ? <em>Aktuálně</em> : <span aria-hidden="true">→</span>}
+                      <span><strong>{root.name}</strong><small>{lessonCount(root.id)} {english ? 'lessons' : 'lekcí'}</small></span>
+                      {isCurrentMoveTarget(root.id) ? <em>{ui('Aktuálně', 'Current')}</em> : <span aria-hidden="true">→</span>}
                     </button>
-                    <button type="button" className={styles.addChildInDialog} onClick={() => createFolder(root.id)} disabled={busy} aria-label={`Přidat podsložku do ${root.name}`}>+</button>
+                    <button type="button" className={styles.addChildInDialog} onClick={() => createFolder(root.id)} disabled={busy} aria-label={english ? `Add subfolder to ${root.name}` : `Přidat podsložku do ${root.name}`}>+</button>
                   </div>
                   {(childrenByParent.get(root.id) ?? []).map((child) => (
                     <button
@@ -479,8 +489,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
                       disabled={busy || isCurrentMoveTarget(child.id)}
                       key={child.id}
                     >
-                      <span><strong>{child.name}</strong><small>v {root.name} · {lessonCount(child.id)} lekcí</small></span>
-                      {isCurrentMoveTarget(child.id) ? <em>Aktuálně</em> : <span aria-hidden="true">→</span>}
+                      <span><strong>{child.name}</strong><small>{english ? 'in' : 'v'} {root.name} · {lessonCount(child.id)} {english ? 'lessons' : 'lekcí'}</small></span>
+                      {isCurrentMoveTarget(child.id) ? <em>{ui('Aktuálně', 'Current')}</em> : <span aria-hidden="true">→</span>}
                     </button>
                   ))}
                 </div>
@@ -488,8 +498,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
             </div>
 
             <div className={styles.dialogFooter}>
-              <button type="button" className="secondary" onClick={() => createFolder(null)} disabled={busy}>+ Nová složka</button>
-              <button type="button" className="secondary" onClick={closeMoveDialog} disabled={busy}>Zrušit</button>
+              <button type="button" className="secondary" onClick={() => createFolder(null)} disabled={busy}>+ {ui('Nová složka', 'New folder')}</button>
+              <button type="button" className="secondary" onClick={closeMoveDialog} disabled={busy}>{ui('Zrušit', 'Cancel')}</button>
             </div>
           </div>
         </div>

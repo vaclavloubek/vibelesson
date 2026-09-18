@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import LessonLibrary, { type LessonFolderItem, type LessonListItem } from './LessonLibrary';
 import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
 import { APP_VERSION } from '@/lib/version';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -13,19 +16,19 @@ export const dynamic = 'force-dynamic';
 
 type Props = { searchParams?: Promise<{ signup?: string | string[] }> };
 
-function formatUpdatedAt(value: string) {
-  return new Intl.DateTimeFormat('cs-CZ', {
+function formatUpdatedAt(value: string, locale: 'cs' | 'en') {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'cs-CZ', {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'Europe/Prague',
   }).format(new Date(value));
 }
 
-function formatSessionDuration(startedAt: string | null, endedAt: string) {
-  if (!startedAt) return 'Délka neznámá';
+function formatSessionDuration(startedAt: string | null, endedAt: string, locale: 'cs' | 'en') {
+  if (!startedAt) return locale === 'en' ? 'Duration unknown' : 'Délka neznámá';
   const start = Date.parse(startedAt);
   const end = Date.parse(endedAt);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 'Délka neznámá';
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return locale === 'en' ? 'Duration unknown' : 'Délka neznámá';
   const minutes = Math.max(1, Math.round((end - start) / 60000));
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
@@ -34,12 +37,16 @@ function formatSessionDuration(startedAt: string | null, endedAt: string) {
 }
 
 export default async function LessonsPage({ searchParams }: Props) {
+  const requestHeaders = await headers();
+  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  const english = locale === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const params = await searchParams;
   const signupCompleted = params?.signup === 'completed';
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
-  if (!userId) redirect('/');
+  if (!userId) redirect(`/${locale}`);
 
   const entitlement = await getLessonFolderEntitlement(supabase, userId);
 
@@ -115,29 +122,29 @@ export default async function LessonsPage({ searchParams }: Props) {
     <main className="shell lessons-shell">
       {signupCompleted ? <SignupCompletedAnalytics /> : null}
       <header className="brand lessons-brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="dashboard-version-stack"><span className="beta">BETA</span><span className="dashboard-version">v{APP_VERSION}</span></span></div>
-        <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons" className="active">Moje lekce</Link></nav>
-        <div className="lessons-user">{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : 'Přihlášený učitel'}</div>
+        <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="dashboard-version-stack"><span className="beta">BETA</span><span className="dashboard-version">v{APP_VERSION}</span></span></div>
+        <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons" className="active">{ui('Moje lekce', 'My lessons')}</Link></nav>
+        <div className="lessons-user"><LocaleSwitcher />{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : ui('Přihlášený učitel', 'Signed-in teacher')}</div>
       </header>
 
       <section className="lessons-heading">
         <div>
-          <span className="eyebrow">Palubní deník</span>
-          <h1>Moje lekce</h1>
-          <p>{entitlement.enabled ? 'Uspořádej lekce podle škol, tříd nebo předmětů.' : 'Všechny připravené lekce se sem ukládají automaticky.'}</p>
+          <span className="eyebrow">{ui('Palubní deník', 'Logbook')}</span>
+          <h1>{ui('Moje lekce', 'My lessons')}</h1>
+          <p>{entitlement.enabled ? ui('Uspořádej lekce podle škol, tříd nebo předmětů.', 'Organize lessons by school, class or subject.') : ui('Všechny připravené lekce se sem ukládají automaticky.', 'All prepared lessons are saved here automatically.')}</p>
         </div>
-        <Link href="/new" className="primary button-link">+ Nová lekce</Link>
+        <Link href="/new" className="primary button-link">{ui('+ Nová lekce', '+ New lesson')}</Link>
       </section>
 
-      {error ? <div className="error">Lekce se nepodařilo načíst. Zkus stránku obnovit.</div> : null}
-      {foldersError ? <div className="error">Složky se nepodařilo načíst. Lekce zůstávají bezpečně uložené.</div> : null}
+      {error ? <div className="error">{ui('Lekce se nepodařilo načíst. Zkus stránku obnovit.', 'Lessons could not be loaded. Refresh the page and try again.')}</div> : null}
+      {foldersError ? <div className="error">{ui('Složky se nepodařilo načíst. Lekce zůstávají bezpečně uložené.', 'Folders could not be loaded. Your lessons remain safely stored.')}</div> : null}
 
       {!error && lessons.length === 0 && !canManageFolders ? (
         <section className="lessons-empty panel">
-          <span className="eyebrow">Začátek trasy</span>
-          <h2>Zatím tu nic není</h2>
-          <p>Vytvoř první lekci. Jakmile ji Syllonaut dokončí, uloží se sem automaticky.</p>
-          <Link href="/new" className="primary button-link">Vytvořit první lekci</Link>
+          <span className="eyebrow">{ui('Začátek trasy', 'Start of the route')}</span>
+          <h2>{ui('Zatím tu nic není', 'Nothing here yet')}</h2>
+          <p>{ui('Vytvoř první lekci. Jakmile ji Syllonaut dokončí, uloží se sem automaticky.', 'Create your first lesson. Syllonaut will save it here automatically when generation is complete.')}</p>
+          <Link href="/new" className="primary button-link">{ui('Vytvořit první lekci', 'Create your first lesson')}</Link>
         </section>
       ) : null}
 
@@ -147,19 +154,19 @@ export default async function LessonsPage({ searchParams }: Props) {
 
       <section className="lessons-heading" style={{ marginTop: 44 }}>
         <div>
-          <span className="eyebrow">Výsledky misí</span>
-          <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>Výsledky hodin</h2>
-          <p>Ukončené hodiny zůstávají dostupné nejdéle 12 měsíců. Report můžeš kdykoli smazat ručně; tím se nenávratně smažou i související studentská data.</p>
+          <span className="eyebrow">{ui('Výsledky misí', 'Mission results')}</span>
+          <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>{ui('Výsledky hodin', 'Lesson results')}</h2>
+          <p>{ui('Ukončené hodiny zůstávají dostupné nejdéle 12 měsíců. Report můžeš kdykoli smazat ručně; tím se nenávratně smažou i související studentská data.', 'Completed lesson reports remain available for up to 12 months. You can delete a report manually at any time; related student data will be permanently deleted as well.')}</p>
         </div>
       </section>
 
-      {sessionsError ? <div className="error">Historii výsledků se nepodařilo načíst. Zkus stránku obnovit.</div> : null}
+      {sessionsError ? <div className="error">{ui('Historii výsledků se nepodařilo načíst. Zkus stránku obnovit.', 'Result history could not be loaded. Refresh the page and try again.')}</div> : null}
 
       {!sessionsError && recentResults.length === 0 ? (
         <section className="lessons-empty panel">
-          <span className="eyebrow">Zatím bez výsledků</span>
-          <h2>První report vznikne po ukončení hodiny</h2>
-          <p>Jakmile ukončíš živou session, její výsledky se objeví tady.</p>
+          <span className="eyebrow">{ui('Zatím bez výsledků', 'No results yet')}</span>
+          <h2>{ui('První report vznikne po ukončení hodiny', 'Your first report appears after a lesson ends')}</h2>
+          <p>{ui('Jakmile ukončíš živou session, její výsledky se objeví tady.', 'When you end a live session, its results will appear here.')}</p>
         </section>
       ) : null}
 
@@ -178,15 +185,15 @@ export default async function LessonsPage({ searchParams }: Props) {
                 </div>
               </div>
               <div className="lesson-card-meta">
-                <span>Ukončeno {formatUpdatedAt(endedAt)}</span>
-                <span>{formatSessionDuration(startedAt, endedAt)}</span>
-                <span>Kód {joinCode}</span>
+                <span>{ui('Ukončeno', 'Ended')} {formatUpdatedAt(endedAt, locale)}</span>
+                <span>{formatSessionDuration(startedAt, endedAt, locale)}</span>
+                <span>{ui('Kód', 'Code')} {joinCode}</span>
               </div>
               <div className="lesson-card-footer">
                 <span>{lessonId ? 'Uložená session této lekce' : 'Historická session'}</span>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  {lessonId ? <Link href={`/lessons/${lessonId}`} className="auth-link">Lekce</Link> : null}
-                  <Link href={`/sessions/${id}`} className="auth-link">Otevřít výsledky</Link>
+                  {lessonId ? <Link href={`/lessons/${lessonId}`} className="auth-link">{ui('Lekce', 'Lesson')}</Link> : null}
+                  <Link href={`/sessions/${id}`} className="auth-link">{ui('Otevřít výsledky', 'Open results')}</Link>
                 </div>
               </div>
             </article>
