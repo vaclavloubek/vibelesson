@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import styles from '@/components/TeacherScoreboard.module.css';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { localizedApiError } from '@/lib/i18n';
 
 type ScoreSource = 'quiz' | 'ai' | 'teacher' | 'pending' | 'failed' | 'missing';
 
@@ -62,13 +63,13 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
     try {
       const response = await fetch(`/api/sessions/${sessionId}/scoreboard`, { cache: 'no-store' });
       const body = await response.json() as ScoreboardData & { error?: string };
-      if (!response.ok) throw new Error(body.error || ui('Skóre se nepodařilo načíst.', 'Scores could not be loaded.'));
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Skóre se nepodařilo načíst.', 'Scores could not be loaded.'));
       setData(body);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Skóre se nepodařilo načíst.', 'Scores could not be loaded.'));
     }
-  }, [sessionId]);
+  }, [english, sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +103,7 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
         body: JSON.stringify({ action: revealed ? 'reveal_scoreboard' : 'hide_scoreboard' }),
       });
       const body = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(body.error || ui('Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Viditelnost pořadí se nepodařilo změnit.', 'Scoreboard visibility could not be changed.'));

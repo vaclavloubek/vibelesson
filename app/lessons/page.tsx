@@ -190,7 +190,7 @@ export default async function LessonsPage({ searchParams }: Props) {
                 <span>{ui('Kód', 'Code')} {joinCode}</span>
               </div>
               <div className="lesson-card-footer">
-                <span>{lessonId ? 'Uložená session této lekce' : 'Historická session'}</span>
+                <span>{lessonId ? ui('Uložená session této lekce', 'Saved session for this lesson') : ui('Historická session', 'Historical session')}</span>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   {lessonId ? <Link href={`/lessons/${lessonId}`} className="auth-link">{ui('Lekce', 'Lesson')}</Link> : null}
                   <Link href={`/sessions/${id}`} className="auth-link">{ui('Otevřít výsledky', 'Open results')}</Link>
