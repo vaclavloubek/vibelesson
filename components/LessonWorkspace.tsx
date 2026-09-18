@@ -62,6 +62,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
   const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '');
   const [tone, setTone] = useState('');
+  const [lessonLanguage, setLessonLanguage] = useState('auto');
+  const [customLessonLanguage, setCustomLessonLanguage] = useState('');
   const [materialMode, setMaterialMode] = useState<MaterialMode>('primary');
   const [gradingStrictness, setGradingStrictness] = useState<GradingStrictness>(initialLesson?.gradingStrictness ?? 'neutral');
   const [aiGradingEnabled, setAiGradingEnabled] = useState(false);
@@ -192,6 +194,11 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       setError('Popiš hodinu nebo nahraj alespoň jeden podklad.');
       return;
     }
+    const requestedLessonLanguage = lessonLanguage === 'other' ? customLessonLanguage.trim() : lessonLanguage;
+    if (lessonLanguage === 'other' && requestedLessonLanguage.length < 2) {
+      setError('Napiš jazyk, ve kterém chceš lekci vytvořit.');
+      return;
+    }
     if (files.length > MATERIAL_MAX_FILES) {
       setError(`Nahraj nejvýše ${MATERIAL_MAX_FILES} souborů.`);
       return;
@@ -231,7 +238,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, gradingStrictness, materialMode, materials, folderId: initialFolderId }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, lessonLanguage: requestedLessonLanguage || 'auto', uiLocale: 'cs', gradingStrictness, materialMode, materials, folderId: initialFolderId }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -486,7 +493,22 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               {initialFolderId ? <p className="auth-hint">Nová lekce se po vytvoření uloží přímo do vybrané složky.</p> : null}
               <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
                 <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
+                <p className="auth-hint">Pište v jazyce, ve kterém chcete vytvořit lekci. Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.</p>
                 <div className="form-grid">
+                  <label>Jazyk lekce
+                    <select value={lessonLanguage} onChange={(event) => setLessonLanguage(event.target.value)} className="materials-mode-select">
+                      <option value="auto">Automaticky podle zadání</option>
+                      <option value="cs">Čeština</option>
+                      <option value="en">English</option>
+                      <option value="de">Deutsch</option>
+                      <option value="fr">Français</option>
+                      <option value="es">Español</option>
+                      <option value="pl">Polski</option>
+                      <option value="sk">Slovenčina</option>
+                      <option value="other">Jiný jazyk…</option>
+                    </select>
+                  </label>
+                  {lessonLanguage === 'other' ? <label>Jiný jazyk<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder="např. Italiano, Українська, Português…" required /></label> : null}
                   <label>Cílovka<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="např. 1. ročník vysoké školy" required /></label>
                   <label>Délka v minutách<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="např. 90" required /></label>
                   <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder="např. 3–4 studenti" required /></label>

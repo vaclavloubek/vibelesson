@@ -5,6 +5,7 @@ export const BlockTypeSchema = z.enum([
 ]);
 
 export const GradingStrictnessSchema = z.enum(['lenient', 'neutral', 'strict']);
+export const LanguageTagSchema = z.string().trim().regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/, 'Neplatný jazykový kód.');
 
 export const GradingCriterionSchema = z.object({
   id: z.string().min(1),
@@ -51,6 +52,7 @@ export const LessonSchema = z.object({
   audience: z.string().min(1),
   totalMinutes: z.number().int().min(10).max(360),
   groupSize: z.string().min(1),
+  language: LanguageTagSchema.optional(),
   gradingStrictness: GradingStrictnessSchema.optional(),
   learningObjectives: z.array(z.string()).min(2).max(6),
   blocks: z.array(LessonBlockSchema).min(3).max(16),
