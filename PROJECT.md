@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po dokončení dnešního beta-feedback cyklu: zpřesnění live odpovědí a completion stavů, prioritizace/čištění AI review queue, třístupňová přísnost AI hodnocení, reconnect UX studentů a nový přetahovatelný ovladač přísnosti.
+Aktualizováno: 2026-09-18 po dokončení dnešního beta-feedback cyklu a produkční opravě P2 Cloudflare → Supabase reconciliation.
 
-**Aktuální produktová verze: 0.7.01** — první menší funkční změna nad výchozí baseline 0.7.
+**Aktuální produktová verze: 0.7.02** — oprava P2 live resilience reconciliation nad verzí 0.7.01.
 
 Produkční funkční baseline před touto dokumentační aktualizací:
 
@@ -755,10 +755,11 @@ Zbývá:
 
 **Hlavní MVP dokončeno.**
 
-Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables.
+Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables. P2 Cloudflare Worker/Durable Object mirroring je aktivní; produkční Supabase migration `20260918093706_allow_live_reconciliation_trigger_bypass` opravuje snapshot reconciliation přes SEC-005 trigger guards pomocí transaction-scoped advisory markeru.
 
 Zbývá:
 
+- finální end-to-end ověření P2 po reconciliation opravě (`live_control_revision > 0`) a následný chaos test A–G;
 - hybridní scoring v post-session reportu/CSV;
 - případné další statistiky.
 
@@ -847,9 +848,10 @@ Další významné změny 2026-09-18:
 - `f9b3c32` — reconnect UX: odstranění zastaralých submit error stavů po synchronizaci;
 - `76d47d1` — přístupný barevný třístupňový ovladač přísnosti AI hodnocení;
 - `57539ce` — plynulé drag ovládání slideru se snapem na tři platné hodnoty;
-- **0.7.01** — číslo verze aplikace je viditelné pouze v učitelském dashboardu pod badge BETA; UI používá centrální `APP_VERSION`, aby další verze měly jeden zdroj pravdy v kódu.
+- **0.7.01** — číslo verze aplikace je viditelné pouze v učitelském dashboardu pod badge BETA; UI používá centrální `APP_VERSION`, aby další verze měly jeden zdroj pravdy v kódu;
+- **0.7.02** / `20260918093706` — P2 reconciliation fix: Cloudflare snapshot může bezpečně konvergovat historické odpovědi do Supabase přes úzce scopeovaný transaction advisory marker, aniž by se oslabily běžné SEC-005 live-write kontroly.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Aktuální verze 0.7.01 přidává nenápadné zobrazení verze pouze do přihlášeného učitelského dashboardu `/lessons`, pod badge BETA; landing ani ostatní stránky verzi nezobrazují.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.7.01 přidala zobrazení verze v učitelském dashboardu; aktuální 0.7.02 opravuje P2 Cloudflare → Supabase reconciliation.**
 
 ## 21. Pravidla další práce
 
