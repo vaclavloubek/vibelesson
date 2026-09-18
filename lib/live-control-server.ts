@@ -126,9 +126,19 @@ export async function bootstrapLiveControl(snapshot: LiveControlSnapshot) {
       },
       3_000,
     );
-    return response.ok || response.status === 409;
+    const ok = response.ok || response.status === 409;
+    if (!ok) {
+      console.warn('live control bootstrap rejected', {
+        sessionId: snapshot.sessionId,
+        status: response.status,
+      });
+    }
+    return ok;
   } catch (error) {
-    console.error('live control bootstrap failed', error);
+    console.error('live control bootstrap failed', {
+      sessionId: snapshot.sessionId,
+      error: error instanceof Error ? error.name : 'unknown',
+    });
     return false;
   }
 }
@@ -167,9 +177,20 @@ export async function mirrorLiveControlEvent(input: {
       },
       3_000,
     );
+    if (!response.ok) {
+      console.warn('live control mirror rejected', {
+        sessionId: input.sessionId,
+        type: input.type,
+        status: response.status,
+      });
+    }
     return response.ok;
   } catch (error) {
-    console.error('live control mirror failed', error);
+    console.error('live control mirror failed', {
+      sessionId: input.sessionId,
+      type: input.type,
+      error: error instanceof Error ? error.name : 'unknown',
+    });
     return false;
   }
 }

@@ -1,12 +1,12 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po dokončení dnešního beta-feedback cyklu a produkční opravě P2 Cloudflare → Supabase reconciliation.
+Aktualizováno: 2026-09-18 po reálném beta incidentu a redesignu live resilience vrstvy.
 
-**Aktuální produktová verze: 0.7.02** — oprava P2 live resilience reconciliation nad verzí 0.7.01.
+**Aktuální produktová verze: 0.8** — automatický Teacher/Presenter failover, session-scoped live recovery a server-driven AI grading.
 
-Produkční funkční baseline před touto dokumentační aktualizací:
+Předchozí produkční baseline před releasem 0.8:
 
-`57539ceb532175d8bdab287076eb62a2745cc0f1` — **Make grading strictness slider draggable**.
+`d3b9669b2330c505d34636d719a8846adf764d59` — **Fix live-control reconciliation trigger bypass**.
 
 Vercel Production deployment této funkční baseline je úspěšný. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
@@ -403,7 +403,7 @@ Po beta feedbacku student u každé aktivity explicitně vidí:
 
 Stejné rozlišení je i v lesson preview.
 
-### Síťový hardening
+### Síťový hardening a live resilience 0.8
 
 - response save timeout + následné ověření, zda zápis proběhl;
 - Realtime chyba neblokuje základní serverový tok;
@@ -412,7 +412,14 @@ Stejné rozlišení je i v lesson preview.
 - heartbeat cca 15 s;
 - team draft v `sessionStorage`;
 - autosave retry backoff cca 2–30 s;
-- při konfliktu se lokální text nepřepíše vzdálenou verzí bez rozhodnutí studenta.
+- při konfliktu se lokální text nepřepíše vzdálenou verzí bez rozhodnutí studenta;
+- Teacher po normálním ownership ověření dostane krátkodobý, HttpOnly/Secure, session-scoped live resume ticket; při dočasné ztrátě Supabase identity/API se konkrétní live session obnoví automaticky bez zásahu učitele;
+- explicitní logout všechny live resume tickety serverově maže; ticket proto není náhradou běžného účtového přihlášení;
+- teacher commandy používají stejný `operationId` pro primární i Cloudflare cestu a obě cesty se spouštějí souběžně; první úspěšná vyhrává;
+- navigace přes fallback před odesláním porovná očekávaný aktivní blok se snapshotem; Durable Object navíc validuje `expectedActiveBlockId`, stav session, timer a reveal akce;
+- Presenter při výpadku primárního endpointu automaticky skládá obraz z Cloudflare snapshotu a po návratu primární vrstvy se vrátí bez ručního přepínače;
+- raw browser AbortError se už nezobrazuje; timeouty jsou normalizované a teacher/presenter ukazují jen srozumitelný stav Primární / Záložní / Synchronizuji;
+- live resume podpis je server-only, domain-separated HMAC nad existujícím live bootstrap trust boundary; Cloudflare bearer capability zůstává pouze v `sessionStorage`, ne v persistentním browser storage.
 
 ### Join abuse protection
 
@@ -486,6 +493,20 @@ Implementováno a nasazeno:
 - public student score vrací jen vlastní `score`, `maxPoints`, `rank`.
 
 `response_evaluations` ukládá answer/rubric snapshot, criterion scores, `ai_score`, `teacher_score`, confidence, status, model a skutečný `cost_usd`.
+
+### Server-driven AI grading 0.8
+
+AI grading už není životně závislý na otevřené teacher kartě:
+
+- explicitní submit nadále pouze bezpečně vytvoří/aktualizuje `response_evaluations`;
+- pending evaluace spustí DB trigger, který přes `pg_net` asynchronně volá interní Vercel grading endpoint;
+- mezi DB a endpointem se používá jednorázová 256bitová capability; DB ukládá jen SHA-256 hash, raw token se neposílá do browseru ani aplikačních logů;
+- capability je scopeovaná na jednu evaluation, krátkodobá a po claim/finish není znovu použitelná;
+- minutový `pg_cron` retry znovu dispatchuje pouze pending nebo >5 min stale grading joby; běžné AI selhání se bez kontroly neopakuje do nekonečna;
+- stávající browser `EvaluationBackgroundPump` zůstává jako kompatibilní sekundární cesta; atomický claim zabrání dvojímu placenému gradingu;
+- migration `20260918114341_add_server_driven_ai_grading_jobs` je produkčně aplikovaná.
+
+Security Advisor záměrně vidí `claim_grading_job`, `finish_grading_job` a `fail_grading_job` jako anon-callable `SECURITY DEFINER` RPC. Je to explicitní capability boundary: funkce mají `search_path=''`, běžný `authenticated` ani `service_role` k nim nemají EXECUTE a bez náhodného jednorázového tokenu nevracejí/neprovedou nic. `private.grading_jobs` má RLS a žádné klientské policy/granty.
 
 ### Přísnost AI hodnocení a review queue
 
@@ -755,11 +776,13 @@ Zbývá:
 
 **Hlavní MVP dokončeno.**
 
-Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables. P2 Cloudflare Worker/Durable Object mirroring je aktivní; produkční Supabase migration `20260918093706_allow_live_reconciliation_trigger_bypass` opravuje snapshot reconciliation přes SEC-005 trigger guards pomocí transaction-scoped advisory markeru.
+Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity, data tables. Verze 0.8 přidává session-scoped Teacher recovery, automatický primary/Cloudflare command race, Presenter fallback, bezpečné timeout UX a server-driven AI grading s DB retry.
+
+P2 Cloudflare Worker/Durable Object mirroring zůstává aktivní; migration `20260918093706_allow_live_reconciliation_trigger_bypass` řeší snapshot convergence přes SEC-005 guardy. 0.8 navíc chrání teacher navigaci client-side preflightem, takže správnost základního failoveru není závislá jen na okamžitém nasazení nové Worker validace.
 
 Zbývá:
 
-- finální end-to-end ověření P2 po reconciliation opravě (`live_control_revision > 0`) a následný chaos test A–G;
+- po nasazení 0.8 udělat cílený end-to-end test primární → fallback → recovery a následný chaos test A–G;
 - hybridní scoring v post-session reportu/CSV;
 - případné další statistiky.
 
@@ -849,9 +872,10 @@ Další významné změny 2026-09-18:
 - `76d47d1` — přístupný barevný třístupňový ovladač přísnosti AI hodnocení;
 - `57539ce` — plynulé drag ovládání slideru se snapem na tři platné hodnoty;
 - **0.7.01** — číslo verze aplikace je viditelné pouze v učitelském dashboardu pod badge BETA; UI používá centrální `APP_VERSION`, aby další verze měly jeden zdroj pravdy v kódu;
-- **0.7.02** / `20260918093706` — P2 reconciliation fix: Cloudflare snapshot může bezpečně konvergovat historické odpovědi do Supabase přes úzce scopeovaný transaction advisory marker, aniž by se oslabily běžné SEC-005 live-write kontroly.
+- **0.7.02** / `20260918093706` — P2 reconciliation fix: Cloudflare snapshot může bezpečně konvergovat historické odpovědi do Supabase přes úzce scopeovaný transaction advisory marker, aniž by se oslabily běžné SEC-005 live-write kontroly;
+- **0.8** / `20260918114341` — live resilience redesign po reálné beta hodině: automatický Teacher/Presenter failover, live resume ticket, paralelní primární + Cloudflare command cesta, srozumitelné timeout UX a server-driven AI grading s jednorázovými capability tokeny a DB retry.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.7.01 přidala zobrazení verze v učitelském dashboardu; aktuální 0.7.02 opravuje P2 Cloudflare → Supabase reconciliation.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
 ## 21. Pravidla další práce
 
@@ -887,11 +911,12 @@ Security audit SEC-001 až SEC-015 je dokončen a dispositioned. Accessibility t
 
 Nejbližší smysluplné produktové priority:
 
-1. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
-2. pokračovat ve sběru a zapracování beta feedbacku;
-3. doplnit hybridní scoring do post-session reportu/CSV;
-4. rozhodnout o billing/provisioning architektuře před aktivací placených tarifů;
-5. navrhnout organization membership/role model pro Team/School/Campus;
-6. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
+1. po releasu 0.8 ověřit primary → fallback → recovery na nové disposable live session a provést chaos test A–G;
+2. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
+3. pokračovat ve sběru a zapracování beta feedbacku;
+4. doplnit hybridní scoring do post-session reportu/CSV;
+5. rozhodnout o billing/provisioning architektuře před aktivací placených tarifů;
+6. navrhnout organization membership/role model pro Team/School/Campus;
+7. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
 Security výjimky SEC-002/007 znovu otevřít pouze při změně předpokladů (staging/širší tým/produkční škála, resp. placený Supabase plán).
