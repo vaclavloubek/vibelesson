@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { participantCookieName } from '@/lib/live';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { mintLiveCapability, mirrorLiveControlEvent } from '@/lib/live-control-server';
 
 const JoinSchema = z.object({
   joinCode: z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{7}$/),
@@ -50,7 +51,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ke hodině se nepodařilo připojit.' }, { status: 502 });
     }
 
-    const response = NextResponse.json({ sessionId: data.sessionId });
+    const liveControl = data.participantId
+      ? mintLiveCapability({
+          sessionId: data.sessionId,
+          subject: data.participantId,
+          role: 'student',
+        })
+      : null;
+
+    if (data.participantId) {
+      after(async () => {
+        await mirrorLiveControlEvent({
+          sessionId: data.sessionId!,
+          role: 'student',
+          subject: data.participantId!,
+          type: 'student.joined',
+          payload: { displayName: body.displayName },
+        });
+      });
+    }
+
+    const response = NextResponse.json({ sessionId: data.sessionId, liveControl });
     response.cookies.set(participantCookieName(data.sessionId), data.participantToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
