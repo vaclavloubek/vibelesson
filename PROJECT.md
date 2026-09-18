@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po zpřísnění auth hranice live resume recovery ve verzi 0.8.12.
+Aktualizováno: 2026-09-18 po hardeningu service-worker cache živých stránek ve verzi 0.8.13.
 
-**Aktuální produktová verze: 0.8.12** — live resume ticket pomáhá pouze při skutečné chybě primární Supabase Auth/API vrstvy; korektně odhlášený uživatel už nemůže resume cookie použít jako náhradu přihlášení. Normální ukončení hodiny resume ticket dál explicitně maže.
+**Aktuální produktová verze: 0.8.13** — service worker už pod URL živé Teacher/Presenter/student stránky nikdy neuloží přesměrovanou nebo jinou 200 odpověď; cache live navigace přijímá jen ne-redirectovanou odpověď stejného originu a stejné cesty.
 
 Produkční release 0.8:
 
@@ -440,6 +440,7 @@ Stejné rozlišení je i v lesson preview.
 - team lock TTL 60 s, DB cap 120 s;
 - team status fallback cca 5 s;
 - heartbeat cca 15 s;
+- service worker cachuje live navigaci pouze při ne-redirectované 2xx odpovědi stejného originu a stejné cesty; auth redirect nebo jiná 200 stránka proto nemůže přepsat funkční cached live shell;
 - team draft v `sessionStorage`;
 - autosave retry backoff cca 2–30 s;
 - při konfliktu se lokální text nepřepíše vzdálenou verzí bez rozhodnutí studenta;
@@ -924,7 +925,8 @@ Další významné změny 2026-09-18:
 - **0.8.10** — payment recovery event log: webhook přijímá `invoice.payment_failed` a `invoice.paid`, validuje Stripe-signed Syllonaut metadata a idempotentně je ukládá do `billing_events`. Payment event neprovisionuje ani nedeprovisionuje přístup; entitlement zůstává subscription-authoritative.
 - **0.8.11** — simulation isolation: subscription eventy ze Stripe `test_clock` se explicitně ignorují, takže Simulations mohou generovat renewal/failure webhooky bez rizika `billing_customer_mismatch` nebo přepsání skutečné sandbox subscription.
 - **0.8.12** — live resume auth-boundary hardening: Teacher, Presenter i live-control capability mohou použít session-scoped recovery ticket pouze tehdy, když primární auth lookup skutečně selže; čisté odhlášení vždy skončí standardním přihlášením. End-session dál maže konkrétní resume ticket.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.12`.
+- **0.8.13** — live navigation cache hardening: service worker odmítne cachovat redirectovanou odpověď nebo odpověď pro jinou cestu, takže auth incident nemůže pod URL živé hodiny uložit homepage či jiný nesouvisející 200 response.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.13`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 

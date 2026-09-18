@@ -21,6 +21,7 @@ const [
   clearResumeRoute,
   teacherPage,
   presenterPage,
+  serviceWorker,
 ] = await Promise.all([
   source('lib/fetch-with-timeout.ts'),
   source('lib/live-resume.ts'),
@@ -34,6 +35,7 @@ const [
   source('app/api/auth/clear-live-resume/route.ts'),
   source('app/sessions/[id]/page.tsx'),
   source('app/sessions/[id]/presenter/page.tsx'),
+  source('public/sw.js'),
 ]);
 
 requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be normalized before reaching live UI.');
@@ -43,6 +45,8 @@ requirePattern(resume, /TOKEN_NAMESPACE = 'syllonaut-live-resume-v1'/, 'resume H
 requirePattern(liveControlRoute, /if \(authError && resume\)/, 'live-control resume fallback must require a primary auth failure.');
 requirePattern(teacherPage, /if \(!authFailure \|\| !resume\) redirect\((?:'\/'|\`\/\$\{locale\}\`)\)/, 'teacher resume must not bypass a clean signed-out state.');
 requirePattern(presenterPage, /if \(!authError \|\| !resume\) redirect\((?:'\/'|\`\/\$\{locale\}\`)\)/, 'Presenter resume must not bypass a clean signed-out state.');
+requirePattern(serviceWorker, /response\.redirected/, 'live navigation cache must reject redirected responses.');
+requirePattern(serviceWorker, /responseUrl\.pathname === requestUrl\.pathname/, 'live navigation cache must only store the requested live route.');
 requirePattern(authControls, /\/api\/auth\/clear-live-resume/, 'explicit teacher logout must clear live recovery tickets.');
 requirePattern(clearResumeRoute, /clearAllLiveResumeCookies\(\)/, 'logout cleanup endpoint must clear every live recovery ticket.');
 requirePattern(liveControlRoute, /setLiveResumeCookie\(id, userId\)/, 'healthy ownership verification must mint a live resume ticket.');
