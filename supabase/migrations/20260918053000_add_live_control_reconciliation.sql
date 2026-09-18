@@ -1,6 +1,16 @@
 alter table public.sessions
   add column if not exists live_updated_at timestamptz not null default now();
 
+alter table public.sessions
+  add column if not exists live_control_revision bigint not null default 0;
+
+alter table public.sessions
+  drop constraint if exists sessions_live_control_revision_nonnegative;
+
+alter table public.sessions
+  add constraint sessions_live_control_revision_nonnegative
+  check (live_control_revision >= 0);
+
 alter table public.participants
   add column if not exists team_updated_at timestamptz;
 
@@ -21,6 +31,7 @@ as $function$
 declare
   v_user_id uuid := auth.uid();
   v_session public.sessions%rowtype;
+  v_revision bigint := 0;
   v_snapshot_at timestamptz := now();
   v_status text;
   v_active_block_id text;
@@ -60,6 +71,22 @@ begin
 
   if not found or v_session.teacher_id <> v_user_id then
     raise exception 'Session not found.' using errcode = '42501';
+  end if;
+
+  begin
+    v_revision := greatest(0, coalesce((p_snapshot->>'revision')::bigint, 0));
+  exception when others then
+    raise exception 'Invalid live snapshot revision.' using errcode = '22023';
+  end;
+
+  if v_revision <= coalesce(v_session.live_control_revision, 0) then
+    return jsonb_build_object(
+      'ok', true,
+      'skipped', true,
+      'revision', v_session.live_control_revision,
+      'responses', 0,
+      'teamResponses', 0
+    );
   end if;
 
   begin
@@ -257,7 +284,7 @@ begin
           end
       returning id into v_response_id;
 
-      if v_submitted_at is not null then
+      if v_submitted_at is not null and v_item->>'submissionSource' = 'fallback' then
         perform public.queue_submitted_response_evaluation(v_response_id);
       end if;
       v_reconciled_responses := v_reconciled_responses + 1;
@@ -345,15 +372,21 @@ begin
           end
       returning id into v_team_response_id;
 
-      if v_submitted_at is not null then
+      if v_submitted_at is not null and v_item->>'submissionSource' = 'fallback' then
         perform public.queue_submitted_team_response_evaluation(v_team_response_id);
       end if;
       v_reconciled_team_responses := v_reconciled_team_responses + 1;
     end loop;
   end if;
 
+  update public.sessions
+  set live_control_revision = v_revision
+  where id = p_session_id;
+
   return jsonb_build_object(
     'ok', true,
+    'skipped', false,
+    'revision', v_revision,
     'sessionId', p_session_id,
     'snapshotAt', v_snapshot_at,
     'responses', v_reconciled_responses,
