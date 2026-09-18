@@ -6,16 +6,34 @@ import {
   mintLiveCapability,
   publicLessonSnapshot,
 } from '@/lib/live-control-server';
+import { readLiveResume, setLiveResumeCookie } from '@/lib/live-resume';
 import { LessonSchema } from '@/lib/schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+function degradedAccess(id: string, userId: string) {
+  const access = mintLiveCapability({ sessionId: id, subject: userId, role: 'teacher' });
+  return NextResponse.json({
+    enabled: Boolean(access),
+    degraded: true,
+    liveControl: access,
+  });
+}
 
 export async function GET(_req: Request, { params }: RouteContext) {
   if (!liveControlConfigured()) return NextResponse.json({ enabled: false });
 
   const { id } = await params;
-  const { supabase, userId } = await getAuthenticatedUserId();
-  if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  const resume = await readLiveResume(id);
+  const { supabase, userId, error: authError } = await getAuthenticatedUserId();
+
+  if (!userId) {
+    if (authError && resume) {
+      console.warn('live control capability restored from resume ticket', { sessionId: id });
+      return degradedAccess(id, resume.userId);
+    }
+    return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  }
 
   const { data: session, error } = await supabase
     .from('sessions')
@@ -23,7 +41,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
     .eq('id', id)
     .eq('teacher_id', userId)
     .maybeSingle();
-  if (error || !session) return NextResponse.json({ error: 'Hodina nebyla nalezena.' }, { status: 404 });
+
+  if (error) {
+    console.warn('live control primary session lookup failed', { sessionId: id, code: error.code });
+    if (resume?.userId === userId) return degradedAccess(id, userId);
+    return NextResponse.json({ error: 'Primární live služba je dočasně nedostupná.' }, { status: 503 });
+  }
+  if (!session) return NextResponse.json({ error: 'Hodina nebyla nalezena.' }, { status: 404 });
 
   const lesson = LessonSchema.safeParse(session.lesson_snapshot);
   if (!lesson.success) return NextResponse.json({ error: 'Snapshot lekce je neplatný.' }, { status: 500 });
@@ -88,6 +112,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     updatedAt: new Date().toISOString(),
   });
 
+  await setLiveResumeCookie(id, userId);
   const access = mintLiveCapability({ sessionId: id, subject: userId, role: 'teacher' });
-  return NextResponse.json({ enabled: Boolean(access), liveControl: access });
+  return NextResponse.json({ enabled: Boolean(access), degraded: false, liveControl: access });
 }
