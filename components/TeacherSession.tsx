@@ -22,6 +22,7 @@ type Participant = { id: string; displayName: string; joinedAt: string; teamId: 
 type Team = { id: string; name: string; sortOrder: number };
 type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string; submitted: boolean };
 type TeamResponse = { teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string; submitted: boolean };
+type TeacherConnectionMode = 'primary' | 'fallback' | 'syncing';
 async function reconcileLiveControl(sessionId: string) {
   try {
     const response = await fetchWithTimeout(
@@ -62,6 +63,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [teamCount, setTeamCount] = useState(4);
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
+  const [connectionMode, setConnectionMode] = useState<TeacherConnectionMode>('primary');
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const hasSessionRef = useRef(false);
   const sessionRef = useRef<TeacherSessionData | null>(null);
@@ -78,6 +80,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         hasSessionRef.current = true;
         sessionRef.current = data.session;
         setSession(data.session);
+        setConnectionMode('primary');
         setError('');
       } catch (err) {
         const live = await fetchLiveControlState(sessionId, 'teacher');
@@ -149,7 +152,8 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
           hasSessionRef.current = true;
           sessionRef.current = recovered;
           setSession(recovered);
-          setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu.');
+          setConnectionMode('fallback');
+          setError('');
         } else if (!hasSessionRef.current) {
           setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
         }
@@ -172,7 +176,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       if (cancelled || reconciliationRef.current) return;
       const operation = reconcileLiveControl(sessionId)
         .then((reconciled) => {
-          if (!cancelled && reconciled > 0) void refresh();
+          if (!cancelled && reconciled > 0) {
+            setConnectionMode('syncing');
+            void refresh();
+          }
         })
         .finally(() => {
           if (reconciliationRef.current === operation) reconciliationRef.current = null;
@@ -197,8 +204,11 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     void fetch(`/api/sessions/${sessionId}/live-control`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) return;
-        const data = await response.json() as { liveControl?: LiveControlAccess | null };
-        if (!cancelled && data.liveControl) saveLiveControlAccess(sessionId, 'teacher', data.liveControl);
+        const data = await response.json() as { liveControl?: LiveControlAccess | null; degraded?: boolean };
+        if (!cancelled && data.liveControl) {
+          saveLiveControlAccess(sessionId, 'teacher', data.liveControl);
+          if (data.degraded) setConnectionMode('fallback');
+        }
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -257,62 +267,76 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     if (busy) return;
     if (action === 'end' && !window.confirm('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.')) return;
     if (action === 'reveal_results' && !window.confirm('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.')) return;
+
     const operationId = crypto.randomUUID();
+    const expectedActiveBlockId = (action === 'next' || action === 'previous')
+      ? session?.activeBlockId ?? null
+      : null;
+    const commandPayload = {
+      action,
+      ...(expectedActiveBlockId ? { expectedActiveBlockId } : {}),
+    };
+
     setBusy(true);
     setError('');
-    try {
+
+    const primary = (async () => {
       const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          operationId,
-          ...((action === 'next' || action === 'previous') && session?.activeBlockId
-            ? { expectedActiveBlockId: session.activeBlockId }
-            : {}),
-        }),
-      }, 8_000);
-      const data = await response.json() as { error?: string };
+        body: JSON.stringify({ ...commandPayload, operationId }),
+      }, 4_500);
+
+      let data: { error?: string } = {};
+      try {
+        data = await response.json() as { error?: string };
+      } catch {
+        // A malformed transient response is handled like any other failed primary request.
+      }
+
       if (!response.ok) {
-        if (response.status < 500 && response.status !== 408 && response.status !== 429) {
-          throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
-        }
-        throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
+        throw new Error(
+          response.status < 500 && response.status !== 408 && response.status !== 429
+            ? data.error || 'Stav hodiny se nepodařilo změnit.'
+            : 'Primární live služba je dočasně nedostupná.',
+        );
       }
-      void postLiveControlEvent(
+      return { source: 'primary' as const };
+    })();
+
+    const fallback = (async () => {
+      const ok = await postLiveControlEvent(
         sessionId,
         'teacher',
         'teacher.command',
-        {
-          action,
-          source: 'primary',
-          ...((action === 'next' || action === 'previous') && session?.activeBlockId
-            ? { expectedActiveBlockId: session.activeBlockId }
-            : {}),
-        },
+        { ...commandPayload, source: 'fallback' },
         operationId,
       );
-      await refresh();
-    } catch (err) {
-      const fallbackOk = await postLiveControlEvent(
-        sessionId,
-        'teacher',
-        'teacher.command',
-        {
-          action,
-          source: 'fallback',
-          ...((action === 'next' || action === 'previous') && session?.activeBlockId
-            ? { expectedActiveBlockId: session.activeBlockId }
-            : {}),
-        },
-        operationId,
-      );
-      if (fallbackOk) {
+      if (!ok) throw new Error('Záložní live služba je dočasně nedostupná.');
+      return { source: 'fallback' as const };
+    })();
+
+    try {
+      const winner = await Promise.any([primary, fallback]);
+
+      if (winner.source === 'fallback') {
         applyFallbackAction(action);
-        setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu a po obnovení se dosynchronizuje.');
+        setConnectionMode('fallback');
+
+        // If the primary write completes shortly afterwards, converge back
+        // automatically without asking the teacher to repeat the command.
+        void primary
+          .then(async () => {
+            setConnectionMode('syncing');
+            await refresh();
+          })
+          .catch(() => undefined);
       } else {
-        setError(err instanceof Error ? err.message : 'Stav hodiny se nepodařilo změnit.');
+        setConnectionMode('primary');
+        await refresh();
       }
+    } catch {
+      setError('Spojení s primární i záložní live službou se přerušilo. Stav hodiny zůstal zachovaný; zkus akci za chvíli znovu.');
     } finally {
       setBusy(false);
     }
@@ -377,7 +401,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       <header className="brand">
         <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
         <nav className="main-nav"><Link href="/lessons">Moje lekce</Link></nav>
-        <p className="brand-tagline">Řídicí centrum</p>
+        <p className="brand-tagline" role="status">Řídicí centrum · {connectionMode === 'primary' ? 'Primární spojení' : connectionMode === 'syncing' ? 'Synchronizuji' : 'Záložní spojení'}</p>
       </header>
 
       {error ? <div className="error" role="alert" style={{ marginBottom: 14 }}>{error}</div> : null}
