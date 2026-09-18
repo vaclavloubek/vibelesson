@@ -1,10 +1,13 @@
 'use client';
 
+export type LiveControlRole = 'teacher' | 'student' | 'presenter';
+type WritableLiveControlRole = 'teacher' | 'student';
+
 export type LiveControlAccess = {
   url: string;
   token: string;
   expiresAt: string;
-  role?: 'teacher' | 'student';
+  role?: LiveControlRole;
   subject?: string;
 };
 
@@ -53,7 +56,7 @@ export type LiveControlState = {
   events?: unknown[];
 };
 
-function storageKey(sessionId: string, role: 'teacher' | 'student') {
+function storageKey(sessionId: string, role: LiveControlRole) {
   return `syllonaut-live-control-v1:${role}:${sessionId}`;
 }
 
@@ -68,7 +71,7 @@ function readStoredAccess(storage: Storage, key: string) {
   return parsed;
 }
 
-export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'student', access: LiveControlAccess | null) {
+export function saveLiveControlAccess(sessionId: string, role: LiveControlRole, access: LiveControlAccess | null) {
   if (!access || typeof window === 'undefined') return;
   try {
     window.sessionStorage.setItem(storageKey(sessionId, role), JSON.stringify({ ...access, role }));
@@ -77,7 +80,7 @@ export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'stud
   }
 }
 
-export function getLiveControlAccess(sessionId: string, role: 'teacher' | 'student'): LiveControlAccess | null {
+export function getLiveControlAccess(sessionId: string, role: LiveControlRole): LiveControlAccess | null {
   if (typeof window === 'undefined') return null;
   const key = storageKey(sessionId, role);
   try {
@@ -87,14 +90,14 @@ export function getLiveControlAccess(sessionId: string, role: 'teacher' | 'stude
   }
 }
 
-export function clearLiveControlAccess(sessionId: string, role: 'teacher' | 'student') {
+export function clearLiveControlAccess(sessionId: string, role: LiveControlRole) {
   if (typeof window === 'undefined') return;
   try { window.sessionStorage.removeItem(storageKey(sessionId, role)); } catch { /* no-op */ }
 }
 
 export async function postLiveControlEvent(
   sessionId: string,
-  role: 'teacher' | 'student',
+  role: WritableLiveControlRole,
   type: string,
   payload: unknown,
   operationId: string,
@@ -120,7 +123,7 @@ export async function postLiveControlEvent(
 
 export async function fetchLiveControlState(
   sessionId: string,
-  role: 'teacher' | 'student',
+  role: LiveControlRole,
   afterRevision?: number,
 ): Promise<LiveControlState | null> {
   const access = getLiveControlAccess(sessionId, role);
@@ -143,7 +146,7 @@ export async function fetchLiveControlState(
 
 export function connectLiveControl(
   sessionId: string,
-  role: 'teacher' | 'student',
+  role: LiveControlRole,
   onMessage: (message: unknown) => void,
 ) {
   const access = getLiveControlAccess(sessionId, role);

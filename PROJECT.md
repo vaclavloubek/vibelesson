@@ -1,14 +1,14 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po jednorázové rotaci live service-worker cache ve verzi 0.8.15.
+Aktualizováno: 2026-09-18 po dokončení least-privilege Presenter fallbacku ve verzi 0.8.16.
 
-**Aktuální produktová verze: 0.8.15** — live shell cache byla posunuta z `v1` na `v2`, takže aktivace nového service workeru odstraní i případné staré navigační cache položky vzniklé před 0.8.13 hardeningem.
+**Aktuální produktová verze: 0.8.16** — Presenter fallback používá samostatnou read-only `presenter` capability pro state/WebSocket místo teacher capability. Produkční Cloudflare Worker byl před aktivací této změny ověřen na `workerVersion=0.8.14`, `protocolVersion=2`.
 
 Produkční release 0.8:
 
 `45fe128e05bc9007ef9a927d70562d6d4c80ac77` — **Release Syllonaut 0.8 live resilience**.
 
-Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `e4940eb9-7862-4717-b9b9-2160ff510d21`. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
+Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `3044c41b-c0b4-443b-81e5-57fabb0d4419`, `workerVersion=0.8.14`, `protocolVersion=2`. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 13 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -452,8 +452,8 @@ Stejné rozlišení je i v lesson preview.
 - Presenter při výpadku primárního endpointu automaticky skládá obraz z Cloudflare snapshotu a po návratu primární vrstvy se vrátí bez ručního přepínače;
 - raw browser AbortError se už nezobrazuje; timeouty jsou normalizované a teacher/presenter ukazují jen srozumitelný stav Primární / Záložní / Synchronizuji;
 - live resume podpis je server-only, domain-separated HMAC nad existujícím live bootstrap trust boundary; Cloudflare bearer capability zůstává pouze v `sessionStorage`, ne v persistentním browser storage;
-- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; poslední dříve ověřený Worker Version ID: `e4940eb9-7862-4717-b9b9-2160ff510d21`;
-- Worker kód od 0.8.14 podporuje least-privilege `presenter` capability: může číst state/WebSocket, ale `/events` pro ni fail-closed vrací 403; `/health` vrací `workerVersion` a `protocolVersion`, aby šla nasazená verze jednoznačně ověřit.
+- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; aktuální ověřený Worker Version ID: `3044c41b-c0b4-443b-81e5-57fabb0d4419`;
+- produkční Worker od 0.8.14 podporuje least-privilege `presenter` capability: může číst state/WebSocket, ale `/events` pro ni fail-closed vrací 403; `/health` ověřeně vrací `workerVersion=0.8.14` a `protocolVersion=2`.
 
 ### Join abuse protection
 
@@ -929,7 +929,8 @@ Další významné změny 2026-09-18:
 - **0.8.13** — live navigation cache hardening: service worker odmítne cachovat redirectovanou odpověď nebo odpověď pro jinou cestu, takže auth incident nemůže pod URL živé hodiny uložit homepage či jiný nesouvisející 200 response.
 - **0.8.14** — Cloudflare control-plane hardening, fáze 1: Worker přijímá samostatnou `presenter` capability pouze pro read-only state/WebSocket, explicitně zakazuje Presenter zápis do `/events` a jeho `/health` nyní jednoznačně hlásí `workerVersion=0.8.14` + `protocolVersion=2`. Presenter UI se na novou roli přepne až po potvrzeném produkčním Worker deploymentu, aby nevzniklo nekompatibilní mezidobí.
 - **0.8.15** — live cache epoch rotation: service worker používá `syllonaut-live-shell-v2`; při aktivaci smaže starší `syllonaut-live-shell-*` cache včetně před-hardeningové `v1`, takže dříve uložený chybný live navigation response nemůže přežít opravu 0.8.13.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.15`.
+- **0.8.16** — Presenter least-privilege fáze 2: browser požaduje `?role=presenter`, ukládá capability odděleně pod presenter storage key a pro fallback state/WebSocket už nepoužívá teacher token; aktivováno až po potvrzeném produkčním Worker 0.8.14 / protocol 2.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a zobrazuje `v0.8.16`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
