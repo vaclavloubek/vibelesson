@@ -233,11 +233,17 @@ textarea { min-height: 130px; resize: vertical; }
 }
 .grading-strictness-track-shell {
   position: absolute;
-  top: 9px;
+  z-index: 2;
+  top: 0;
   left: 13px;
   right: 13px;
-  pointer-events: none;
+  height: 28px;
+  padding-top: 9px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
+.grading-strictness-track-shell:active { cursor: grabbing; }
 .grading-strictness-track {
   position: relative;
   height: 8px;
@@ -257,6 +263,10 @@ textarea { min-height: 130px; resize: vertical; }
   box-shadow: 0 2px 8px rgba(21,23,33,.18);
   transform: translate(-50%, -50%);
   transition: left .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.grading-strictness-scale[data-dragging="true"] .grading-strictness-thumb {
+  transition: border-color .12s ease, box-shadow .12s ease;
+  box-shadow: 0 3px 11px rgba(21,23,33,.24);
 }
 .grading-strictness-options {
   position: relative;
@@ -306,7 +316,8 @@ textarea { min-height: 130px; resize: vertical; }
 .grading-strictness-control:disabled {
   opacity: .58;
 }
-.grading-strictness-control:disabled .grading-strictness-option { cursor: not-allowed; }
+.grading-strictness-control:disabled .grading-strictness-option,
+.grading-strictness-control:disabled .grading-strictness-track-shell { cursor: not-allowed; }
 
 .actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
 button {
