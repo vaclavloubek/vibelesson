@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 
-export const metadata: Metadata = {
-  title: 'Nová lekce – Syllonaut',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  return {
+    title: locale === 'en' ? 'New lesson – Syllonaut' : 'Nová lekce – Syllonaut',
+  };
+}
 
 export default function NewLessonLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return children;

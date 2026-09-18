@@ -69,7 +69,7 @@ requirePattern(accessibilityCss, /:focus-visible/, 'global visible keyboard focu
 requirePattern(accessibilityCss, /--line-strong:\s*#8b8d94/i, 'form-control boundary contrast token regressed.');
 requirePattern(authLayout, /Account – Syllonaut.*Účet – Syllonaut|Účet – Syllonaut.*Account – Syllonaut/s, 'auth routes lost localized specific page titles.');
 requirePattern(joinLayout, /Join a lesson – Syllonaut.*Připojit se k hodině – Syllonaut|Připojit se k hodině – Syllonaut.*Join a lesson – Syllonaut/s, 'join routes lost localized specific page titles.');
-requirePattern(newLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'new-lesson route lost a specific page title.');
+requirePattern(newLayout, /New lesson – Syllonaut.*Nová lekce – Syllonaut|Nová lekce – Syllonaut.*New lesson – Syllonaut/s, 'new-lesson route lost localized specific page titles.');
 requirePattern(lessonsLayout, /My lessons – Syllonaut.*Moje lekce – Syllonaut|Moje lekce – Syllonaut.*My lessons – Syllonaut/s, 'lesson-library routes lost localized specific page titles.');
 requirePattern(sessionsLayout, /Control centre – Syllonaut.*Řídicí centrum – Syllonaut|Řídicí centrum – Syllonaut.*Control centre – Syllonaut/s, 'teacher-session routes lost localized specific page titles.');
 requirePattern(studentLayout, /Live lesson – student – Syllonaut.*Živá hodina – student – Syllonaut|Živá hodina – student – Syllonaut.*Live lesson – student – Syllonaut/s, 'student routes lost localized specific page titles.');
