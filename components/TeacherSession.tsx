@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
+  fetchLiveControlState,
   postLiveControlEvent,
   saveLiveControlAccess,
   type LiveControlAccess,
@@ -21,6 +22,40 @@ type Participant = { id: string; displayName: string; joinedAt: string; teamId: 
 type Team = { id: string; name: string; sortOrder: number };
 type LiveResponse = { participantId: string; displayName: string; answer: StudentAnswer; updatedAt: string };
 type TeamResponse = { teamId: string; text: string; updatedByParticipantId: string | null; updatedByDisplayName: string | null; updatedAt: string };
+type LiveTeacherCommandEvent = {
+  revision: number;
+  operationId: string;
+  actorRole: 'teacher' | 'student';
+  type: string;
+  payload?: { action?: SessionAction['action']; expectedActiveBlockId?: string };
+};
+
+async function replayTeacherFallback(sessionId: string) {
+  const live = await fetchLiveControlState(sessionId, 'teacher', 0);
+  if (!live?.events?.length) return;
+
+  const events = (live.events as LiveTeacherCommandEvent[])
+    .filter((event) => event.actorRole === 'teacher' && event.type === 'teacher.command' && event.payload?.action)
+    .sort((left, right) => left.revision - right.revision);
+
+  for (const event of events) {
+    try {
+      const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: event.payload!.action,
+          operationId: event.operationId,
+          ...(event.payload?.expectedActiveBlockId ? { expectedActiveBlockId: event.payload.expectedActiveBlockId } : {}),
+        }),
+      }, 8_000);
+      if (!response.ok && response.status >= 500) break;
+    } catch {
+      break;
+    }
+  }
+}
+
 type TeacherSessionData = {
   id: string;
   lessonId: string | null;
@@ -48,6 +83,8 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [joinUrl, setJoinUrl] = useState('');
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const hasSessionRef = useRef(false);
+  const fallbackUsedRef = useRef(false);
+  const reconciliationRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
@@ -57,6 +94,18 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
         const data = await response.json() as { session?: TeacherSessionData; error?: string };
         if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
+        if (fallbackUsedRef.current && !reconciliationRef.current) {
+          reconciliationRef.current = replayTeacherFallback(sessionId);
+          try {
+            await reconciliationRef.current;
+            fallbackUsedRef.current = false;
+            const reconciledResponse = await fetchWithTimeout(`/api/sessions/${sessionId}`, { cache: 'no-store' }, 6_000);
+            const reconciledData = await reconciledResponse.json() as { session?: TeacherSessionData; error?: string };
+            if (reconciledResponse.ok && reconciledData.session) data.session = reconciledData.session;
+          } finally {
+            reconciliationRef.current = null;
+          }
+        }
         hasSessionRef.current = true;
         setSession(data.session);
         setError('');
@@ -170,10 +219,16 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         sessionId,
         'teacher',
         'teacher.command',
-        { action },
+        {
+          action,
+          ...((action === 'next' || action === 'previous') && session?.activeBlockId
+            ? { expectedActiveBlockId: session.activeBlockId }
+            : {}),
+        },
         operationId,
       );
       if (fallbackOk) {
+        fallbackUsedRef.current = true;
         applyFallbackAction(action);
         setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu a po obnovení se dosynchronizuje.');
       } else {
