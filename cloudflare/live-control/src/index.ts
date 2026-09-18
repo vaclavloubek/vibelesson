@@ -100,6 +100,108 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     ? event.payload as Record<string, unknown>
     : {};
 
+  if (event.type === 'teacher.command') {
+    const action = typeof payload.action === 'string' ? payload.action : '';
+    const lesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
+      ? snapshot.lessonSnapshot as { blocks?: Array<Record<string, unknown>> }
+      : {};
+    const blocks = Array.isArray(lesson.blocks) ? lesson.blocks : [];
+    const currentIndex = snapshot.activeBlockId
+      ? blocks.findIndex((block) => block.id === snapshot.activeBlockId)
+      : -1;
+
+    if (action === 'start' && snapshot.status === 'lobby' && blocks.length) {
+      const first = blocks[0];
+      return {
+        ...snapshot,
+        status: 'live',
+        activeBlockId: typeof first.id === 'string' ? first.id : null,
+        timer: null,
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
+    if ((action === 'next' || action === 'previous') && snapshot.status === 'live' && currentIndex >= 0) {
+      const targetIndex = action === 'next' ? currentIndex + 1 : currentIndex - 1;
+      const target = blocks[targetIndex];
+      if (target && typeof target.id === 'string') {
+        return {
+          ...snapshot,
+          activeBlockId: target.id,
+          timer: null,
+          revision: event.revision,
+          updatedAt: event.createdAt,
+        };
+      }
+    }
+
+    if (action === 'end') {
+      return {
+        ...snapshot,
+        status: 'ended',
+        timer: null,
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
+    if (action === 'reveal_results' && snapshot.activeBlockId) {
+      return {
+        ...snapshot,
+        revealedBlockIds: Array.from(new Set([...snapshot.revealedBlockIds, snapshot.activeBlockId])),
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
+    if (action === 'timer_reset' && currentIndex >= 0) {
+      const current = blocks[currentIndex];
+      const minutes = typeof current?.durationMinutes === 'number' ? current.durationMinutes : 0;
+      return {
+        ...snapshot,
+        timer: { status: 'idle', startedAt: null, remainingSeconds: Math.max(0, minutes * 60) },
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
+    if (action === 'timer_start') {
+      const timer = snapshot.timer && typeof snapshot.timer === 'object'
+        ? snapshot.timer as { remainingSeconds?: number }
+        : {};
+      return {
+        ...snapshot,
+        timer: {
+          status: 'running',
+          startedAt: event.createdAt,
+          remainingSeconds: typeof timer.remainingSeconds === 'number' ? timer.remainingSeconds : 0,
+        },
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
+    if (action === 'timer_pause') {
+      const timer = snapshot.timer && typeof snapshot.timer === 'object'
+        ? snapshot.timer as { status?: string; startedAt?: string | null; remainingSeconds?: number }
+        : {};
+      let remainingSeconds = typeof timer.remainingSeconds === 'number' ? timer.remainingSeconds : 0;
+      if (timer.status === 'running' && timer.startedAt) {
+        const elapsed = Math.max(0, Math.floor((Date.parse(event.createdAt) - Date.parse(timer.startedAt)) / 1000));
+        remainingSeconds = Math.max(0, remainingSeconds - elapsed);
+      }
+      return {
+        ...snapshot,
+        timer: { status: 'paused', startedAt: null, remainingSeconds },
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
+    return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
+  }
+
   if (event.type === 'teacher.state_patch') {
     const status = payload.status;
     const activeBlockId = payload.activeBlockId;
