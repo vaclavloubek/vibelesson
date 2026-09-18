@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po přípravě least-privilege Presenter capability a verzovaného Cloudflare health endpointu ve verzi 0.8.14.
+Aktualizováno: 2026-09-18 po jednorázové rotaci live service-worker cache ve verzi 0.8.15.
 
-**Aktuální produktová verze: 0.8.14** — Cloudflare live-control Worker podporuje samostatnou read-only roli `presenter`, která nesmí zapisovat do event streamu; `/health` zveřejňuje přesnou Worker a protocol verzi. Aplikační Presenter zůstává do potvrzeného Worker deploymentu dočasně na kompatibilní teacher capability.
+**Aktuální produktová verze: 0.8.15** — live shell cache byla posunuta z `v1` na `v2`, takže aktivace nového service workeru odstraní i případné staré navigační cache položky vzniklé před 0.8.13 hardeningem.
 
 Produkční release 0.8:
 
@@ -928,7 +928,8 @@ Další významné změny 2026-09-18:
 - **0.8.12** — live resume auth-boundary hardening: Teacher, Presenter i live-control capability mohou použít session-scoped recovery ticket pouze tehdy, když primární auth lookup skutečně selže; čisté odhlášení vždy skončí standardním přihlášením. End-session dál maže konkrétní resume ticket.
 - **0.8.13** — live navigation cache hardening: service worker odmítne cachovat redirectovanou odpověď nebo odpověď pro jinou cestu, takže auth incident nemůže pod URL živé hodiny uložit homepage či jiný nesouvisející 200 response.
 - **0.8.14** — Cloudflare control-plane hardening, fáze 1: Worker přijímá samostatnou `presenter` capability pouze pro read-only state/WebSocket, explicitně zakazuje Presenter zápis do `/events` a jeho `/health` nyní jednoznačně hlásí `workerVersion=0.8.14` + `protocolVersion=2`. Presenter UI se na novou roli přepne až po potvrzeném produkčním Worker deploymentu, aby nevzniklo nekompatibilní mezidobí.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.14`.
+- **0.8.15** — live cache epoch rotation: service worker používá `syllonaut-live-shell-v2`; při aktivaci smaže starší `syllonaut-live-shell-*` cache včetně před-hardeningové `v1`, takže dříve uložený chybný live navigation response nemůže přežít opravu 0.8.13.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.15`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
