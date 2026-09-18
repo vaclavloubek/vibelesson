@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
+import { useUiLocale } from '@/components/LocaleProvider';
 import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
 import GradingStrictnessControl from '@/components/GradingStrictnessControl';
 import LessonPreview from '@/components/LessonPreview';
 import SyllonautMark from '@/components/SyllonautMark';
-import { demoLesson } from '@/lib/demo';
+import { demoLesson, demoLessonEn } from '@/lib/demo';
 import {
   bucketBlockCount,
   bucketDuration,
@@ -57,6 +59,9 @@ type Props = {
 
 export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null, initialFolderId = null }: Props) {
   const router = useRouter();
+  const locale = useUiLocale();
+  const english = locale === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [audience, setAudience] = useState(initialLesson?.audience ?? '');
   const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
@@ -154,7 +159,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
   function requireAuth() {
     if (authUser) return true;
-    setError('Pro AI funkce se nejdřív přihlas vpravo nahoře. Ukázková lekce funguje i bez účtu.');
+    setError(ui('Pro AI funkce se nejdřív přihlas vpravo nahoře. Ukázková lekce funguje i bez účtu.', 'Sign in first to use AI features. The example lesson works without an account.'));
     return false;
   }
 
@@ -166,7 +171,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   }
 
   function applyLessonResponse(data: LessonApiResponse) {
-    if (!data.lesson) throw new Error(data.error || 'Server nevrátil lekci.');
+    if (!data.lesson) throw new Error(data.error || ui('Server nevrátil lekci.', 'The server did not return a lesson.'));
     const parsed = LessonSchema.parse(data.lesson);
     setLesson(parsed);
     setGradingStrictness(parsed.gradingStrictness ?? 'neutral');
@@ -191,20 +196,20 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     const requestedDuration = Number(duration);
 
     if (!prompt.trim() && files.length === 0) {
-      setError('Popiš hodinu nebo nahraj alespoň jeden podklad.');
+      setError(ui('Popiš hodinu nebo nahraj alespoň jeden podklad.', 'Describe the lesson or upload at least one source file.'));
       return;
     }
     const requestedLessonLanguage = lessonLanguage === 'other' ? customLessonLanguage.trim() : lessonLanguage;
     if (lessonLanguage === 'other' && requestedLessonLanguage.length < 2) {
-      setError('Napiš jazyk, ve kterém chceš lekci vytvořit.');
+      setError(ui('Napiš jazyk, ve kterém chceš lekci vytvořit.', 'Enter the language you want the lesson to use.'));
       return;
     }
     if (files.length > MATERIAL_MAX_FILES) {
-      setError(`Nahraj nejvýše ${MATERIAL_MAX_FILES} souborů.`);
+      setError(english ? `Upload no more than ${MATERIAL_MAX_FILES} files.` : `Nahraj nejvýše ${MATERIAL_MAX_FILES} souborů.`);
       return;
     }
     if (files.reduce((sum, file) => sum + file.size, 0) > MATERIAL_MAX_TOTAL_BYTES) {
-      setError('Podklady mohou mít dohromady nejvýše 10 MB.');
+      setError(ui('Podklady mohou mít dohromady nejvýše 10 MB.', 'Source materials can be up to 10 MB in total.'));
       return;
     }
 
@@ -238,13 +243,13 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, lessonLanguage: requestedLessonLanguage || 'auto', uiLocale: 'cs', gradingStrictness, materialMode, materials, folderId: initialFolderId }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, lessonLanguage: requestedLessonLanguage || 'auto', uiLocale: locale, gradingStrictness, materialMode, materials, folderId: initialFolderId }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
       if (!res.ok || !contentType.includes('application/x-ndjson')) {
         const data = await res.json() as LessonApiResponse;
-        if (!res.ok) throw new Error(data.error || 'Generování selhalo.');
+        if (!res.ok) throw new Error(data.error || ui('Generování selhalo.', 'Lesson generation failed.'));
         failureStage = 'result';
         applyLessonResponse(data);
         trackEvent('lesson_generation_completed', {
@@ -257,7 +262,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         return;
       }
 
-      if (!res.body) throw new Error('Server nevrátil průběh generování.');
+      if (!res.body) throw new Error(ui('Server nevrátil průběh generování.', 'The server did not return generation progress.'));
 
       failureStage = 'stream';
       const reader = res.body.getReader();
@@ -292,7 +297,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       buffer += decoder.decode();
       if (buffer.trim()) handleLine(buffer);
       const completedLesson = resultLesson as Lesson | null;
-      if (!completedLesson || !resultLessonId) throw new Error('Generování skončilo bez hotové lekce.');
+      if (!completedLesson || !resultLessonId) throw new Error(ui('Generování skončilo bez hotové lekce.', 'Generation ended without a completed lesson.'));
 
       failureStage = 'result';
       applyLessonResponse({ lesson: completedLesson, lessonId: resultLessonId });
@@ -311,8 +316,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const rawMessage = err instanceof Error ? err.message : '';
       const isTransportError = /string did not match|failed to fetch|load failed|network|connection/i.test(rawMessage);
       setError(isTransportError
-        ? 'Spojení se během generování přerušilo. Pokud se lekce stihla dokončit, najdeš ji v Moje lekce; jinak to zkus znovu.'
-        : rawMessage || 'Generování selhalo.');
+        ? ui('Spojení se během generování přerušilo. Pokud se lekce stihla dokončit, najdeš ji v Moje lekce; jinak to zkus znovu.', 'The connection was interrupted during generation. If the lesson finished, you will find it in My lessons; otherwise try again.')
+        : rawMessage || ui('Generování selhalo.', 'Lesson generation failed.'));
     } finally {
       setBusy(false);
       setGenerationStage(null);
@@ -335,7 +340,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ instruction: revision, lesson, lessonId }),
       });
       const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || 'Úprava selhala.');
+      if (!res.ok) throw new Error(data.error || ui('Úprava selhala.', 'The edit failed.'));
       applyLessonResponse(data);
       setUndoLesson(data.lessonId ? before : null);
       setRevision('');
@@ -344,7 +349,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     } catch (err) {
       trackEvent('lesson_revision_failed', { revision_scope: 'whole_lesson', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
-      setError(err instanceof Error ? err.message : 'Úprava selhala.');
+      setError(err instanceof Error ? err.message : ui('Úprava selhala.', 'The edit failed.'));
     } finally {
       setBusy(false);
     }
@@ -365,7 +370,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ instruction: blockRevision, lesson, lessonId, blockId: selectedBlock.id }),
       });
       const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || 'Úprava aktivity selhala.');
+      if (!res.ok) throw new Error(data.error || ui('Úprava aktivity selhala.', 'The activity edit failed.'));
       applyLessonResponse(data);
       setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
@@ -374,7 +379,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     } catch (err) {
       trackEvent('lesson_revision_failed', { revision_scope: 'activity', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
-      setError(err instanceof Error ? err.message : 'Úprava aktivity selhala.');
+      setError(err instanceof Error ? err.message : ui('Úprava aktivity selhala.', 'The activity edit failed.'));
     } finally {
       setBusy(false);
     }
@@ -392,20 +397,21 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ lesson: undoLesson }),
       });
       const data = await res.json() as LessonApiResponse;
-      if (!res.ok) throw new Error(data.error || 'Předchozí verzi se nepodařilo obnovit.');
+      if (!res.ok) throw new Error(data.error || ui('Předchozí verzi se nepodařilo obnovit.', 'The previous version could not be restored.'));
       applyLessonResponse(data);
       setUndoLesson(null);
     } catch (err) {
       setSaveStatus('saved');
-      setError(err instanceof Error ? err.message : 'Předchozí verzi se nepodařilo obnovit.');
+      setError(err instanceof Error ? err.message : ui('Předchozí verzi se nepodařilo obnovit.', 'The previous version could not be restored.'));
     } finally {
       setBusy(false);
     }
   }
 
   function loadDemo() {
-    setLesson(demoLesson);
-    setGradingStrictness(demoLesson.gradingStrictness ?? 'neutral');
+    const nextDemo = english ? demoLessonEn : demoLesson;
+    setLesson(nextDemo);
+    setGradingStrictness(nextDemo.gradingStrictness ?? 'neutral');
     setLessonId(null);
     setUndoLesson(null);
     setSaveStatus('idle');
@@ -435,7 +441,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         body: JSON.stringify({ lesson: nextLesson }),
       });
       const data = await response.json() as LessonApiResponse;
-      if (!response.ok || !data.lesson) throw new Error(data.error || 'Nastavení hodnocení se nepodařilo uložit.');
+      if (!response.ok || !data.lesson) throw new Error(data.error || ui('Nastavení hodnocení se nepodařilo uložit.', 'The grading setting could not be saved.'));
 
       const parsed = LessonSchema.parse(data.lesson);
       setLesson(parsed);
@@ -446,26 +452,26 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       setLesson(previous);
       setGradingStrictness(previous.gradingStrictness ?? 'neutral');
       setSaveStatus('saved');
-      setError(err instanceof Error ? err.message : 'Nastavení hodnocení se nepodařilo uložit.');
+      setError(err instanceof Error ? err.message : ui('Nastavení hodnocení se nepodařilo uložit.', 'The grading setting could not be saved.'));
     }
   }
 
   const saveText = lessonId
-    ? saveStatus === 'saving' ? 'Ukládám změny…' : '✓ Uloženo'
-    : lesson ? 'Ukázka · neukládá se' : '';
+    ? saveStatus === 'saving' ? ui('Ukládám změny…', 'Saving changes…') : ui('✓ Uloženo', '✓ Saved')
+    : lesson ? ui('Ukázka · neukládá se', 'Example · not saved') : '';
 
   return (
     <main className="shell">
       <header className="brand">
-        <div className="brand-identity"><Link href="/" className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
-        <nav className="main-nav"><Link href="/new">Nová lekce</Link><Link href="/lessons">Moje lekce</Link></nav>
-        <div className="brand-side"><p className="brand-tagline">AI navigátor pro interaktivní výuku.</p><AuthControls onAuthChange={setAuthUser} quotaRefreshKey={quotaRefreshKey} /></div>
+        <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
+        <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link></nav>
+        <div className="brand-side"><LocaleSwitcher /><p className="brand-tagline">{ui('AI navigátor pro interaktivní výuku.', 'AI navigator for interactive teaching.')}</p><AuthControls onAuthChange={setAuthUser} quotaRefreshKey={quotaRefreshKey} /></div>
       </header>
 
       {authUser && recovery && (!lessonId || recovery.lessonId !== lessonId) ? (
         <div className="recovery-banner">
-          <span>Poslední uložená lekce: <strong>{recovery.lesson.title}</strong></span>
-          <button type="button" className="secondary" onClick={restoreLastLesson}>Pokračovat</button>
+          <span>{ui('Poslední uložená lekce:', 'Last saved lesson:')} <strong>{recovery.lesson.title}</strong></span>
+          <button type="button" className="secondary" onClick={restoreLastLesson}>{ui('Pokračovat', 'Continue')}</button>
         </div>
       ) : null}
 
@@ -473,9 +479,9 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         <section className="builder" aria-busy={busy}>
           {lessonId && lesson ? (
             <div className="panel current-lesson-panel">
-              <span className="eyebrow">Uložená lekce</span>
+              <span className="eyebrow">{ui('Uložená lekce', 'Saved lesson')}</span>
               <h1>{lesson.title}</h1>
-              <p className="muted-copy">Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.</p>
+              <p className="muted-copy">{ui('Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.', 'Continue with AI edits below. Every successful change is saved automatically.')}</p>
               {aiGradingEnabled ? (
                 <GradingStrictnessControl
                   value={gradingStrictness}
@@ -484,20 +490,20 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   compact
                 />
               ) : null}
-              <div className="actions"><Link href="/lessons" className="secondary button-link">← Moje lekce</Link><Link href="/new" className="primary button-link">+ Nová lekce</Link></div>
+              <div className="actions"><Link href="/lessons" className="secondary button-link">← {ui('Moje lekce', 'My lessons')}</Link><Link href="/new" className="primary button-link">+ {ui('Nová lekce', 'New lesson')}</Link></div>
             </div>
           ) : (
             <div className="panel">
-              <span className="eyebrow">Nová lekce</span>
-              <h1>Co mají studenti dnes zažít?</h1>
-              {initialFolderId ? <p className="auth-hint">Nová lekce se po vytvoření uloží přímo do vybrané složky.</p> : null}
+              <span className="eyebrow">{ui('Nová lekce', 'New lesson')}</span>
+              <h1>{ui('Co mají studenti dnes zažít?', 'What should students experience today?')}</h1>
+              {initialFolderId ? <p className="auth-hint">{ui('Nová lekce se po vytvoření uloží přímo do vybrané složky.', 'The new lesson will be saved directly into the selected folder.')}</p> : null}
               <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
-                <label>Volný popis hodiny<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…" /></label>
-                <p className="auth-hint">Pište v jazyce, ve kterém chcete vytvořit lekci. Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.</p>
+                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
+                <p className="auth-hint"><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</p>
                 <div className="form-grid">
-                  <label>Jazyk lekce
+                  <label>{ui('Jazyk lekce', 'Lesson language')}
                     <select value={lessonLanguage} onChange={(event) => setLessonLanguage(event.target.value)} className="materials-mode-select">
-                      <option value="auto">Automaticky podle zadání</option>
+                      <option value="auto">{ui('Automaticky podle zadání', 'Automatically from the brief')}</option>
                       <option value="cs">Čeština</option>
                       <option value="en">English</option>
                       <option value="de">Deutsch</option>
@@ -505,14 +511,14 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                       <option value="es">Español</option>
                       <option value="pl">Polski</option>
                       <option value="sk">Slovenčina</option>
-                      <option value="other">Jiný jazyk…</option>
+                      <option value="other">{ui('Jiný jazyk…', 'Other language…')}</option>
                     </select>
                   </label>
-                  {lessonLanguage === 'other' ? <label>Jiný jazyk<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder="např. Italiano, Українська, Português…" required /></label> : null}
-                  <label>Cílovka<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="např. 1. ročník vysoké školy" required /></label>
-                  <label>Délka v minutách<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="např. 90" required /></label>
-                  <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder="např. 3–4 studenti" required /></label>
-                  <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="např. živý, praktický a lehce vtipný" required /></label>
+                  {lessonLanguage === 'other' ? <label>{ui('Jiný jazyk', 'Other language')}<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder={ui('např. Italiano, Українська, Português…', 'e.g. Italiano, Українська, Português…')} required /></label> : null}
+                  <label>{ui('Cílovka', 'Audience')}<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={ui('např. 1. ročník vysoké školy', 'e.g. first-year university students')} required /></label>
+                  <label>{ui('Délka v minutách', 'Duration in minutes')}<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder={ui('např. 90', 'e.g. 90')} required /></label>
+                  <label>{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label>
+                  <label>{ui('Tón', 'Tone')}<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder={ui('např. živý, praktický a lehce vtipný', 'e.g. lively, practical and lightly humorous')} required /></label>
                 </div>
                 {aiGradingEnabled ? (
                   <GradingStrictnessControl
@@ -523,56 +529,56 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                 <details className="materials-disclosure">
                   <summary>
                     <span className="materials-disclosure-label">
-                      <strong>Přidat podklady k lekci</strong>
-                      <span>volitelné</span>
+                      <strong>{ui('Přidat podklady k lekci', 'Add source materials')}</strong>
+                      <span>{ui('volitelné', 'optional')}</span>
                     </span>
                     <span className="materials-disclosure-chevron" aria-hidden="true">⌄</span>
                   </summary>
                   <div className="materials-disclosure-body">
-                    <label>Prezentace, pracovní listy nebo textové materiály
+                    <label>{ui('Prezentace, pracovní listy nebo textové materiály', 'Presentations, worksheets or text materials')}
                       <input name="materials" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain,text/markdown" />
                     </label>
-                    <p className="muted-copy" style={{ marginTop: 8 }}>PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 10 MB.</p>
-                    <label style={{ marginTop: 12 }}>Jak s podklady pracovat
+                    <p className="muted-copy" style={{ marginTop: 8 }}>{ui('PDF, PPTX, DOCX, TXT nebo MD · nejvýše 5 souborů · dohromady max. 10 MB.', 'PDF, PPTX, DOCX, TXT or MD · up to 5 files · 10 MB total.')}</p>
+                    <label style={{ marginTop: 12 }}>{ui('Jak s podklady pracovat', 'How to use the materials')}
                       <select name="materialMode" value={materialMode} onChange={(event) => setMaterialMode(event.target.value as MaterialMode)} className="materials-mode-select">
-                        <option value="primary">Vycházet z podkladů</option>
-                        <option value="strict">Držet se podkladů</option>
-                        <option value="inspiration">Použít jako inspiraci</option>
+                        <option value="primary">{ui('Vycházet z podkladů', 'Use as the primary source')}</option>
+                        <option value="strict">{ui('Držet se podkladů', 'Stay strictly within the materials')}</option>
+                        <option value="inspiration">{ui('Použít jako inspiraci', 'Use as inspiration')}</option>
                       </select>
                     </label>
-                    <p className="muted-copy" style={{ marginTop: 8 }}>Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.</p>
+                    <p className="muted-copy" style={{ marginTop: 8 }}>{ui('Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.', 'Original files stay on your device. Syllonaut extracts their text in the browser and sends only that text to the server; neither the files nor extracted content are stored permanently.')}</p>
                   </div>
                 </details>
-                <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Syllonaut připravuje lekci…' : 'Vytvořit lekci'}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>Ukázková lekce</button></div>
-                {!authUser ? <p className="auth-hint">AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.</p> : null}
+                <div className="actions"><button className="primary" disabled={busy}>{busy ? ui('Syllonaut připravuje lekci…', 'Syllonaut is preparing the lesson…') : ui('Vytvořit lekci', 'Create lesson')}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>{ui('Ukázková lekce', 'Example lesson')}</button></div>
+                {!authUser ? <p className="auth-hint">{ui('AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.', 'AI generation requires a free account. The example lesson is available without signing in.')}</p> : null}
               </form>
             </div>
           )}
 
           {lesson ? <>
             <div className="panel vibe-editor">
-              <span className="eyebrow">AI úprava celé lekce</span>
-              <h2>Uprav celou lekci</h2>
+              <span className="eyebrow">{ui('AI úprava celé lekce', 'AI edit · whole lesson')}</span>
+              <h2>{ui('Uprav celou lekci', 'Edit the whole lesson')}</h2>
               <form onSubmit={revise}>
                 <label>
-                  Pokyn pro úpravu celé lekce
-                  <textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…" required />
+                  {ui('Pokyn pro úpravu celé lekce', 'Instruction for the whole-lesson edit')}
+                  <textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder={ui('Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…', 'Make the second activity more playful. Shorten the intro. Add a competition between teams…')} required />
                 </label>
-                <button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit celou lekci'}</button>
+                <button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit celou lekci', 'Edit whole lesson')}</button>
               </form>
-              <div className="quick-edits"><button type="button" onClick={() => setRevision('Udělej lekci zábavnější, ale ne infantilní.')}>Vtipnější</button><button type="button" onClick={() => setRevision('Přidej více týmové soutěže a jasné bodování.')}>Více soutěže</button><button type="button" onClick={() => setRevision('Omez výklad a přidej více práce studentů.')}>Méně výkladu</button></div>
+              <div className="quick-edits"><button type="button" onClick={() => setRevision(ui('Udělej lekci zábavnější, ale ne infantilní.', 'Make the lesson more engaging, but not childish.'))}>{ui('Vtipnější', 'More playful')}</button><button type="button" onClick={() => setRevision(ui('Přidej více týmové soutěže a jasné bodování.', 'Add more team competition and clear scoring.'))}>{ui('Více soutěže', 'More competition')}</button><button type="button" onClick={() => setRevision(ui('Omez výklad a přidej více práce studentů.', 'Reduce lecturing and add more student work.'))}>{ui('Méně výkladu', 'Less lecturing')}</button></div>
             </div>
             <div className="panel block-editor">
-              <span className="eyebrow">AI úprava jedné aktivity</span>
-              <h2>{selectedBlock ? selectedBlock.title : 'Klikni na aktivitu v náhledu'}</h2>
-              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>Pokyn pro úpravu vybrané aktivity<textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder="Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu." required /></label><button className="primary" disabled={busy}>{busy ? 'Upravuji…' : 'Upravit jen tuto aktivitu'}</button></form> : <p className="muted-copy">Vybraný blok se upraví bez přegenerování zbytku hodiny.</p>}
+              <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
+              <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
+              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
             </div>
           </> : null}
           {error ? <div className="error" role="alert">{error}</div> : null}
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label="Režim náhledu"><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>Učitelský náhled</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>Studentský režim</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ Vrátit poslední AI změnu</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>Tady vznikne vaše další lekce</h2><p>Ne slajdy. Interaktivní scénář, který studenti skutečně používají.</p><div className="sample-prompts"><span>týmová práce</span><span>hlasování</span><span>kvízy</span><span>odhalování</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>

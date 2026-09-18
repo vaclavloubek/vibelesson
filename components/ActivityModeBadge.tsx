@@ -1,12 +1,16 @@
+'use client';
+
+import { useUiLocale } from '@/components/LocaleProvider';
 import type { LessonBlock } from '@/lib/schema';
 
-function activityMode(type: LessonBlock['type']) {
-  if (type === 'team_task') return 'Týmová aktivita';
-  if (type === 'intro' || type === 'reveal' || type === 'timer') return 'Společná aktivita';
-  return 'Individuální aktivita';
+function activityMode(type: LessonBlock['type'], english: boolean) {
+  if (type === 'team_task') return english ? 'Team activity' : 'Týmová aktivita';
+  if (type === 'intro' || type === 'reveal' || type === 'timer') return english ? 'Whole-class activity' : 'Společná aktivita';
+  return english ? 'Individual activity' : 'Individuální aktivita';
 }
 
 export default function ActivityModeBadge({ type }: { type: LessonBlock['type'] }) {
+  const english = useUiLocale() === 'en';
   return (
     <span
       style={{
@@ -23,7 +27,7 @@ export default function ActivityModeBadge({ type }: { type: LessonBlock['type'] 
         background: 'var(--panel)',
       }}
     >
-      {activityMode(type)}
+      {activityMode(type, english)}
     </span>
   );
 }
