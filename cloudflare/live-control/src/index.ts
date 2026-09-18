@@ -44,6 +44,7 @@ type LiveEvent = {
 };
 
 const encoder = new TextEncoder();
+const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -395,6 +396,10 @@ export class LiveSession extends DurableObject<Env> {
     );
   }
 
+  private async extendRetention() {
+    await this.ctx.storage.setAlarm(Date.now() + LIVE_RETENTION_MS);
+  }
+
   private operationResult(operationId: string): LiveEvent | null {
     const rows = [...this.ctx.storage.sql.exec<{
       revision: number;
@@ -446,6 +451,7 @@ export class LiveSession extends DurableObject<Env> {
       if (current && current.revision > body.revision) return json({ snapshot: current, stale: true }, 409);
 
       this.writeSnapshot({ ...body, updatedAt: new Date().toISOString() });
+      await this.extendRetention();
       this.broadcast({ type: 'snapshot', revision: body.revision });
       return json({ ok: true, revision: body.revision });
     }
@@ -611,6 +617,7 @@ export class LiveSession extends DurableObject<Env> {
         this.writeSnapshot(nextSnapshot);
       });
 
+      await this.extendRetention();
       this.broadcast({ type: 'event', event });
       return json({ ok: true, event });
     }
@@ -637,5 +644,11 @@ export class LiveSession extends DurableObject<Env> {
   webSocketClose(socket: WebSocket, code: number, reason: string, wasClean: boolean) {
     socket.close(code, reason);
     void wasClean;
+  }
+
+  alarm() {
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec('DELETE FROM events; DELETE FROM session_state;');
+    });
   }
 }
