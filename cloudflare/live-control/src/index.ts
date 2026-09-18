@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 
-type Role = 'teacher' | 'student';
+type Role = 'teacher' | 'student' | 'presenter';
 
 type Capability = {
   v: 1;
@@ -67,6 +67,8 @@ type LiveEvent = {
 
 const encoder = new TextEncoder();
 const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const WORKER_VERSION = '0.8.14';
+const LIVE_PROTOCOL_VERSION = 2;
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -130,7 +132,7 @@ async function verifyCapability(token: string, secret: string, sessionId: string
     if (!valid) return null;
 
     const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadPart))) as Capability;
-    if (payload.v !== 1 || payload.sid !== sessionId || !payload.sub || !['teacher', 'student'].includes(payload.role)) return null;
+    if (payload.v !== 1 || payload.sid !== sessionId || !payload.sub || !['teacher', 'student', 'presenter'].includes(payload.role)) return null;
     if (!Number.isFinite(payload.exp) || payload.exp <= Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch {
@@ -379,7 +381,14 @@ export default {
       if (!origin) return new Response(null, { status: 403 });
       return cors(new Response(null, { status: 204 }), request);
     }
-    if (url.pathname === '/health') return cors(json({ ok: true, service: 'syllonaut-live-control' }), request);
+    if (url.pathname === '/health') {
+      return cors(json({
+        ok: true,
+        service: 'syllonaut-live-control',
+        workerVersion: WORKER_VERSION,
+        protocolVersion: LIVE_PROTOCOL_VERSION,
+      }), request);
+    }
 
     const route = sessionRoute(url);
     if (!route) return json({ error: 'Not found.' }, 404);
@@ -548,6 +557,7 @@ export class LiveSession extends DurableObject<Env> {
       const actorRole = request.headers.get('x-syllonaut-role') as Role | null;
       const actorId = request.headers.get('x-syllonaut-sub') ?? '';
       if (!actorRole || !actorId) return json({ error: 'Unauthorized.' }, 401);
+      if (actorRole === 'presenter') return json({ error: 'Forbidden.' }, 403);
 
       const body = await request.json() as { operationId?: string; type?: string; payload?: unknown };
       if (!body.operationId || !/^[0-9a-f-]{36}$/i.test(body.operationId) || !body.type || body.type.length > 80) {
