@@ -85,14 +85,16 @@ export default async function TeacherSessionPage({ params }: Props) {
     return teacherSurface(id);
   }
 
+  let session: { id: string } | null = null;
   try {
-    const session = await loadOwnedSession(supabase, id, userId);
-    if (!session) notFound();
+    session = await loadOwnedSession(supabase, id, userId);
   } catch (error) {
     if (resume?.userId !== userId) throw error;
     console.warn('teacher live ownership lookup degraded; using resume ticket', { sessionId: id });
+    return teacherSurface(id);
   }
 
+  if (!session) notFound();
   return teacherSurface(id);
 }
 
