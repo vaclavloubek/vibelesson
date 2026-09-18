@@ -226,6 +226,8 @@ export default function PricingPage({
   });
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [portalError, setPortalError] = useState('');
   const checkoutDialogRef = useRef<HTMLDivElement | null>(null);
   const pricingViewTrackedRef = useRef(false);
   const countryOptions = useMemo(() => {
@@ -357,6 +359,51 @@ export default function PricingPage({
     }
   }
 
+  async function openSandboxPortal() {
+    if (portalBusy) return;
+    setPortalBusy(true);
+    setPortalError('');
+
+    try {
+      const response = await fetch('/api/billing/stripe/portal', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      const payload = await response.json() as {
+        url?: string;
+        error?: string;
+        diagnostics?: {
+          stripeCode?: string | null;
+          stripeMessage?: string | null;
+        };
+      };
+
+      if (!response.ok || !payload.url) {
+        const diagnosticParts = [
+          payload.diagnostics?.stripeCode,
+          payload.diagnostics?.stripeMessage,
+        ].filter(Boolean);
+        throw new Error(
+          diagnosticParts.length > 0
+            ? diagnosticParts.join(': ')
+            : (payload.error ?? 'portal_creation_failed'),
+        );
+      }
+
+      trackEvent('billing_portal_open', { source: 'pricing_sandbox' });
+      window.location.assign(payload.url);
+    } catch (error) {
+      console.error('sandbox portal start failed', error);
+      const message = error instanceof Error ? error.message : '';
+      setPortalError(
+        message && message !== 'portal_creation_failed'
+          ? `Stripe: ${message}`
+          : 'Testovací zákaznický portál se nepodařilo otevřít.',
+      );
+      setPortalBusy(false);
+    }
+  }
+
   const checkoutRoute = checkoutPlan ? billingRouteForCountry(checkoutCountry) : null;
 
   return (
@@ -398,6 +445,25 @@ export default function PricingPage({
             ? 'Sandbox Checkout byl dokončen. Stav předplatného ověří webhook v databázi.'
             : 'Sandbox Checkout byl zrušen. Nic se nezměnilo.'}
         </div>
+      ) : null}
+
+      {sandboxCheckoutEnabled && user ? (
+        <section className={styles.sandboxTools} aria-label="Sandbox správa předplatného">
+          <div>
+            <span className={styles.checkoutKicker}>Stripe sandbox</span>
+            <strong>Správa testovacího předplatného</strong>
+            <p>Platební metodu, faktury a zrušení testujeme přes Stripe Customer Portal.</p>
+          </div>
+          <button
+            type="button"
+            className={styles.dialogSecondary}
+            onClick={openSandboxPortal}
+            disabled={portalBusy}
+          >
+            {portalBusy ? 'Otevírám portál…' : 'Spravovat předplatné'}
+          </button>
+          {portalError ? <div className={styles.sandboxToolsError} role="alert">{portalError}</div> : null}
+        </section>
       ) : null}
 
       <section className={styles.controls} aria-label="Nastavení ceníku">

@@ -2,7 +2,7 @@
 
 Aktualizováno: 2026-09-18 po doplnění admin-only Stripe sandbox Checkout flow ve verzi 0.8.06.
 
-**Aktuální produktová verze: 0.8.08** — admin-only sandbox Checkout zobrazuje při selhání bezpečně sanitizovaný Stripe error code/message, aby bylo možné přesně doladit restricted-key oprávnění bez otevírání širšího API přístupu.
+**Aktuální produktová verze: 0.8.09** — admin-only sandbox billing doplňuje bezpečný Stripe Customer Portal pro správu platební metody, faktur a zrušení. Portal Session vzniká serverově pouze z Customer ID uloženého v `billing_customers`; klient nemůže podstrčit cizí Stripe Customer.
 
 Produkční release 0.8:
 
@@ -919,7 +919,8 @@ Další významné změny 2026-09-18:
 - **0.8.06** — admin-only sandbox Checkout pro Teacher/Teacher Pro: autentizovaný endpoint, serverový DB Price lookup, ISO billing-country selector, regionální CZK/EUR/USD routing, explicitní `managed_payments`, Stripe subscription metadata pro webhook a CI regression checks. Veřejné placené CTA zůstávají `Připravujeme`.
 - **0.8.07** — Checkout Customer reuse: pokud `billing_customers` už obsahuje Stripe Customer pro uživatele a prostředí, Checkout používá `customer` místo `customer_email`; první nákup stále Customer vytvoří. Oprava reaguje na reálně zachycený sandbox případ, kdy druhý Checkout vytvořil duplicitního Customer a DB správně odmítla subscription.
 - **0.8.08** — admin sandbox Checkout diagnostika: Stripe API chyby se sanitizují na `type/code/message` a zobrazí pouze přihlášenému adminovi v testovacím dialogu; žádné API klíče ani secret hodnoty se nevrací.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.08`.
+- **0.8.09** — admin-only Stripe Customer Portal: server-authenticated Portal Session, Customer ID pouze z `billing_customers`, sanitizované chyby, krátkodobý Stripe-hosted redirect a CTA v Ceníku. Portal se používá pro platební metody, faktury a cancellation; změnu tarifu v Portalu záměrně nezapínáme kvůli řízenému country/currency routingu.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.09`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
