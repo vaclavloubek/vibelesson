@@ -24,11 +24,12 @@ type SessionSnapshot = {
   activeBlockId: string | null;
   lessonSnapshot: unknown;
   teams: Array<{ id: string; name: string; sortOrder?: number }>;
-  participants: Array<{ id: string; displayName: string; teamId: string | null }>;
+  participants: Array<{ id: string; displayName: string; teamId: string | null; teamUpdatedAt?: string | null }>;
   responses: Array<{
     participantId: string;
     blockId: string;
     answer: unknown;
+    updatedAt: string;
     submittedAnswer?: unknown;
     submittedAt?: string | null;
   }>;
@@ -36,6 +37,7 @@ type SessionSnapshot = {
     teamId: string;
     blockId: string;
     text: string;
+    updatedAt: string;
     submittedText?: string | null;
     submittedAt?: string | null;
     updatedByParticipantId?: string | null;
@@ -291,7 +293,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     return {
       ...snapshot,
       participants: snapshot.participants.map((participant) => (
-        participant.id === event.actorId ? { ...participant, teamId } : participant
+        participant.id === event.actorId ? { ...participant, teamId, teamUpdatedAt: event.createdAt } : participant
       )),
       revision: event.revision,
       updatedAt: event.createdAt,
@@ -307,6 +309,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
       participantId: event.actorId,
       blockId,
       answer,
+      updatedAt: event.createdAt,
       submittedAnswer: payload.submitted === true ? answer : existing?.submittedAnswer,
       submittedAt: payload.submitted === true ? event.createdAt : existing?.submittedAt ?? null,
     };
@@ -331,6 +334,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
       teamId,
       blockId,
       text,
+      updatedAt: event.createdAt,
       submittedText: payload.submitted === true ? text : existing?.submittedText ?? null,
       submittedAt: payload.submitted === true ? event.createdAt : existing?.submittedAt ?? null,
       updatedByParticipantId: event.actorId,
