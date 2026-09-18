@@ -135,7 +135,169 @@ function formatPrice(value: number, currency: BillingCurrency) {
   if (currency === 'czk') return `${czk.format(value)} Kč`;
   if (currency === 'eur') return `${value.toFixed(2).replace('.', ',')} €`;
   if (value === 0) return '$0';
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}`;
+  return '
+}
+
+function priceValue(plan: Plan, billing: Billing, currency: BillingCurrency) {
+  if (currency === 'czk') return billing === 'annual' ? plan.price.annualCzk : plan.price.monthlyCzk;
+  if (currency === 'eur') return billing === 'annual' ? plan.price.annualEur : plan.price.monthlyEur;
+  return billing === 'annual' ? plan.price.annualUsd : plan.price.monthlyUsd;
+}
+
+function PlanCard({ plan, billing, currency }: { plan: Plan; billing: Billing; currency: BillingCurrency }) {
+  const annual = billing === 'annual';
+  const primary = priceValue(plan, billing, currency);
+  const annualPrice = priceValue(plan, 'annual', currency);
+  const monthlyEquivalent = plan.free ? 0 : annualPrice / 12;
+
+  return (
+    <article className={`${styles.card} ${plan.featured ? styles.featured : ''}`} id={plan.id}>
+      {plan.featured ? <span className={styles.badge}>Doporučený plán</span> : null}
+      <div className={styles.cardHeader}>
+        <h2>{plan.name}</h2>
+        <p>{plan.description}</p>
+      </div>
+
+      <div className={styles.priceBlock}>
+        <div className={styles.priceLine}>
+          <strong>{formatPrice(primary, currency)}</strong>
+          <span>{annual ? '/ rok' : '/ měsíc'}</span>
+        </div>
+        {annual && !plan.free ? (
+          <div className={styles.priceNote}>≈ {formatPrice(monthlyEquivalent, currency)} / měsíc · 2 měsíce zdarma</div>
+        ) : null}
+        {plan.free ? <div className={styles.priceNote}>Bez platební karty.</div> : null}
+      </div>
+
+      <ul className={styles.features}>
+        {plan.features.map((feature) => {
+          const premiumHook = feature.startsWith('AI hodnocení') || feature.startsWith('Složky a podsložky');
+          return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}</li>;
+        })}
+      </ul>
+
+      {plan.free ? (
+        <a className={styles.activeCta} href="/pricing?signup=1" onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>Vytvořit Free účet</a>
+      ) : (
+        <button type="button" className={styles.disabledCta} disabled>Připravujeme</button>
+      )}
+    </article>
+  );
+}
+
+export default function PricingPage({
+  startSignup = false,
+  currency,
+}: {
+  startSignup?: boolean;
+  currency: BillingCurrency;
+}) {
+  const [user, setUser] = useState<User | null>(null);
+  const [audience, setAudience] = useState<Audience>('teachers');
+  const [billing, setBilling] = useState<Billing>('monthly');
+  const pricingViewTrackedRef = useRef(false);
+  const plans = audience === 'teachers' ? teacherPlans : schoolPlans;
+  const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}, měna ${currency.toUpperCase()}.`;
+
+  useEffect(() => {
+    if (pricingViewTrackedRef.current) return;
+    pricingViewTrackedRef.current = true;
+    trackEvent('pricing_view', { segment: 'teacher', billing_period: 'monthly' });
+  }, []);
+
+  function changeAudience(next: Audience) {
+    if (next === audience) return;
+    setAudience(next);
+    trackEvent('pricing_segment_change', { segment: next === 'teachers' ? 'teacher' : 'school' });
+  }
+
+  function changeBilling(next: Billing) {
+    if (next === billing) return;
+    setBilling(next);
+    trackEvent('pricing_billing_period_change', { billing_period: next });
+  }
+
+  return (
+    <main className={landing.page}>
+      <header className={landing.header}>
+        <Link href="/" className={landing.brand} aria-label="Syllonaut – domů">
+          <SyllonautMark />
+          <span>Syllonaut</span>
+          <span className={landing.beta}>BETA</span>
+        </Link>
+        <nav className={landing.nav} aria-label="Hlavní navigace">
+          <Link href="/#jak-to-funguje">Jak to funguje</Link>
+          <Link href="/pricing" aria-current="page">Ceník</Link>
+          {user ? <Link href="/lessons">Moje lekce</Link> : null}
+        </nav>
+        <div className={landing.headerActions}>
+          <AuthControls
+            onAuthChange={setUser}
+            initialOpen={startSignup}
+            initialMode={startSignup ? 'signup' : 'signin'}
+          />
+          <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'pricing' })}>Připravit hodinu</Link>
+          <HeaderMobileNav signedIn={Boolean(user)} current="pricing" />
+        </div>
+      </header>
+
+      <section className={styles.hero}>
+        <span className={styles.eyebrow}>Pricing · Ceník</span>
+        <h1>Začněte zdarma. Přidejte výkon, až ho budete potřebovat.</h1>
+        <p>
+          Free stačí na vyzkoušení celého toku od přípravy po živou hodinu. Placené plány přidají větší AI kapacitu;
+          Teacher Pro navíc automatické AI hodnocení a organizaci lekcí do složek.
+        </p>
+      </section>
+
+      <section className={styles.controls} aria-label="Nastavení ceníku">
+        <div className={styles.controlGroup}>
+          <span>Typ předplatného</span>
+          <div className={styles.segmented} role="group" aria-label="Typ předplatného">
+            <button type="button" className={audience === 'teachers' ? styles.selected : ''} aria-pressed={audience === 'teachers'} onClick={() => changeAudience('teachers')}>Pro učitele</button>
+            <button type="button" className={audience === 'schools' ? styles.selected : ''} aria-pressed={audience === 'schools'} onClick={() => changeAudience('schools')}>Pro školy</button>
+          </div>
+        </div>
+        <div className={styles.controlGroup}>
+          <span>Fakturace</span>
+          <div className={styles.segmented} role="group" aria-label="Fakturace">
+            <button type="button" className={billing === 'monthly' ? styles.selected : ''} aria-pressed={billing === 'monthly'} onClick={() => changeBilling('monthly')}>Měsíčně</button>
+            <button type="button" className={billing === 'annual' ? styles.selected : ''} aria-pressed={billing === 'annual'} onClick={() => changeBilling('annual')}>Ročně <em>2 měsíce zdarma</em></button>
+          </div>
+        </div>
+      </section>
+
+      <div role="status" aria-live="polite" aria-atomic="true">
+        <VisuallyHidden>{pricingStatus}</VisuallyHidden>
+      </div>
+
+      <section className={styles.cards}>
+        {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billing={billing} currency={currency} />)}
+      </section>
+
+      <section className={styles.notes}>
+        <div>
+          <span className={styles.noteIndex}>01</span>
+          <strong>Měsíční limity se obnovují každý kalendářní měsíc.</strong>
+          <p>U školních plánů jsou lekce a AI úpravy společným limitem pro všechny učitele v daném účtu.</p>
+        </div>
+        <div>
+          <span className={styles.noteIndex}>02</span>
+          <strong>Placené plány zatím neaktivujeme.</strong>
+          <p>Tlačítka jsou proto záměrně neaktivní. Free účet je dostupný už nyní a nevyžaduje platební kartu.</p>
+        </div>
+        <div>
+          <span className={styles.noteIndex}>03</span>
+          <strong>Školní správa se ještě připravuje.</strong>
+          <p>U školních plánů nyní zveřejňujeme kapacitu, společné AI limity a ceny; detail týmové správy doplníme před spuštěním.</p>
+        </div>
+      </section>
+
+      <SiteFooter />
+    </main>
+  );
+}
+ + (Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2));
 }
 
 function priceValue(plan: Plan, billing: Billing, currency: BillingCurrency) {
