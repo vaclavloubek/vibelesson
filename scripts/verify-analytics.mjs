@@ -71,6 +71,8 @@ requirePattern(cookieConsent, /ad_user_data:\s*'denied'/, 'ad_user_data must rem
 requirePattern(cookieConsent, /ad_personalization:\s*'denied'/, 'ad_personalization must remain denied.');
 requirePattern(cookieConsent, /allow_google_signals:\s*false/, 'Google Signals must remain disabled.');
 requirePattern(cookieConsent, /allow_ad_personalization_signals:\s*false/, 'ad personalization signals must remain disabled.');
+requirePattern(cookieConsent, /dataLayer\?\.push\(arguments\)/, 'gtag must queue canonical arguments objects so gtag.js processes commands.');
+forbidPattern(cookieConsent, /dataLayer\?\.push\(args\)/, 'gtag must not queue rest-parameter arrays; gtag.js expects the canonical arguments object.');
 forbidPattern(cookieConsent, /usePathname/, 'CookieConsent must not manually track SPA route changes when Enhanced Measurement is authoritative.');
 forbidPattern(cookieConsent, /page_path:\s*pathname/, 'manual route page_view tracking can duplicate Enhanced Measurement.');
 
