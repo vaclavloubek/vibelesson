@@ -1,22 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { liveControlConfigured, mintLiveCapability } from '@/lib/live-control-server';
+import { liveControlConfigured, mintLiveCapability, type LiveControlSnapshot } from '@/lib/live-control-server';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-type LiveEvent = {
-  revision: number;
-  operationId: string;
-  actorRole: 'teacher' | 'student';
-  actorId: string;
-  type: string;
-  payload: unknown;
-  createdAt: string;
+type LiveStateResponse = {
+  snapshot?: LiveControlSnapshot;
 };
 
-type LiveStateResponse = {
-  events?: LiveEvent[];
+type ReconcileResult = {
+  ok?: boolean;
+  skipped?: boolean;
+  revision?: number;
+  responses?: number;
+  teamResponses?: number;
 };
 
 export async function POST(_req: Request, { params }: RouteContext) {
@@ -47,59 +45,67 @@ export async function POST(_req: Request, { params }: RouteContext) {
   });
   if (!access) return NextResponse.json({ enabled: false, reconciled: 0 });
 
-  let cursor = Number(session.live_control_revision ?? 0);
-  let reconciled = 0;
-
   try {
-    for (let page = 0; page < 20; page += 1) {
-      const response = await fetchWithTimeout(
-        `${access.url}/v1/sessions/${id}/state?after=${encodeURIComponent(String(cursor))}`,
-        {
-          headers: { authorization: `Bearer ${access.token}` },
-          cache: 'no-store',
-        },
-        5_000,
+    const response = await fetchWithTimeout(
+      `${access.url}/v1/sessions/${id}/state`,
+      {
+        headers: { authorization: `Bearer ${access.token}` },
+        cache: 'no-store',
+      },
+      5_000,
+    );
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: 'Záložní live vrstva není momentálně dostupná.' },
+        { status: 503 },
       );
-      if (!response.ok) {
-        return NextResponse.json(
-          { error: 'Záložní live vrstva není momentálně dostupná.', revision: cursor },
-          { status: 503 },
-        );
-      }
-
-      const live = await response.json() as LiveStateResponse;
-      const events = Array.isArray(live.events)
-        ? live.events.filter((event) => Number.isInteger(event.revision) && event.revision > cursor)
-        : [];
-      if (!events.length) break;
-
-      const { data, error: rpcError } = await supabase.rpc('reconcile_live_control_events', {
-        p_session_id: id,
-        p_events: events,
-      });
-      if (rpcError) {
-        console.error('live control reconciliation RPC failed', rpcError);
-        return NextResponse.json(
-          { error: 'Záložní změny se zatím nepodařilo dosynchronizovat.', revision: cursor },
-          { status: 503 },
-        );
-      }
-
-      const nextRevision = Number((data as { revision?: unknown } | null)?.revision ?? cursor);
-      if (!Number.isInteger(nextRevision) || nextRevision < cursor) {
-        return NextResponse.json({ error: 'Reconciliation vrátila neplatnou revizi.' }, { status: 502 });
-      }
-
-      reconciled += events.length;
-      cursor = nextRevision;
-      if (events.length < 500) break;
     }
 
-    return NextResponse.json({ enabled: true, reconciled, revision: cursor });
+    const live = await response.json() as LiveStateResponse;
+    const snapshot = live.snapshot;
+    if (!snapshot || snapshot.sessionId !== id) {
+      return NextResponse.json({ error: 'Záložní live snapshot je neplatný.' }, { status: 502 });
+    }
+
+    const currentRevision = Number(session.live_control_revision ?? 0);
+    if (!Number.isInteger(snapshot.revision) || snapshot.revision <= currentRevision) {
+      return NextResponse.json({
+        enabled: true,
+        reconciled: 0,
+        revision: currentRevision,
+        skipped: true,
+      });
+    }
+
+    const { data, error: rpcError } = await supabase.rpc('reconcile_live_control_snapshot', {
+      p_session_id: id,
+      p_snapshot: snapshot,
+    });
+
+    if (rpcError) {
+      console.error('live control snapshot reconciliation RPC failed', rpcError);
+      return NextResponse.json(
+        { error: 'Záložní změny se zatím nepodařilo dosynchronizovat.', revision: currentRevision },
+        { status: 503 },
+      );
+    }
+
+    const result = (data ?? {}) as ReconcileResult;
+    const reconciled = result.skipped
+      ? 0
+      : 1 + Number(result.responses ?? 0) + Number(result.teamResponses ?? 0);
+
+    return NextResponse.json({
+      enabled: true,
+      reconciled,
+      revision: Number(result.revision ?? snapshot.revision),
+      skipped: Boolean(result.skipped),
+    });
   } catch (error) {
-    console.error('live control reconciliation failed', error);
+    console.error('live control snapshot reconciliation failed', error);
     return NextResponse.json(
-      { error: 'Dosynchronizace záložní live vrstvy se přerušila.', revision: cursor },
+      { error: 'Dosynchronizace záložní live vrstvy se přerušila.' },
       { status: 503 },
     );
   }
