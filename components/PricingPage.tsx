@@ -288,6 +288,7 @@ export default function PricingPage({
   }
 
   function openSandboxCheckout(plan: Plan) {
+    if (plan.id !== 'teacher' && plan.id !== 'teacher-pro') return;
     setCheckoutPlan(plan);
     setCheckoutError('');
     trackEvent('plan_select', {
@@ -299,6 +300,8 @@ export default function PricingPage({
 
   async function startSandboxCheckout() {
     if (!checkoutPlan || checkoutBusy) return;
+    if (checkoutPlan.id !== 'teacher' && checkoutPlan.id !== 'teacher-pro') return;
+    const planId = checkoutPlan.id;
     setCheckoutBusy(true);
     setCheckoutError('');
 
@@ -308,7 +311,7 @@ export default function PricingPage({
         headers: { 'content-type': 'application/json' },
         cache: 'no-store',
         body: JSON.stringify({
-          planId: checkoutPlan.id,
+          planId,
           billing,
           country: checkoutCountry,
         }),
@@ -320,7 +323,7 @@ export default function PricingPage({
       }
 
       trackEvent('checkout_start', {
-        plan: checkoutPlan.id,
+        plan: planId,
         billing_period: billing,
         billing_country: checkoutCountry,
         source: 'pricing_sandbox',
