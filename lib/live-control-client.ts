@@ -20,12 +20,13 @@ export type LiveControlState = {
       blocks?: Array<Record<string, unknown>>;
     };
     teams: Array<{ id: string; name: string; sortOrder?: number }>;
-    participants: Array<{ id: string; displayName: string; teamId: string | null; teamUpdatedAt?: string | null }>;
+    participants: Array<{ id: string; displayName: string; teamId: string | null }>;
     responses: Array<{
       participantId: string;
       blockId: string;
       answer: unknown;
-      updatedAt: string;
+      submitted?: boolean;
+      updatedAt?: string;
       submittedAnswer?: unknown;
       submittedAt?: string | null;
     }>;
@@ -33,7 +34,8 @@ export type LiveControlState = {
       teamId: string;
       blockId: string;
       text: string;
-      updatedAt: string;
+      submitted?: boolean;
+      updatedAt?: string;
       submittedText?: string | null;
       submittedAt?: string | null;
       updatedByParticipantId?: string | null;
