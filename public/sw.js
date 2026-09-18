@@ -1,4 +1,4 @@
-const CACHE_NAME = 'syllonaut-live-shell-v1';
+const CACHE_NAME = 'syllonaut-live-shell-v2';
 
 function isCacheableLiveNavigation(requestUrl, response) {
   if (!response.ok || response.redirected || !response.url) return false;
