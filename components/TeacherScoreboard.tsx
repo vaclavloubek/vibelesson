@@ -127,13 +127,13 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
       <div className={`panel ${styles.revealPanel}`}>
         <div className={styles.revealHead}>
           <div>
-            <strong>{data.scoreboardRevealed ? 'Pořadí je zveřejněné' : 'Pořadí je skryté'}</strong>
+            <strong>{data.scoreboardRevealed ? ui('Pořadí je zveřejněné', 'The scoreboard is visible') : ui('Pořadí je skryté', 'The scoreboard is hidden')}</strong>
             <span>
               {data.scoreboardRevealed
-                ? 'Studenti vidí jen své vlastní skóre a pořadí.'
+                ? ui('Studenti vidí jen své vlastní skóre a pořadí.', 'Students can see only their own score and rank.')
                 : canReveal
-                  ? 'Studenti zatím své skóre ani pořadí nevidí.'
-                  : 'Zatím není k dispozici žádný bodovaný blok.'}
+                  ? ui('Studenti zatím své skóre ani pořadí nevidí.', 'Students cannot see their score or rank yet.')
+                  : ui('Zatím není k dispozici žádný bodovaný blok.', 'No scored block is available yet.')}
             </span>
           </div>
           <button
@@ -143,10 +143,10 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
             onClick={() => void setScoreboardVisibility(!data.scoreboardRevealed)}
           >
             {revealBusy
-              ? 'Ukládám…'
+              ? ui('Ukládám…', 'Saving…')
               : data.scoreboardRevealed
-                ? 'Skrýt pořadí'
-                : 'Zveřejnit pořadí'}
+                ? ui('Skrýt pořadí', 'Hide scoreboard')
+                : ui('Zveřejnit pořadí', 'Reveal scoreboard')}
           </button>
         </div>
 

@@ -28,10 +28,10 @@ export default function SessionActions({ sessionId, title }: Props) {
     try {
       const response = await fetch(`/api/sessions/${sessionId}/delete`, { method: 'DELETE' });
       const data = await response.json() as { deleted?: boolean; error?: string };
-      if (!response.ok || !data.deleted) throw new Error(data.error || english ? 'Deletion failed.' : 'Smazání selhalo.');
+      if (!response.ok || !data.deleted) throw new Error(english ? 'Deletion failed.' : (data.error || 'Smazání selhalo.'));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : english ? 'Deletion failed.' : 'Smazání selhalo.');
+      setError(err instanceof Error ? err.message : (english ? 'Deletion failed.' : 'Smazání selhalo.'));
     } finally {
       setBusy(false);
     }
