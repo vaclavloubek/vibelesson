@@ -59,7 +59,7 @@ export function mintLiveCapability(input: LiveCapabilityInput): LiveControlAcces
   const current = config();
   if (!current) return null;
 
-  const exp = Math.floor(Date.now() / 1000) + (input.ttlSeconds ?? 2 * 60 * 60);
+  const exp = Math.floor(Date.now() / 1000) + (input.ttlSeconds ?? 8 * 60 * 60);
   const payload = {
     v: 1,
     sid: input.sessionId,
