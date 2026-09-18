@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LessonActions from './LessonActions';
+import { bucketItemCount, trackEvent } from '@/lib/analytics';
 import styles from './LessonLibrary.module.css';
 
 export type LessonListItem = {
@@ -154,6 +155,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, parentId }),
       });
+      trackEvent('folder_created');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Složku se nepodařilo vytvořit.');
@@ -210,6 +212,11 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessonIds, folderId }),
       });
+      if (lessonIds.length > 1) {
+        trackEvent('bulk_lessons_moved', { item_count_bucket: bucketItemCount(lessonIds.length) });
+      } else if (folderId) {
+        trackEvent('lesson_moved_to_folder');
+      }
       setSelectedLessonIds([]);
       if (moveDialog) closeMoveDialog();
       if (selectionMode) setSelectionMode(false);
