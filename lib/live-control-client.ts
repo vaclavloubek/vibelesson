@@ -138,16 +138,25 @@ export function connectLiveControl(
   const access = getLiveControlAccess(sessionId, role);
   if (!access) return null;
 
-  const wsBase = access.url.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
-  const socket = new WebSocket(
-    `${wsBase}/v1/sessions/${sessionId}/ws?token=${encodeURIComponent(access.token)}`,
-  );
-  socket.onmessage = (event) => {
-    try {
-      onMessage(JSON.parse(event.data as string));
-    } catch {
-      // Ignore malformed wake-ups; polling/fetch replay remains authoritative.
-    }
-  };
-  return socket;
+  try {
+    const wsBase = access.url.trim().replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+    const socket = new WebSocket(
+      `${wsBase}/v1/sessions/${sessionId}/ws?token=${encodeURIComponent(access.token)}`,
+    );
+    socket.onmessage = (event) => {
+      try {
+        onMessage(JSON.parse(event.data as string));
+      } catch {
+        // Ignore malformed wake-ups; polling/fetch replay remains authoritative.
+      }
+    };
+    socket.onerror = () => {
+      // Realtime wake-ups are optional. Primary polling/fetch paths continue.
+    };
+    return socket;
+  } catch {
+    // A malformed or temporarily unavailable P2 endpoint must never crash
+    // the student/teacher live page.
+    return null;
+  }
 }
