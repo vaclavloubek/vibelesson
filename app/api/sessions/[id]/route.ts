@@ -227,6 +227,15 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       }
     } else {
       if (session.status !== 'live') return NextResponse.json({ error: 'Blok lze měnit pouze během živé hodiny.' }, { status: 409 });
+      if (action.expectedActiveBlockId && action.expectedActiveBlockId !== session.active_block_id) {
+        return NextResponse.json({
+          ok: true,
+          status: session.status,
+          activeBlockId: session.active_block_id,
+          scoreboardRevealed: Boolean(session.scoreboard_revealed),
+          replayed: true,
+        });
+      }
       const currentIndex = lesson.blocks.findIndex((block) => block.id === session.active_block_id);
       if (currentIndex < 0) return NextResponse.json({ error: 'Aktuální blok není ve snapshotu lekce.' }, { status: 500 });
       const nextIndex = action.action === 'next' ? currentIndex + 1 : currentIndex - 1;
