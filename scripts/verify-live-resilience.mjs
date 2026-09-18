@@ -47,6 +47,7 @@ requirePattern(teacherPage, /if \(!authFailure \|\| !resume\) redirect\('\/'\)/,
 requirePattern(presenterPage, /if \(!authError \|\| !resume\) redirect\('\/'\)/, 'Presenter resume must not bypass a clean signed-out state.');
 requirePattern(serviceWorker, /response\.redirected/, 'live navigation cache must reject redirected responses.');
 requirePattern(serviceWorker, /responseUrl\.pathname === requestUrl\.pathname/, 'live navigation cache must only store the requested live route.');
+requirePattern(serviceWorker, /CACHE_NAME = 'syllonaut-live-shell-v2'/, 'live shell cache epoch must invalidate pre-hardening cache entries.');
 requirePattern(authControls, /\/api\/auth\/clear-live-resume/, 'explicit teacher logout must clear live recovery tickets.');
 requirePattern(clearResumeRoute, /clearAllLiveResumeCookies\(\)/, 'logout cleanup endpoint must clear every live recovery ticket.');
 requirePattern(liveControlRoute, /setLiveResumeCookie\(id, userId\)/, 'healthy ownership verification must mint a live resume ticket.');
