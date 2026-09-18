@@ -56,6 +56,17 @@ function storageKey(sessionId: string, role: 'teacher' | 'student') {
   return `syllonaut-live-control-v1:${role}:${sessionId}`;
 }
 
+function readStoredAccess(storage: Storage, key: string) {
+  const raw = storage.getItem(key);
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as LiveControlAccess;
+  if (!parsed.url || !parsed.token || !parsed.expiresAt || Date.parse(parsed.expiresAt) <= Date.now()) {
+    storage.removeItem(key);
+    return null;
+  }
+  return parsed;
+}
+
 export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'student', access: LiveControlAccess | null) {
   if (!access || typeof window === 'undefined') return;
   try {
@@ -67,18 +78,17 @@ export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'stud
 
 export function getLiveControlAccess(sessionId: string, role: 'teacher' | 'student'): LiveControlAccess | null {
   if (typeof window === 'undefined') return null;
+  const key = storageKey(sessionId, role);
   try {
-    const raw = window.sessionStorage.getItem(storageKey(sessionId, role));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as LiveControlAccess;
-    if (!parsed.url || !parsed.token || !parsed.expiresAt || Date.parse(parsed.expiresAt) <= Date.now()) {
-      window.sessionStorage.removeItem(storageKey(sessionId, role));
-      return null;
-    }
-    return parsed;
+    return readStoredAccess(window.sessionStorage, key);
   } catch {
     return null;
   }
+}
+
+export function clearLiveControlAccess(sessionId: string, role: 'teacher' | 'student') {
+  if (typeof window === 'undefined') return;
+  try { window.sessionStorage.removeItem(storageKey(sessionId, role)); } catch { /* no-op */ }
 }
 
 export async function postLiveControlEvent(

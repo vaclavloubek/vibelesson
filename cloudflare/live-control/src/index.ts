@@ -583,6 +583,77 @@ export class LiveSession extends DurableObject<Env> {
           'timer_reset',
         ]);
         if (!allowed.has(action)) return json({ error: 'Invalid teacher command.' }, 400);
+
+        const lesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
+          ? snapshot.lessonSnapshot as { blocks?: Array<Record<string, unknown>> }
+          : {};
+        const blocks = Array.isArray(lesson.blocks) ? lesson.blocks : [];
+        const currentIndex = snapshot.activeBlockId
+          ? blocks.findIndex((block) => block.id === snapshot.activeBlockId)
+          : -1;
+        const activeBlock = currentIndex >= 0 ? blocks[currentIndex] : null;
+        const expectedActiveBlockId = typeof commandPayload.expectedActiveBlockId === 'string'
+          ? commandPayload.expectedActiveBlockId
+          : null;
+
+        if (action === 'start') {
+          if (snapshot.status !== 'lobby' || !blocks.length) {
+            return json({ error: 'Session cannot be started from its current state.' }, 409);
+          }
+        }
+
+        if (action === 'next' || action === 'previous') {
+          if (snapshot.status !== 'live' || currentIndex < 0) {
+            return json({ error: 'The active block cannot be changed now.' }, 409);
+          }
+          if (expectedActiveBlockId && expectedActiveBlockId !== snapshot.activeBlockId) {
+            return json({
+              error: 'The teacher command is stale.',
+              activeBlockId: snapshot.activeBlockId,
+              revision: snapshot.revision,
+            }, 409);
+          }
+          const targetIndex = action === 'next' ? currentIndex + 1 : currentIndex - 1;
+          if (targetIndex < 0 || targetIndex >= blocks.length) {
+            return json({ error: 'The requested block is outside the lesson.' }, 409);
+          }
+        }
+
+        if (action === 'reveal_results') {
+          if (
+            snapshot.status !== 'live'
+            || !activeBlock
+            || (activeBlock.type !== 'poll' && activeBlock.type !== 'quiz')
+          ) {
+            return json({ error: 'Results cannot be revealed for the active block.' }, 409);
+          }
+        }
+
+        if (action === 'reveal_scoreboard' || action === 'hide_scoreboard') {
+          if (snapshot.status !== 'live') {
+            return json({ error: 'Scoreboard state cannot be changed now.' }, 409);
+          }
+        }
+
+        if (action === 'timer_start' || action === 'timer_pause' || action === 'timer_reset') {
+          if (snapshot.status !== 'live' || activeBlock?.type !== 'timer') {
+            return json({ error: 'The active block is not a live timer.' }, 409);
+          }
+          const timer = snapshot.timer && typeof snapshot.timer === 'object'
+            ? snapshot.timer as { status?: unknown; remainingSeconds?: unknown }
+            : {};
+          const timerStatus = timer.status === 'running' || timer.status === 'paused' ? timer.status : 'idle';
+          const remainingSeconds = typeof timer.remainingSeconds === 'number'
+            ? Math.max(0, timer.remainingSeconds)
+            : 0;
+
+          if (action === 'timer_pause' && timerStatus !== 'running') {
+            return json({ error: 'The timer is not running.' }, 409);
+          }
+          if (action === 'timer_start' && (timerStatus === 'running' || remainingSeconds <= 0)) {
+            return json({ error: 'The timer cannot be started now.' }, 409);
+          }
+        }
       }
 
       if (body.type === 'student.team_selected') {

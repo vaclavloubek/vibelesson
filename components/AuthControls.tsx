@@ -3,8 +3,8 @@
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
-import PasswordField from '@/components/PasswordField';
 import { trackEvent } from '@/lib/analytics';
+import PasswordField from '@/components/PasswordField';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
 const AUTH_POPOVER_ID = 'auth-popover';
@@ -174,12 +174,6 @@ export default function AuthControls({
   }
 
   useEffect(() => {
-    if (!initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
-    signupStartedRef.current = true;
-    trackEvent('signup_started');
-  }, [initialMode, initialOpen]);
-
-  useEffect(() => {
     let mounted = true;
 
     supabase.auth.getUser().then(({ data }) => {
@@ -247,6 +241,12 @@ export default function AuthControls({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
+    signupStartedRef.current = true;
+    trackEvent('signup_started');
+  }, [initialMode, initialOpen]);
 
   function resetCaptcha() {
     setCaptchaToken('');
@@ -384,6 +384,15 @@ export default function AuthControls({
 
   async function signOut() {
     setBusy(true);
+    try {
+      await fetch('/api/auth/clear-live-resume', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+    } catch {
+      // Logout still clears the primary Supabase session. Live recovery tickets
+      // are short-lived and the server endpoint will be retried on a later logout.
+    }
     await supabase.auth.signOut();
     setBusy(false);
     setOpen(false);

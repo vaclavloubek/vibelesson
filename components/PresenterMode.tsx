@@ -6,6 +6,15 @@ import PresenterScoreboard from '@/components/PresenterScoreboard';
 import FormattedInstructions from '@/components/FormattedInstructions';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterSession.module.css';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import {
+  connectLiveControl,
+  fetchLiveControlState,
+  getLiveControlAccess,
+  saveLiveControlAccess,
+  type LiveControlAccess,
+  type LiveControlState,
+} from '@/lib/live-control-client';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
 
@@ -39,6 +48,20 @@ type PresenterData = {
   timer: PresenterTimer | null;
 };
 
+type PresenterConnectionMode = 'primary' | 'fallback';
+
+const presenterBlockTypes = new Set<PresenterBlock['type']>([
+  'intro',
+  'team_task',
+  'poll',
+  'quiz',
+  'open_text',
+  'ranking',
+  'reveal',
+  'timer',
+  'exit_ticket',
+]);
+
 const blockLabels: Record<PresenterBlock['type'], string> = {
   intro: 'Úvod',
   team_task: 'Týmový úkol',
@@ -65,16 +88,146 @@ function currentTimerSeconds(timer: PresenterTimer | null, nowMs: number) {
   return Math.max(0, timer.remainingSeconds - elapsed);
 }
 
+function parsePresenterBlock(raw: Record<string, unknown> | null): PresenterBlock | null {
+  if (!raw || typeof raw.id !== 'string' || typeof raw.type !== 'string' || !presenterBlockTypes.has(raw.type as PresenterBlock['type'])) {
+    return null;
+  }
+
+  return {
+    id: raw.id,
+    type: raw.type as PresenterBlock['type'],
+    title: typeof raw.title === 'string' ? raw.title : 'Aktivita',
+    durationMinutes: typeof raw.durationMinutes === 'number' ? raw.durationMinutes : 0,
+    instructions: typeof raw.instructions === 'string' ? raw.instructions : '',
+    options: Array.isArray(raw.options) ? raw.options.filter((item): item is string => typeof item === 'string') : null,
+    items: Array.isArray(raw.items) ? raw.items.filter((item): item is string => typeof item === 'string') : null,
+    revealText: typeof raw.revealText === 'string' ? raw.revealText : null,
+  };
+}
+
+function presenterFromLiveControl(live: LiveControlState): PresenterData {
+  const snapshot = live.snapshot;
+  const rawLesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
+    ? snapshot.lessonSnapshot as { title?: unknown; blocks?: Array<Record<string, unknown>> }
+    : {};
+  const blocks = Array.isArray(rawLesson.blocks) ? rawLesson.blocks : [];
+  const activeBlockIndex = snapshot.activeBlockId
+    ? blocks.findIndex((block) => block.id === snapshot.activeBlockId)
+    : -1;
+  const activeBlock = parsePresenterBlock(activeBlockIndex >= 0 ? blocks[activeBlockIndex] : null);
+
+  let submission: PresenterData['submission'] = null;
+  if (activeBlock && ['quiz', 'poll', 'open_text', 'ranking', 'exit_ticket', 'team_task'].includes(activeBlock.type)) {
+    if (activeBlock.type === 'team_task') {
+      const submittedTeams = new Set(
+        (snapshot.teamResponses ?? [])
+          .filter((row) => row.blockId === activeBlock.id && row.submitted)
+          .map((row) => row.teamId),
+      );
+      submission = { submitted: submittedTeams.size, total: snapshot.teams.length, unit: 'team' };
+    } else {
+      const submittedParticipants = new Set(
+        snapshot.responses
+          .filter((row) => {
+            if (row.blockId !== activeBlock.id) return false;
+            if (activeBlock.type === 'open_text' || activeBlock.type === 'exit_ticket') return Boolean(row.submitted);
+            return row.answer !== null && row.answer !== undefined;
+          })
+          .map((row) => row.participantId),
+      );
+      submission = { submitted: submittedParticipants.size, total: snapshot.participants.length, unit: 'student' };
+    }
+  }
+
+  const rawTimer = snapshot.timer && typeof snapshot.timer === 'object'
+    ? snapshot.timer as { status?: unknown; startedAt?: unknown; remainingSeconds?: unknown }
+    : null;
+  let timer: PresenterTimer | null = null;
+  if (rawTimer && (rawTimer.status === 'idle' || rawTimer.status === 'running' || rawTimer.status === 'paused')) {
+    let remainingSeconds = typeof rawTimer.remainingSeconds === 'number' ? Math.max(0, rawTimer.remainingSeconds) : 0;
+    if (rawTimer.status === 'running' && typeof rawTimer.startedAt === 'string') {
+      const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(rawTimer.startedAt)) / 1000));
+      remainingSeconds = Math.max(0, remainingSeconds - elapsed);
+    }
+    timer = {
+      status: rawTimer.status,
+      remainingSeconds,
+      syncedAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    status: snapshot.status,
+    title: typeof rawLesson.title === 'string' ? rawLesson.title : 'Hodina',
+    realtimeKey: '',
+    joinCode: snapshot.joinCode ?? '',
+    participantCount: snapshot.participants.length,
+    activeBlockIndex: Math.max(0, activeBlockIndex),
+    blockCount: blocks.length,
+    activeBlock,
+    submission,
+    timer,
+  };
+}
+
 export default function PresenterMode({ sessionId }: { sessionId: string }) {
   const [data, setData] = useState<PresenterData | null>(null);
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [connectionMode, setConnectionMode] = useState<PresenterConnectionMode>('primary');
+  const [capabilityVersion, setCapabilityVersion] = useState(0);
   const presenterOpenedTrackedRef = useRef(false);
+
+  const ensureLiveAccess = useCallback(async () => {
+    if (getLiveControlAccess(sessionId, 'teacher')) return true;
+
+    try {
+      const response = await fetchWithTimeout(
+        `/api/sessions/${sessionId}/live-control`,
+        { cache: 'no-store' },
+        4_500,
+      );
+      if (!response.ok) return false;
+      const body = await response.json() as {
+        liveControl?: LiveControlAccess | null;
+        degraded?: boolean;
+      };
+      if (!body.liveControl) return false;
+      saveLiveControlAccess(sessionId, 'teacher', body.liveControl);
+      setCapabilityVersion((current) => current + 1);
+      if (body.degraded) setConnectionMode('fallback');
+      return true;
+    } catch {
+      return Boolean(getLiveControlAccess(sessionId, 'teacher'));
+    }
+  }, [sessionId]);
+
+  const loadFallback = useCallback(async () => {
+    const accessReady = getLiveControlAccess(sessionId, 'teacher') || await ensureLiveAccess();
+    if (!accessReady) return false;
+
+    const live = await fetchLiveControlState(sessionId, 'teacher');
+    if (!live) return false;
+
+    const recoveredData = presenterFromLiveControl(live);
+    if (!presenterOpenedTrackedRef.current) {
+      presenterOpenedTrackedRef.current = true;
+      trackEvent('presenter_opened', { session_state: recoveredData.status });
+    }
+    setData(recoveredData);
+    setConnectionMode('fallback');
+    setError('');
+    return true;
+  }, [ensureLiveAccess, sessionId]);
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/presenter`, { cache: 'no-store' });
+      const response = await fetchWithTimeout(
+        `/api/sessions/${sessionId}/presenter`,
+        { cache: 'no-store' },
+        5_000,
+      );
       const body = await response.json() as PresenterData & { error?: string };
       if (!response.ok) throw new Error(body.error || 'Prezentační režim se nepodařilo načíst.');
       if (!presenterOpenedTrackedRef.current) {
@@ -82,15 +235,19 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
         trackEvent('presenter_opened', { session_state: body.status });
       }
       setData(body);
+      setConnectionMode('primary');
       setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Prezentační režim se nepodařilo načíst.');
+    } catch {
+      const recovered = await loadFallback();
+      if (!recovered) {
+        setError('Projekci se nepodařilo spojit s primární ani záložní live službou. Syllonaut to zkusí znovu automaticky.');
+      }
     }
-  }, [sessionId]);
+  }, [loadFallback, sessionId]);
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    void load();
+    void ensureLiveAccess().finally(() => { void load(); });
     const timer = window.setInterval(() => { void load(); }, 15000);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') void load();
@@ -100,7 +257,21 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [load]);
+  }, [ensureLiveAccess, load]);
+
+  useEffect(() => {
+    const socket = connectLiveControl(sessionId, 'teacher', () => {
+      void loadFallback();
+    });
+    if (!socket) return;
+    return () => socket.close(1000, 'Presenter page closed');
+  }, [capabilityVersion, loadFallback, sessionId]);
+
+  useEffect(() => {
+    if (connectionMode !== 'fallback') return;
+    const timer = window.setInterval(() => { void loadFallback(); }, 4000);
+    return () => window.clearInterval(timer);
+  }, [connectionMode, loadFallback]);
 
   useEffect(() => {
     if (!data?.realtimeKey || data.status === 'ended') return;
@@ -129,7 +300,9 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
     }
   }, [origin]);
 
-  if (data?.status === 'ended') return <PresenterScoreboard sessionId={sessionId} />;
+  if (data?.status === 'ended' && connectionMode === 'primary') {
+    return <PresenterScoreboard sessionId={sessionId} />;
+  }
 
   const block = data?.activeBlock ?? null;
   const timerSeconds = currentTimerSeconds(data?.timer ?? null, nowMs);
@@ -143,8 +316,8 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
           <span>Syllonaut</span>
         </div>
         <div className={styles.meta}>
-          <span>{data?.status === 'live' ? 'Mise probíhá' : 'Startovní zóna'}</span>
-          <span>Presenter</span>
+          <span>{data?.status === 'live' ? 'Mise probíhá' : data?.status === 'ended' ? 'Mise dokončena' : 'Startovní zóna'}</span>
+          <span>{connectionMode === 'fallback' ? 'Záložní spojení' : 'Presenter'}</span>
         </div>
       </header>
 
@@ -159,6 +332,13 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
       {!data && !error ? (
         <section className={styles.centerState}>
           <h1>Připravuji projekci…</h1>
+        </section>
+      ) : null}
+
+      {data?.status === 'ended' && connectionMode === 'fallback' && !error ? (
+        <section className={styles.centerState} role="status">
+          <h1>Hodina skončila</h1>
+          <p>Konečné pořadí se zobrazí automaticky po obnovení primárního spojení.</p>
         </section>
       ) : null}
 
