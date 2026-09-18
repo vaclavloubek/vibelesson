@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
+import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
 
@@ -261,7 +262,17 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
     after(async () => {
-      await broadcastSessionInvalidate(updated.realtime_key as string);
+      await Promise.allSettled([
+        broadcastSessionInvalidate(updated.realtime_key as string),
+        mirrorLiveControlEvent({
+          sessionId: id,
+          role: 'teacher',
+          subject: userId,
+          type: 'teacher.command',
+          operationId: action.operationId,
+          payload: { action: action.action },
+        }),
+      ]);
     });
 
     return NextResponse.json({
