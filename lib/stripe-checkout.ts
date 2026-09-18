@@ -68,13 +68,20 @@ export function buildStripeCheckoutParams(input: Omit<CreateStripeCheckoutInput,
 }
 
 export class StripeCheckoutApiError extends Error {
+  readonly stripeType: string | null;
+  readonly stripeCode: string | null;
+  readonly stripeMessage: string | null;
+
   constructor(
-    public readonly stripeType: string | null,
-    public readonly stripeCode: string | null,
-    public readonly stripeMessage: string | null,
+    stripeType: string | null,
+    stripeCode: string | null,
+    stripeMessage: string | null,
   ) {
     super('stripe_checkout_create_failed');
     this.name = 'StripeCheckoutApiError';
+    this.stripeType = stripeType;
+    this.stripeCode = stripeCode;
+    this.stripeMessage = stripeMessage;
   }
 }
 
