@@ -30,8 +30,8 @@ export type PublicScoreboardState = {
 
 export const SessionActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('start') }),
-  z.object({ action: z.literal('next') }),
-  z.object({ action: z.literal('previous') }),
+  z.object({ action: z.literal('next'), expectedActiveBlockId: z.string().min(1).max(200).optional() }),
+  z.object({ action: z.literal('previous'), expectedActiveBlockId: z.string().min(1).max(200).optional() }),
   z.object({ action: z.literal('end') }),
   z.object({ action: z.literal('reveal_results') }),
   z.object({ action: z.literal('reveal_scoreboard') }),
