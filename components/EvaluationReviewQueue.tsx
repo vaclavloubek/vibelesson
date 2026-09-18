@@ -1,7 +1,7 @@
 'use client';
 
-import { trackEvent, type ActivityType } from '@/lib/analytics';
-import { useEffect, useState, type FormEvent } from 'react';
+import { trackEvent, trackEventOnce, type ActivityType } from '@/lib/analytics';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
 type GradingMode = 'ai' | 'manual';
@@ -263,6 +263,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   const [loaded, setLoaded] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const previousStatusesRef = useRef(new Map<string, EvaluationStatus>());
 
   useEffect(() => {
     let cancelled = false;
@@ -272,6 +273,23 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         const data = await response.json() as { evaluations?: QueueEvaluation[]; activeBlockId?: string | null; error?: string };
         if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || 'Hodnocení se nepodařilo načíst.');
         if (cancelled) return;
+
+        for (const evaluation of data.evaluations) {
+          const previousStatus = previousStatusesRef.current.get(evaluation.id);
+          const completedNow = previousStatus === 'pending' || previousStatus === 'grading';
+          const isCompleted = evaluation.status === 'graded' || evaluation.status === 'needs_review';
+          const activityType = gradableActivityType(evaluation.blockType);
+
+          if (!evaluation.manualOnly && completedNow && isCompleted && activityType) {
+            trackEventOnce(`ai-grading:${evaluation.id}`, 'ai_grading_completed', {
+              activity_type: activityType,
+              result_state: evaluation.status,
+            });
+          }
+
+          previousStatusesRef.current.set(evaluation.id, evaluation.status);
+        }
+
         setEvaluations(data.evaluations);
         setActiveBlockId(typeof data.activeBlockId === 'string' ? data.activeBlockId : null);
         setError('');
