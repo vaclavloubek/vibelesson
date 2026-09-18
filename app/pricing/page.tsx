@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import PricingPage from '@/components/PricingPage';
+import { resolvePricingCurrency } from '@/lib/billing-region';
 
 const title = 'Ceník — Syllonaut';
 const description = 'Ceník Syllonautu pro jednotlivé učitele a školy. Začněte zdarma a porovnejte připravované placené plány.';
@@ -36,6 +38,11 @@ type PricingRouteProps = {
 export default async function Pricing({ searchParams }: PricingRouteProps) {
   const params = await searchParams;
   const signup = Array.isArray(params.signup) ? params.signup[0] : params.signup;
+  const requestHeaders = await headers();
+  const currency = resolvePricingCurrency(
+    requestHeaders.get('x-vercel-ip-country'),
+    requestHeaders.get('accept-language'),
+  );
 
-  return <PricingPage startSignup={signup === '1'} />;
+  return <PricingPage startSignup={signup === '1'} currency={currency} />;
 }
