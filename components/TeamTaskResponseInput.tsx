@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicLessonBlock } from '@/lib/live';
 import { postLiveControlEvent } from '@/lib/live-control-client';
+import { cacheLiveDraft, deleteCachedLiveDraft, getCachedLiveDraft } from '@/lib/live-offline';
 
 type Props = {
   sessionId: string;
@@ -97,7 +98,9 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   const clearDraft = useCallback(() => {
     try {
       window.sessionStorage.removeItem(draftKey);
+      void deleteCachedLiveDraft(draftKey);
     } catch {
+      void deleteCachedLiveDraft(draftKey);
       // Storage can be unavailable in hardened/private browser modes.
     }
   }, [draftKey]);
@@ -110,7 +113,9 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         savedAt: Date.now(),
       };
       window.sessionStorage.setItem(draftKey, JSON.stringify(draft));
+      void cacheLiveDraft(draftKey, draft);
     } catch {
+      void cacheLiveDraft(draftKey, draft);
       // Autosave to the server remains the primary persistence path.
     }
   }, [draftKey]);
@@ -321,7 +326,28 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
 
     try {
       const raw = window.sessionStorage.getItem(draftKey);
-      if (!raw) return;
+      if (!raw) {
+        void getCachedLiveDraft<StoredDraft>(draftKey).then((parsed) => {
+          if (!parsed || typeof parsed.text !== 'string' || typeof parsed.baseServerText !== 'string' || parsed.text.length > 4000) return;
+          if (parsed.text === serverText) {
+            clearDraft();
+            return;
+          }
+
+          latestTextRef.current = parsed.text;
+          dirtyRef.current = true;
+          setText(parsed.text);
+          setSaveState('dirty');
+          setDraftRecovered(true);
+          setSubmitted(false);
+          const conflict = parsed.baseServerText !== serverText;
+          setDraftConflictState(conflict);
+          if (conflict) {
+            setError('Mezitím se změnila týmová odpověď na serveru. Obnovený text proto neuložíme bez tvého rozhodnutí.');
+          }
+        });
+        return;
+      }
       const parsed = JSON.parse(raw) as Partial<StoredDraft>;
       if (typeof parsed.text !== 'string' || typeof parsed.baseServerText !== 'string' || parsed.text.length > 4000) {
         clearDraft();
