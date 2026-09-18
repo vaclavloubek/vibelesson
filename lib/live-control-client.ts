@@ -56,10 +56,27 @@ function storageKey(sessionId: string, role: 'teacher' | 'student') {
   return `syllonaut-live-control-v1:${role}:${sessionId}`;
 }
 
+function readStoredAccess(storage: Storage, key: string) {
+  const raw = storage.getItem(key);
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as LiveControlAccess;
+  if (!parsed.url || !parsed.token || !parsed.expiresAt || Date.parse(parsed.expiresAt) <= Date.now()) {
+    storage.removeItem(key);
+    return null;
+  }
+  return parsed;
+}
+
 export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'student', access: LiveControlAccess | null) {
   if (!access || typeof window === 'undefined') return;
+  const serialized = JSON.stringify({ ...access, role });
+  const key = storageKey(sessionId, role);
   try {
-    window.sessionStorage.setItem(storageKey(sessionId, role), JSON.stringify({ ...access, role }));
+    window.sessionStorage.setItem(key, serialized);
+    // Teacher capabilities are session-scoped and short-lived. Keeping the same
+    // capability in localStorage lets a presenter/new teacher tab recover
+    // automatically while the primary auth/API path is degraded.
+    if (role === 'teacher') window.localStorage.setItem(key, serialized);
   } catch {
     // The primary Vercel/Supabase path remains available.
   }
@@ -67,17 +84,29 @@ export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'stud
 
 export function getLiveControlAccess(sessionId: string, role: 'teacher' | 'student'): LiveControlAccess | null {
   if (typeof window === 'undefined') return null;
+  const key = storageKey(sessionId, role);
   try {
-    const raw = window.sessionStorage.getItem(storageKey(sessionId, role));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as LiveControlAccess;
-    if (!parsed.url || !parsed.token || !parsed.expiresAt || Date.parse(parsed.expiresAt) <= Date.now()) {
-      window.sessionStorage.removeItem(storageKey(sessionId, role));
-      return null;
+    const session = readStoredAccess(window.sessionStorage, key);
+    if (session) return session;
+    if (role === 'teacher') {
+      const shared = readStoredAccess(window.localStorage, key);
+      if (shared) {
+        try { window.sessionStorage.setItem(key, JSON.stringify(shared)); } catch { /* no-op */ }
+        return shared;
+      }
     }
-    return parsed;
+    return null;
   } catch {
     return null;
+  }
+}
+
+export function clearLiveControlAccess(sessionId: string, role: 'teacher' | 'student') {
+  if (typeof window === 'undefined') return;
+  const key = storageKey(sessionId, role);
+  try { window.sessionStorage.removeItem(key); } catch { /* no-op */ }
+  if (role === 'teacher') {
+    try { window.localStorage.removeItem(key); } catch { /* no-op */ }
   }
 }
 
