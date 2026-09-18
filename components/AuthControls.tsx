@@ -363,6 +363,15 @@ export default function AuthControls({
 
   async function signOut() {
     setBusy(true);
+    try {
+      await fetch('/api/auth/clear-live-resume', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+    } catch {
+      // Logout still clears the primary Supabase session. Live recovery tickets
+      // are short-lived and the server endpoint will be retried on a later logout.
+    }
     await supabase.auth.signOut();
     setBusy(false);
     setOpen(false);
