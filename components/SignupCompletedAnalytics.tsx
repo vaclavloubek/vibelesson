@@ -9,13 +9,14 @@ export default function SignupCompletedAnalytics() {
   useEffect(() => {
     if (trackedRef.current) return;
     trackedRef.current = true;
-    trackEvent('signup_completed');
 
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('signup') === 'completed') {
-      url.searchParams.delete('signup');
-      const next = `${url.pathname}${url.search}${url.hash}`;
-      window.history.replaceState(window.history.state, '', next);
+    const key = 'syllonaut_signup_completed_analytics_v1';
+    try {
+      if (window.sessionStorage.getItem(key) === '1') return;
+      trackEvent('signup_completed');
+      window.sessionStorage.setItem(key, '1');
+    } catch {
+      trackEvent('signup_completed');
     }
   }, []);
 
