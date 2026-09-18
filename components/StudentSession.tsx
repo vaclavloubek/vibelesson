@@ -42,11 +42,16 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   const [activeBlockAnnouncement, setActiveBlockAnnouncement] = useState('');
   const hasLoadedRef = useRef(false);
   const disconnectedRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
   const previousBlockIdRef = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 6_000);
     try {
-      const response = await fetch(`/api/student/sessions/${sessionId}`, { cache: 'no-store' });
+      const response = await fetch(`/api/student/sessions/${sessionId}`, { cache: 'no-store', signal: controller.signal });
       const data = await response.json() as StudentState & { error?: string };
       if (!response.ok) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
 
@@ -62,6 +67,9 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       if (!hasLoadedRef.current) {
         setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
       }
+    } finally {
+      window.clearTimeout(timer);
+      refreshInFlightRef.current = false;
     }
   }, [sessionId]);
 

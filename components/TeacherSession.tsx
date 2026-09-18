@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import JoinQrCode from '@/components/JoinQrCode';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
@@ -40,16 +40,24 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [teamCount, setTeamCount] = useState(4);
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
+  const refreshInFlightRef = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 6_000);
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`, { cache: 'no-store' });
+      const response = await fetch(`/api/sessions/${sessionId}`, { cache: 'no-store', signal: controller.signal });
       const data = await response.json() as { session?: TeacherSessionData; error?: string };
       if (!response.ok || !data.session) throw new Error(data.error || 'Hodinu se nepodařilo načíst.');
       setSession(data.session);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo načíst.');
+    } finally {
+      window.clearTimeout(timer);
+      refreshInFlightRef.current = false;
     }
   }, [sessionId]);
 
@@ -80,18 +88,23 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     if (action === 'reveal_results' && !window.confirm('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.')) return;
     setBusy(true);
     setError('');
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 8_000);
     try {
       const response = await fetch(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
+        signal: controller.signal,
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Stav hodiny se nepodařilo změnit.');
+      await refresh();
     } finally {
+      window.clearTimeout(timer);
       setBusy(false);
     }
   }
