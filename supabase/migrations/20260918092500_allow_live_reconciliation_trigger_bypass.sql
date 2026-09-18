@@ -1,12 +1,61 @@
--- Allow the trusted live-control reconciliation RPC to converge historical
--- fallback state without weakening ordinary live write guards.
+-- Allow trusted Cloudflare live-control reconciliation to converge historical
+-- fallback state without weakening ordinary SEC-005 live-write protections.
 --
--- The function-level GUC is active only while this SECURITY DEFINER function
--- executes. Trigger bypass still requires current_user = postgres, so ordinary
--- authenticated/service-role writes keep the existing SEC-005 protections.
+-- The public RPC becomes a narrow SECURITY DEFINER wrapper. After validating
+-- the authenticated teacher/session relationship it acquires a transaction-
+-- scoped shared advisory lock used only as an internal reconciliation marker.
+-- The existing implementation remains unchanged behind an uncallable _impl
+-- function. Ordinary API writes never hold this marker and therefore continue
+-- through the full live-context/edit-lock triggers.
 
 alter function public.reconcile_live_control_snapshot(uuid, jsonb)
-  set syllonaut.live_reconciliation = 'on';
+  rename to reconcile_live_control_snapshot_impl;
+
+revoke all on function public.reconcile_live_control_snapshot_impl(uuid, jsonb)
+  from public, anon, authenticated, service_role;
+
+create function public.reconcile_live_control_snapshot(
+  p_session_id uuid,
+  p_snapshot jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+begin
+  if v_user_id is null then
+    raise exception 'Authentication required.' using errcode = '42501';
+  end if;
+
+  if jsonb_typeof(p_snapshot) <> 'object'
+     or p_snapshot->>'sessionId' is distinct from p_session_id::text then
+    raise exception 'Invalid live snapshot.' using errcode = '22023';
+  end if;
+
+  perform 1
+  from public.sessions s
+  where s.id = p_session_id
+    and s.teacher_id = v_user_id;
+
+  if not found then
+    raise exception 'Session not found.' using errcode = '42501';
+  end if;
+
+  -- Transaction-local marker. Shared mode allows multiple sessions to
+  -- reconcile concurrently; the trigger also requires current_user=postgres.
+  perform pg_catalog.pg_advisory_xact_lock_shared(1398365260, 1380270930);
+
+  return public.reconcile_live_control_snapshot_impl(p_session_id, p_snapshot);
+end;
+$function$;
+
+revoke all on function public.reconcile_live_control_snapshot(uuid, jsonb)
+  from public, anon, service_role;
+grant execute on function public.reconcile_live_control_snapshot(uuid, jsonb)
+  to authenticated;
 
 create or replace function public.enforce_response_live_context()
 returns trigger
@@ -21,8 +70,17 @@ declare
   v_revealed_block_ids text[];
   v_block_type text;
 begin
-  if current_user = 'postgres'
-     and current_setting('syllonaut.live_reconciliation', true) = 'on' then
+  if current_user = 'postgres' and exists (
+    select 1
+    from pg_catalog.pg_locks l
+    where l.pid = pg_catalog.pg_backend_pid()
+      and l.locktype = 'advisory'
+      and l.mode = 'ShareLock'
+      and l.granted
+      and l.classid::bigint = 1398365260
+      and l.objid::bigint = 1380270930
+      and l.objsubid = 2
+  ) then
     return new;
   end if;
 
@@ -85,8 +143,17 @@ declare
   v_lesson_snapshot jsonb;
   v_block_type text;
 begin
-  if current_user = 'postgres'
-     and current_setting('syllonaut.live_reconciliation', true) = 'on' then
+  if current_user = 'postgres' and exists (
+    select 1
+    from pg_catalog.pg_locks l
+    where l.pid = pg_catalog.pg_backend_pid()
+      and l.locktype = 'advisory'
+      and l.mode = 'ShareLock'
+      and l.granted
+      and l.classid::bigint = 1398365260
+      and l.objid::bigint = 1380270930
+      and l.objsubid = 2
+  ) then
     return new;
   end if;
 
@@ -175,8 +242,17 @@ as $$
 declare
   v_status text;
 begin
-  if current_user = 'postgres'
-     and current_setting('syllonaut.live_reconciliation', true) = 'on' then
+  if current_user = 'postgres' and exists (
+    select 1
+    from pg_catalog.pg_locks l
+    where l.pid = pg_catalog.pg_backend_pid()
+      and l.locktype = 'advisory'
+      and l.mode = 'ShareLock'
+      and l.granted
+      and l.classid::bigint = 1398365260
+      and l.objid::bigint = 1380270930
+      and l.objsubid = 2
+  ) then
     return new;
   end if;
 
@@ -218,23 +294,32 @@ begin
 end;
 $$;
 
-revoke all on function public.enforce_response_live_context() from public, anon, authenticated;
-grant execute on function public.enforce_response_live_context() to service_role;
+revoke all on function public.enforce_response_live_context()
+  from public, anon, authenticated;
+grant execute on function public.enforce_response_live_context()
+  to service_role;
 
-revoke all on function public.enforce_team_response_edit_lock() from public, anon, authenticated;
-grant execute on function public.enforce_team_response_edit_lock() to service_role;
+revoke all on function public.enforce_team_response_edit_lock()
+  from public, anon, authenticated;
+grant execute on function public.enforce_team_response_edit_lock()
+  to service_role;
 
-revoke all on function public.enforce_participant_team_change() from public, anon, authenticated;
-grant execute on function public.enforce_participant_team_change() to service_role;
+revoke all on function public.enforce_participant_team_change()
+  from public, anon, authenticated;
+grant execute on function public.enforce_participant_team_change()
+  to service_role;
 
 comment on function public.reconcile_live_control_snapshot(uuid, jsonb) is
-  'Teacher-owned Cloudflare snapshot convergence. Uses a function-local trusted reconciliation context so historical fallback writes can pass SEC-005 live-write triggers without weakening ordinary writes.';
+  'Teacher-owned Cloudflare snapshot convergence wrapper. Uses a transaction-scoped advisory marker so historical fallback writes can pass SEC-005 live-write triggers without weakening ordinary writes.';
+
+comment on function public.reconcile_live_control_snapshot_impl(uuid, jsonb) is
+  'Internal implementation for live-control snapshot convergence. Not executable by API roles; invoke only through reconcile_live_control_snapshot().';
 
 comment on function public.enforce_response_live_context() is
-  'SEC-005: atomically rechecks live response context; bypass is allowed only inside the postgres-owned reconcile_live_control_snapshot function context.';
+  'SEC-005: atomically rechecks live response context; bypass is limited to the postgres-owned live reconciliation transaction marker.';
 
 comment on function public.enforce_team_response_edit_lock() is
-  'SEC-005: atomically rechecks live team-task context, membership, and edit lock; bypass is allowed only inside the postgres-owned reconcile_live_control_snapshot function context.';
+  'SEC-005: atomically rechecks live team-task context, membership, and edit lock; bypass is limited to the postgres-owned live reconciliation transaction marker.';
 
 comment on function public.enforce_participant_team_change() is
-  'SEC-005: serializes participant team changes; bypass is allowed only inside the postgres-owned reconcile_live_control_snapshot function context.';
+  'SEC-005: serializes participant team changes; bypass is limited to the postgres-owned live reconciliation transaction marker.';
