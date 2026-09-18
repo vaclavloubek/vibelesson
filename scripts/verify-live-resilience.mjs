@@ -56,6 +56,10 @@ if (/localStorage/.test(liveControlClient)) {
 requirePattern(teacher, /Promise\.any\(\[primary, fallback\]\)/, 'teacher commands must race primary and fallback paths.');
 requirePattern(teacher, /const operationId = crypto\.randomUUID\(\)/, 'teacher primary/fallback paths must share an idempotency key.');
 requirePattern(worker, /expectedActiveBlockId && expectedActiveBlockId !== snapshot\.activeBlockId/, 'fallback navigation must reject stale teacher commands.');
+requirePattern(worker, /type Role = 'teacher' \| 'student' \| 'presenter'/, 'Worker must support a dedicated Presenter capability role.');
+requirePattern(worker, /actorRole === 'presenter'\) return json\(\{ error: 'Forbidden\.' \}, 403\)/, 'Presenter capability must be unable to write live events.');
+requirePattern(worker, /workerVersion: WORKER_VERSION/, 'Worker health must expose its deployable version.');
+requirePattern(worker, /protocolVersion: LIVE_PROTOCOL_VERSION/, 'Worker health must expose its live protocol version.');
 requirePattern(presenter, /fetchLiveControlState\(sessionId, 'teacher'\)/, 'Presenter must retain a direct Cloudflare snapshot fallback.');
 requirePattern(presenter, /connectionMode === 'fallback'/, 'Presenter must expose degraded connection state.');
 requirePattern(gradingWorker, /claim_grading_job/, 'AI grading must have a server-driven capability claim path.');
