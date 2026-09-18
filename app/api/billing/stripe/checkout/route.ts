@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
-import { createStripeSandboxCheckout, isStripeSandboxSecretKey } from '@/lib/stripe-checkout';
+import {
+  createStripeSandboxCheckout,
+  isStripeSandboxSecretKey,
+  StripeCheckoutApiError,
+} from '@/lib/stripe-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -15,8 +19,12 @@ const InputSchema = z.object({
   country: z.string().trim().length(2).transform((value) => value.toUpperCase()),
 });
 
-function jsonError(status: number, error: string) {
-  return NextResponse.json({ error }, {
+function jsonError(status: number, error: string, diagnostics?: {
+  stripeType?: string | null;
+  stripeCode?: string | null;
+  stripeMessage?: string | null;
+}) {
+  return NextResponse.json({ error, diagnostics }, {
     status,
     headers: { 'Cache-Control': 'no-store' },
   });
@@ -129,6 +137,13 @@ export async function POST(request: Request) {
       currency: route.currency,
       managedPayments: route.managedPayments,
     });
+    if (error instanceof StripeCheckoutApiError) {
+      return jsonError(502, 'checkout_creation_failed', {
+        stripeType: error.stripeType,
+        stripeCode: error.stripeCode,
+        stripeMessage: error.stripeMessage,
+      });
+    }
     return jsonError(502, 'checkout_creation_failed');
   }
 }
