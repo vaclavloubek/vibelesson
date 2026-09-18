@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
@@ -251,7 +251,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       .single();
 
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
-    await broadcastSessionInvalidate(updated.realtime_key as string);
+    after(async () => {
+      await broadcastSessionInvalidate(updated.realtime_key as string);
+    });
 
     return NextResponse.json({
       ok: true,
