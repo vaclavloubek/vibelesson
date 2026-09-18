@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po zavedení regionálního zobrazování jediné relevantní měny ve veřejném ceníku ve verzi 0.8.03.
+Aktualizováno: 2026-09-18 po zavedení bezpečné databázové billing/provisioning vrstvy ve verzi 0.8.04.
 
-**Aktuální produktová verze: 0.8.03** — veřejný Ceník zobrazuje jen jednu regionálně relevantní měnu: CZK pro ČR, EUR pro eurozónu a USD pro ostatní návštěvníky; placené CTA zůstávají vypnuté do dokončení bezpečného billing provisioningu.
+**Aktuální produktová verze: 0.8.04** — Supabase obsahuje server-authoritative billing základ pro Free / Teacher / Teacher Pro, Stripe price map, subscriptions, idempotentní event log a zachování ručních entitlement výjimek; placené CTA zůstávají vypnuté do dokončení webhooku a checkout provisioningu.
 
 Produkční release 0.8:
 
@@ -252,7 +252,7 @@ Všechny individuální plány počítají s live hodinami bez tarifního limitu
 
 Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obsahují.
 
-Týmová administrace, skutečné organization membership, billing, checkout a provisioning zatím implementované nejsou.
+Týmová administrace a skutečné organization membership zatím implementované nejsou. Billing foundation je připravený pouze pro individuální Free / Teacher / Teacher Pro; Team / School / Campus se zatím nesmí provisionovat.
 
 ### Server-authoritative profil a entitlementy
 
@@ -273,7 +273,19 @@ Admin:
 - AI grading entitlement automaticky
 - folder entitlement automaticky
 
-Názvy plánů a ceny zatím nejsou zadrátované do DB billing/provisioning modelu. Runtime oprávnění se řídí explicitními hodnotami v `profiles` a kvótami.
+Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
+
+- `profiles.active_plan_code` nese aplikovaný základní plán;
+- `billing_plans` definuje server-authoritative entitlementy pro `free`, `teacher`, `teacher_pro` a interní `admin`;
+- `billing_prices` mapuje Stripe Price ID → plán / měnu / období; sandbox má připravené CZK/EUR/USD ceny pro Teacher a Teacher Pro;
+- `billing_customers`, `billing_subscriptions` a `billing_events` drží provider stav a idempotenci;
+- `manual_entitlement_overrides` zachovává explicitní beta/admin výjimky nad základním plánem;
+- service-role-only RPC `sync_stripe_subscription_event` provádí atomický sync;
+- sandbox (`livemode=false`) se ukládá, ale nikdy nesmí změnit produkční entitlement v `profiles`;
+- ostrý entitlement se počítá jen z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují;
+- admin zůstává vždy neomezený a ruční entitlement override se při změně tarifu zachovává.
+
+Webhook HTTP endpoint a checkout zatím nejsou aktivované, takže tato vrstva sama o sobě žádnou platbu ani změnu tarifu nespouští.
 
 ### AI grading entitlement
 
@@ -747,7 +759,7 @@ SEC-006 closed; SEC-007 accepted/deferred.
 
 ### Milník A.3 — Pricing / tarifní produktová vrstva
 
-**Veřejný Ceník dokončen; billing záměrně neaktivní.**
+**Veřejný Ceník dokončen; Stripe + DB billing foundation dokončený, prodej záměrně ještě neaktivní.**
 
 Hotovo:
 
@@ -758,16 +770,21 @@ Hotovo:
 - paid `Připravujeme`;
 - Teacher Pro premium features;
 - School/Campus obsahují AI grading + folders;
-- responzivní header/hamburger.
+- responzivní header/hamburger;
+- Stripe sandbox katalog CZK/EUR/USD;
+- DB plan/price/subscription/event model pro individuální plány;
+- idempotentní service-role provisioning RPC;
+- striktní oddělení sandbox/live entitlementů;
+- zachování ručních entitlement overrides.
 
 Zbývá před skutečným prodejem:
 
-- billing provider;
-- checkout;
-- subscription lifecycle;
-- DB provisioning podle zakoupeného plánu;
-- organization membership/roles;
-- fakturace, upgrade/downgrade/cancel.
+- Stripe webhook HTTP endpoint + podpisová verifikace;
+- checkout vytvořený z aplikace a bezpečné propojení Stripe Customer ↔ user;
+- end-to-end sandbox lifecycle (purchase, renew, fail, cancel, upgrade/downgrade);
+- Customer Portal;
+- live Stripe Price IDs a ostré Stripe credentials;
+- organization membership/roles pro Team / School / Campus.
 
 ### Milník A.4 — Privacy / GDPR / analytics readiness
 
@@ -896,7 +913,8 @@ Další významné změny 2026-09-18:
 - **0.8.01** / `b90a2ec` — věková a vývojová přiměřenost je závazná součást AI authoringu při generování i revizích; `npm run check` obsahuje regresní kontrolu pravidel, dashboard zobrazuje `v0.8.01` a chování bylo po nasazení prakticky potvrzeno v produkci.
 - **0.8.02** — veřejný Ceník doplňuje EUR vedle CZK a USD u všech individuálních i školních plánů; Stripe sandbox katalog obsahuje odpovídající CZK/EUR/USD price objekty, placené CTA však zůstávají deaktivované do dokončení subscription provisioningu.
 - **0.8.03** — Ceník už nezobrazuje tři měny současně: server podle země návštěvníka zobrazuje pouze CZK (ČR), EUR (eurozóna) nebo USD (ostatní). Stejná regionální utilita je připravená pro budoucí checkout routing; fakturační země bude při nákupu vždy znovu ověřena.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.03`.
+- **0.8.04** / migrace `20260918162429`, `20260918162500`, `20260918162640` — billing foundation: plan/price/customer/subscription/event model, service-role-only idempotentní Stripe sync, sandbox/live isolation, manual entitlement overrides a FK indexy. Placené CTA zůstávají vypnuté.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.04`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
@@ -938,7 +956,7 @@ Nejbližší smysluplné produktové priority:
 2. nastavit Google Analytics 4 a zavést privacy-safe produktové eventy + základní funnel/reporting;
 3. pokračovat ve sběru a zapracování beta feedbacku;
 4. doplnit hybridní scoring do post-session reportu/CSV;
-5. rozhodnout o billing/provisioning architektuře před aktivací placených tarifů;
+5. implementovat Stripe webhook + checkout nad hotovou billing foundation a ověřit celý sandbox subscription lifecycle;
 6. navrhnout organization membership/role model pro Team/School/Campus;
 7. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
