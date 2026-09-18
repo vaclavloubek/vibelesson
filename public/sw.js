@@ -1,5 +1,15 @@
 const CACHE_NAME = 'syllonaut-live-shell-v1';
 
+function isCacheableLiveNavigation(requestUrl, response) {
+  if (!response.ok || response.redirected || !response.url) return false;
+  try {
+    const responseUrl = new URL(response.url);
+    return responseUrl.origin === requestUrl.origin && responseUrl.pathname === requestUrl.pathname;
+  } catch {
+    return false;
+  }
+}
+
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
