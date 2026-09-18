@@ -12,7 +12,7 @@ export default function SiteFooter() {
         <span>AI navigátor pro interaktivní výuku.</span>
       </div>
       <nav className={styles.links} aria-label="Právní a soukromí">
-        <Link href="/gdpr">GDPR a soukromí</Link>
+        <Link href="/gdpr">Ochrana osobních údajů (GDPR)</Link>
         <button type="button" onClick={() => window.dispatchEvent(new Event(COOKIE_SETTINGS_EVENT))}>Nastavení cookies</button>
       </nav>
     </footer>

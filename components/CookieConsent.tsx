@@ -7,6 +7,7 @@ import styles from './CookieConsent.module.css';
 const CONSENT_COOKIE = 'syllonaut_cookie_consent_v1';
 const CONSENT_VERSION = '2026-09-18-v1';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
+const GA_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 395;
 const OPEN_SETTINGS_EVENT = 'syllonaut:open-cookie-settings';
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
 
@@ -52,10 +53,18 @@ function writeConsent(analytics: boolean): Consent {
 }
 
 function clearGaCookies() {
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  const syllonautDomain = window.location.hostname === 'syllonaut.com' || window.location.hostname.endsWith('.syllonaut.com')
+    ? '; Domain=.syllonaut.com'
+    : '';
+
   for (const pair of document.cookie.split('; ')) {
     const name = pair.split('=')[0];
     if (!name.startsWith('_ga')) continue;
-    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    if (syllonautDomain) {
+      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${syllonautDomain}${secure}`;
+    }
   }
 }
 
@@ -65,6 +74,13 @@ function ensureGoogleAnalytics(measurementId: string) {
   window.gtag = window.gtag ?? function gtag(...args: unknown[]) {
     window.dataLayer?.push(args);
   };
+
+  window.gtag?.('consent', 'default', {
+    analytics_storage: 'granted',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+  });
 
   if (!document.querySelector('script[data-syllonaut-ga4]')) {
     const script = document.createElement('script');
@@ -141,12 +157,30 @@ export default function CookieConsent() {
 
     if (!consent?.analytics) {
       runtime[gaDisableKey(GA_MEASUREMENT_ID)] = true;
+      window.gtag?.('consent', 'update', {
+        analytics_storage: 'denied',
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+      });
       clearGaCookies();
       return;
     }
 
     ensureGoogleAnalytics(GA_MEASUREMENT_ID);
-    window.gtag?.('config', GA_MEASUREMENT_ID, { page_path: pathname, send_page_view: true });
+    window.gtag?.('consent', 'update', {
+      analytics_storage: 'granted',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+    });
+    window.gtag?.('config', GA_MEASUREMENT_ID, {
+      page_path: pathname,
+      send_page_view: true,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+      cookie_expires: GA_COOKIE_MAX_AGE_SECONDS,
+    });
   }, [consent, pathname, ready]);
 
   function save(analytics: boolean) {
@@ -172,7 +206,7 @@ export default function CookieConsent() {
             <strong>Cookies pod kontrolou.</strong>
             <p>
               Nezbytné cookies používáme pro přihlášení, bezpečnost a fungování Syllonautu.
-              Analytiku, včetně připravovaného Google Analytics 4, zapneme jen s vaším souhlasem.
+              Analytiku pomocí Google Analytics 4 zapneme jen s vaším souhlasem; reklamní a remarketingové signály v této verzi nepoužíváme.
             </p>
           </div>
           <div className={styles.bannerActions}>
@@ -225,7 +259,7 @@ export default function CookieConsent() {
             <label className={styles.preference}>
               <div>
                 <strong>Analytické cookies</strong>
-                <p>Pomohou nám pochopit používání služby. Google Analytics 4 se načte pouze po souhlasu a až po skutečné konfiguraci měření.</p>
+                <p>Pomohou nám pochopit používání služby. Google Analytics 4 se načte pouze po souhlasu, bez reklamních signálů a s analytickými cookies omezenými přibližně na 13 měsíců.</p>
               </div>
               <input type="checkbox" checked={draftAnalytics} onChange={(event) => setDraftAnalytics(event.target.checked)} aria-label="Povolit analytické cookies" />
             </label>
