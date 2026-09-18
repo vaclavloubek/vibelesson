@@ -126,3 +126,26 @@ export async function flushLiveOutbox(sessionId?: string) {
     return { flushed: 0, pending: 0 };
   }
 }
+
+function draftStorageKey(key: string) {
+  return `draft:${key}`;
+}
+
+export async function cacheLiveDraft(key: string, value: unknown) {
+  return cacheLiveState(draftStorageKey(key), value);
+}
+
+export async function getCachedLiveDraft<T>(key: string): Promise<T | null> {
+  return getCachedLiveState<T>(draftStorageKey(key));
+}
+
+export async function deleteCachedLiveDraft(key: string) {
+  try {
+    const db = await openDb();
+    if (!db) return;
+    const tx = db.transaction(STATE_STORE, 'readwrite');
+    tx.objectStore(STATE_STORE).delete(draftStorageKey(key));
+  } catch {
+    // Draft deletion failure is non-fatal; a stale draft is conflict-checked on recovery.
+  }
+}
