@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { billingRouteForCountry } from '@/lib/billing-region';
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeSubscriptionEvent,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
   let sync;
   try {
-    sync = normalizeStripeSubscriptionEvent(event);
+    sync = normalizeStripeSubscriptionEvent(event, billingRouteForCountry);
   } catch (error) {
     const code = error instanceof Error ? error.message : 'subscription_event_invalid';
     console.warn('stripe subscription event rejected', {
