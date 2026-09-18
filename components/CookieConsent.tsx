@@ -72,7 +72,7 @@ function ensureGoogleAnalytics(measurementId: string) {
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
     script.dataset.syllonautGa4 = 'true';
     document.head.appendChild(script);
-    window.gtag('js', new Date());
+    window.gtag?.('js', new Date());
   }
 }
 
