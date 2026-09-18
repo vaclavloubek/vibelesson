@@ -4,6 +4,7 @@ const DB_NAME = 'syllonaut-live-v1';
 const DB_VERSION = 1;
 const STATE_STORE = 'states';
 const OUTBOX_STORE = 'outbox';
+const LOCAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type LiveOutboxOperation = {
   id: string;
@@ -61,7 +62,13 @@ export async function getCachedLiveState<T>(sessionId: string): Promise<T | null
     if (!db) return null;
     const tx = db.transaction(STATE_STORE, 'readonly');
     const row = await requestResult(tx.objectStore(STATE_STORE).get(sessionId)) as CachedState | undefined;
-    return (row?.value as T | undefined) ?? null;
+    if (!row) return null;
+    if (Date.now() - row.updatedAt > LOCAL_CACHE_TTL_MS) {
+      const deleteTx = db.transaction(STATE_STORE, 'readwrite');
+      deleteTx.objectStore(STATE_STORE).delete(sessionId);
+      return null;
+    }
+    return row.value as T;
   } catch {
     return null;
   }
