@@ -60,11 +60,17 @@ export async function GET(_req: Request, { params }: RouteContext) {
   let submission: { submitted: number; total: number; unit: 'student' | 'team' } | null = null;
 
   if (activeBlock && ['poll', 'quiz', 'open_text', 'ranking', 'exit_ticket'].includes(activeBlock.type)) {
-    const { count, error } = await supabase
+    let query = supabase
       .from('responses')
       .select('id', { count: 'exact', head: true })
       .eq('session_id', sessionId)
       .eq('block_id', activeBlock.id);
+
+    if (['open_text', 'ranking', 'exit_ticket'].includes(activeBlock.type)) {
+      query = query.not('submitted_at', 'is', null);
+    }
+
+    const { count, error } = await query;
     if (error) {
       console.error('presenter response count failed', error);
     } else {

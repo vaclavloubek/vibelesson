@@ -3,6 +3,7 @@
 import QRCode from 'react-qr-code';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import PresenterScoreboard from '@/components/PresenterScoreboard';
+import FormattedInstructions from '@/components/FormattedInstructions';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterSession.module.css';
 import { createClient } from '@/lib/supabase/client';
@@ -195,7 +196,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
           {block ? (
             <article className={styles.activityCard}>
               <h1>{block.title}</h1>
-              <p className={styles.instructions}>{block.instructions}</p>
+              <FormattedInstructions text={block.instructions} className={styles.instructions} />
 
               {displayItems?.length ? (
                 <div className={styles.optionGrid}>
@@ -209,7 +210,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
               ) : null}
 
               {block.type === 'reveal' && block.revealText ? (
-                <div className={styles.revealBox}>{block.revealText}</div>
+                <FormattedInstructions text={block.revealText} className={styles.revealBox} />
               ) : null}
 
               {block.type === 'timer' && timerSeconds !== null ? (

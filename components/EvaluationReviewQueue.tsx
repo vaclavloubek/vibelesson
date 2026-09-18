@@ -304,13 +304,14 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   }
 
   if (!loaded) return null;
-  if (!evaluations.length && !error) return null;
 
-  const sorted = [...evaluations].sort((a, b) => reviewPriority(a) - reviewPriority(b) || a.blockIndex - b.blockIndex);
-  const newer = evaluations.filter((item) => item.hasNewerSubmission).length;
-  const toReview = evaluations.filter((item) => !item.teacherConfirmed && (item.status === 'graded' || item.status === 'needs_review')).length;
-  const waiting = evaluations.filter((item) => item.status === 'pending' || item.status === 'grading').length;
-  const confirmed = evaluations.filter((item) => item.teacherConfirmed).length;
+  const visibleEvaluations = evaluations.filter((item) => !item.teacherConfirmed || item.hasNewerSubmission);
+  if (!visibleEvaluations.length && !error) return null;
+
+  const sorted = [...visibleEvaluations].sort((a, b) => reviewPriority(a) - reviewPriority(b) || a.blockIndex - b.blockIndex);
+  const newer = visibleEvaluations.filter((item) => item.hasNewerSubmission).length;
+  const toReview = visibleEvaluations.filter((item) => !item.teacherConfirmed && (item.status === 'graded' || item.status === 'needs_review')).length;
+  const waiting = visibleEvaluations.filter((item) => item.status === 'pending' || item.status === 'grading').length;
 
   const summary = error
     ? 'Hodnocení · chyba načtení'
@@ -320,7 +321,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         ? `Hodnocení · ${toReview} ke kontrole${waiting ? ` · ${waiting} čeká` : ''}`
         : waiting
           ? `Hodnocení · ${waiting} čeká`
-          : `Hodnocení · ${confirmed} potvrzeno`;
+          : 'Hodnocení · bez nevyřízených položek';
 
   return (
     <aside style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 80, width: 'min(430px, calc(100vw - 24px))' }}>

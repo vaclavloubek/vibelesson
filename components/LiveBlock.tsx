@@ -1,5 +1,6 @@
 import ActivityModeBadge from '@/components/ActivityModeBadge';
 import LessonDataTable from '@/components/LessonDataTable';
+import FormattedInstructions from '@/components/FormattedInstructions';
 import type { PublicLessonBlock } from '@/lib/live';
 import type { LessonBlock } from '@/lib/schema';
 
@@ -37,11 +38,11 @@ export default function LiveBlock({
         </div>
         <span className="duration">{block.durationMinutes} min</span>
       </div>
-      <p className="instructions">{block.instructions}</p>
+      <FormattedInstructions text={block.instructions} className="instructions" />
       {block.dataTable ? <LessonDataTable data={block.dataTable} /> : null}
       {!hideItems && block.items?.length ? <div className="items">{block.items.map((item) => <div className="item" key={item}>{item}</div>)}</div> : null}
       {!hideOptions && block.options?.length ? <div className="options">{block.options.map((option) => <div className="option" key={option}>{option}</div>)}</div> : null}
-      {block.revealText ? <div className="reveal">{block.revealText}</div> : null}
+      {block.revealText ? <FormattedInstructions text={block.revealText} className="reveal" /> : null}
       {teacherBlock?.correctAnswer ? <div className="reveal">Správná odpověď: <strong>{teacherBlock.correctAnswer}</strong></div> : null}
       {teacherBlock?.teacherNote ? <details open><summary>Poznámka pro učitele</summary><p>{teacherBlock.teacherNote}</p></details> : null}
       {typeof block.points === 'number' ? <div className="points">Max. {block.points} bodů</div> : null}
