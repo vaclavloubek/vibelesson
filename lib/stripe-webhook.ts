@@ -15,6 +15,11 @@ export const SUPPORTED_STRIPE_SUBSCRIPTION_EVENTS = new Set([
   'customer.subscription.resumed',
 ]);
 
+export const SUPPORTED_STRIPE_INVOICE_EVENTS = new Set([
+  'invoice.payment_failed',
+  'invoice.paid',
+]);
+
 type StripeWebhookEvent = {
   id: string;
   type: string;
@@ -27,6 +32,14 @@ type StripeWebhookEvent = {
 type SecretCandidate = {
   value: string;
   livemode: boolean | null;
+};
+
+export type StripeInvoiceEventSync = {
+  eventId: string;
+  eventType: 'invoice.payment_failed' | 'invoice.paid';
+  livemode: boolean;
+  userId: string;
+  subscriptionId: string;
 };
 
 export type StripeSubscriptionSync = {
@@ -270,5 +283,48 @@ export function normalizeStripeSubscriptionEvent(
     currentPeriodEnd,
     canceledAt,
     billingCountry,
+  };
+}
+
+
+export function normalizeStripeInvoiceEvent(
+  event: StripeWebhookEvent,
+): StripeInvoiceEventSync | null {
+  if (!SUPPORTED_STRIPE_INVOICE_EVENTS.has(event.type)) return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const invoice = objectRecord(event.data.object);
+  if (invoice.object !== 'invoice') throw new Error('stripe_invoice_object_invalid');
+
+  const parent = invoice.parent;
+  if (!parent || typeof parent !== 'object' || Array.isArray(parent)) return null;
+  const parentRecord = parent as Record<string, unknown>;
+  if (parentRecord.type !== 'subscription_details') return null;
+
+  const subscriptionDetails = objectRecord(parentRecord.subscription_details);
+  const subscriptionId = stringField(
+    subscriptionDetails.subscription,
+    SUBSCRIPTION_ID_RE,
+    'stripe_invoice_subscription_id_invalid',
+  );
+
+  const metadata = objectRecord(subscriptionDetails.metadata ?? {});
+  if (typeof metadata.syllonaut_user_id !== 'string') return null;
+  const userId = stringField(
+    metadata.syllonaut_user_id,
+    UUID_RE,
+    'stripe_invoice_user_metadata_invalid',
+  );
+
+  if (event.type !== 'invoice.payment_failed' && event.type !== 'invoice.paid') {
+    return null;
+  }
+
+  return {
+    eventId: event.id,
+    eventType: event.type,
+    livemode: event.livemode,
+    userId,
+    subscriptionId,
   };
 }

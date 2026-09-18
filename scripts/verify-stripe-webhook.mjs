@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { billingRouteForCountry } from '../lib/billing-region.ts';
 import {
+  normalizeStripeInvoiceEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
 } from '../lib/stripe-webhook.ts';
@@ -103,5 +104,34 @@ assert(
   normalizeStripeSubscriptionEvent(cz, billingRouteForCountry)?.merchantOfRecord === false,
   'CZ subscription must use standard Stripe',
 );
+
+const invoiceEvent = {
+  id: 'evt_invoice001',
+  type: 'invoice.payment_failed',
+  livemode: false,
+  data: {
+    object: {
+      id: 'in_regression001',
+      object: 'invoice',
+      parent: {
+        type: 'subscription_details',
+        subscription_details: {
+          subscription: 'sub_regression001',
+          metadata: {
+            syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000',
+          },
+        },
+      },
+    },
+  },
+};
+
+const normalizedInvoice = normalizeStripeInvoiceEvent(invoiceEvent);
+assert(normalizedInvoice?.eventType === 'invoice.payment_failed', 'payment failure should normalize');
+assert(normalizedInvoice?.subscriptionId === 'sub_regression001', 'invoice should retain subscription ID');
+
+const unrelatedInvoice = structuredClone(invoiceEvent);
+unrelatedInvoice.data.object.parent = { type: 'quote_details' };
+assert(normalizeStripeInvoiceEvent(unrelatedInvoice) === null, 'non-subscription invoice should be ignored');
 
 console.log('Stripe webhook checks passed.');
