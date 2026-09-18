@@ -333,7 +333,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         ) : saved ? (
           <p className="student-save-success" role="status" aria-live="polite">✓ {ui('Koncept je uložený. Pro hodnocení odpověď ještě odevzdej.', 'The draft is saved. Submit the answer when you want it to be graded.')}</p>
         ) : null}
-        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">{ui('Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.', 'Your answer is safely stored on this device and will be sent when the connection is restored.')}</p> : null}
         {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
       </section>
     );

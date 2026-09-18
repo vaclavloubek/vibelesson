@@ -402,10 +402,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 16, marginTop: 8 }}>
                 <div>
                   <strong style={{ display: 'block', fontSize: 28, lineHeight: 1.1 }}>{state.scoreboard.score} / {state.scoreboard.maxPoints}</strong>
-                  <span className="muted-copy">Tvoje skóre</span>
+                  <span className="muted-copy">{ui('Tvoje skóre', 'Your score')}</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. místo</strong>
+                  <strong style={{ display: 'block', fontSize: 24, lineHeight: 1.1 }}>{state.scoreboard.rank}. {ui('místo', 'place')}</strong>
                   <span className="muted-copy">{ui('Konečné pořadí', 'Final ranking')}</span>
                 </div>
               </div>

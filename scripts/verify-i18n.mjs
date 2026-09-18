@@ -36,6 +36,7 @@ const [
   presenterMode,
   liveBlock,
   evaluationReviewQueue,
+  studentResponseInput,
 ] = await Promise.all([
   source('lib/i18n.ts'),
   source('proxy.ts'),
@@ -51,6 +52,7 @@ const [
   source('components/PresenterMode.tsx'),
   source('components/LiveBlock.tsx'),
   source('components/EvaluationReviewQueue.tsx'),
+  source('components/StudentResponseInput.tsx'),
 ]);
 
 requireText(i18n, "UI_LOCALES = ['cs', 'en']", 'supported UI locales must remain Czech and English.');
@@ -93,7 +95,10 @@ requireText(studentEdge, 'lessonLanguage: typeof lesson.language === "string" ? 
 requireText(studentSession, 'lessonLanguage: string | null;', 'student live state must carry lesson language.');
 requireText(studentSession, 'contentLanguage={state.lessonLanguage}', 'student live lesson content must receive lesson language.');
 requireText(studentSession, "localizedApiError(data.error, locale, 'Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.')", 'student live errors must remain localized instead of leaking server text.');
+requireText(studentSession, "ui('Tvoje skóre', 'Your score')", 'student final score label must remain localized.');
+requireText(studentSession, "ui('místo', 'place')", 'student final rank suffix must remain localized.');
 requireText(presenterRoute, 'lessonLanguage: lesson.data.language ?? null', 'Presenter primary API must expose lesson language.');
+requireText(studentResponseInput, "ui('Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.', 'Your answer is safely stored on this device and will be sent when the connection is restored.')", 'student offline answer message must remain localized.');
 requireText(presenterMode, 'lessonLanguage: string | null;', 'Presenter state must carry lesson language.');
 requireText(presenterMode, 'lang={data.lessonLanguage ?? undefined}', 'Presenter content must expose lesson language in the DOM.');
 requireText(presenterMode, "localizedApiError(body.error, english ? 'en' : 'cs', 'Prezentační režim se nepodařilo načíst.', 'Presenter mode could not be loaded.')", 'presenter errors must remain localized instead of leaking server text.');
