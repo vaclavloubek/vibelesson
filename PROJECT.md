@@ -888,7 +888,7 @@ Další práce na lokalizaci má být už pouze inkrementální: doplnění dal�
 
 ### Milník B — live hodina
 
-**Hlavní MVP je dokončené; produkce je na 0.8.16 a po incidentech Supabase prošla další least-privilege a recovery hardening fází.**
+**Hlavní MVP je dokončené; aktuální produkt je 0.9 a zachovává live resilience/hardening baseline 0.8.16. Po incidentech Supabase prošla live vrstva další least-privilege a recovery hardening fází.**
 
 Hotovo: join, participant auth, responses, teams/team task, lock/autosave, explicit submit, timer, reveal, QR/link/code, recovery, report/CSV, scoring, plan-aware manual/AI grading, review queue, own public score, Presenter, live projektor úloh, Moon race, network hardening, join abuse protection, activity clarity a data tables.
 
@@ -1098,7 +1098,7 @@ Security audit SEC-001 až SEC-015 je dispositioned. Accessibility technický ba
 
 Nejbližší priority v tomto pořadí:
 
-1. do pondělní ostré výuky držet 0.8.16 funkčně stabilní; nedělat zbytečné zásahy do live/auth/databázové vrstvy;
+1. do pondělní ostré výuky držet 0.9 funkčně stabilní, zejména zachovaný live baseline 0.8.16; nedělat zbytečné zásahy do live/auth/databázové vrstvy;
 2. 2026-09-21 provést reálný acceptance test a bezprostřední post-session audit Teacher/Presenter/student writes/AI grading/fallback-recovery;
 3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
