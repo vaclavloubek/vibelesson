@@ -3,8 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 export default function StartSessionButton({ lessonId }: { lessonId: string }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -20,11 +23,13 @@ export default function StartSessionButton({ lessonId }: { lessonId: string }) {
         body: JSON.stringify({ lessonId }),
       });
       const data = await response.json() as { sessionId?: string; error?: string };
-      if (!response.ok || !data.sessionId) throw new Error(data.error || 'Hodinu se nepodařilo odstartovat.');
+      if (!response.ok || !data.sessionId) {
+        throw new Error(english ? 'The lesson could not be started.' : (data.error || 'Hodinu se nepodařilo odstartovat.'));
+      }
       trackEvent('live_session_created');
       router.push(`/sessions/${data.sessionId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hodinu se nepodařilo odstartovat.');
+      setError(err instanceof Error ? err.message : ui('Hodinu se nepodařilo odstartovat.', 'The lesson could not be started.'));
       setBusy(false);
     }
   }
@@ -32,7 +37,7 @@ export default function StartSessionButton({ lessonId }: { lessonId: string }) {
   return (
     <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 40, display: 'grid', justifyItems: 'end', gap: 8 }}>
       {error ? <div className="error" style={{ maxWidth: 320 }}>{error}</div> : null}
-      <button type="button" className="primary" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? 'Připravuji start…' : 'Odstartovat hodinu'}</button>
+      <button type="button" className="primary" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
     </div>
   );
 }
