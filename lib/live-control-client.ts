@@ -29,6 +29,8 @@ export type LiveControlState = {
       updatedAt?: string;
       submittedAnswer?: unknown;
       submittedAt?: string | null;
+      source?: 'primary' | 'fallback';
+      submissionSource?: 'primary' | 'fallback';
     }>;
     teamResponses?: Array<{
       teamId: string;
@@ -39,6 +41,8 @@ export type LiveControlState = {
       submittedText?: string | null;
       submittedAt?: string | null;
       updatedByParticipantId?: string | null;
+      source?: 'primary' | 'fallback';
+      submissionSource?: 'primary' | 'fallback';
     }>;
     revealedBlockIds: string[];
     scoreboardRevealed?: boolean;
