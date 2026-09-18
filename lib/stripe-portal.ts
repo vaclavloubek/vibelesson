@@ -1,5 +1,3 @@
-import { isStripeSandboxSecretKey } from '@/lib/stripe-checkout';
-
 type StripePortalSessionResponse = {
   id?: string;
   url?: string | null;
@@ -31,6 +29,10 @@ export class StripePortalApiError extends Error {
 function sanitizeStripeMessage(value: string | undefined) {
   if (!value) return null;
   return value.replace(/(?:sk|rk|whsec)_(?:test|live)?_[A-Za-z0-9_]+/g, '[redacted]').slice(0, 280);
+}
+
+function isStripeSandboxSecretKey(value: string | undefined): value is string {
+  return Boolean(value && /^(?:sk|rk)_test_/.test(value));
 }
 
 export async function createStripeSandboxPortalSession(input: {
