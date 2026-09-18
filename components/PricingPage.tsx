@@ -9,6 +9,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import SiteFooter from '@/components/SiteFooter';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import { trackEvent } from '@/lib/analytics';
+import type { BillingCurrency } from '@/lib/billing-region';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -129,29 +130,25 @@ const schoolPlans: Plan[] = [
 ];
 
 const czk = new Intl.NumberFormat('cs-CZ');
-const eur = new Intl.NumberFormat('cs-CZ', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
-function euro(value: number) {
-  return eur.format(value);
-}
-
-function usd(value: number) {
+function formatPrice(value: number, currency: BillingCurrency) {
+  if (currency === 'czk') return `${czk.format(value)} Kč`;
+  if (currency === 'eur') return `${value.toFixed(2).replace('.', ',')} €`;
   if (value === 0) return '$0';
-  return `$${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}`;
+  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}`;
 }
 
-function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
+function priceValue(plan: Plan, billing: Billing, currency: BillingCurrency) {
+  if (currency === 'czk') return billing === 'annual' ? plan.price.annualCzk : plan.price.monthlyCzk;
+  if (currency === 'eur') return billing === 'annual' ? plan.price.annualEur : plan.price.monthlyEur;
+  return billing === 'annual' ? plan.price.annualUsd : plan.price.monthlyUsd;
+}
+
+function PlanCard({ plan, billing, currency }: { plan: Plan; billing: Billing; currency: BillingCurrency }) {
   const annual = billing === 'annual';
-  const primary = annual ? plan.price.annualCzk : plan.price.monthlyCzk;
-  const eurPrice = annual ? plan.price.annualEur : plan.price.monthlyEur;
-  const usdPrice = annual ? plan.price.annualUsd : plan.price.monthlyUsd;
-  const monthlyEquivalent = plan.free ? 0 : Math.round(plan.price.annualCzk / 12);
-  const foreignPeriod = annual ? '/ rok' : '/ měsíc';
+  const primary = priceValue(plan, billing, currency);
+  const annualPrice = priceValue(plan, 'annual', currency);
+  const monthlyEquivalent = plan.free ? 0 : annualPrice / 12;
 
   return (
     <article className={`${styles.card} ${plan.featured ? styles.featured : ''}`} id={plan.id}>
@@ -163,15 +160,11 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
 
       <div className={styles.priceBlock}>
         <div className={styles.priceLine}>
-          <strong>{czk.format(primary)} Kč</strong>
+          <strong>{formatPrice(primary, currency)}</strong>
           <span>{annual ? '/ rok' : '/ měsíc'}</span>
         </div>
-        <div className={styles.foreignPrices} aria-label="Ceny v eurech a amerických dolarech">
-          <span>{euro(eurPrice)} {foreignPeriod}</span>
-          <span>{usd(usdPrice)} {foreignPeriod}</span>
-        </div>
         {annual && !plan.free ? (
-          <div className={styles.priceNote}>≈ {czk.format(monthlyEquivalent)} Kč / měsíc · 2 měsíce zdarma</div>
+          <div className={styles.priceNote}>≈ {formatPrice(monthlyEquivalent, currency)} / měsíc · 2 měsíce zdarma</div>
         ) : null}
         {plan.free ? <div className={styles.priceNote}>Bez platební karty.</div> : null}
       </div>
@@ -192,13 +185,19 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
   );
 }
 
-export default function PricingPage({ startSignup = false }: { startSignup?: boolean }) {
+export default function PricingPage({
+  startSignup = false,
+  currency,
+}: {
+  startSignup?: boolean;
+  currency: BillingCurrency;
+}) {
   const [user, setUser] = useState<User | null>(null);
   const [audience, setAudience] = useState<Audience>('teachers');
   const [billing, setBilling] = useState<Billing>('monthly');
   const pricingViewTrackedRef = useRef(false);
   const plans = audience === 'teachers' ? teacherPlans : schoolPlans;
-  const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}.`;
+  const pricingStatus = `${audience === 'teachers' ? 'Zobrazeny plány pro učitele' : 'Zobrazeny plány pro školy'}, ${billing === 'monthly' ? 'měsíční fakturace' : 'roční fakturace'}, měna ${currency.toUpperCase()}.`;
 
   useEffect(() => {
     if (pricingViewTrackedRef.current) return;
@@ -273,7 +272,7 @@ export default function PricingPage({ startSignup = false }: { startSignup?: boo
       </div>
 
       <section className={styles.cards}>
-        {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billing={billing} />)}
+        {plans.map((plan) => <PlanCard key={plan.id} plan={plan} billing={billing} currency={currency} />)}
       </section>
 
       <section className={styles.notes}>
