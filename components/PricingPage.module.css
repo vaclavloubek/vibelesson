@@ -161,7 +161,7 @@
 }
 
 .priceBlock {
-  min-height: 134px;
+  min-height: 118px;
   margin: 24px 0 22px;
   padding-bottom: 20px;
   border-bottom: 1px solid #e7e6e1;
@@ -181,23 +181,11 @@
 }
 
 .priceLine span,
-.foreignPrices,
 .priceNote {
   color: #777a83;
   font-size: 11px;
 }
 
-.foreignPrices {
-  margin-top: 7px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-}
-
-.foreignPrices span {
-  white-space: nowrap;
-}
 
 .priceNote {
   margin-top: 8px;
