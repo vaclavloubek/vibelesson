@@ -285,7 +285,7 @@ Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
 - ostrý entitlement se počítá jen z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují;
 - admin zůstává vždy neomezený a ruční entitlement override se při změně tarifu zachovává.
 
-Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, přijímá pouze subscription lifecycle eventy, vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Teprve poté volá service-role-only atomické RPC. Checkout zatím aktivovaný není.
+Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, přijímá pouze subscription lifecycle eventy, vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Teprve poté volá service-role-only atomické RPC. Production Vercel má od 2026-09-18 nastavené server-only `SUPABASE_SECRET_KEY` a `STRIPE_WEBHOOK_SECRET_TEST`; live Stripe webhook secret zatím záměrně není nastavený. Checkout zatím aktivovaný není.
 
 ### AI grading entitlement
 
