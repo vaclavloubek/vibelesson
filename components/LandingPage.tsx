@@ -246,7 +246,7 @@ export default function LandingPage() {
       </a>
 
       <section className={styles.trustStrip} aria-label={t.trustLabel}>
-        {t.trust.map((item, index) => <span key={item}>{item}{index < t.trust.length - 1 ? <i /> : null}</span>)}
+        {t.trust.map((item, index) => [<span key={`${item}-label`}>{item}</span>, index < t.trust.length - 1 ? <i key={`${item}-separator`} /> : null])}
       </section>
 
       <section className={`${styles.how} ${polish.guidedSection}`} id="jak-to-funguje">

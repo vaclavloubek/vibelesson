@@ -62,7 +62,8 @@ const [
   source('components/CookieConsent.tsx'),
 ]);
 
-requirePattern(layout, /<html lang="cs">/, 'root document must declare Czech language.');
+requirePattern(layout, /<html lang=\{locale\}>/, 'root document must expose the resolved UI locale as the document language.');
+requirePattern(layout, /normalizeUiLocale\(requestHeaders\.get\(LOCALE_REQUEST_HEADER\)\)/, 'document language must come from a validated UI locale.');
 requirePattern(layout, /className="skip-link"[^>]+href="#main-content"/, 'skip link to main content is missing.');
 requirePattern(accessibilityCss, /:focus-visible/, 'global visible keyboard focus style is missing.');
 requirePattern(accessibilityCss, /--line-strong:\s*#8b8d94/i, 'form-control boundary contrast token regressed.');
