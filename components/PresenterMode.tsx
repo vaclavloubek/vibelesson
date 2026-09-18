@@ -1,12 +1,13 @@
 'use client';
 
 import QRCode from 'react-qr-code';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PresenterScoreboard from '@/components/PresenterScoreboard';
 import FormattedInstructions from '@/components/FormattedInstructions';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterSession.module.css';
 import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/analytics';
 
 type PresenterBlock = {
   id: string;
@@ -69,12 +70,17 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const presenterOpenedTrackedRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/sessions/${sessionId}/presenter`, { cache: 'no-store' });
       const body = await response.json() as PresenterData & { error?: string };
       if (!response.ok) throw new Error(body.error || 'Prezentační režim se nepodařilo načíst.');
+      if (!presenterOpenedTrackedRef.current) {
+        presenterOpenedTrackedRef.current = true;
+        trackEvent('presenter_opened', { session_state: body.status });
+      }
       setData(body);
       setError('');
     } catch (err) {
