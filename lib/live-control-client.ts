@@ -20,10 +20,26 @@ export type LiveControlState = {
       blocks?: Array<Record<string, unknown>>;
     };
     teams: Array<{ id: string; name: string; sortOrder?: number }>;
-    participants: Array<{ id: string; displayName: string; teamId: string | null }>;
-    responses: Array<{ participantId: string; blockId: string; answer: unknown; submitted?: boolean }>;
-    teamResponses?: Array<{ teamId: string; blockId: string; text: string; submitted?: boolean; updatedByParticipantId?: string | null }>;
+    participants: Array<{ id: string; displayName: string; teamId: string | null; teamUpdatedAt?: string | null }>;
+    responses: Array<{
+      participantId: string;
+      blockId: string;
+      answer: unknown;
+      updatedAt: string;
+      submittedAnswer?: unknown;
+      submittedAt?: string | null;
+    }>;
+    teamResponses?: Array<{
+      teamId: string;
+      blockId: string;
+      text: string;
+      updatedAt: string;
+      submittedText?: string | null;
+      submittedAt?: string | null;
+      updatedByParticipantId?: string | null;
+    }>;
     revealedBlockIds: string[];
+    scoreboardRevealed?: boolean;
     timer: unknown;
     updatedAt: string;
   };
