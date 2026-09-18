@@ -21,9 +21,31 @@ export type LiveControlState = {
     };
     teams: Array<{ id: string; name: string; sortOrder?: number }>;
     participants: Array<{ id: string; displayName: string; teamId: string | null }>;
-    responses: Array<{ participantId: string; blockId: string; answer: unknown; submitted?: boolean }>;
-    teamResponses?: Array<{ teamId: string; blockId: string; text: string; submitted?: boolean; updatedByParticipantId?: string | null }>;
+    responses: Array<{
+      participantId: string;
+      blockId: string;
+      answer: unknown;
+      submitted?: boolean;
+      updatedAt?: string;
+      submittedAnswer?: unknown;
+      submittedAt?: string | null;
+      source?: 'primary' | 'fallback';
+      submissionSource?: 'primary' | 'fallback';
+    }>;
+    teamResponses?: Array<{
+      teamId: string;
+      blockId: string;
+      text: string;
+      submitted?: boolean;
+      updatedAt?: string;
+      submittedText?: string | null;
+      submittedAt?: string | null;
+      updatedByParticipantId?: string | null;
+      source?: 'primary' | 'fallback';
+      submissionSource?: 'primary' | 'fallback';
+    }>;
     revealedBlockIds: string[];
+    scoreboardRevealed?: boolean;
     timer: unknown;
     updatedAt: string;
   };
