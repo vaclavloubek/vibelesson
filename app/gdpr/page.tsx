@@ -31,12 +31,16 @@ export default function GdprPage() {
           <div className={styles.meta}>Verze 1.0 · účinná od 18. 9. 2026</div>
         </div>
 
-        <aside className={styles.notice} aria-label="Důležitá informace k identifikaci správce">
-          <strong>Před ostrým veřejným spuštěním je nutné doplnit identifikační údaje správce.</strong>
-          <p>V projektu zatím není bezpečně doložen právní název nebo jméno provozovatele, sídlo/adresa ani kontaktní e-mail pro ochranu soukromí. Proto je zde záměrně nevymýšlíme.</p>
+        <aside className={styles.notice} aria-label="Důležitá informace ke kontaktním údajům správce">
+          <strong>Kontaktní e-mail pro ochranu soukromí ještě připravujeme.</strong>
+          <p>Poštovní identifikace správce je uvedena níže. Kontaktní e-mail doplníme, jakmile bude pro doménu syllonaut.com skutečně zprovozněný.</p>
         </aside>
 
-        <section><h2>1. Správce osobních údajů</h2><p>Správcem osobních údajů je provozovatel služby Syllonaut na doméně <strong>syllonaut.com</strong>. Identifikační a kontaktní údaje správce budou doplněny před ostrým veřejným spuštěním.</p></section>
+        <section>
+          <h2>1. Správce osobních údajů</h2>
+          <p><strong>Václav Loubek</strong><br />Slepá 868<br />289 23 Milovice<br />Česká republika</p>
+          <p>Správce provozuje službu Syllonaut na doméně <strong>syllonaut.com</strong>. Kontaktní e-mail pro ochranu soukromí doplníme po jeho zprovoznění.</p>
+        </section>
 
         <section>
           <h2>2. Jaké údaje zpracováváme</h2>
