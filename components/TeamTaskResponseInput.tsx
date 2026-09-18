@@ -259,7 +259,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           sessionId,
           'student',
           'student.team_response',
-          { teamId, blockId: block.id, text: value, submitted: false, source: 'fallback' },
+          { teamId, blockId: block.id, text: value, submitted: false, source: 'primary' },
           operationId,
         );
         onSaved();
