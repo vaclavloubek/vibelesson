@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { participantCookieName } from '@/lib/live';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 const JoinSchema = z.object({
   joinCode: z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{7}$/),
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
 
-    const edgeResponse = await fetch(`${url}/functions/v1/student-session`, {
+    const edgeResponse = await fetchWithTimeout(`${url}/functions/v1/student-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({ action: 'join', ...body }),
       cache: 'no-store',
-    });
+    }, 8_000);
     const data = await edgeResponse.json() as EdgeJoinResponse;
 
     if (!edgeResponse.ok || !data.sessionId || !data.participantToken || !data.participantTokenExpiresAt) {
