@@ -348,6 +348,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                     teamName={state.myTeam.name}
                     teamId={state.myTeam.id}
                     response={state.myTeamResponse}
+                    connectionRestored={connectionStatus === 'restored'}
                     onSaved={() => void refresh()}
                   />
                 ) : (

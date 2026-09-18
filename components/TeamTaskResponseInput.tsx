@@ -11,6 +11,7 @@ type Props = {
   teamName: string;
   teamId: string;
   response: { text: string; updatedByParticipantId: string | null; submitted?: boolean; submittedText?: string | null; submittedAt?: string | null } | null;
+  connectionRestored: boolean;
   onSaved: () => void;
 };
 
@@ -58,7 +59,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
   }
 }
 
-export default function TeamTaskResponseInput({ sessionId, block, teamName, teamId, response, onSaved }: Props) {
+export default function TeamTaskResponseInput({ sessionId, block, teamName, teamId, response, connectionRestored, onSaved }: Props) {
   const serverText = response?.text ?? '';
   const serverSubmitted = Boolean(response?.submitted || (response?.submittedAt && response.submittedText === response.text));
   const draftKey = `syllonaut-team-draft-v1:${sessionId}:${block.id}:${teamName}`;
@@ -72,6 +73,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   const [draftConflict, setDraftConflict] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(serverSubmitted);
+  const [submitUnconfirmed, setSubmitUnconfirmed] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState('');
 
   const lockRef = useRef<LockInfo>(null);
   const focusedRef = useRef(false);
@@ -385,7 +388,20 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       setSubmitted(serverSubmitted);
       clearDraft();
     }
+
+    if (serverSubmitted) {
+      setSubmitUnconfirmed(false);
+      setRecoveryNotice('');
+      setError('');
+      setSubmitted(true);
+    }
   }, [clearDraft, serverSubmitted, serverText, setDraftConflictState]);
+
+  useEffect(() => {
+    if (!connectionRestored || !submitUnconfirmed || serverSubmitted) return;
+    setRecoveryNotice('');
+    setError('Spojení je zpět, ale odevzdání se zatím nepotvrdilo. Text je bezpečně uložený jako koncept. Klepni znovu na „Odevzdat týmovou odpověď“ — nic nemusíš psát znovu.');
+  }, [connectionRestored, serverSubmitted, submitUnconfirmed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -513,6 +529,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
 
     setSubmitting(true);
     setError('');
+    setRecoveryNotice('');
     try {
       const operationId = crypto.randomUUID();
       const result = await request('submit', value);
@@ -532,6 +549,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       setDraftConflictState(false);
       clearDraft();
       setSubmitted(true);
+      setSubmitUnconfirmed(false);
+      setRecoveryNotice('');
       void postLiveControlEvent(
         sessionId,
         'student',
@@ -556,10 +575,15 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         dirtyRef.current = false;
         setSaveState('saved');
         setSubmitted(true);
+        setSubmitUnconfirmed(false);
         clearDraft();
-        setError('Odpověď je odevzdaná do záložní live vrstvy a po obnovení primární služby se dosynchronizuje.');
+        setError('');
+        setRecoveryNotice('Odpověď převzala záložní live vrstva. Syllonaut ji po obnovení hlavního spojení automaticky dosynchronizuje.');
       } else {
-        setError('Spojení se při odevzdávání přerušilo. Koncept zůstává uložený; zkus odevzdání znovu.');
+        setSubmitted(false);
+        setSubmitUnconfirmed(true);
+        setRecoveryNotice('');
+        setError('Spojení se při odevzdání přerušilo. Text je bezpečně uložený jako koncept. Není potřeba nic psát znovu. Syllonaut po obnovení spojení zkontroluje, zda odevzdání proběhlo; pokud ne, stačí klepnout znovu na „Odevzdat týmovou odpověď“.');
       }
     } finally {
       setSubmitting(false);
@@ -570,6 +594,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
     setDraftConflictState(false);
     setDraftRecovered(false);
     setSubmitted(false);
+    setSubmitUnconfirmed(false);
+    setRecoveryNotice('');
     setError('');
     persistDraft(latestTextRef.current);
     const acquired = await ensureLock();
@@ -638,6 +664,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         </button>
       </div>
       <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Automatické ukládání ukládá pouze koncept. AI hodnocení se může spustit až po odevzdání.</p>
+      {recoveryNotice ? <div className="reveal" role="status" aria-live="polite" style={{ marginTop: 10 }}>{recoveryNotice}</div> : null}
       {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
     </section>
   );
