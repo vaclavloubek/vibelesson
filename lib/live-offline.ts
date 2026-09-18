@@ -100,7 +100,11 @@ export async function flushLiveOutbox(sessionId?: string) {
           cache: 'no-store',
         });
         if (!response.ok) {
-          if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+          // 409 is intentionally retained: the teacher may have advanced while this
+          // client was offline. Reconciliation can decide whether the operation is
+          // still admissible without silently losing the student's work.
+          const terminalClientError = [400, 401, 403, 404, 410, 422].includes(response.status);
+          if (terminalClientError) {
             const deleteTx = db.transaction(OUTBOX_STORE, 'readwrite');
             deleteTx.objectStore(OUTBOX_STORE).delete(operation.id);
           }
