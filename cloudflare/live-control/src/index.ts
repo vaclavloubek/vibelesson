@@ -22,9 +22,12 @@ type SessionSnapshot = {
   status: 'lobby' | 'live' | 'ended';
   activeBlockId: string | null;
   lessonSnapshot: unknown;
-  teams?: unknown[];
-  revealedBlockIds?: string[];
-  timer?: unknown;
+  teams: Array<{ id: string; name: string; sortOrder?: number }>;
+  participants: Array<{ id: string; displayName: string; teamId: string | null }>;
+  responses: Array<{ participantId: string; blockId: string; answer: unknown; submitted?: boolean }>;
+  teamResponses?: Array<{ teamId: string; blockId: string; text: string; submitted?: boolean }>;
+  revealedBlockIds: string[];
+  timer: unknown;
   updatedAt: string;
 };
 
@@ -90,6 +93,97 @@ function sessionRoute(url: URL) {
   const match = url.pathname.match(/^\/v1\/sessions\/([0-9a-f-]{36})(\/(?:state|events|ws|bootstrap))?$/i);
   if (!match) return null;
   return { sessionId: match[1], suffix: match[2] ?? '/state' };
+}
+
+function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapshot {
+  const payload = event.payload && typeof event.payload === 'object'
+    ? event.payload as Record<string, unknown>
+    : {};
+
+  if (event.type === 'teacher.state_patch') {
+    const status = payload.status;
+    const activeBlockId = payload.activeBlockId;
+    const revealedBlockIds = payload.revealedBlockIds;
+    const teams = payload.teams;
+
+    return {
+      ...snapshot,
+      ...(status === 'lobby' || status === 'live' || status === 'ended' ? { status } : {}),
+      ...(typeof activeBlockId === 'string' || activeBlockId === null ? { activeBlockId: activeBlockId as string | null } : {}),
+      ...(Array.isArray(revealedBlockIds) ? { revealedBlockIds: revealedBlockIds.filter((value): value is string => typeof value === 'string') } : {}),
+      ...(Array.isArray(teams) ? { teams: teams as SessionSnapshot['teams'] } : {}),
+      ...(payload.timer !== undefined ? { timer: payload.timer } : {}),
+      revision: event.revision,
+      updatedAt: event.createdAt,
+    };
+  }
+
+  if (event.type === 'student.joined') {
+    const displayName = typeof payload.displayName === 'string' ? payload.displayName.slice(0, 60) : 'Student';
+    const existing = snapshot.participants.find((participant) => participant.id === event.actorId);
+    const participant = {
+      id: event.actorId,
+      displayName,
+      teamId: existing?.teamId ?? null,
+    };
+    return {
+      ...snapshot,
+      participants: [...snapshot.participants.filter((row) => row.id !== event.actorId), participant],
+      revision: event.revision,
+      updatedAt: event.createdAt,
+    };
+  }
+
+  if (event.type === 'student.team_selected') {
+    const teamId = typeof payload.teamId === 'string' ? payload.teamId : null;
+    return {
+      ...snapshot,
+      participants: snapshot.participants.map((participant) => (
+        participant.id === event.actorId ? { ...participant, teamId } : participant
+      )),
+      revision: event.revision,
+      updatedAt: event.createdAt,
+    };
+  }
+
+  if (event.type === 'student.response') {
+    const blockId = typeof payload.blockId === 'string' ? payload.blockId : '';
+    if (!blockId) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
+    const next = {
+      participantId: event.actorId,
+      blockId,
+      answer: payload.answer ?? null,
+      submitted: payload.submitted === true,
+    };
+    return {
+      ...snapshot,
+      responses: [
+        ...snapshot.responses.filter((row) => !(row.participantId === event.actorId && row.blockId === blockId)),
+        next,
+      ],
+      revision: event.revision,
+      updatedAt: event.createdAt,
+    };
+  }
+
+  if (event.type === 'student.team_response') {
+    const teamId = typeof payload.teamId === 'string' ? payload.teamId : '';
+    const blockId = typeof payload.blockId === 'string' ? payload.blockId : '';
+    const text = typeof payload.text === 'string' ? payload.text.slice(0, 4000) : '';
+    if (!teamId || !blockId || !text) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
+    const next = { teamId, blockId, text, submitted: payload.submitted === true };
+    return {
+      ...snapshot,
+      teamResponses: [
+        ...(snapshot.teamResponses ?? []).filter((row) => !(row.teamId === teamId && row.blockId === blockId)),
+        next,
+      ],
+      revision: event.revision,
+      updatedAt: event.createdAt,
+    };
+  }
+
+  return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
 }
 
 export default {
@@ -285,6 +379,7 @@ export class LiveSession extends DurableObject<Env> {
         createdAt: new Date().toISOString(),
       };
 
+      const nextSnapshot = applyEvent(snapshot, event);
       this.ctx.storage.transactionSync(() => {
         this.ctx.storage.sql.exec(
           'INSERT INTO events(revision,id,operation_id,actor_role,actor_id,type,payload,created_at) VALUES(?,?,?,?,?,?,?,?)',
@@ -297,7 +392,7 @@ export class LiveSession extends DurableObject<Env> {
           JSON.stringify(event.payload),
           event.createdAt,
         );
-        this.writeSnapshot({ ...snapshot, revision, updatedAt: event.createdAt });
+        this.writeSnapshot(nextSnapshot);
       });
 
       this.broadcast({ type: 'event', event });
