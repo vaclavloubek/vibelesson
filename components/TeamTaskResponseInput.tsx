@@ -106,17 +106,16 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   }, [draftKey]);
 
   const persistDraft = useCallback((value: string) => {
+    const draft: StoredDraft = {
+      text: value,
+      baseServerText: lastSavedTextRef.current,
+      savedAt: Date.now(),
+    };
+    void cacheLiveDraft(draftKey, draft);
     try {
-      const draft: StoredDraft = {
-        text: value,
-        baseServerText: lastSavedTextRef.current,
-        savedAt: Date.now(),
-      };
       window.sessionStorage.setItem(draftKey, JSON.stringify(draft));
-      void cacheLiveDraft(draftKey, draft);
     } catch {
-      void cacheLiveDraft(draftKey, draft);
-      // Autosave to the server remains the primary persistence path.
+      // IndexedDB remains the durable local fallback if sessionStorage is unavailable.
     }
   }, [draftKey]);
 
