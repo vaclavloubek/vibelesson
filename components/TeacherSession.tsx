@@ -97,7 +97,12 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       const response = await fetch(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...((action === 'next' || action === 'previous') && session?.activeBlockId
+            ? { expectedActiveBlockId: session.activeBlockId }
+            : {}),
+        }),
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
