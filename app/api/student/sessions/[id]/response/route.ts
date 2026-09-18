@@ -12,8 +12,14 @@ export async function POST(req: Request, { params }: RouteContext) {
   const participantToken = cookieStore.get(participantCookieName(id))?.value;
   if (!participantToken) return NextResponse.json({ error: 'Účastník nebyl ověřen.' }, { status: 401 });
 
+  let submission: ReturnType<typeof StudentResponseSubmissionSchema.parse>;
   try {
-    const submission = StudentResponseSubmissionSchema.parse(await req.json());
+    submission = StudentResponseSubmissionSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Odpověď nemá platný formát.' }, { status: 400 });
+  }
+
+  try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error('Supabase environment is missing.');
@@ -37,7 +43,10 @@ export async function POST(req: Request, { params }: RouteContext) {
     const data = await edgeResponse.json() as EdgeResponse;
     return NextResponse.json(data, { status: edgeResponse.status });
   } catch (error) {
-    console.error('student response failed', error);
-    return NextResponse.json({ error: 'Odpověď se nepodařilo odeslat.' }, { status: 400 });
+    console.error('student response upstream failed', error);
+    return NextResponse.json(
+      { error: 'Ukládací služba je dočasně nedostupná.' },
+      { status: 503 },
+    );
   }
 }
