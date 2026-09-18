@@ -25,7 +25,11 @@ self.addEventListener('fetch', (event) => {
       try {
         const response = await fetch(request);
         if (response.ok) {
-          await cache.put(request, response.clone());
+          try {
+            await cache.put(request, response.clone());
+          } catch {
+            // Caching must never turn a successful navigation into a failed one.
+          }
           return response;
         }
         if (response.status >= 500) {
@@ -48,7 +52,13 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(request);
       if (cached) return cached;
       const response = await fetch(request);
-      if (response.ok) await cache.put(request, response.clone());
+      if (response.ok) {
+        try {
+          await cache.put(request, response.clone());
+        } catch {
+          // Static cache failure must never block a successful network response.
+        }
+      }
       return response;
     })());
   }
