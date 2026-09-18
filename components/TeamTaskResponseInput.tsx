@@ -210,7 +210,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
             sessionId,
             'student',
             'student.team_response',
-            { teamId, blockId: block.id, text: value, submitted: false },
+            { teamId, blockId: block.id, text: value, submitted: false, source: 'fallback' },
             operationId,
           );
           if (fallbackSaved) {
@@ -259,7 +259,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           sessionId,
           'student',
           'student.team_response',
-          { teamId, blockId: block.id, text: value, submitted: false },
+          { teamId, blockId: block.id, text: value, submitted: false, source: 'fallback' },
           operationId,
         );
         onSaved();
@@ -271,7 +271,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           sessionId,
           'student',
           'student.team_response',
-          { teamId, blockId: block.id, text: value, submitted: false },
+          { teamId, blockId: block.id, text: value, submitted: false, source: 'fallback' },
           operationId,
         );
         if (fallbackSaved) {
@@ -509,7 +509,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         sessionId,
         'student',
         'student.team_response',
-        { teamId, blockId: block.id, text: value, submitted: true },
+        { teamId, blockId: block.id, text: value, submitted: true, source: 'primary' },
         operationId,
       );
       onSaved();
@@ -520,7 +520,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         sessionId,
         'student',
         'student.team_response',
-        { teamId, blockId: block.id, text: value, submitted: true },
+        { teamId, blockId: block.id, text: value, submitted: true, source: 'fallback' },
         operationId,
       );
       if (fallbackSaved) {
