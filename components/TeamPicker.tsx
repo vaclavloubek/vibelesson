@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { postLiveControlEvent } from '@/lib/live-control-client';
 
 type Team = { id: string; name: string; memberCount: number };
 
@@ -18,19 +19,32 @@ export default function TeamPicker({ sessionId, teams, selectedTeamId, locked, o
 
   async function choose(teamId: string) {
     if (busy || (locked && selectedTeamId !== teamId)) return;
+    const operationId = crypto.randomUUID();
     setBusy(true);
     setError('');
     try {
       const response = await fetch(`/api/student/sessions/${sessionId}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamId }),
+        body: JSON.stringify({ teamId, operationId }),
       });
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Tým se nepodařilo vybrat.');
+      if (!response.ok) {
+        if (response.status < 500 && response.status !== 408 && response.status !== 429) {
+          throw new Error(data.error || 'Tým se nepodařilo vybrat.');
+        }
+        throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
+      }
+      void postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId }, operationId);
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tým se nepodařilo vybrat.');
+      const fallbackOk = await postLiveControlEvent(sessionId, 'student', 'student.team_selected', { teamId }, operationId);
+      if (fallbackOk) {
+        setError('Volba týmu je dočasně uložená v záložní live vrstvě a po obnovení spojení se dosynchronizuje.');
+        onChanged();
+      } else {
+        setError(err instanceof Error ? err.message : 'Tým se nepodařilo vybrat.');
+      }
     } finally {
       setBusy(false);
     }
