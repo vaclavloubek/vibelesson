@@ -216,6 +216,16 @@ export function normalizeStripeSubscriptionEvent(
   const subscription = objectRecord(event.data.object);
   if (subscription.object !== 'subscription') throw new Error('stripe_subscription_object_invalid');
 
+  // Stripe Billing simulations/test clocks create isolated Customer + Subscription copies.
+  // Never let those copies mutate real sandbox billing_customer/subscription mappings.
+  if (
+    event.livemode === false
+    && typeof subscription.test_clock === 'string'
+    && /^clock_[A-Za-z0-9_]+$/.test(subscription.test_clock)
+  ) {
+    return null;
+  }
+
   const subscriptionId = stringField(subscription.id, SUBSCRIPTION_ID_RE, 'stripe_subscription_id_invalid');
 
   const customerValue = subscription.customer;
