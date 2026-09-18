@@ -5,14 +5,19 @@ import {
   liveControlConfigured,
   mintLiveCapability,
   publicLessonSnapshot,
+  type LiveControlRole,
 } from '@/lib/live-control-server';
 import { readLiveResume, setLiveResumeCookie } from '@/lib/live-resume';
 import { LessonSchema } from '@/lib/schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-function degradedAccess(id: string, userId: string) {
-  const access = mintLiveCapability({ sessionId: id, subject: userId, role: 'teacher' });
+function requestedRole(req: Request): Extract<LiveControlRole, 'teacher' | 'presenter'> {
+  return new URL(req.url).searchParams.get('role') === 'presenter' ? 'presenter' : 'teacher';
+}
+
+function degradedAccess(id: string, userId: string, role: Extract<LiveControlRole, 'teacher' | 'presenter'>) {
+  const access = mintLiveCapability({ sessionId: id, subject: userId, role });
   return NextResponse.json({
     enabled: Boolean(access),
     degraded: true,
@@ -20,10 +25,11 @@ function degradedAccess(id: string, userId: string) {
   });
 }
 
-export async function GET(_req: Request, { params }: RouteContext) {
+export async function GET(req: Request, { params }: RouteContext) {
   if (!liveControlConfigured()) return NextResponse.json({ enabled: false });
 
   const { id } = await params;
+  const role = requestedRole(req);
   const resume = await readLiveResume(id);
   const { supabase, userId, error: authError } = await getAuthenticatedUserId();
 
@@ -33,7 +39,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
         sessionId: id,
         authError: true,
       });
-      return degradedAccess(id, resume.userId);
+      return degradedAccess(id, resume.userId, role);
     }
     return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
   }
@@ -47,7 +53,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   if (error) {
     console.warn('live control primary session lookup failed', { sessionId: id, code: error.code });
-    if (resume?.userId === userId) return degradedAccess(id, userId);
+    if (resume?.userId === userId) return degradedAccess(id, userId, role);
     return NextResponse.json({ error: 'Primární live služba je dočasně nedostupná.' }, { status: 503 });
   }
   if (!session) return NextResponse.json({ error: 'Hodina nebyla nalezena.' }, { status: 404 });
@@ -116,6 +122,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
   });
 
   await setLiveResumeCookie(id, userId);
-  const access = mintLiveCapability({ sessionId: id, subject: userId, role: 'teacher' });
+  const access = mintLiveCapability({ sessionId: id, subject: userId, role });
   return NextResponse.json({ enabled: Boolean(access), degraded: false, liveControl: access });
 }
