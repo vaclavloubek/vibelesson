@@ -69,14 +69,8 @@ function readStoredAccess(storage: Storage, key: string) {
 
 export function saveLiveControlAccess(sessionId: string, role: 'teacher' | 'student', access: LiveControlAccess | null) {
   if (!access || typeof window === 'undefined') return;
-  const serialized = JSON.stringify({ ...access, role });
-  const key = storageKey(sessionId, role);
   try {
-    window.sessionStorage.setItem(key, serialized);
-    // Teacher capabilities are session-scoped and short-lived. Keeping the same
-    // capability in localStorage lets a presenter/new teacher tab recover
-    // automatically while the primary auth/API path is degraded.
-    if (role === 'teacher') window.localStorage.setItem(key, serialized);
+    window.sessionStorage.setItem(storageKey(sessionId, role), JSON.stringify({ ...access, role }));
   } catch {
     // The primary Vercel/Supabase path remains available.
   }
@@ -86,16 +80,7 @@ export function getLiveControlAccess(sessionId: string, role: 'teacher' | 'stude
   if (typeof window === 'undefined') return null;
   const key = storageKey(sessionId, role);
   try {
-    const session = readStoredAccess(window.sessionStorage, key);
-    if (session) return session;
-    if (role === 'teacher') {
-      const shared = readStoredAccess(window.localStorage, key);
-      if (shared) {
-        try { window.sessionStorage.setItem(key, JSON.stringify(shared)); } catch { /* no-op */ }
-        return shared;
-      }
-    }
-    return null;
+    return readStoredAccess(window.sessionStorage, key);
   } catch {
     return null;
   }
@@ -103,11 +88,7 @@ export function getLiveControlAccess(sessionId: string, role: 'teacher' | 'stude
 
 export function clearLiveControlAccess(sessionId: string, role: 'teacher' | 'student') {
   if (typeof window === 'undefined') return;
-  const key = storageKey(sessionId, role);
-  try { window.sessionStorage.removeItem(key); } catch { /* no-op */ }
-  if (role === 'teacher') {
-    try { window.localStorage.removeItem(key); } catch { /* no-op */ }
-  }
+  try { window.sessionStorage.removeItem(storageKey(sessionId, role)); } catch { /* no-op */ }
 }
 
 export async function postLiveControlEvent(
