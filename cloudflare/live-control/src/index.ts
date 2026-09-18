@@ -25,9 +25,23 @@ type SessionSnapshot = {
   lessonSnapshot: unknown;
   teams: Array<{ id: string; name: string; sortOrder?: number }>;
   participants: Array<{ id: string; displayName: string; teamId: string | null }>;
-  responses: Array<{ participantId: string; blockId: string; answer: unknown; submitted?: boolean }>;
-  teamResponses?: Array<{ teamId: string; blockId: string; text: string; submitted?: boolean }>;
+  responses: Array<{
+    participantId: string;
+    blockId: string;
+    answer: unknown;
+    submittedAnswer?: unknown;
+    submittedAt?: string | null;
+  }>;
+  teamResponses?: Array<{
+    teamId: string;
+    blockId: string;
+    text: string;
+    submittedText?: string | null;
+    submittedAt?: string | null;
+    updatedByParticipantId?: string | null;
+  }>;
   revealedBlockIds: string[];
+  scoreboardRevealed?: boolean;
   timer: unknown;
   updatedAt: string;
 };
@@ -163,6 +177,15 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
       }
     }
 
+    if (action === 'reveal_scoreboard' || action === 'hide_scoreboard') {
+      return {
+        ...snapshot,
+        scoreboardRevealed: action === 'reveal_scoreboard',
+        revision: event.revision,
+        updatedAt: event.createdAt,
+      };
+    }
+
     if (action === 'end') {
       return {
         ...snapshot,
@@ -278,11 +301,14 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
   if (event.type === 'student.response') {
     const blockId = typeof payload.blockId === 'string' ? payload.blockId : '';
     if (!blockId) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
+    const existing = snapshot.responses.find((row) => row.participantId === event.actorId && row.blockId === blockId);
+    const answer = payload.answer ?? null;
     const next = {
       participantId: event.actorId,
       blockId,
-      answer: payload.answer ?? null,
-      submitted: payload.submitted === true,
+      answer,
+      submittedAnswer: payload.submitted === true ? answer : existing?.submittedAnswer,
+      submittedAt: payload.submitted === true ? event.createdAt : existing?.submittedAt ?? null,
     };
     return {
       ...snapshot,
@@ -300,7 +326,15 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
     const blockId = typeof payload.blockId === 'string' ? payload.blockId : '';
     const text = typeof payload.text === 'string' ? payload.text.slice(0, 4000) : '';
     if (!teamId || !blockId || !text) return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
-    const next = { teamId, blockId, text, submitted: payload.submitted === true, updatedByParticipantId: event.actorId };
+    const existing = (snapshot.teamResponses ?? []).find((row) => row.teamId === teamId && row.blockId === blockId);
+    const next = {
+      teamId,
+      blockId,
+      text,
+      submittedText: payload.submitted === true ? text : existing?.submittedText ?? null,
+      submittedAt: payload.submitted === true ? event.createdAt : existing?.submittedAt ?? null,
+      updatedByParticipantId: event.actorId,
+    };
     return {
       ...snapshot,
       teamResponses: [
