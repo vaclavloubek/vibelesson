@@ -606,14 +606,14 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
           {session.teams.length ? (
             <section className="panel">
-              <span className="eyebrow">Týmy</span>
+              <span className="eyebrow">{ui('Týmy', 'Teams')}</span>
               <div className="items" style={{ marginTop: 12 }}>
                 {session.teams.map((team) => {
                   const members = teamMembers(team.id);
                   return <div className="item" key={team.id}><strong>{team.name}</strong><p className="muted-copy" style={{ marginTop: 5 }}>{members.map((member) => member.displayName).join(', ') || ui('Bez členů', 'No members')}</p></div>;
                 })}
               </div>
-              {unassigned.length ? <p className="muted-copy" style={{ marginTop: 12 }}>Bez týmu: {unassigned.map((participant) => participant.displayName).join(', ')}</p> : null}
+              {unassigned.length ? <p className="muted-copy" style={{ marginTop: 12 }}>{ui('Bez týmu', 'Unassigned')}: {unassigned.map((participant) => participant.displayName).join(', ')}</p> : null}
             </section>
           ) : (
             <section className="panel"><span className="eyebrow">{ui('Připojení studenti', 'Connected students')}</span><p className="muted-copy">{session.participants.map((participant) => participant.displayName).join(', ') || ui('Zatím nikdo.', 'No one yet.')}</p></section>
