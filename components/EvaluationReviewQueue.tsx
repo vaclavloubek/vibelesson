@@ -2,6 +2,7 @@
 
 import { trackEvent, trackEventOnce, type ActivityType } from '@/lib/analytics';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
 type GradingMode = 'ai' | 'manual';
@@ -60,6 +61,8 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
   sessionId: string;
   onReviewed: (patch: ReviewPatch) => void;
 }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const effectiveScore = evaluation.teacherScore ?? evaluation.aiScore ?? 0;
@@ -71,7 +74,7 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
     const score = Number(form.get('score'));
     const note = String(form.get('note') ?? '').trim();
     if (!Number.isInteger(score) || score < 0 || score > evaluation.maxPoints) {
-      setError(`Body musí být celé číslo od 0 do ${evaluation.maxPoints}.`);
+      setError(english ? `Points must be a whole number from 0 to ${evaluation.maxPoints}.` : `Body musí být celé číslo od 0 do ${evaluation.maxPoints}.`);
       return;
     }
 
@@ -84,7 +87,7 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
         body: JSON.stringify({ score, note }),
       });
       const data = await response.json() as ReviewPatch & { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Hodnocení se nepodařilo uložit.');
+      if (!response.ok) throw new Error(data.error || ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
       const activityType = gradableActivityType(evaluation.blockType);
       if (activityType) {
         if ((evaluation.manualOnly || evaluation.aiScore === null) && !evaluation.teacherConfirmed) {
@@ -100,7 +103,7 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
       }
       onReviewed(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hodnocení se nepodařilo uložit.');
+      setError(err instanceof Error ? err.message : ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
     } finally {
       setSaving(false);
     }
@@ -114,17 +117,17 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
     >
       <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, alignItems: 'end' }}>
         <label style={{ fontSize: 12 }}>
-          Body
+          {ui('Body', 'Points')}
           <input name="score" type="number" min={0} max={evaluation.maxPoints} step={1} defaultValue={effectiveScore} />
         </label>
         <label style={{ fontSize: 12 }}>
-          Poznámka <span className="muted-copy">(volitelná)</span>
+          {ui('Poznámka', 'Note')} <span className="muted-copy">{ui('(volitelná)', '(optional)')}</span>
           <input name="note" type="text" maxLength={1000} defaultValue={evaluation.teacherNote ?? ''} />
         </label>
       </div>
       <div className="actions" style={{ marginTop: 0 }}>
         <button className="secondary" type="submit" disabled={saving}>
-          {saving ? 'Ukládám…' : evaluation.teacherConfirmed ? 'Uložit změnu' : 'Potvrdit hodnocení'}
+          {saving ? ui('Ukládám…', 'Saving…') : evaluation.teacherConfirmed ? ui('Uložit změnu', 'Save change') : ui('Potvrdit hodnocení', 'Confirm grading')}
         </button>
       </div>
       {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
@@ -138,6 +141,8 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
   onReviewed: (patch: ReviewPatch) => void;
   onRequeued: (evaluationId: string, gradingMode: GradingMode) => void;
 }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [regrading, setRegrading] = useState(false);
   const [regradeError, setRegradeError] = useState('');
   const effectiveScore = evaluation.teacherScore ?? evaluation.aiScore;
@@ -156,11 +161,11 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
       });
       const data = await response.json() as { requeued?: boolean; gradingMode?: GradingMode; error?: string };
       if (!response.ok || !data.requeued || !data.gradingMode) {
-        throw new Error(data.error || 'Novější verzi se nepodařilo připravit k hodnocení.');
+        throw new Error(data.error || ui('Novější verzi se nepodařilo připravit k hodnocení.', 'The newer version could not be prepared for grading.'));
       }
       onRequeued(evaluation.id, data.gradingMode);
     } catch (err) {
-      setRegradeError(err instanceof Error ? err.message : 'Novější verzi se nepodařilo připravit k hodnocení.');
+      setRegradeError(err instanceof Error ? err.message : ui('Novější verzi se nepodařilo připravit k hodnocení.', 'The newer version could not be prepared for grading.'));
     } finally {
       setRegrading(false);
     }
@@ -171,7 +176,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
       <div className="teacher-response-item-head">
         <div>
           <strong>{evaluation.respondentName}</strong>
-          <p className="muted-copy" style={{ margin: '3px 0 0' }}>Blok {evaluation.blockIndex + 1}: {evaluation.blockTitle}</p>
+          <p className="muted-copy" style={{ margin: '3px 0 0' }}>{ui('Blok', 'Block')} {evaluation.blockIndex + 1}: {evaluation.blockTitle}</p>
         </div>
         <strong>{effectiveScore === null ? '—' : `${effectiveScore} / ${evaluation.maxPoints}`}</strong>
       </div>
@@ -179,7 +184,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
 
       {evaluation.hasNewerSubmission ? (
         <div className="reveal" style={{ marginTop: 10 }}>
-          <strong>Po tomto hodnocení byla odevzdaná novější verze.</strong>
+          <strong>{ui('Po tomto hodnocení byla odevzdaná novější verze.', 'A newer version was submitted after this grading.')}</strong>
           {evaluation.latestAnswerText ? <p style={{ margin: '7px 0 0', whiteSpace: 'pre-wrap' }}>{evaluation.latestAnswerText}</p> : null}
           {canRefresh ? (
             <div className="actions" style={{ marginTop: 10 }}>
@@ -188,15 +193,15 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
               </button>
             </div>
           ) : (
-            <p className="muted-copy" style={{ margin: '7px 0 0' }}>Aktuální hodnocení nejdřív doběhne. Nová verze se sama znovu hodnotit nebude.</p>
+            <p className="muted-copy" style={{ margin: '7px 0 0' }}>{ui('Aktuální hodnocení nejdřív doběhne. Nová verze se sama znovu hodnotit nebude.', 'The current grading must finish first. The newer version will not be graded again automatically.')}</p>
           )}
           {regradeError ? <p className="muted-copy" style={{ margin: '7px 0 0' }}>{regradeError}</p> : null}
         </div>
       ) : null}
 
-      {evaluation.status === 'pending' ? <p className="muted-copy" style={{ marginBottom: 0 }}>Čeká na AI hodnocení.</p> : null}
-      {evaluation.status === 'grading' ? <p className="muted-copy" style={{ marginBottom: 0 }}>AI právě hodnotí…</p> : null}
-      {evaluation.status === 'failed' ? <p className="muted-copy" style={{ marginBottom: 0 }}>AI hodnocení se nepodařilo. Odpověď zůstává uložená pro ruční hodnocení.</p> : null}
+      {evaluation.status === 'pending' ? <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('Čeká na AI hodnocení.', 'Waiting for AI grading.')}</p> : null}
+      {evaluation.status === 'grading' ? <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('AI právě hodnotí…', 'AI is grading…')}</p> : null}
+      {evaluation.status === 'failed' ? <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('AI hodnocení se nepodařilo. Odpověď zůstává uložená pro ruční hodnocení.', 'AI grading failed. The response remains stored for manual grading.')}</p> : null}
 
       {ready ? (
         <>
@@ -208,15 +213,15 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
                 : evaluation.status === 'needs_review'
                   ? 'Ke kontrole kvůli nižší jistotě AI.'
                   : 'AI návrh čeká na potvrzení.'}
-            {!evaluation.manualOnly && confidence !== null ? ` Jistota AI: ${confidence} %.` : ''}
+            {!evaluation.manualOnly && confidence !== null ? (english ? ` AI confidence: ${confidence}%.` : ` Jistota AI: ${confidence} %.`) : ''}
           </p>
           {evaluation.teacherConfirmed && evaluation.teacherNote ? (
-            <p style={{ margin: '8px 0 0' }}><strong>Poznámka učitele:</strong> {evaluation.teacherNote}</p>
+            <p style={{ margin: '8px 0 0' }}><strong>{ui('Poznámka učitele:', 'Teacher note:')}</strong> {evaluation.teacherNote}</p>
           ) : null}
 
           {evaluation.manualOnly ? (
             <details style={{ marginTop: 8 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Hodnoticí kritéria</summary>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{ui('Hodnoticí kritéria', 'Grading criteria')}</summary>
               <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
                 {evaluation.rubric.map((criterion) => (
                   <div className="item" key={criterion.id} style={{ padding: 10 }}>
@@ -231,7 +236,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
             </details>
           ) : (
             <details style={{ marginTop: 8 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Jak AI hodnotila</summary>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{ui('Jak AI hodnotila', 'How AI graded')}</summary>
               {evaluation.rationale ? <p style={{ margin: '8px 0', whiteSpace: 'pre-wrap' }}>{evaluation.rationale}</p> : null}
               <div style={{ display: 'grid', gap: 6 }}>
                 {evaluation.rubric.map((criterion) => {
@@ -259,6 +264,8 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
 }
 
 export default function EvaluationReviewQueue({ sessionId }: { sessionId: string }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [evaluations, setEvaluations] = useState<QueueEvaluation[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -271,7 +278,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
       try {
         const response = await fetch(`/api/sessions/${sessionId}/evaluations/queue`, { cache: 'no-store' });
         const data = await response.json() as { evaluations?: QueueEvaluation[]; activeBlockId?: string | null; error?: string };
-        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || 'Hodnocení se nepodařilo načíst.');
+        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || ui('Hodnocení se nepodařilo načíst.', 'Grading could not be loaded.'));
         if (cancelled) return;
 
         for (const evaluation of data.evaluations) {
@@ -298,7 +305,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         setLoaded(true);
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Hodnocení se nepodařilo načíst.');
+        setError(err instanceof Error ? err.message : ui('Hodnocení se nepodařilo načíst.', 'Grading could not be loaded.'));
         setLoaded(true);
       }
     };
@@ -355,14 +362,16 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   const waiting = visibleEvaluations.filter((item) => item.status === 'pending' || item.status === 'grading').length;
 
   const summary = error
-    ? 'Hodnocení · chyba načtení'
+    ? ui('Hodnocení · chyba načtení', 'Grading · loading error')
     : newer
-      ? `Hodnocení · ${newer} novější ${newer === 1 ? 'odpověď' : 'odpovědi'}${toReview ? ` · ${toReview} ke kontrole` : ''}`
+      ? (english
+          ? `Grading · ${newer} newer ${newer === 1 ? 'response' : 'responses'}${toReview ? ` · ${toReview} to review` : ''}`
+          : `Hodnocení · ${newer} novější ${newer === 1 ? 'odpověď' : 'odpovědi'}${toReview ? ` · ${toReview} ke kontrole` : ''}`)
       : toReview
-        ? `Hodnocení · ${toReview} ke kontrole${waiting ? ` · ${waiting} čeká` : ''}`
+        ? (english ? `Grading · ${toReview} to review${waiting ? ` · ${waiting} pending` : ''}` : `Hodnocení · ${toReview} ke kontrole${waiting ? ` · ${waiting} čeká` : ''}`)
         : waiting
-          ? `Hodnocení · ${waiting} čeká`
-          : 'Hodnocení · bez nevyřízených položek';
+          ? (english ? `Grading · ${waiting} pending` : `Hodnocení · ${waiting} čeká`)
+          : ui('Hodnocení · bez nevyřízených položek', 'Grading · no pending items');
 
   return (
     <aside style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 80, width: 'min(430px, calc(100vw - 24px))' }}>
@@ -370,7 +379,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         <summary style={{ cursor: 'pointer', fontWeight: 800, padding: '14px 16px', listStylePosition: 'inside' }}>{summary}</summary>
         <div style={{ borderTop: '1px solid var(--border)', padding: 12, maxHeight: '68vh', overflowY: 'auto' }}>
           {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
-          {!error ? <p className="muted-copy" style={{ margin: '0 0 10px' }}>Hodnocení můžeš potvrdit i poté, co studenti pokračují na další úkol. Novější odevzdanou verzi připravíš k novému hodnocení jen na svůj pokyn.</p> : null}
+          {!error ? <p className="muted-copy" style={{ margin: '0 0 10px' }}>{ui('Hodnocení můžeš potvrdit i poté, co studenti pokračují na další úkol. Novější odevzdanou verzi připravíš k novému hodnocení jen na svůj pokyn.', 'You can confirm grading even after students move to the next task. A newer submitted version is prepared for another grading pass only when you request it.')}</p> : null}
           {!error ? <div style={{ display: 'grid', gap: 8 }}>{sorted.map((evaluation) => <EvaluationItem key={evaluation.id} evaluation={evaluation} sessionId={sessionId} onReviewed={applyReview} onRequeued={applyRequeue} />)}</div> : null}
         </div>
       </details>

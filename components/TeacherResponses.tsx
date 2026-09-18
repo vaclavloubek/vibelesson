@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
+import { useUiLocale } from '@/components/LocaleProvider';
 import type { StudentAnswer } from '@/lib/live';
 import type { LessonBlock } from '@/lib/schema';
 
@@ -66,11 +67,13 @@ type Props = {
   teamResponses?: TeamResponse[];
 };
 
-function ResponseProgress({ count, total, label = 'odpovědí' }: { count: number; total: number; label?: string }) {
+function ResponseProgress({ count, total, label }: { count: number; total: number; label?: string }) {
+  const english = useUiLocale() === 'en';
+  const resolvedLabel = label ?? (english ? 'responses' : 'odpovědí');
   const percent = total > 0 ? Math.min(100, Math.max(0, (count / total) * 100)) : 0;
   return (
     <div className="teacher-response-progress">
-      <div className="teacher-response-progress-copy"><strong>{count} z {total}</strong><span>{label}</span></div>
+      <div className="teacher-response-progress-copy"><strong>{count} z {total}</strong><span>{resolvedLabel}</span></div>
       <div className="teacher-response-progress-track"><div className="teacher-response-progress-fill" style={{ width: `${percent}%` }} /></div>
     </div>
   );
@@ -97,6 +100,8 @@ function EvaluationReviewForm({
   sessionId: string;
   onReviewed: (patch: ReviewPatch) => void;
 }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const effectiveScore = evaluation.teacherScore ?? evaluation.aiScore ?? 0;
@@ -110,7 +115,7 @@ function EvaluationReviewForm({
     const note = String(form.get('note') ?? '').trim();
 
     if (!Number.isInteger(score) || score < 0 || score > evaluation.maxPoints) {
-      setError(`Body musí být celé číslo od 0 do ${evaluation.maxPoints}.`);
+      setError(english ? `Points must be a whole number from 0 to ${evaluation.maxPoints}.` : `Body musí být celé číslo od 0 do ${evaluation.maxPoints}.`);
       return;
     }
 
@@ -123,10 +128,10 @@ function EvaluationReviewForm({
         body: JSON.stringify({ score, note }),
       });
       const data = await response.json() as ReviewPatch & { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Hodnocení se nepodařilo uložit.');
+      if (!response.ok) throw new Error(data.error || ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
       onReviewed(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hodnocení se nepodařilo uložit.');
+      setError(err instanceof Error ? err.message : ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
     } finally {
       setSaving(false);
     }
@@ -140,17 +145,17 @@ function EvaluationReviewForm({
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 160px) 1fr', gap: 10, alignItems: 'end' }}>
         <label>
-          Body učitele
+          {ui('Body učitele', 'Teacher points')}
           <input name="score" type="number" min={0} max={evaluation.maxPoints} step={1} defaultValue={effectiveScore} />
         </label>
         <label>
-          Poznámka <span className="muted-copy">(volitelná)</span>
-          <input name="note" type="text" maxLength={1000} defaultValue={evaluation.teacherNote ?? ''} placeholder="Proč body měníš nebo potvrzuješ." />
+          {ui('Poznámka', 'Note')} <span className="muted-copy">{ui('(volitelná)', '(optional)')}</span>
+          <input name="note" type="text" maxLength={1000} defaultValue={evaluation.teacherNote ?? ''} placeholder={ui('Proč body měníš nebo potvrzuješ.', 'Why you are changing or confirming the points.')} />
         </label>
       </div>
       <div className="actions" style={{ marginTop: 0 }}>
         <button className="secondary" type="submit" disabled={saving || !sessionId}>
-          {saving ? 'Ukládám…' : evaluation.teacherConfirmed ? 'Uložit změnu' : 'Potvrdit hodnocení'}
+          {saving ? ui('Ukládám…', 'Saving…') : evaluation.teacherConfirmed ? ui('Uložit změnu', 'Save change') : ui('Potvrdit hodnocení', 'Confirm grading')}
         </button>
       </div>
       {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
@@ -167,20 +172,22 @@ function EvaluationCard({
   sessionId: string;
   onReviewed: (patch: ReviewPatch) => void;
 }) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   if (!evaluation) {
-    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>Připravuji AI hodnocení…</p>;
+    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('Připravuji AI hodnocení…', 'Preparing AI grading…')}</p>;
   }
 
   if (evaluation.status === 'pending') {
-    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>Čeká na AI hodnocení.</p>;
+    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('Čeká na AI hodnocení.', 'Waiting for AI grading.')}</p>;
   }
 
   if (evaluation.status === 'grading') {
-    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>AI právě hodnotí…</p>;
+    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('AI právě hodnotí…', 'AI is grading…')}</p>;
   }
 
   if (evaluation.status === 'failed') {
-    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>AI hodnocení se nepodařilo. Odpověď zůstává bezpečně uložená.</p>;
+    return <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('AI hodnocení se nepodařilo. Odpověď zůstává bezpečně uložená.', 'AI grading failed. The response remains safely stored.')}</p>;
   }
 
   const effectiveScore = evaluation.teacherScore ?? evaluation.aiScore;
@@ -190,22 +197,22 @@ function EvaluationCard({
   return (
     <div className="item" style={{ marginTop: 10 }}>
       <div className="teacher-response-item-head">
-        <strong>{evaluation.teacherConfirmed ? 'Potvrzené skóre' : evaluation.status === 'needs_review' ? 'Ke kontrole' : 'AI návrh hodnocení'}</strong>
+        <strong>{evaluation.teacherConfirmed ? ui('Potvrzené skóre', 'Confirmed score') : evaluation.status === 'needs_review' ? ui('Ke kontrole', 'Needs review') : ui('AI návrh hodnocení', 'AI grading suggestion')}</strong>
         <strong>{effectiveScore === null ? '—' : `${effectiveScore} / ${evaluation.maxPoints}`}</strong>
       </div>
       <p className="muted-copy" style={{ margin: '6px 0 0' }}>
-        {confidence === null ? 'Jistota AI není k dispozici.' : `Jistota AI: ${confidence} %.`}
+        {confidence === null ? ui('Jistota AI není k dispozici.', 'AI confidence is not available.') : (english ? `AI confidence: ${confidence}%.` : `Jistota AI: ${confidence} %.`)}
         {evaluation.teacherConfirmed
-          ? ' Výsledek zkontroloval učitel.'
+          ? '{ui(' Výsledek zkontroloval učitel.', ' The result was reviewed by the teacher.')}'
           : evaluation.status === 'needs_review'
-            ? ' Výsledek má nízkou jistotu a měl by ho zkontrolovat učitel.'
-            : ' AI skóre je návrh pro učitele.'}
+            ? '{ui(' Výsledek má nízkou jistotu a měl by ho zkontrolovat učitel.', ' The result has low confidence and should be reviewed by the teacher.')}'
+            : '{ui(' AI skóre je návrh pro učitele.', ' The AI score is a suggestion for the teacher.')}'}
       </p>
       {evaluation.teacherConfirmed && evaluation.teacherNote ? (
-        <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}><strong>Poznámka učitele:</strong> {evaluation.teacherNote}</p>
+        <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}><strong>{ui('Poznámka učitele:', 'Teacher note:')}</strong> {evaluation.teacherNote}</p>
       ) : null}
       <details style={{ marginTop: 8 }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Jak AI hodnotila</summary>
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{ui('Jak AI hodnotila', 'How AI graded')}</summary>
         {evaluation.rationale ? <p style={{ margin: '10px 0', whiteSpace: 'pre-wrap' }}>{evaluation.rationale}</p> : null}
         <div className="teacher-response-list">
           {evaluation.rubric.map((criterion) => {
@@ -229,6 +236,8 @@ function EvaluationCard({
 }
 
 export default function TeacherResponses({ block, responses, participantCount, teams = [], teamResponses = [] }: Props) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const params = useParams<{ id: string }>();
   const sessionId = typeof params?.id === 'string' ? params.id : '';
   const gradingConfigured = isAIGradingConfigured(block);
@@ -249,13 +258,13 @@ export default function TeacherResponses({ block, responses, participantCount, t
       try {
         const response = await fetch(`/api/sessions/${sessionId}/evaluations?blockId=${encodeURIComponent(block.id)}`, { cache: 'no-store' });
         const data = await response.json() as { evaluations?: LiveEvaluation[]; error?: string };
-        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || 'AI hodnocení se nepodařilo načíst.');
+        if (!response.ok || !Array.isArray(data.evaluations)) throw new Error(data.error || ui('AI hodnocení se nepodařilo načíst.', 'AI grading could not be loaded.'));
         if (cancelled) return;
         setEvaluations(data.evaluations);
         setEvaluationError('');
       } catch (error) {
         if (cancelled) return;
-        setEvaluationError(error instanceof Error ? error.message : 'AI hodnocení se nepodařilo načíst.');
+        setEvaluationError(error instanceof Error ? error.message : ui('AI hodnocení se nepodařilo načíst.', 'AI grading could not be loaded.'));
       }
     };
 
@@ -297,10 +306,10 @@ export default function TeacherResponses({ block, responses, participantCount, t
   if (block.type === 'team_task') {
     return (
       <section className="panel teacher-responses-panel">
-        <span className="eyebrow">Týmové odpovědi</span>
-        <ResponseProgress count={teamResponses.filter((response) => response.submitted).length} total={teams.length} label="týmů odevzdalo" />
-        <p className="muted-copy">Každý tým má jednu společnou odpověď. Kdokoli z jeho členů ji může během aktivního bloku upravit.</p>
-        {brokenGradingConfig ? <p className="muted-copy">Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.</p> : null}
+        <span className="eyebrow">{ui('Týmové odpovědi', 'Team responses')}</span>
+        <ResponseProgress count={teamResponses.filter((response) => response.submitted).length} total={teams.length} label={ui('týmů odevzdalo', 'teams submitted')} />
+        <p className="muted-copy">{ui('Každý tým má jednu společnou odpověď. Kdokoli z jeho členů ji může během aktivního bloku upravit.', 'Each team has one shared response. Any team member can edit it while the block is active.')}</p>
+        {brokenGradingConfig ? <p className="muted-copy">{ui('Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.', 'Scoring is configured, but the rubric does not match the block points, so AI grading is disabled.')}</p> : null}
         {evaluationError ? <p className="muted-copy">{evaluationError}</p> : null}
         <div className="teacher-response-list">
           {teams.map((team) => {
@@ -311,16 +320,16 @@ export default function TeacherResponses({ block, responses, participantCount, t
                 <div className="teacher-response-item-head">
                   <strong>{team.name}</strong>
                   <span style={response && !response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>
-                    {response ? (response.submitted ? 'Odevzdáno' : 'Rozepsaná') : 'Čeká'}
+                    {response ? (response.submitted ? ui('Odevzdáno', 'Submitted') : ui('Rozepsaná', 'Draft')) : ui('Čeká', 'Waiting')}
                   </span>
                 </div>
                 {response ? (
                   <>
                     <p style={{ marginBottom: 6, whiteSpace: 'pre-wrap' }}>{response.text}</p>
-                    <p className="muted-copy">Naposledy upravil/a: {response.updatedByDisplayName ?? 'člen týmu'}</p>
+                    <p className="muted-copy">{ui('Naposledy upravil/a', 'Last edited by')}: {response.updatedByDisplayName ?? ui('člen týmu', 'team member')}</p>
                     {gradingConfigured ? <EvaluationCard evaluation={evaluation} sessionId={sessionId} onReviewed={applyReview} /> : null}
                   </>
-                ) : <p className="muted-copy" style={{ marginBottom: 0 }}>Zatím bez odpovědi.</p>}
+                ) : <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('Zatím bez odpovědi.', 'No response yet.')}</p>}
               </div>
             );
           })}
@@ -333,9 +342,9 @@ export default function TeacherResponses({ block, responses, participantCount, t
     const options = block.options ?? [];
     return (
       <section className="panel teacher-responses-panel">
-        <span className="eyebrow">Průběžné odpovědi</span>
+        <span className="eyebrow">{ui('Průběžné odpovědi', 'Live responses')}</span>
         <ResponseProgress count={responses.length} total={participantCount} />
-        <p className="muted-copy">Výsledky se aktualizují průběžně. Student může svou volbu změnit, dokud nepřejdeš na další blok.</p>
+        <p className="muted-copy">{ui('Výsledky se aktualizují průběžně. Student může svou volbu změnit, dokud nepřejdeš na další blok.', 'Results update live. Students can change their choice until you move to the next block.')}</p>
         <div className="teacher-choice-results">
           {options.map((option) => {
             const count = responses.filter((response) => 'choice' in response.answer && response.answer.choice === option).length;
@@ -344,7 +353,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
             return (
               <div className={`teacher-choice-result${isCorrect ? ' correct' : ''}`} key={option}>
                 <div className="teacher-choice-result-head">
-                  <div><strong>{option}</strong>{isCorrect ? <span>Správná odpověď</span> : null}</div>
+                  <div><strong>{option}</strong>{isCorrect ? <span>{ui('Správná odpověď', 'Correct answer')}</span> : null}</div>
                   <strong>{count}</strong>
                 </div>
                 <div className="teacher-choice-result-track"><div style={{ width: `${share}%` }} /></div>
@@ -371,9 +380,9 @@ export default function TeacherResponses({ block, responses, participantCount, t
 
     return (
       <section className="panel teacher-responses-panel">
-        <span className="eyebrow">Průběžné pořadí</span>
+        <span className="eyebrow">{ui('Průběžné pořadí', 'Live ranking')}</span>
         <ResponseProgress count={submittedRankingResponses.length} total={participantCount} />
-        <p className="muted-copy">Stejné odstíny jako na studentských telefonech pomáhají sledovat položky i po změně pořadí. Nižší průměr znamená vyšší pozici.</p>
+        <p className="muted-copy">{ui('Stejné odstíny jako na studentských telefonech pomáhají sledovat položky i po změně pořadí. Nižší průměr znamená vyšší pozici.', 'The same tones as on student phones help track items after reordering. A lower average means a higher position.')}</p>
         <div className="teacher-ranking-results">
           {averages.map(({ item, average, sourceIndex }, index) => (
             <div className={`ranking-item ranking-item-tone-${sourceIndex % 5}`} key={item}>
@@ -385,14 +394,14 @@ export default function TeacherResponses({ block, responses, participantCount, t
         </div>
         {rankingResponses.length ? (
           <div className="teacher-ranking-reasons">
-            <span className="eyebrow">Zdůvodnění</span>
+            <span className="eyebrow">{ui('Zdůvodnění', 'Reasoning')}</span>
             <div className="teacher-response-list">
               {rankingResponses.map((response) => (
                 'ranking' in response.answer ? (
                   <div className="item teacher-response-item answered" key={response.participantId}>
                     <div className="teacher-response-item-head">
                       <strong>{response.displayName}</strong>
-                      <span style={!response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>{response.submitted ? 'Odevzdáno' : 'Rozepsaná'}</span>
+                      <span style={!response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>{response.submitted ? ui('Odevzdáno', 'Submitted') : ui('Rozepsaná', 'Draft')}</span>
                     </div>
                     <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p>
                   </div>
@@ -409,9 +418,9 @@ export default function TeacherResponses({ block, responses, participantCount, t
 
   return (
     <section className="panel teacher-responses-panel">
-      <span className="eyebrow">Průběžné odpovědi</span>
+      <span className="eyebrow">{ui('Průběžné odpovědi', 'Live responses')}</span>
       <ResponseProgress count={submittedResponses.length} total={participantCount} />
-      {brokenGradingConfig ? <p className="muted-copy">Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.</p> : null}
+      {brokenGradingConfig ? <p className="muted-copy">{ui('Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.', 'Scoring is configured, but the rubric does not match the block points, so AI grading is disabled.')}</p> : null}
       {evaluationError ? <p className="muted-copy">{evaluationError}</p> : null}
       {responses.length ? (
         <div className="teacher-response-list">
@@ -419,7 +428,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
             <div className="item teacher-response-item answered" key={response.participantId}>
               <div className="teacher-response-item-head">
                 <strong>{response.displayName}</strong>
-                <span style={!response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>{response.submitted ? 'Odevzdáno' : 'Rozepsaná'}</span>
+                <span style={!response.submitted ? { color: '#a16207', fontWeight: 800 } : undefined}>{response.submitted ? ui('Odevzdáno', 'Submitted') : ui('Rozepsaná', 'Draft')}</span>
               </div>
               {'text' in response.answer ? <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{response.answer.text}</p> : null}
               {gradingConfigured && 'text' in response.answer ? (
@@ -428,7 +437,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
             </div>
           ))}
         </div>
-      ) : <p className="muted-copy">Zatím nikdo neodpověděl.</p>}
+      ) : <p className="muted-copy">{ui('Zatím nikdo neodpověděl.', 'No responses yet.')}</p>}
     </section>
   );
 }
