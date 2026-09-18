@@ -84,6 +84,9 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         error?: string;
       };
       if (!result.ok || !data.answer) {
+        if (result.status === 408 || result.status === 429 || result.status >= 500) {
+          throw new Error(data.error || 'Transient response save failure.');
+        }
         setError(data.error || 'Odpověď se nepodařilo uložit.');
         return;
       }
