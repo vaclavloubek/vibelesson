@@ -281,7 +281,13 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         sessionId,
         'teacher',
         'teacher.command',
-        { action },
+        {
+          action,
+          source: 'primary',
+          ...((action === 'next' || action === 'previous') && session?.activeBlockId
+            ? { expectedActiveBlockId: session.activeBlockId }
+            : {}),
+        },
         operationId,
       );
       await refresh();
