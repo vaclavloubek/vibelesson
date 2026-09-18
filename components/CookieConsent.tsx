@@ -1,15 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
 import styles from './CookieConsent.module.css';
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_CONSENT_VERSION,
+  GA_DEBUG_MODE,
+  GA_MEASUREMENT_ID,
+  gaDisableKey,
+} from '@/lib/analytics';
 
-const CONSENT_COOKIE = 'syllonaut_cookie_consent_v1';
-const CONSENT_VERSION = '2026-09-18-v1';
+const CONSENT_COOKIE = ANALYTICS_CONSENT_COOKIE;
+const CONSENT_VERSION = ANALYTICS_CONSENT_VERSION;
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 const GA_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 395;
 const OPEN_SETTINGS_EVENT = 'syllonaut:open-cookie-settings';
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? '';
 
 type Consent = {
   version: string;
@@ -17,16 +22,6 @@ type Consent = {
   decidedAt: string;
 };
 
-declare global {
-  interface Window {
-    dataLayer?: unknown[];
-    gtag?: (...args: unknown[]) => void;
-  }
-}
-
-function gaDisableKey(measurementId: string) {
-  return `ga-disable-${measurementId}`;
-}
 
 function readConsent(): Consent | null {
   const raw = document.cookie
@@ -93,13 +88,13 @@ function ensureGoogleAnalytics(measurementId: string) {
 }
 
 export default function CookieConsent() {
-  const pathname = usePathname();
   const [consent, setConsent] = useState<Consent | null>(null);
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draftAnalytics, setDraftAnalytics] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const gaConfiguredRef = useRef(false);
 
   useEffect(() => {
     const stored = readConsent();
@@ -157,6 +152,7 @@ export default function CookieConsent() {
 
     if (!consent?.analytics) {
       runtime[gaDisableKey(GA_MEASUREMENT_ID)] = true;
+      gaConfiguredRef.current = false;
       window.gtag?.('consent', 'update', {
         analytics_storage: 'denied',
         ad_storage: 'denied',
@@ -174,14 +170,18 @@ export default function CookieConsent() {
       ad_user_data: 'denied',
       ad_personalization: 'denied',
     });
-    window.gtag?.('config', GA_MEASUREMENT_ID, {
-      page_path: pathname,
-      send_page_view: true,
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-      cookie_expires: GA_COOKIE_MAX_AGE_SECONDS,
-    });
-  }, [consent, pathname, ready]);
+
+    if (!gaConfiguredRef.current) {
+      window.gtag?.('config', GA_MEASUREMENT_ID, {
+        send_page_view: true,
+        allow_google_signals: false,
+        allow_ad_personalization_signals: false,
+        cookie_expires: GA_COOKIE_MAX_AGE_SECONDS,
+        ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
+      });
+      gaConfiguredRef.current = true;
+    }
+  }, [consent, ready]);
 
   function save(analytics: boolean) {
     const next = writeConsent(analytics);
