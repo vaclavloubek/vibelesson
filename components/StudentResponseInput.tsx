@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 import { enqueueLiveOperation } from '@/lib/live-offline';
 import { postLiveControlEvent } from '@/lib/live-control-client';
+import { activityMode, trackEvent } from '@/lib/analytics';
 
 type Props = {
   sessionId: string;
@@ -48,6 +49,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   const [rankingText, setRankingText] = useState(initialRankingText);
   const [recentlyMoved, setRecentlyMoved] = useState<string | null>(null);
   const [moveStatus, setMoveStatus] = useState('');
+  const trackedBlockResponsesRef = useRef(new Set<string>());
 
   useEffect(() => {
     setSubmitted(responseSubmitted);
@@ -66,6 +68,20 @@ export default function StudentResponseInput({ sessionId, block, response, respo
 
   const serverText = response && 'text' in response ? response.text ?? '' : '';
   const textChanged = text.trim() !== serverText.trim();
+
+  function trackSubmittedResponse(responseAction: ResponseAction, submittedCurrent: boolean) {
+    const explicitTextSubmit = (block.type === 'open_text' || block.type === 'exit_ticket')
+      && responseAction === 'submit'
+      && submittedCurrent;
+    const directSubmit = block.type === 'poll' || block.type === 'quiz' || block.type === 'ranking';
+    if ((!explicitTextSubmit && !directSubmit) || trackedBlockResponsesRef.current.has(block.id)) return;
+
+    trackedBlockResponsesRef.current.add(block.id);
+    trackEvent('activity_response_submitted', {
+      activity_type: block.type,
+      activity_mode: activityMode(block.type),
+    });
+  }
 
   async function save(answer: StudentAnswer, responseAction: ResponseAction = 'save') {
     if (busy) return;
@@ -97,6 +113,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
       setSaved(true);
       setQueued(false);
+      trackSubmittedResponse(responseAction, submittedCurrent);
       void postLiveControlEvent(
         sessionId,
         'student',
@@ -118,6 +135,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
           onSaved(state.myResponse, Boolean(state.myResponseSubmitted));
           if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(Boolean(state.myResponseSubmitted));
           setSaved(true);
+          trackSubmittedResponse(responseAction, Boolean(state.myResponseSubmitted));
           return;
         }
       } catch {
@@ -140,6 +158,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         createdAt: Date.now(),
       });
       if (queuedLocally || liveFallbackSaved) {
+        if (liveFallbackSaved) trackSubmittedResponse(responseAction, responseAction === 'submit');
         setQueued(true);
         setError('');
       } else {
