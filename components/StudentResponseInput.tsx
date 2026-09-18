@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
+import { enqueueLiveOperation } from '@/lib/live-offline';
 
 type Props = {
   sessionId: string;
@@ -39,6 +40,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [submitted, setSubmitted] = useState(responseSubmitted);
   const [text, setText] = useState(initialText);
   const [ranking, setRanking] = useState<string[]>(initialRanking);
@@ -69,6 +71,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
     setBusy(true);
     setError('');
     setSaved(false);
+    setQueued(false);
     try {
       const result = await fetchWithTimeout(`/api/student/sessions/${sessionId}/response`, {
         method: 'POST',
@@ -88,6 +91,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       onSaved(data.answer, submittedCurrent);
       if (block.type === 'open_text' || block.type === 'exit_ticket') setSubmitted(submittedCurrent);
       setSaved(true);
+      setQueued(false);
     } catch {
       try {
         const verification = await fetchWithTimeout(`/api/student/sessions/${sessionId}`, {
@@ -107,7 +111,21 @@ export default function StudentResponseInput({ sessionId, block, response, respo
       } catch {
         // The connection is still unavailable. Let the user retry without keeping the UI stuck.
       }
-      setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
+      const queuedLocally = await enqueueLiveOperation({
+        id: crypto.randomUUID(),
+        sessionId,
+        kind: 'student-response',
+        url: `/api/student/sessions/${sessionId}/response`,
+        method: 'POST',
+        body: { blockId: block.id, answer, responseAction },
+        createdAt: Date.now(),
+      });
+      if (queuedLocally) {
+        setQueued(true);
+        setError('');
+      } else {
+        setError('Spojení se při ukládání přerušilo. Zkus odpověď odeslat znovu.');
+      }
     } finally {
       setBusy(false);
     }
@@ -140,6 +158,7 @@ export default function StudentResponseInput({ sessionId, block, response, respo
           </div>
         ) : <div className="error" role="alert">Tento blok nemá žádné možnosti odpovědi.</div>}
         {saved ? <p className="student-save-success" role="status" aria-live="polite">✓ Odpověď je uložená.</p> : null}
+        {queued ? <p className="muted-copy" role="status" aria-live="polite">Odpověď je bezpečně uložená v tomto zařízení a odešle se po obnovení spojení.</p> : null}
         {error ? <div className="error" role="alert">{error}</div> : null}
       </section>
     );
