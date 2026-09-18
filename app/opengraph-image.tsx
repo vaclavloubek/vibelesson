@@ -1,10 +1,16 @@
+import { headers } from 'next/headers';
 import { ImageResponse } from 'next/og';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 
-export const alt = 'Syllonaut — AI navigátor pro interaktivní výuku';
+export const alt = 'Syllonaut';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default function Image() {
+export default async function Image() {
+  const requestHeaders = await headers();
+  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'en';
+  const english = locale === 'en';
+
   return new ImageResponse(
     (
       <div
@@ -80,13 +86,15 @@ export default function Image() {
           </div>
 
           <div style={{ fontSize: 25, fontWeight: 700, letterSpacing: 1.5, color: '#5B57E8', textTransform: 'uppercase', marginBottom: 20 }}>
-            AI navigátor pro interaktivní výuku
+            {english ? 'AI navigator for interactive teaching' : 'AI navigátor pro interaktivní výuku'}
           </div>
           <div style={{ fontSize: 62, lineHeight: 1.04, fontWeight: 800, letterSpacing: -2.5, maxWidth: 720 }}>
-            Z nápadu do živé interaktivní hodiny.
+            {english ? 'From an idea to a live interactive lesson.' : 'Z nápadu do živé interaktivní hodiny.'}
           </div>
           <div style={{ marginTop: 28, fontSize: 25, lineHeight: 1.45, color: '#686B74', maxWidth: 670 }}>
-            Připravte lekci, upravte ji přirozeným jazykem a rovnou ji veďte se studenty.
+            {english
+              ? 'Create a lesson, refine it in natural language and run it live with students.'
+              : 'Připravte lekci, upravte ji přirozeným jazykem a rovnou ji veďte se studenty.'}
           </div>
         </div>
       </div>
