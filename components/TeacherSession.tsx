@@ -221,6 +221,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         'teacher.command',
         {
           action,
+          source: 'fallback',
           ...((action === 'next' || action === 'previous') && session?.activeBlockId
             ? { expectedActiveBlockId: session.activeBlockId }
             : {}),
