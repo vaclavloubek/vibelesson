@@ -18,6 +18,8 @@ type Billing = 'monthly' | 'annual';
 type Price = {
   monthlyCzk: number;
   annualCzk: number;
+  monthlyEur: number;
+  annualEur: number;
   monthlyUsd: number;
   annualUsd: number;
 };
@@ -37,7 +39,7 @@ const teacherPlans: Plan[] = [
     id: 'free',
     name: 'Free',
     description: 'Pro první lekce a občasné použití bez platební karty.',
-    price: { monthlyCzk: 0, annualCzk: 0, monthlyUsd: 0, annualUsd: 0 },
+    price: { monthlyCzk: 0, annualCzk: 0, monthlyEur: 0, annualEur: 0, monthlyUsd: 0, annualUsd: 0 },
     features: [
       '5 nových AI lekcí za měsíc',
       '20 AI úprav za měsíc',
@@ -52,7 +54,7 @@ const teacherPlans: Plan[] = [
     id: 'teacher',
     name: 'Teacher',
     description: 'Pro učitele, kteří Syllonaut používají pravidelně během měsíce.',
-    price: { monthlyCzk: 199, annualCzk: 1990, monthlyUsd: 8.99, annualUsd: 89 },
+    price: { monthlyCzk: 199, annualCzk: 1990, monthlyEur: 7.99, annualEur: 79.9, monthlyUsd: 8.99, annualUsd: 89 },
     features: [
       '25 nových AI lekcí za měsíc',
       '100 AI úprav za měsíc',
@@ -67,7 +69,7 @@ const teacherPlans: Plan[] = [
     id: 'teacher-pro',
     name: 'Teacher Pro',
     description: 'Pro intenzivní výuku, více kurzů a pokročilou práci s výsledky.',
-    price: { monthlyCzk: 329, annualCzk: 3290, monthlyUsd: 14.99, annualUsd: 149 },
+    price: { monthlyCzk: 329, annualCzk: 3290, monthlyEur: 13.99, annualEur: 139.9, monthlyUsd: 14.99, annualUsd: 149 },
     features: [
       '60 nových AI lekcí za měsíc',
       '250 AI úprav za měsíc',
@@ -84,7 +86,7 @@ const schoolPlans: Plan[] = [
     id: 'team',
     name: 'Team',
     description: 'Pro menší kabinet, metodický tým nebo skupinu učitelů.',
-    price: { monthlyCzk: 1290, annualCzk: 12900, monthlyUsd: 59.99, annualUsd: 599 },
+    price: { monthlyCzk: 1290, annualCzk: 12900, monthlyEur: 54.99, annualEur: 549.9, monthlyUsd: 59.99, annualUsd: 599 },
     features: [
       'Až 10 učitelů',
       '200 nových AI lekcí za měsíc společně',
@@ -97,7 +99,7 @@ const schoolPlans: Plan[] = [
     id: 'school',
     name: 'School',
     description: 'Pro školu, která chce Syllonaut zpřístupnit širšímu pedagogickému týmu.',
-    price: { monthlyCzk: 3190, annualCzk: 31900, monthlyUsd: 149.99, annualUsd: 1499 },
+    price: { monthlyCzk: 3190, annualCzk: 31900, monthlyEur: 139.99, annualEur: 1399.9, monthlyUsd: 149.99, annualUsd: 1499 },
     features: [
       'Až 30 učitelů',
       '600 nových AI lekcí za měsíc společně',
@@ -113,7 +115,7 @@ const schoolPlans: Plan[] = [
     id: 'campus',
     name: 'Campus',
     description: 'Pro velkou školu, síť pracovišť nebo instituci s více týmy.',
-    price: { monthlyCzk: 8490, annualCzk: 84900, monthlyUsd: 399.99, annualUsd: 3999 },
+    price: { monthlyCzk: 8490, annualCzk: 84900, monthlyEur: 369.99, annualEur: 3699.9, monthlyUsd: 399.99, annualUsd: 3999 },
     features: [
       'Až 100 učitelů',
       '2 000 nových AI lekcí za měsíc společně',
@@ -127,6 +129,16 @@ const schoolPlans: Plan[] = [
 ];
 
 const czk = new Intl.NumberFormat('cs-CZ');
+const eur = new Intl.NumberFormat('cs-CZ', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function euro(value: number) {
+  return eur.format(value);
+}
 
 function usd(value: number) {
   if (value === 0) return '$0';
@@ -136,8 +148,10 @@ function usd(value: number) {
 function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
   const annual = billing === 'annual';
   const primary = annual ? plan.price.annualCzk : plan.price.monthlyCzk;
-  const secondary = annual ? plan.price.annualUsd : plan.price.monthlyUsd;
+  const eurPrice = annual ? plan.price.annualEur : plan.price.monthlyEur;
+  const usdPrice = annual ? plan.price.annualUsd : plan.price.monthlyUsd;
   const monthlyEquivalent = plan.free ? 0 : Math.round(plan.price.annualCzk / 12);
+  const foreignPeriod = annual ? '/ rok' : '/ měsíc';
 
   return (
     <article className={`${styles.card} ${plan.featured ? styles.featured : ''}`} id={plan.id}>
@@ -152,7 +166,10 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
           <strong>{czk.format(primary)} Kč</strong>
           <span>{annual ? '/ rok' : '/ měsíc'}</span>
         </div>
-        <div className={styles.usdPrice}>{usd(secondary)} {annual ? '/ rok' : '/ měsíc'}</div>
+        <div className={styles.foreignPrices} aria-label="Ceny v eurech a amerických dolarech">
+          <span>{euro(eurPrice)} {foreignPeriod}</span>
+          <span>{usd(usdPrice)} {foreignPeriod}</span>
+        </div>
         {annual && !plan.free ? (
           <div className={styles.priceNote}>≈ {czk.format(monthlyEquivalent)} Kč / měsíc · 2 měsíce zdarma</div>
         ) : null}

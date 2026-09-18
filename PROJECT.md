@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po produkčním ověření věkové a vývojové přiměřenosti AI authoringu ve verzi 0.8.01.
+Aktualizováno: 2026-09-18 po doplnění EUR cen do veřejného ceníku a přípravě tří měnových cenových kotev ve verzi 0.8.02.
 
-**Aktuální produktová verze: 0.8.01** — AI generation i revision povinně přizpůsobují obtížnost, jazyk a formu aktivit schopnostem uvedené cílové skupiny; chování bylo po nasazení prakticky ověřeno v produkci.
+**Aktuální produktová verze: 0.8.02** — veřejný Ceník uvádí CZK, EUR a USD u všech tarifů; placené CTA zůstávají vypnuté do dokončení bezpečného billing provisioningu.
 
 Produkční release 0.8:
 
@@ -238,17 +238,17 @@ Roční varianta komunikuje přibližně **2 měsíce zdarma**. Placené tarify 
 
 Individuální plány:
 
-- **Free** — 0 Kč / $0; 5 nových AI lekcí + 20 AI úprav měsíčně; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
-- **Teacher** — 199 Kč / $8.99 měsíčně nebo 1 990 Kč / $89 ročně; 25 AI lekcí + 100 AI úprav; bez placeného AI gradingu a bez prémiových složek;
-- **Teacher Pro** — 329 Kč / $14.99 měsíčně nebo 3 290 Kč / $149 ročně; 60 AI lekcí + 250 AI úprav; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
+- **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
+- **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 25 AI lekcí + 100 AI úprav; bez placeného AI gradingu a bez prémiových složek;
+- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 60 AI lekcí + 250 AI úprav; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
 
 Všechny individuální plány počítají s live hodinami bez tarifního limitu a se studentským připojením bez plnohodnotného účtu.
 
 Školní/týmové plány:
 
-- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav společně; 1 290 Kč / $59.99 měsíčně nebo 12 900 Kč / $599 ročně;
-- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav; 3 190 Kč / $149.99 měsíčně nebo 31 900 Kč / $1,499 ročně; **AI grading + složky/podsložky**;
-- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav; 8 490 Kč / $399.99 měsíčně nebo 84 900 Kč / $3,999 ročně; **AI grading + složky/podsložky**.
+- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav společně; 1 290 Kč / €54.99 / $59.99 měsíčně nebo 12 900 Kč / €549.90 / $599 ročně;
+- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav; 3 190 Kč / €139.99 / $149.99 měsíčně nebo 31 900 Kč / €1,399.90 / $1,499 ročně; **AI grading + složky/podsložky**;
+- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav; 8 490 Kč / €369.99 / $399.99 měsíčně nebo 84 900 Kč / €3,699.90 / $3,999 ročně; **AI grading + složky/podsložky**.
 
 Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obsahují.
 
@@ -753,7 +753,7 @@ Hotovo:
 
 - teacher/school segment;
 - monthly/annual;
-- CZK/USD;
+- CZK/EUR/USD;
 - Free signup CTA;
 - paid `Připravujeme`;
 - Teacher Pro premium features;
@@ -894,7 +894,8 @@ Další významné změny 2026-09-18:
 - **0.7.02** / `20260918093706` — P2 reconciliation fix: Cloudflare snapshot může bezpečně konvergovat historické odpovědi do Supabase přes úzce scopeovaný transaction advisory marker, aniž by se oslabily běžné SEC-005 live-write kontroly;
 - **0.8** / `20260918114341` — live resilience redesign po reálné beta hodině: automatický Teacher/Presenter failover, live resume ticket, paralelní primární + Cloudflare command cesta, srozumitelné timeout UX a server-driven AI grading s jednorázovými capability tokeny a DB retry; produkční Vercel/Supabase část byla ověřena a Cloudflare Worker byl následně nasazen s Version ID `e4940eb9-7862-4717-b9b9-2160ff510d21`;
 - **0.8.01** / `b90a2ec` — věková a vývojová přiměřenost je závazná součást AI authoringu při generování i revizích; `npm run check` obsahuje regresní kontrolu pravidel, dashboard zobrazuje `v0.8.01` a chování bylo po nasazení prakticky potvrzeno v produkci.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.01`.
+- **0.8.02** — veřejný Ceník doplňuje EUR vedle CZK a USD u všech individuálních i školních plánů; Stripe sandbox katalog obsahuje odpovídající CZK/EUR/USD price objekty, placené CTA však zůstávají deaktivované do dokončení subscription provisioningu.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.02`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
