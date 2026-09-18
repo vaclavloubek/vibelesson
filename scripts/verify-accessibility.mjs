@@ -32,6 +32,8 @@ const [
   ai,
   authoring,
   presenterCss,
+  gdprRoute,
+  cookieConsent,
 ] = await Promise.all([
   source('app/layout.tsx'),
   source('app/accessibility.css'),
@@ -56,6 +58,8 @@ const [
   source('lib/ai.ts'),
   source('lib/accessibility-authoring.ts'),
   source('components/PresenterScoreboard.module.css'),
+  source('app/gdpr/page.tsx'),
+  source('components/CookieConsent.tsx'),
 ]);
 
 requirePattern(layout, /<html lang="cs">/, 'root document must declare Czech language.');
@@ -113,5 +117,8 @@ requirePattern(authoring, /visual-only-cue/, 'deterministic visual-only authorin
 requirePattern(authoring, /unsupported-visual-reference/, 'deterministic unsupported visual-reference check is missing.');
 requirePattern(authoring, /suggestion:/, 'ATAG diagnostics no longer provide repair guidance.');
 requirePattern(presenterCss, /prefers-reduced-motion:\s*reduce/, 'presenter reduced-motion fallback is missing.');
+requirePattern(gdprRoute, /<h1>Ochrana osobních údajů \\(GDPR\\)<\\/h1>/, 'GDPR page lost its primary heading.');
+requirePattern(cookieConsent, /aria-modal="true"/, 'cookie settings dialog must remain modal to assistive technology.');
+requirePattern(cookieConsent, /event\\.key !== 'Tab'/, 'cookie settings dialog lost keyboard focus trapping.');
 
 console.log('Accessibility source checks passed.');

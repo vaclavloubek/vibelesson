@@ -59,6 +59,7 @@ jobs:
               npx --yes @axe-core/cli@4 \
                 http://127.0.0.1:3000/ \
                 http://127.0.0.1:3000/pricing \
+                http://127.0.0.1:3000/gdpr \
                 http://127.0.0.1:3000/join \
                 http://127.0.0.1:3000/new \
                 --chromedriver-path="$CHROMEDRIVER_TEST_PATH" \
