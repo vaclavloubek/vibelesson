@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import {
   configuredStripeWebhookSecrets,
+  normalizeStripeInvoiceEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
 } from '@/lib/stripe-webhook';
@@ -41,6 +42,62 @@ export async function POST(request: Request) {
     const status = code === 'stripe_webhook_secret_missing' ? 503 : 400;
     console.warn('stripe webhook rejected', { code });
     return jsonError(status, 'invalid_webhook');
+  }
+
+  let invoiceSync;
+  try {
+    invoiceSync = normalizeStripeInvoiceEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'invoice_event_invalid';
+    console.warn('stripe invoice event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_invoice_event');
+  }
+
+  if (invoiceSync) {
+    try {
+      const supabase = createAdminClient();
+      const { error } = await supabase
+        .from('billing_events')
+        .upsert({
+          provider: 'stripe',
+          livemode: invoiceSync.livemode,
+          external_event_id: invoiceSync.eventId,
+          event_type: invoiceSync.eventType,
+          user_id: invoiceSync.userId,
+          external_subscription_id: invoiceSync.subscriptionId,
+        }, {
+          onConflict: 'provider,livemode,external_event_id',
+          ignoreDuplicates: true,
+        });
+
+      if (error) {
+        console.error('stripe invoice event log failed', {
+          eventId: invoiceSync.eventId,
+          eventType: invoiceSync.eventType,
+          livemode: invoiceSync.livemode,
+          code: error.code,
+        });
+        return jsonError(500, 'invoice_event_log_failed');
+      }
+
+      return NextResponse.json({ received: true, paymentEvent: invoiceSync.eventType }, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      console.error('stripe invoice event server configuration failed', {
+        eventId: invoiceSync.eventId,
+        eventType: invoiceSync.eventType,
+        livemode: invoiceSync.livemode,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(503, 'billing_not_configured');
+    }
   }
 
   let sync;
