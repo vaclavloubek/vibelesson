@@ -277,6 +277,13 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         }
         throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
       }
+      void postLiveControlEvent(
+        sessionId,
+        'teacher',
+        'teacher.command',
+        { action },
+        operationId,
+      );
       await refresh();
     } catch (err) {
       const fallbackOk = await postLiveControlEvent(
