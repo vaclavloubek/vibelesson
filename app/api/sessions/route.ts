@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { generateJoinCode, generateRealtimeKey } from '@/lib/live-server';
 import { LessonSchema } from '@/lib/schema';
+import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-server';
 
 const CreateSessionSchema = z.object({ lessonId: z.string().uuid() });
 
@@ -45,6 +46,22 @@ export async function POST(req: Request) {
         .single();
 
       if (!insertError && session) {
+        after(async () => {
+          await bootstrapLiveControl({
+            sessionId: session.id,
+            revision: 0,
+            status: 'lobby',
+            activeBlockId: null,
+            lessonSnapshot: publicLessonSnapshot(lessonSnapshot),
+            teams: [],
+            participants: [],
+            responses: [],
+            revealedBlockIds: [],
+            timer: null,
+            updatedAt: new Date().toISOString(),
+          });
+        });
+
         return NextResponse.json({
           sessionId: session.id,
           joinCode: session.join_code,
