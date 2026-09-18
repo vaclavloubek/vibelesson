@@ -67,7 +67,7 @@ requirePattern(layout, /normalizeUiLocale\(requestHeaders\.get\(LOCALE_REQUEST_H
 requirePattern(layout, /className="skip-link"[^>]+href="#main-content"/, 'skip link to main content is missing.');
 requirePattern(accessibilityCss, /:focus-visible/, 'global visible keyboard focus style is missing.');
 requirePattern(accessibilityCss, /--line-strong:\s*#8b8d94/i, 'form-control boundary contrast token regressed.');
-requirePattern(authLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'auth routes lost a specific page title.');
+requirePattern(authLayout, /Account – Syllonaut.*Účet – Syllonaut|Účet – Syllonaut.*Account – Syllonaut/s, 'auth routes lost localized specific page titles.');
 requirePattern(joinLayout, /Join a lesson – Syllonaut.*Připojit se k hodině – Syllonaut|Připojit se k hodině – Syllonaut.*Join a lesson – Syllonaut/s, 'join routes lost localized specific page titles.');
 requirePattern(newLayout, /title:\s*['"][^'"]+Syllonaut['"]/, 'new-lesson route lost a specific page title.');
 requirePattern(lessonsLayout, /My lessons – Syllonaut.*Moje lekce – Syllonaut|Moje lekce – Syllonaut.*My lessons – Syllonaut/s, 'lesson-library routes lost localized specific page titles.');

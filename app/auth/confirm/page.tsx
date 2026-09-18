@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import SyllonautMark from '@/components/SyllonautMark';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 
 type Props = {
   searchParams: Promise<{
@@ -23,6 +25,9 @@ function isSupportedType(value: string | undefined): value is SupportedEmailType
 }
 
 export default async function ConfirmAuthPage({ searchParams }: Props) {
+  const requestHeaders = await headers();
+  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  const english = locale === 'en';
   const { token_hash: tokenHash, type } = await searchParams;
   const validRequest = Boolean(tokenHash) && isSupportedType(type);
   const recovery = type === 'recovery';
@@ -30,34 +35,44 @@ export default async function ConfirmAuthPage({ searchParams }: Props) {
   return (
     <main className="shell join-shell">
       <div className="brand">
-        <Link href="/" className="brand-home">
+        <Link href={`/${locale}`} className="brand-home">
           <SyllonautMark />
           <strong>Syllonaut</strong>
         </Link>
       </div>
       <section className="panel join-card">
-        <span className="eyebrow">{recovery ? 'Obnovení přístupu' : 'Potvrzení účtu'}</span>
-        <h1>{validRequest ? (recovery ? 'Pokračovat k novému heslu' : 'Dokončit registraci') : 'Odkaz není platný'}</h1>
+        <span className="eyebrow">{recovery ? (english ? 'Account recovery' : 'Obnovení přístupu') : (english ? 'Account confirmation' : 'Potvrzení účtu')}</span>
+        <h1>
+          {validRequest
+            ? recovery
+              ? (english ? 'Continue to a new password' : 'Pokračovat k novému heslu')
+              : (english ? 'Complete registration' : 'Dokončit registraci')
+            : (english ? 'This link is not valid' : 'Odkaz není platný')}
+        </h1>
         {validRequest ? (
           <>
             <p className="muted-copy">
               {recovery
-                ? 'Potvrď pokračování. Potom si nastavíš nové heslo.'
-                : 'Potvrď vytvoření účtu. Potom tě přesměrujeme do tvých lekcí.'}
+                ? (english ? 'Confirm that you want to continue. Then you can set a new password.' : 'Potvrď pokračování. Potom si nastavíš nové heslo.')
+                : (english ? 'Confirm account creation. Then we will take you to your lessons.' : 'Potvrď vytvoření účtu. Potom tě přesměrujeme do tvých lekcí.')}
             </p>
             <form action="/auth/confirm/verify" method="post">
               <input type="hidden" name="token_hash" value={tokenHash} />
               <input type="hidden" name="type" value={type} />
               <button type="submit" className="primary">
-                {recovery ? 'Pokračovat' : 'Potvrdit účet'}
+                {recovery ? (english ? 'Continue' : 'Pokračovat') : (english ? 'Confirm account' : 'Potvrdit účet')}
               </button>
             </form>
           </>
         ) : (
           <>
-            <p className="muted-copy">Potvrzovací odkaz je neúplný nebo poškozený. Spusť registraci či obnovu hesla znovu.</p>
+            <p className="muted-copy">
+              {english
+                ? 'The confirmation link is incomplete or damaged. Start registration or password recovery again.'
+                : 'Potvrzovací odkaz je neúplný nebo poškozený. Spusť registraci či obnovu hesla znovu.'}
+            </p>
             <div className="actions">
-              <Link href="/new" className="button-link primary">Zpět do Syllonautu</Link>
+              <Link href="/new" className="button-link primary">{english ? 'Back to Syllonaut' : 'Zpět do Syllonautu'}</Link>
             </div>
           </>
         )}
