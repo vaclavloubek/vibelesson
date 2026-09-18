@@ -5,6 +5,7 @@ import type { PublicLessonBlock } from '@/lib/live';
 import { postLiveControlEvent } from '@/lib/live-control-client';
 import { cacheLiveDraft, deleteCachedLiveDraft, getCachedLiveDraft } from '@/lib/live-offline';
 import { trackEvent } from '@/lib/analytics';
+import { useUiLocale } from '@/components/LocaleProvider';
 
 type Props = {
   sessionId: string;
@@ -61,6 +62,8 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
 }
 
 export default function TeamTaskResponseInput({ sessionId, block, teamName, teamId, response, connectionRestored, onSaved }: Props) {
+  const english = useUiLocale() === 'en';
+  const ui = (cs: string, en: string) => english ? en : cs;
   const serverText = response?.text ?? '';
   const serverSubmitted = Boolean(response?.submitted || (response?.submittedAt && response.submittedText === response.text));
   const draftKey = `syllonaut-team-draft-v1:${sessionId}:${block.id}:${teamName}`;
@@ -170,21 +173,21 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         const result = await request('claim');
         setLock(result.lock ?? null);
         if (!result.responseOk) {
-          setError(result.error || 'Týmový editor se nepodařilo zamknout. Neuložený text zůstává v této kartě.');
+          setError(result.error || ui('Týmový editor se nepodařilo zamknout. Neuložený text zůstává v této kartě.', 'The team editor could not be locked. Unsaved text stays in this tab.'));
           return false;
         }
         if (!result.acquired) {
-          const holder = result.lock?.holderDisplayName ?? 'jiný člen týmu';
+          const holder = result.lock?.holderDisplayName ?? ui('jiný člen týmu', 'another team member');
           setError(dirtyRef.current
-            ? `Odpověď právě upravuje ${holder}. Tvůj neuložený text zůstává v této kartě.`
-            : `Odpověď právě upravuje ${holder}.`);
+            ? (english ? `${holder} is editing the answer. Your unsaved text stays in this tab.` : `Odpověď právě upravuje ${holder}. Tvůj neuložený text zůstává v této kartě.`)
+            : (english ? `${holder} is editing the answer.` : `Odpověď právě upravuje ${holder}.`));
           return false;
         }
         setError('');
         return true;
       } catch {
         primaryUnavailableRef.current = true;
-        setError('Primární týmový editor je dočasně nedostupný. Text zůstává zachovaný a Syllonaut použije záložní live vrstvu.');
+        setError(ui('Primární týmový editor je dočasně nedostupný. Text zůstává zachovaný a Syllonaut použije záložní live vrstvu.', 'The primary team editor is temporarily unavailable. Your text remains preserved and Syllonaut will use the fallback live layer.'));
         return false;
       } finally {
         claimPromiseRef.current = null;
@@ -211,13 +214,13 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
 
     const operation = (async (): Promise<SaveOutcome> => {
       if (draftConflictRef.current) {
-        setError('Obnovený text se liší od poslední týmové verze. Nejdřív zvol, kterou verzi chceš použít.');
+        setError(ui('Obnovený text se liší od poslední týmové verze. Nejdřív zvol, kterou verzi chceš použít.', 'The recovered text differs from the latest team version. Choose which version you want to use first.'));
         return 'blocked';
       }
 
       const value = latestTextRef.current.trim();
       if (!value) {
-        setError('Společná týmová odpověď nemůže zůstat prázdná.');
+        setError(ui('Společná týmová odpověď nemůže zůstat prázdná.', 'The shared team answer cannot be empty.'));
         return 'blocked';
       }
 
@@ -236,7 +239,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
             lastSavedTextRef.current = value;
             dirtyRef.current = false;
             setSaveState('saved');
-            setError('Primární spojení je dočasně nedostupné. Koncept je uložený v záložní live vrstvě.');
+            setError(ui('Primární spojení je dočasně nedostupné. Koncept je uložený v záložní live vrstvě.', 'The primary connection is temporarily unavailable. The draft is saved in the fallback live layer.'));
             clearDraft();
             return 'saved';
           }
@@ -254,11 +257,13 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         if (!result.responseOk) {
           setSaveState('dirty');
           if (result.status === 409 && result.lock && !result.lock.mine) {
-            setError(`Odpověď právě upravuje ${result.lock.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`);
+            setError(english
+              ? `${result.lock.holderDisplayName} is editing the answer. Your unsaved text stays in this tab.`
+              : `Odpověď právě upravuje ${result.lock.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`);
             return 'retry';
           }
 
-          setError(result.error || 'Týmovou odpověď se nepodařilo uložit.');
+          setError(result.error || ui('Týmovou odpověď se nepodařilo uložit.', 'The team answer could not be saved.'));
           return result.status === 408 || result.status === 429 || result.status >= 500 ? 'retry' : 'blocked';
         }
 
@@ -297,11 +302,11 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           lastSavedTextRef.current = value;
           dirtyRef.current = false;
           setSaveState('saved');
-          setError('Spojení se Supabase je přerušené. Koncept je uložený v záložní live vrstvě.');
+          setError(ui('Spojení se Supabase je přerušené. Koncept je uložený v záložní live vrstvě.', 'The Supabase connection is interrupted. The draft is saved in the fallback live layer.'));
           clearDraft();
           return 'saved';
         }
-        setError('Spojení se při ukládání přerušilo. Text zůstává v tomto zařízení a Syllonaut zkusí uložení znovu.');
+        setError(ui('Spojení se při ukládání přerušilo. Text zůstává v tomto zařízení a Syllonaut zkusí uložení znovu.', 'The connection was interrupted while saving. The text stays on this device and Syllonaut will retry automatically.'));
         setSaveState('dirty');
         return 'retry';
       }
@@ -357,7 +362,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           const conflict = parsed.baseServerText !== serverText;
           setDraftConflictState(conflict);
           if (conflict) {
-            setError('Mezitím se změnila týmová odpověď na serveru. Obnovený text proto neuložíme bez tvého rozhodnutí.');
+            setError(ui('Mezitím se změnila týmová odpověď na serveru. Obnovený text proto neuložíme bez tvého rozhodnutí.', 'The team answer changed on the server in the meantime. The recovered text will not be saved until you choose which version to use.'));
           }
         });
         return;
@@ -381,7 +386,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       const conflict = parsed.baseServerText !== serverText;
       setDraftConflictState(conflict);
       if (conflict) {
-        setError('Mezitím se změnila týmová odpověď na serveru. Obnovený text proto neuložíme bez tvého rozhodnutí.');
+        setError(ui('Mezitím se změnila týmová odpověď na serveru. Obnovený text proto neuložíme bez tvého rozhodnutí.', 'The team answer changed on the server in the meantime. The recovered text will not be saved until you choose which version to use.'));
       }
     } catch {
       clearDraft();
@@ -411,7 +416,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   useEffect(() => {
     if (!connectionRestored || !submitUnconfirmed || serverSubmitted) return;
     setRecoveryNotice('');
-    setError('Spojení je zpět, ale odevzdání se zatím nepotvrdilo. Text je bezpečně uložený jako koncept. Klepni znovu na „Odevzdat týmovou odpověď“ — nic nemusíš psát znovu.');
+    setError(ui('Spojení je zpět, ale odevzdání se zatím nepotvrdilo. Text je bezpečně uložený jako koncept. Klepni znovu na „Odevzdat týmovou odpověď“ — nic nemusíš psát znovu.', 'The connection is back, but submission has not been confirmed yet. Your text is safely saved as a draft. Tap “Submit team answer” again — you do not need to type anything again.'));
   }, [connectionRestored, serverSubmitted, submitUnconfirmed]);
 
   useEffect(() => {
@@ -425,7 +430,9 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         const next = result.lock ?? null;
         setLock(next);
         if (next && !next.mine && dirtyRef.current) {
-          setError(`Odpověď právě upravuje ${next.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`);
+          setError(english
+            ? `${next.holderDisplayName} is editing the answer. Your unsaved text stays in this tab.`
+            : `Odpověď právě upravuje ${next.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`);
         } else if ((!next || next.mine) && previous && !previous.mine) {
           if (!draftConflictRef.current) setError('');
           if (dirtyRef.current && focusedRef.current && !draftConflictRef.current) scheduleSave();
@@ -450,8 +457,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         if (result.lock !== undefined) setLock(result.lock ?? null);
         if (result.responseOk && result.acquired === false && result.lock && !result.lock.mine) {
           setError(dirtyRef.current
-            ? `Editor převzal ${result.lock.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`
-            : `Editor převzal ${result.lock.holderDisplayName}.`);
+            ? (english ? `${result.lock.holderDisplayName} took over the editor. Your unsaved text stays in this tab.` : `Editor převzal ${result.lock.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`)
+            : (english ? `${result.lock.holderDisplayName} took over the editor.` : `Editor převzal ${result.lock.holderDisplayName}.`));
         }
       }).catch(() => undefined);
     }, HEARTBEAT_MS);
@@ -528,7 +535,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
     if (submitting || draftConflictRef.current || lockedByOther) return;
     const value = latestTextRef.current.trim();
     if (!value) {
-      setError('Společná týmová odpověď nemůže zůstat prázdná.');
+      setError(ui('Společná týmová odpověď nemůže zůstat prázdná.', 'The shared team answer cannot be empty.'));
       return;
     }
 
@@ -546,7 +553,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       const result = await request('submit', value);
       if (result.lock !== undefined) setLock(result.lock ?? null);
       if (!result.responseOk || !result.submitted) {
-        setError(result.error || 'Týmovou odpověď se nepodařilo odevzdat.');
+        setError(result.error || ui('Týmovou odpověď se nepodařilo odevzdat.', 'The team answer could not be submitted.'));
         return;
       }
 
@@ -591,12 +598,12 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
         setSubmitUnconfirmed(false);
         clearDraft();
         setError('');
-        setRecoveryNotice('Odpověď převzala záložní live vrstva. Syllonaut ji po obnovení hlavního spojení automaticky dosynchronizuje.');
+        setRecoveryNotice(ui('Odpověď převzala záložní live vrstva. Syllonaut ji po obnovení hlavního spojení automaticky dosynchronizuje.', 'The fallback live layer accepted the answer. Syllonaut will automatically resynchronise it when the primary connection returns.'));
       } else {
         setSubmitted(false);
         setSubmitUnconfirmed(true);
         setRecoveryNotice('');
-        setError('Spojení se při odevzdání přerušilo. Text je bezpečně uložený jako koncept. Není potřeba nic psát znovu. Syllonaut po obnovení spojení zkontroluje, zda odevzdání proběhlo; pokud ne, stačí klepnout znovu na „Odevzdat týmovou odpověď“.');
+        setError(ui('Spojení se při odevzdání přerušilo. Text je bezpečně uložený jako koncept. Není potřeba nic psát znovu. Syllonaut po obnovení spojení zkontroluje, zda odevzdání proběhlo; pokud ne, stačí klepnout znovu na „Odevzdat týmovou odpověď“.', 'The connection was interrupted during submission. Your text is safely stored as a draft, so you do not need to type it again. When the connection returns, Syllonaut will check whether submission succeeded; if not, simply tap “Submit team answer” again.'));
       }
     } finally {
       setSubmitting(false);
@@ -615,43 +622,43 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
     if (acquired) scheduleSave();
   }
 
-  let statusText = 'Klikni do pole a začni psát. Změny se ukládají automaticky jako koncept.';
-  if (lockedByOther && dirtyRef.current) statusText = `Upravuje ${lock!.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`;
-  else if (lockedByOther) statusText = `Upravuje ${lock!.holderDisplayName}. Pole se po uvolnění zpřístupní.`;
-  else if (draftConflict) statusText = 'Obnovený text čeká na tvoje rozhodnutí.';
-  else if (draftRecovered) statusText = 'Obnovili jsme neuložený text z této karty. Po kliknutí do pole se znovu uloží.';
-  else if (submitting) statusText = 'Odevzdávám týmovou odpověď…';
-  else if (submitted) statusText = 'Odpověď je odevzdaná. Další změny se budou znovu ukládat jen jako koncept, dokud ji znovu neodevzdáte.';
-  else if (saveState === 'saving') statusText = 'Ukládám koncept…';
-  else if (saveState === 'dirty') statusText = 'Změny se uloží automaticky jako koncept; při výpadku se další pokusy postupně zpomalí.';
-  else if (saveState === 'saved') statusText = 'Koncept je uložený. Pro hodnocení ho ještě odevzdejte.';
-  else if (focused && lock?.mine) statusText = 'Upravuješ ty · automatické ukládání konceptu je aktivní.';
+  let statusText = ui('Klikni do pole a začni psát. Změny se ukládají automaticky jako koncept.', 'Click into the field and start typing. Changes are saved automatically as a draft.');
+  if (lockedByOther && dirtyRef.current) statusText = english ? `${lock!.holderDisplayName} is editing. Your unsaved text stays in this tab.` : `Upravuje ${lock!.holderDisplayName}. Tvůj neuložený text zůstává v této kartě.`;
+  else if (lockedByOther) statusText = english ? `${lock!.holderDisplayName} is editing. The field will become available when they release it.` : `Upravuje ${lock!.holderDisplayName}. Pole se po uvolnění zpřístupní.`;
+  else if (draftConflict) statusText = ui('Obnovený text čeká na tvoje rozhodnutí.', 'The recovered text is waiting for your decision.');
+  else if (draftRecovered) statusText = ui('Obnovili jsme neuložený text z této karty. Po kliknutí do pole se znovu uloží.', 'We recovered unsaved text from this tab. It will be saved again when you focus the field.');
+  else if (submitting) statusText = ui('Odevzdávám týmovou odpověď…', 'Submitting team answer…');
+  else if (submitted) statusText = ui('Odpověď je odevzdaná. Další změny se budou znovu ukládat jen jako koncept, dokud ji znovu neodevzdáte.', 'The answer has been submitted. Further changes will be saved only as a draft until you submit again.');
+  else if (saveState === 'saving') statusText = ui('Ukládám koncept…', 'Saving draft…');
+  else if (saveState === 'dirty') statusText = ui('Změny se uloží automaticky jako koncept; při výpadku se další pokusy postupně zpomalí.', 'Changes will be saved automatically as a draft; retries slow down gradually during an outage.');
+  else if (saveState === 'saved') statusText = ui('Koncept je uložený. Pro hodnocení ho ještě odevzdejte.', 'The draft is saved. Submit it when you want it to be graded.');
+  else if (focused && lock?.mine) statusText = ui('Upravuješ ty · automatické ukládání konceptu je aktivní.', 'You are editing · automatic draft saving is active.');
 
   return (
     <section className="panel" aria-busy={submitting || saveState === 'saving'}>
-      <span className="eyebrow">Společná odpověď · {teamName}</span>
-      <p className="muted-copy" style={{ marginTop: 8 }}>Toto pole sdílí celý tým. V jednu chvíli ho upravuje jeden člen; ostatní vidí poslední uloženou verzi.</p>
+      <span className="eyebrow">{ui('Společná odpověď', 'Shared answer')} · {teamName}</span>
+      <p className="muted-copy" style={{ marginTop: 8 }}>{ui('Toto pole sdílí celý tým. V jednu chvíli ho upravuje jeden člen; ostatní vidí poslední uloženou verzi.', 'The whole team shares this field. One member edits at a time; everyone else sees the latest saved version.')}</p>
       {draftConflict ? (
         <div className="reveal" role="alert" style={{ marginTop: 12 }}>
-          <strong>Našli jsme neuložený text z doby před obnovením stránky.</strong>
-          <p style={{ marginBottom: 10 }}>Mezitím se ale změnila týmová odpověď na serveru. Vyber, kterou verzi chceš použít; nic nepřepíšeme automaticky.</p>
+          <strong>{ui('Našli jsme neuložený text z doby před obnovením stránky.', 'We found unsaved text from before the page was reloaded.')}</strong>
+          <p style={{ marginBottom: 10 }}>{ui('Mezitím se ale změnila týmová odpověď na serveru. Vyber, kterou verzi chceš použít; nic nepřepíšeme automaticky.', 'The team answer changed on the server in the meantime. Choose which version you want to use; nothing will be overwritten automatically.')}</p>
           <div className="actions" style={{ marginTop: 0 }}>
-            <button className="secondary" type="button" onClick={() => { void useRecoveredDraft(); }}>Použít obnovený text</button>
-            <button className="secondary" type="button" onClick={() => resetToServer()}>Použít poslední týmovou verzi</button>
+            <button className="secondary" type="button" onClick={() => { void useRecoveredDraft(); }}>{ui('Použít obnovený text', 'Use recovered text')}</button>
+            <button className="secondary" type="button" onClick={() => resetToServer()}>{ui('Použít poslední týmovou verzi', 'Use latest team version')}</button>
           </div>
         </div>
       ) : draftRecovered ? (
         <div className="reveal" role="status" style={{ marginTop: 12 }}>
-          Obnovili jsme neuložený text z této karty. Neztratil se při refreshi ani během výpadku spojení.
+          {ui('Obnovili jsme neuložený text z této karty. Neztratil se při refreshi ani během výpadku spojení.', 'We recovered unsaved text from this tab. It was preserved through the reload and connection outage.')}
         </div>
       ) : null}
       {lockedByOther ? (
         <div className="reveal" role="status" style={{ marginTop: 12 }}>
-          Právě upravuje <strong>{lock!.holderDisplayName}</strong>. Můžeš odpověď číst, editor se uvolní automaticky.
+          {ui('Právě upravuje', 'Currently editing:')} <strong>{lock!.holderDisplayName}</strong>. {ui('Můžeš odpověď číst, editor se uvolní automaticky.', 'You can read the answer; the editor will unlock automatically.')}
         </div>
       ) : null}
       <label style={{ marginTop: 12 }}>
-        Společná týmová odpověď
+        {ui('Společná týmová odpověď', 'Shared team answer')}
         <textarea
           value={text}
           onFocus={() => { void handleFocus(); }}
@@ -659,7 +666,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           onChange={(event) => handleChange(event.target.value)}
           maxLength={4000}
           rows={7}
-          placeholder="Zapište společný výstup týmu…"
+          placeholder={ui('Zapište společný výstup týmu…', 'Write the team’s shared response…')}
           disabled={lockedByOther || draftConflict || submitting}
           aria-describedby={statusId}
         />
@@ -673,10 +680,10 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => { void submitAnswer(); }}
         >
-          {submitting ? 'Odevzdávám…' : submitted ? 'Odevzdáno' : 'Odevzdat týmovou odpověď'}
+          {submitting ? ui('Odevzdávám…', 'Submitting…') : submitted ? ui('Odevzdáno', 'Submitted') : ui('Odevzdat týmovou odpověď', 'Submit team answer')}
         </button>
       </div>
-      <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>Automatické ukládání ukládá pouze koncept. AI hodnocení se může spustit až po odevzdání.</p>
+      <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>{ui('Automatické ukládání ukládá pouze koncept. AI hodnocení se může spustit až po odevzdání.', 'Automatic saving stores only a draft. AI grading can start only after submission.')}</p>
       {recoveryNotice ? <div className="reveal" role="status" aria-live="polite" style={{ marginTop: 10 }}>{recoveryNotice}</div> : null}
       {error ? <div className="error" role="alert" style={{ marginTop: 10 }}>{error}</div> : null}
     </section>
