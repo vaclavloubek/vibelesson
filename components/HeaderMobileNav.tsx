@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import styles from './HeaderMobileNav.module.css';
+import { trackEvent } from '@/lib/analytics';
 
 type Props = {
   signedIn: boolean;
@@ -60,7 +61,7 @@ export default function HeaderMobileNav({ signedIn, current = 'home' }: Props) {
           <a href="/#jak-to-funguje" onClick={() => setOpen(false)}>Jak to funguje</a>
           <Link href="/pricing" aria-current={current === 'pricing' ? 'page' : undefined} onClick={() => setOpen(false)}>Ceník</Link>
           {signedIn ? <Link href="/lessons" onClick={() => setOpen(false)}>Moje lekce</Link> : null}
-          <Link href="/new" className={styles.prepareItem} onClick={() => setOpen(false)}>Připravit hodinu</Link>
+          <Link href="/new" className={styles.prepareItem} onClick={() => { trackEvent('prepare_lesson_cta_click', { location: 'header' }); setOpen(false); }}>Připravit hodinu</Link>
         </nav>
       ) : null}
     </div>
