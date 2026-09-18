@@ -308,7 +308,8 @@ export default {
       headers.set('x-syllonaut-bootstrap-authorized', '1');
     } else {
       const auth = request.headers.get('authorization');
-      const token = auth?.startsWith('Bearer ') ? auth.slice(7) : '';
+      const bearerToken = auth?.startsWith('Bearer ') ? auth.slice(7) : '';
+      const token = route.suffix === '/ws' ? (url.searchParams.get('token') ?? bearerToken) : bearerToken;
       const capability = await verifyCapability(token, env.LIVE_CAPABILITY_SECRET, route.sessionId);
       if (!capability) return json({ error: 'Unauthorized.' }, 401);
       headers.set('x-syllonaut-role', capability.role);
