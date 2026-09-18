@@ -61,7 +61,10 @@ requirePattern(worker, /type Role = 'teacher' \| 'student' \| 'presenter'/, 'Wor
 requirePattern(worker, /actorRole === 'presenter'\) return json\(\{ error: 'Forbidden\.' \}, 403\)/, 'Presenter capability must be unable to write live events.');
 requirePattern(worker, /workerVersion: WORKER_VERSION/, 'Worker health must expose its deployable version.');
 requirePattern(worker, /protocolVersion: LIVE_PROTOCOL_VERSION/, 'Worker health must expose its live protocol version.');
-requirePattern(presenter, /fetchLiveControlState\(sessionId, 'teacher'\)/, 'Presenter must retain a direct Cloudflare snapshot fallback.');
+requirePattern(presenter, /fetchLiveControlState\(sessionId, 'presenter'\)/, 'Presenter must use a dedicated read-only Cloudflare capability.');
+requirePattern(presenter, /live-control\?role=presenter/, 'Presenter capability acquisition must explicitly request the presenter role.');
+requirePattern(liveControlRoute, /requestedRole\(req\)/, 'live-control capability route must derive the requested read role.');
+requirePattern(liveControlRoute, /searchParams\.get\('role'\) === 'presenter' \? 'presenter' : 'teacher'/, 'live-control route must restrict browser roles to teacher or presenter.');
 requirePattern(presenter, /connectionMode === 'fallback'/, 'Presenter must expose degraded connection state.');
 requirePattern(gradingWorker, /claim_grading_job/, 'AI grading must have a server-driven capability claim path.');
 requirePattern(gradingWorker, /finish_grading_job/, 'server-driven AI grading must finish through the scoped capability.');
