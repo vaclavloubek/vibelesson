@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po doplnění závazné věkové a vývojové přiměřenosti AI authoringu ve verzi 0.8.01.
+Aktualizováno: 2026-09-18 po produkčním ověření věkové a vývojové přiměřenosti AI authoringu ve verzi 0.8.01.
 
-**Aktuální produktová verze: 0.8.01** — AI generation i revision povinně přizpůsobují obtížnost, jazyk a formu aktivit schopnostem uvedené cílové skupiny.
+**Aktuální produktová verze: 0.8.01** — AI generation i revision povinně přizpůsobují obtížnost, jazyk a formu aktivit schopnostem uvedené cílové skupiny; chování bylo po nasazení prakticky ověřeno v produkci.
 
 Produkční release 0.8:
 
@@ -157,6 +157,8 @@ AI musí podle cílové skupiny přizpůsobit zejména:
 Pro nejmladší žáky / začínající čtenáře nesmí automaticky předpokládat plynulé čtení ani samostatné delší psaní; preferuje krátké konkrétní instrukce a přiměřené formy odpovědi. U starších žáků a dospělých se naopak musí vyhnout infantilizaci. Před vrácením výsledku má model interně projít každý blok a nepřiměřený blok přepracovat.
 
 Jde o prompt-level didaktickou pojistku, nikoli deterministický klasifikátor věku. Cílovka zůstává volným textem, aby bylo možné zadat i heterogenní nebo specifickou skupinu. Regresní check `scripts/verify-age-appropriateness.mjs` hlídá, že pravidla i explicitní předání `audience` do generování nezmizí.
+
+**Produkční ověření 2026-09-18:** po nasazení 0.8.01 byla reálně vytvořena lekce se zadanou nízkou věkovou/ročníkovou cílovou skupinou a uživatel potvrdil, že výsledné úlohy odpovídají očekávaným schopnostem dané skupiny. Tím je vedle CI/Preview ověřeno i skutečné produktové chování této úpravy.
 
 ### Formulář přípravy lekce
 
@@ -891,8 +893,8 @@ Další významné změny 2026-09-18:
 - **0.7.01** — číslo verze aplikace je viditelné pouze v učitelském dashboardu pod badge BETA; UI používá centrální `APP_VERSION`, aby další verze měly jeden zdroj pravdy v kódu;
 - **0.7.02** / `20260918093706` — P2 reconciliation fix: Cloudflare snapshot může bezpečně konvergovat historické odpovědi do Supabase přes úzce scopeovaný transaction advisory marker, aniž by se oslabily běžné SEC-005 live-write kontroly;
 - **0.8** / `20260918114341` — live resilience redesign po reálné beta hodině: automatický Teacher/Presenter failover, live resume ticket, paralelní primární + Cloudflare command cesta, srozumitelné timeout UX a server-driven AI grading s jednorázovými capability tokeny a DB retry; produkční Vercel/Supabase část byla ověřena a Cloudflare Worker byl následně nasazen s Version ID `e4940eb9-7862-4717-b9b9-2160ff510d21`;
-- **0.8.01** — věková a vývojová přiměřenost je nově závazná součást AI authoringu při generování i revizích; `npm run check` obsahuje regresní kontrolu pravidel a dashboard zobrazuje `v0.8.01`.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; pro release 0.8 je tedy pod badge BETA zobrazeno `v0.8`.
+- **0.8.01** / `b90a2ec` — věková a vývojová přiměřenost je závazná součást AI authoringu při generování i revizích; `npm run check` obsahuje regresní kontrolu pravidel, dashboard zobrazuje `v0.8.01` a chování bylo po nasazení prakticky potvrzeno v produkci.
+- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION`; aktuálně je pod badge BETA zobrazeno `v0.8.01`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun: cílem je, aby krátkodobý výpadek Supabase Auth/API nevyžadoval od učitele žádnou ruční obsluhu a aby grading nepřestal běžet spolu s teacher browserem.**
 
