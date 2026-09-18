@@ -1,0 +1,4 @@
+-- Historical marker.
+-- A temporary private.server_secrets table was created during P2 prototyping.
+-- It was never populated or used by the merged runtime and is removed by
+-- 20260918071000_cleanup_redundant_live_resilience_objects.sql.
