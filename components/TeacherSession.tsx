@@ -3,6 +3,11 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import {
+  postLiveControlEvent,
+  saveLiveControlAccess,
+  type LiveControlAccess,
+} from '@/lib/live-control-client';
 import JoinQrCode from '@/components/JoinQrCode';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
@@ -73,6 +78,18 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   }, [session?.joinCode]);
 
   useEffect(() => {
+    let cancelled = false;
+    void fetch(`/api/sessions/${sessionId}/live-control`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json() as { liveControl?: LiveControlAccess | null };
+        if (!cancelled && data.liveControl) saveLiveControlAccess(sessionId, 'teacher', data.liveControl);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [sessionId]);
+
+  useEffect(() => {
     if (!session?.realtimeKey) return;
     const supabase = createClient();
     const channel = supabase
@@ -87,28 +104,81 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  function applyFallbackAction(action: SessionAction['action']) {
+    setSession((current) => {
+      if (!current) return current;
+      const index = current.activeBlockId
+        ? current.lessonSnapshot.blocks.findIndex((block) => block.id === current.activeBlockId)
+        : -1;
+
+      if (action === 'start' && current.lessonSnapshot.blocks[0]) {
+        return { ...current, status: 'live', activeBlockId: current.lessonSnapshot.blocks[0].id };
+      }
+      if (action === 'next' && index >= 0 && current.lessonSnapshot.blocks[index + 1]) {
+        return { ...current, activeBlockId: current.lessonSnapshot.blocks[index + 1].id, resultsRevealed: false, timer: null };
+      }
+      if (action === 'previous' && index > 0 && current.lessonSnapshot.blocks[index - 1]) {
+        return { ...current, activeBlockId: current.lessonSnapshot.blocks[index - 1].id, resultsRevealed: false, timer: null };
+      }
+      if (action === 'end') return { ...current, status: 'ended' };
+      if (action === 'reveal_results') return { ...current, resultsRevealed: true };
+      if (action === 'timer_reset' && index >= 0) {
+        const block = current.lessonSnapshot.blocks[index];
+        return block.type === 'timer'
+          ? { ...current, timer: { status: 'idle', remainingSeconds: block.durationMinutes * 60, syncedAt: new Date().toISOString() } }
+          : current;
+      }
+      if (action === 'timer_start' && current.timer) {
+        return { ...current, timer: { ...current.timer, status: 'running', syncedAt: new Date().toISOString() } };
+      }
+      if (action === 'timer_pause' && current.timer) {
+        return { ...current, timer: { ...current.timer, status: 'paused', syncedAt: new Date().toISOString() } };
+      }
+      return current;
+    });
+  }
+
   async function act(action: SessionAction['action']) {
     if (busy) return;
     if (action === 'end' && !window.confirm('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.')) return;
     if (action === 'reveal_results' && !window.confirm('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.')) return;
+    const operationId = crypto.randomUUID();
     setBusy(true);
     setError('');
     try {
-      const response = await fetch(`/api/sessions/${sessionId}`, {
+      const response = await fetchWithTimeout(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
+          operationId,
           ...((action === 'next' || action === 'previous') && session?.activeBlockId
             ? { expectedActiveBlockId: session.activeBlockId }
             : {}),
         }),
-      });
+      }, 8_000);
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
+      if (!response.ok) {
+        if (response.status < 500 && response.status !== 408 && response.status !== 429) {
+          throw new Error(data.error || 'Stav hodiny se nepodařilo změnit.');
+        }
+        throw new TypeError(data.error || 'Primární live služba je dočasně nedostupná.');
+      }
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Stav hodiny se nepodařilo změnit.');
+      const fallbackOk = await postLiveControlEvent(
+        sessionId,
+        'teacher',
+        'teacher.command',
+        { action },
+        operationId,
+      );
+      if (fallbackOk) {
+        applyFallbackAction(action);
+        setError('Primární spojení je dočasně nedostupné. Hodina pokračuje přes záložní live vrstvu a po obnovení se dosynchronizuje.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Stav hodiny se nepodařilo změnit.');
+      }
     } finally {
       setBusy(false);
     }
