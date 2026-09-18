@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
+import { GradingStrictnessSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import {
@@ -24,6 +25,7 @@ const InputSchema = z.object({
   duration: z.number().int().min(10).max(360),
   groupSize: z.string().min(1).max(100),
   tone: z.string().min(1).max(200),
+  gradingStrictness: GradingStrictnessSchema.default('neutral'),
   materialMode: z.enum(['primary', 'strict', 'inspiration']).default('primary'),
   materials: z.array(MaterialSchema).max(MATERIAL_MAX_FILES).default([]),
   folderId: z.string().uuid().nullable().optional().default(null),
@@ -54,6 +56,20 @@ export async function POST(req: Request) {
 
     if (!input.prompt.trim() && input.materials.length === 0) {
       return NextResponse.json({ error: 'Popiš hodinu nebo nahraj alespoň jeden podklad.' }, { status: 400 });
+    }
+
+    if (input.gradingStrictness !== 'neutral') {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, ai_grading_enabled')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      const aiGradingEnabled = Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled));
+      if (!aiGradingEnabled) {
+        return NextResponse.json({ error: 'Nastavení přísnosti AI hodnocení není pro tento tarif dostupné.' }, { status: 403 });
+      }
     }
 
     const totalMaterialText = input.materials.reduce((sum, material) => sum + material.text.length, 0);
@@ -131,6 +147,7 @@ export async function POST(req: Request) {
               duration: input.duration,
               groupSize: input.groupSize,
               tone: input.tone,
+              gradingStrictness: input.gradingStrictness,
               materialText,
               materialMode: input.materialMode as MaterialMode,
             }, (stage) => send({ type: 'progress', stage }));

@@ -4,6 +4,8 @@ export const BlockTypeSchema = z.enum([
   'intro', 'team_task', 'poll', 'quiz', 'open_text', 'ranking', 'reveal', 'timer', 'exit_ticket',
 ]);
 
+export const GradingStrictnessSchema = z.enum(['lenient', 'neutral', 'strict']);
+
 export const GradingCriterionSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1).max(120),
@@ -49,6 +51,7 @@ export const LessonSchema = z.object({
   audience: z.string().min(1),
   totalMinutes: z.number().int().min(10).max(360),
   groupSize: z.string().min(1),
+  gradingStrictness: GradingStrictnessSchema.optional(),
   learningObjectives: z.array(z.string()).min(2).max(6),
   blocks: z.array(LessonBlockSchema).min(3).max(16),
 });
@@ -56,4 +59,5 @@ export const LessonSchema = z.object({
 export type Lesson = z.infer<typeof LessonSchema>;
 export type LessonBlock = z.infer<typeof LessonBlockSchema>;
 export type GradingCriterion = z.infer<typeof GradingCriterionSchema>;
+export type GradingStrictness = z.infer<typeof GradingStrictnessSchema>;
 export type LessonDataTable = z.infer<typeof DataTableSchema>;

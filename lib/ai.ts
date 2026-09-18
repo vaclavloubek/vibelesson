@@ -4,6 +4,7 @@ import {
   BlockTypeSchema,
   LessonSchema,
   type Lesson,
+  type GradingStrictness,
   LessonBlockSchema,
   type LessonBlock,
 } from './schema';
@@ -139,7 +140,7 @@ function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock
   });
 }
 
-function normalizeLesson(output: z.infer<typeof AILessonSchema>): Lesson {
+function normalizeLesson(output: z.infer<typeof AILessonSchema>, gradingStrictness: GradingStrictness = 'neutral'): Lesson {
   const blocks = output.blocks.map(normalizeBlock);
   return LessonSchema.parse({
     title: output.title,
@@ -147,6 +148,7 @@ function normalizeLesson(output: z.infer<typeof AILessonSchema>): Lesson {
     audience: output.audience,
     totalMinutes: blocks.reduce((sum, block) => sum + block.durationMinutes, 0),
     groupSize: output.groupSize,
+    gradingStrictness,
     learningObjectives: output.learningObjectives,
     blocks,
   });
@@ -163,6 +165,7 @@ export async function createLesson(
     tone: string;
     materialText?: string;
     materialMode?: MaterialMode;
+    gradingStrictness?: GradingStrictness;
   },
   onProgress?: (stage: LessonGenerationStage) => void,
 ) {
@@ -185,7 +188,7 @@ export async function createLesson(
   });
 
   onProgress?.('validating');
-  return { lesson: normalizeLesson(output), costUsd: getGatewayCost(providerMetadata) };
+  return { lesson: normalizeLesson(output, input.gradingStrictness ?? 'neutral'), costUsd: getGatewayCost(providerMetadata) };
 }
 
 export async function reviseLesson(lesson: Lesson, instruction: string) {
@@ -197,7 +200,7 @@ export async function reviseLesson(lesson: Lesson, instruction: string) {
     prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění.\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
   });
 
-  return { lesson: normalizeLesson(output), costUsd: getGatewayCost(providerMetadata) };
+  return { lesson: normalizeLesson(output, lesson.gradingStrictness ?? 'neutral'), costUsd: getGatewayCost(providerMetadata) };
 }
 
 export async function reviseBlock(block: LessonBlock, instruction: string, lessonContext: Pick<Lesson, 'title' | 'audience' | 'groupSize' | 'learningObjectives'>) {

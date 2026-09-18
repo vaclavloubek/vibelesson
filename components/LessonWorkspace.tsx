@@ -11,7 +11,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import { demoLesson } from '@/lib/demo';
 import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
-import { LessonSchema, type Lesson } from '@/lib/schema';
+import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
@@ -49,6 +49,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
   const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '');
   const [tone, setTone] = useState('');
+  const [gradingStrictness, setGradingStrictness] = useState<GradingStrictness>(initialLesson?.gradingStrictness ?? 'neutral');
+  const [aiGradingEnabled, setAiGradingEnabled] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
   const [undoLesson, setUndoLesson] = useState<Lesson | null>(null);
@@ -66,6 +68,25 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!authUser) {
+      setAiGradingEnabled(false);
+      return;
+    }
+
+    void fetch('/api/entitlements', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json() as { aiGradingEnabled?: boolean };
+        if (!cancelled) setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
+      })
+      .catch(() => {
+        if (!cancelled) setAiGradingEnabled(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [authUser]);
 
   useEffect(() => {
     if (!authUser) {
@@ -125,6 +146,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     if (!data.lesson) throw new Error(data.error || 'Server nevrátil lekci.');
     const parsed = LessonSchema.parse(data.lesson);
     setLesson(parsed);
+    setGradingStrictness(parsed.gradingStrictness ?? 'neutral');
     setLessonId(data.lessonId ?? null);
     setSelectedBlockId(null);
 
@@ -169,7 +191,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, materialMode, materials, folderId: initialFolderId }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, gradingStrictness, materialMode, materials, folderId: initialFolderId }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -312,6 +334,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
   function loadDemo() {
     setLesson(demoLesson);
+    setGradingStrictness(demoLesson.gradingStrictness ?? 'neutral');
     setLessonId(null);
     setUndoLesson(null);
     setSaveStatus('idle');
@@ -322,6 +345,38 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   function restoreLastLesson() {
     if (!recovery) return;
     router.push(`/lessons/${recovery.lessonId}`);
+  }
+
+  async function changeGradingStrictness(next: GradingStrictness) {
+    setGradingStrictness(next);
+    if (!lesson || !lessonId || busy) return;
+
+    const previous = lesson;
+    const nextLesson: Lesson = { ...lesson, gradingStrictness: next };
+    setLesson(nextLesson);
+    setSaveStatus('saving');
+    setError('');
+
+    try {
+      const response = await fetch(`/api/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lesson: nextLesson }),
+      });
+      const data = await response.json() as LessonApiResponse;
+      if (!response.ok || !data.lesson) throw new Error(data.error || 'Nastavení hodnocení se nepodařilo uložit.');
+
+      const parsed = LessonSchema.parse(data.lesson);
+      setLesson(parsed);
+      setGradingStrictness(parsed.gradingStrictness ?? 'neutral');
+      setSaveStatus('saved');
+      rememberSavedLesson(parsed, lessonId);
+    } catch (err) {
+      setLesson(previous);
+      setGradingStrictness(previous.gradingStrictness ?? 'neutral');
+      setSaveStatus('saved');
+      setError(err instanceof Error ? err.message : 'Nastavení hodnocení se nepodařilo uložit.');
+    }
   }
 
   const saveText = lessonId
@@ -350,6 +405,20 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">Uložená lekce</span>
               <h1>{lesson.title}</h1>
               <p className="muted-copy">Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.</p>
+              {aiGradingEnabled ? (
+                <label style={{ maxWidth: 360, marginTop: 12 }}>
+                  Přísnost AI hodnocení odpovědí
+                  <select
+                    value={gradingStrictness}
+                    disabled={busy || saveStatus === 'saving'}
+                    onChange={(event) => { void changeGradingStrictness(event.target.value as GradingStrictness); }}
+                  >
+                    <option value="lenient">Mírná</option>
+                    <option value="neutral">Neutrální</option>
+                    <option value="strict">Přísná</option>
+                  </select>
+                </label>
+              ) : null}
               <div className="actions"><Link href="/lessons" className="secondary button-link">← Moje lekce</Link><Link href="/new" className="primary button-link">+ Nová lekce</Link></div>
             </div>
           ) : (
@@ -365,6 +434,17 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   <label>Velikost týmu<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder="např. 3–4 studenti" required /></label>
                   <label>Tón<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="např. živý, praktický a lehce vtipný" required /></label>
                 </div>
+                {aiGradingEnabled ? (
+                  <label style={{ marginTop: 14 }}>
+                    Přísnost AI hodnocení odpovědí
+                    <select value={gradingStrictness} onChange={(event) => setGradingStrictness(event.target.value as GradingStrictness)}>
+                      <option value="lenient">Mírná</option>
+                      <option value="neutral">Neutrální</option>
+                      <option value="strict">Přísná</option>
+                    </select>
+                    <span className="muted-copy" style={{ display: 'block', marginTop: 6 }}>Ovlivňuje pouze AI hodnocení bodovaných otevřených a týmových odpovědí. Učitel může výsledek vždy upravit.</span>
+                  </label>
+                ) : null}
                 <details className="materials-disclosure">
                   <summary>
                     <span className="materials-disclosure-label">

@@ -119,6 +119,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
       answerText: answer.text,
       rubric,
       maxPoints: claimed.data.max_points,
+      strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
     const { data: finished, error: finishError } = await supabase.rpc('finish_response_evaluation', {

@@ -1,6 +1,6 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
-import { GradingCriterionSchema, type GradingCriterion } from './schema';
+import { GradingCriterionSchema, GradingStrictnessSchema, type GradingCriterion, type GradingStrictness } from './schema';
 
 const gradingModel = process.env.AI_GRADING_MODEL || process.env.AI_MODEL || 'openai/gpt-5.6-sol';
 
@@ -23,6 +23,7 @@ const GradingInputSchema = z.object({
   answerText: z.string().trim().min(1).max(4000),
   rubric: z.array(GradingCriterionSchema).min(1).max(6),
   maxPoints: z.number().int().min(1).max(20),
+  strictness: GradingStrictnessSchema.default('neutral'),
 });
 
 const CriterionRationaleSchema = z.string().trim().min(1).max(500);
@@ -58,6 +59,12 @@ function getGatewayCost(providerMetadata: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+const gradingStrictnessInstructions: Record<GradingStrictness, string> = {
+  lenient: 'Mírné hodnocení: při rozumně obhajitelné interpretaci rozhodni ve prospěch studenta. Za částečně splněné kritérium přiznej odpovídající částečné body a plný počet dej, pokud je podstata kritéria jasně splněná, i když formulace není učebnicová. Neodpouštěj faktické chyby ani chybějící klíčovou část zadání.',
+  neutral: 'Neutrální hodnocení: hodnoť vyváženě podle smyslu kritéria. Plný počet dej, pokud odpověď významově splňuje celé kritérium, i když není formulovaná ideálním nebo učebnicovým jazykem. Za částečné splnění přiznej částečné body. Nesrážej body za nepodstatné nedostatky, které rubrika nepožaduje.',
+  strict: 'Přísné hodnocení: plný počet dej pouze při jasném a úplném splnění všech částí kritéria. Částečné splnění oceň částečnými body. Ani v tomto režimu nesmíš požadovat nic, co není v zadání nebo rubrice.',
+};
+
 function validateRubric(rubric: GradingCriterion[], maxPoints: number) {
   const ids = new Set<string>();
   let total = 0;
@@ -92,13 +99,17 @@ Bezpečnost a férovost:
 - Pokud odpověď nebo zadání neposkytují dost podkladů pro spolehlivý verdikt, sniž confidence a vysvětli nejistotu.
 - overallRationale má být stručné a věcné, typicky 1–3 věty.
 - rationale u každého kritéria má stručně vysvětlit přidělené body.
-- confidence je číslo 0 až 1 vyjadřující jistotu hodnocení, nikoli kvalitu odpovědi.`,
+- confidence je číslo 0 až 1 vyjadřující jistotu hodnocení, nikoli kvalitu odpovědi.
+
+Nastavení přísnosti pro tuto odpověď:
+${gradingStrictnessInstructions[input.strictness]}`,
     prompt: JSON.stringify({
       task: {
         title: input.blockTitle,
         instructions: input.instructions,
         audience: input.audience,
         maxPoints: input.maxPoints,
+        gradingStrictness: input.strictness,
       },
       rubric: input.rubric,
       studentAnswer: input.answerText,
