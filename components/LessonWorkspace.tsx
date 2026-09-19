@@ -92,6 +92,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [generationStage, setGenerationStage] = useState<GenerationStage | null>(null);
   const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
   const lessonCreationTrackedRef = useRef(false);
+  const blockRevisionTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const blockEditorRef = useRef<HTMLDivElement>(null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
 
@@ -185,6 +187,22 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     if (authUser) return true;
     setError(ui('Pro AI funkce se nejdřív přihlas vpravo nahoře. Ukázková lekce funguje i bez účtu.', 'Sign in first to use AI features. The example lesson works without an account.'));
     return false;
+  }
+
+  function editBlock(blockId: string) {
+    setSelectedBlockId(blockId);
+    setRevisionLanguageNotice(null);
+
+    window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      blockEditorRef.current?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'center',
+      });
+      window.requestAnimationFrame(() => {
+        blockRevisionTextareaRef.current?.focus({ preventScroll: true });
+      });
+    });
   }
 
   function rememberSavedLesson(nextLesson: Lesson, nextLessonId: string) {
@@ -639,10 +657,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               ) : null}
               <div className="quick-edits"><button type="button" onClick={() => setRevision(ui('Udělej lekci zábavnější, ale ne infantilní.', 'Make the lesson more engaging, but not childish.'))}>{ui('Vtipnější', 'More playful')}</button><button type="button" onClick={() => setRevision(ui('Přidej více týmové soutěže a jasné bodování.', 'Add more team competition and clear scoring.'))}>{ui('Více soutěže', 'More competition')}</button><button type="button" onClick={() => setRevision(ui('Omez výklad a přidej více práce studentů.', 'Reduce lecturing and add more student work.'))}>{ui('Méně výkladu', 'Less lecturing')}</button></div>
             </div>
-            <div className="panel block-editor">
+            <div className="panel block-editor" ref={blockEditorRef}>
               <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
               <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
-              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
+              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
               {revisionLanguageNotice === 'activity' ? (
                 <div className="revision-plan-notice" role="status" aria-live="polite">
                   <strong>{ui('Aktivita byla upravena v rámci Free tarifu.', 'The activity was edited within the Free plan.')}</strong>
@@ -659,7 +677,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} onEditBlock={editBlock} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>
