@@ -1,6 +1,6 @@
 begin;
 
-select plan(19);
+select plan(21);
 
 insert into auth.users (id, email)
 values
@@ -194,6 +194,25 @@ select is(
   public.get_lesson_share('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
   null::jsonb,
   'a revoked share is no longer visible through its capability token'
+);
+
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+select lives_ok(
+  $delete from public.lessons
+    where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$,
+  'the source owner can delete the original lesson after a colleague imported it'
+);
+
+select results_eq(
+  $select count(*)::bigint
+    from public.lessons
+    where owner_id = '22222222-2222-2222-2222-222222222222'
+      and title = 'Shared test lesson'
+      and source_share_id is null
+      and source_lesson_id is null$,
+  $values (1::bigint)$,
+  'deleting the source preserves the recipient copy while FK cleanup clears provenance safely'
 );
 
 select * from finish();
