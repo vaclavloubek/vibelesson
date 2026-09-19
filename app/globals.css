@@ -126,6 +126,30 @@ a { color: inherit; }
 .panel h1 { font-size: 28px; line-height: 1.08; letter-spacing: -.035em; margin: 6px 0 18px; }
 .panel h2 { font-size: 20px; letter-spacing: -.025em; margin: 6px 0 14px; }
 .current-lesson-panel h1 { margin-bottom: 10px; }
+.language-plan-notice {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 13px 14px;
+  border: 1px solid rgba(91,87,232,.22);
+  border-radius: 14px;
+  background: var(--accent-soft);
+}
+.language-plan-notice strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.language-plan-notice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.language-plan-notice .button-link {
+  justify-self: start;
+}
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: .095em;

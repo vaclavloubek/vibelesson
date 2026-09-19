@@ -507,6 +507,20 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">{ui('Uložená lekce', 'Saved lesson')}</span>
               <h1>{lesson.title}</h1>
               <p className="muted-copy">{ui('Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.', 'Continue with AI edits below. Every successful change is saved automatically.')}</p>
+              {entitlementsLoaded && !multilingualLessonsEnabled ? (
+                <div className="language-plan-notice" role="status" aria-live="polite">
+                  <div>
+                    <strong>{ui('Free tarif omezuje hlavní jazyk lekce.', 'Free limits the lesson’s main language.')}</strong>
+                    <p>{ui(
+                      'Nové lekce se vytvářejí v jazyce rozhraní a AI úpravou nelze hlavní jazyk změnit. Slovíčka, dialogy nebo překladové úkoly v cizím jazyce ale používat můžeš.',
+                      'New lessons are created in the interface language, and AI edits cannot change the main language. You can still use foreign-language vocabulary, dialogues, or translation exercises as lesson content.',
+                    )}</p>
+                  </div>
+                  <Link href="/pricing" className="secondary button-link">
+                    {ui('Lekce v libovolném jazyce', 'Lessons in any language')}
+                  </Link>
+                </div>
+              ) : null}
               {aiGradingEnabled ? (
                 <GradingStrictnessControl
                   value={gradingStrictness}

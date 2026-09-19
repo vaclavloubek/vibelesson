@@ -59,6 +59,8 @@ requireText(workspace, 'multilingualLessonsEnabled', 'lesson authoring must reac
 requireText(workspace, "Ve Free tarifu se lekce vytvoří v jazyce rozhraní.", 'Free UI must explain its language restriction.');
 requireText(workspace, 'disabled={!authUser || !entitlementsLoaded || !multilingualLessonsEnabled}', 'language picker must remain locked without the entitlement.');
 requireText(workspace, "Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.", 'UI must explain where multilingual generation is available.');
+requireText(workspace, "Free tarif omezuje hlavní jazyk lekce.", 'saved Free lessons must show a prominent language-limit notice.');
+requireText(workspace, 'href="/pricing"', 'Free language-limit notice must link to Pricing.');
 
 const free = planBlock(pricing, 'free', 'teacher');
 const teacher = planBlock(pricing, 'teacher', 'teacher-pro');
@@ -77,6 +79,6 @@ for (const [name, block] of [['Teacher', teacher], ['Teacher Pro', teacherPro], 
 }
 requireText(pricing, "feature === 'Lekce v libovolném jazyce'", 'teacher multilingual feature must use the premium emphasis hook.');
 requireText(pricing, "plan.id === 'teacher' || plan.id === 'teacher-pro'", 'premium multilingual emphasis must be limited to individual paid teacher plans.');
-requireText(version, "APP_VERSION = '0.9.02'", 'the revision language-gate hardening must publish as version 0.9.02.');
+requireText(version, "APP_VERSION = '0.9.03'", 'the Free language-policy notice must publish as version 0.9.03.');
 
 console.log('Multilingual entitlement checks passed.');
