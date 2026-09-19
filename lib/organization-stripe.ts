@@ -337,3 +337,46 @@ export async function updateOrganizationSubscriptionCancellation(input: {
     status: payload.status ?? null,
   };
 }
+
+
+export async function updateOrganizationSubscriptionCancellation(input: {
+  secretKey: string;
+  livemode: boolean;
+  subscriptionId: string;
+  cancelAtPeriodEnd: boolean;
+}) {
+  if (!expectedSecret(input.secretKey, input.livemode)) {
+    throw new OrganizationStripeError('stripe_secret_mode_invalid');
+  }
+  if (!/^sub_[A-Za-z0-9_]+$/.test(input.subscriptionId)) {
+    throw new OrganizationStripeError('stripe_subscription_id_invalid');
+  }
+
+  const params = new URLSearchParams();
+  params.set('cancel_at_period_end', input.cancelAtPeriodEnd ? 'true' : 'false');
+
+  const payload = await stripePost<StripeErrorPayload & {
+    id?: string;
+    cancel_at_period_end?: boolean;
+    status?: string;
+  }>(
+    input.secretKey,
+    '/v1/subscriptions/' + encodeURIComponent(input.subscriptionId),
+    params,
+    'syllonaut_org_subscription_cancel_' + input.subscriptionId + '_'
+      + (input.cancelAtPeriodEnd ? 'on' : 'off'),
+  );
+
+  if (
+    payload.id !== input.subscriptionId
+    || payload.cancel_at_period_end !== input.cancelAtPeriodEnd
+  ) {
+    throw new OrganizationStripeError('stripe_subscription_update_invalid');
+  }
+
+  return {
+    subscriptionId: payload.id,
+    cancelAtPeriodEnd: payload.cancel_at_period_end,
+    status: payload.status ?? null,
+  };
+}
