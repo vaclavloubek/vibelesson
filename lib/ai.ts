@@ -177,6 +177,90 @@ function normalizeLesson(output: z.infer<typeof AILessonSchema>, gradingStrictne
   });
 }
 
+type VisibleBlockReference = {
+  position: number;
+  blockId: string;
+  blockType: LessonBlock['type'];
+  title: string;
+};
+
+function normalizeReferenceText(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function resolveVisibleBlockReference(instruction: string, lesson: Lesson): VisibleBlockReference | null {
+  const normalized = normalizeReferenceText(instruction);
+  const noun = '(?:blok(?:u)?|ukol(?:u)?|aktiv(?:ita|itu|ity)?|cviceni|block|task|activity|exercise)';
+  let position: number | null = null;
+
+  const nounFirst = normalized.match(new RegExp(`\\b${noun}\\s*(?:c(?:islo)?\\.?\\s*)?#?\\s*(\\d{1,2})\\b`, 'i'));
+  if (nounFirst) position = Number(nounFirst[1]);
+
+  if (position === null) {
+    const numberedOrdinal = normalized.match(new RegExp(`\\b(\\d{1,2})\\.\\s*${noun}\\b`, 'i'));
+    if (numberedOrdinal) position = Number(numberedOrdinal[1]);
+  }
+
+  if (position === null) {
+    const ordinalPatterns: Array<[RegExp, number]> = [
+      [new RegExp(`\\b(?:prvn\\w*|first)\\s+${noun}\\b`, 'i'), 1],
+      [new RegExp(`\\b(?:druh\\w*|second)\\s+${noun}\\b`, 'i'), 2],
+      [new RegExp(`\\b(?:tret\\w*|third)\\s+${noun}\\b`, 'i'), 3],
+      [new RegExp(`\\b(?:ctvrt\\w*|fourth)\\s+${noun}\\b`, 'i'), 4],
+      [new RegExp(`\\b(?:pat\\w*|fifth)\\s+${noun}\\b`, 'i'), 5],
+      [new RegExp(`\\b(?:sest\\w*|sixth)\\s+${noun}\\b`, 'i'), 6],
+      [new RegExp(`\\b(?:sedm\\w*|seventh)\\s+${noun}\\b`, 'i'), 7],
+      [new RegExp(`\\b(?:osm\\w*|eighth)\\s+${noun}\\b`, 'i'), 8],
+      [new RegExp(`\\b(?:devat\\w*|ninth)\\s+${noun}\\b`, 'i'), 9],
+      [new RegExp(`\\b(?:desat\\w*|tenth)\\s+${noun}\\b`, 'i'), 10],
+      [new RegExp(`\\b(?:jedenact\\w*|eleventh)\\s+${noun}\\b`, 'i'), 11],
+      [new RegExp(`\\b(?:dvanact\\w*|twelfth)\\s+${noun}\\b`, 'i'), 12],
+      [new RegExp(`\\b(?:trinact\\w*|thirteenth)\\s+${noun}\\b`, 'i'), 13],
+      [new RegExp(`\\b(?:ctrnact\\w*|fourteenth)\\s+${noun}\\b`, 'i'), 14],
+      [new RegExp(`\\b(?:patnact\\w*|fifteenth)\\s+${noun}\\b`, 'i'), 15],
+      [new RegExp(`\\b(?:sestnact\\w*|sixteenth)\\s+${noun}\\b`, 'i'), 16],
+    ];
+    for (const [pattern, ordinal] of ordinalPatterns) {
+      if (pattern.test(normalized)) {
+        position = ordinal;
+        break;
+      }
+    }
+  }
+
+  if (position === null || !Number.isInteger(position) || position < 1 || position > lesson.blocks.length) {
+    return null;
+  }
+
+  const block = lesson.blocks[position - 1];
+  return {
+    position,
+    blockId: block.id,
+    blockType: block.type,
+    title: block.title,
+  };
+}
+
+function visibleBlockNumberingContext(lesson: Lesson, instruction: string) {
+  const orderedBlocks = lesson.blocks
+    .map((block, index) => `${index + 1}. id=${JSON.stringify(block.id)} | type=${block.type} | title=${JSON.stringify(block.title)}`)
+    .join('\n');
+  const resolved = resolveVisibleBlockReference(instruction, lesson);
+  const deterministicResolution = resolved
+    ? `\nDETERMINISTICKÉ ROZLIŠENÍ ODKAZU: Instrukce odkazuje na viditelnou aktivitu č. ${resolved.position}; uprav právě block id=${JSON.stringify(resolved.blockId)} (type=${resolved.blockType}, title=${JSON.stringify(resolved.title)}). Tento výběr nepřehodnocuj podle typu aktivity ani podle toho, co považuješ za „skutečný úkol“.`
+    : '';
+
+  return `ČÍSLOVÁNÍ EXISTUJÍCÍ LEKCE — ZÁVAZNÉ:
+- Číslo aktivity/úkolu/bloku vždy znamená pořadí, v jakém jsou bloky zobrazené učiteli, tedy pořadí v lesson.blocks.
+- „první úkol / aktivita 1 / block 1“ = lesson.blocks[0], „druhý úkol / aktivita 2 / block 2“ = lesson.blocks[1] atd.
+- Do číslování se počítají VŠECHNY viditelné bloky včetně intro, reveal, poll a timer. Nesmíš si vytvářet vlastní číslování jen podle interaktivních nebo odevzdávaných úloh.
+- Pokud instrukce odkazuje číslem na konkrétní aktivitu, měň primárně právě tento blok a ostatní zachovej, pokud nejsou výslovně požadované další změny.
+${deterministicResolution}
+
+POŘADÍ ZOBRAZENÝCH BLOKŮ:
+${orderedBlocks}`;
+}
+
 export type LessonGenerationStage = 'generating' | 'validating';
 
 export async function createLesson(
@@ -233,7 +317,7 @@ export async function reviseLesson(lesson: Lesson, instruction: string, options:
     output: Output.object({ schema: AILessonSchema }),
     providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
     system: languageLocked ? `${baseRules}\n\n${lockedRevisionLanguageRules}` : baseRules,
-    prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění.\n\n${languagePolicy}\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
+    prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění.\n\n${languagePolicy}\n\n${visibleBlockNumberingContext(lesson, instruction)}\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
   });
 
   const revised = normalizeLesson(output, lesson.gradingStrictness ?? 'neutral');
