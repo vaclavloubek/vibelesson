@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
-export default function StartSessionButton({ lessonId }: { lessonId: string }) {
+export default function StartSessionButton({ lessonId, userId }: { lessonId: string; userId: string }) {
   const english = useUiLocale() === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function StartSessionButton({ lessonId }: { lessonId: string }) {
         throw new Error(english ? 'The lesson could not be started.' : (data.error || 'Hodinu se nepodařilo odstartovat.'));
       }
       trackEvent('live_session_created');
+      signalSyllonautGuideAction(userId, 'session-created');
       router.push(`/sessions/${data.sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Hodinu se nepodařilo odstartovat.', 'The lesson could not be started.'));
@@ -50,7 +52,7 @@ export default function StartSessionButton({ lessonId }: { lessonId: string }) {
           {ui('Otevřít rozběhnutou hodinu', 'Open the active lesson')}
         </button>
       ) : null}
-      <button type="button" className="primary" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
+      <button type="button" className="primary" data-tour="lesson-start" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
     </div>
   );
 }
