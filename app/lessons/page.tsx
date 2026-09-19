@@ -124,7 +124,11 @@ export default async function LessonsPage({ searchParams }: Props) {
       {signupCompleted ? <SignupCompletedAnalytics /> : null}
       <header className="brand lessons-brand">
         <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="dashboard-version-stack"><span className="beta">BETA</span><span className="dashboard-version">v{APP_VERSION}</span></span></div>
-        <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons" className="active">{ui('Moje lekce', 'My lessons')}</Link></nav>
+        <nav className="main-nav" aria-label={ui('Hlavní navigace', 'Main navigation')}>
+          <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
+          <Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>
+          <Link href="/lessons" className="active">{ui('Moje lekce', 'My lessons')}</Link>
+        </nav>
         <div className="lessons-user">
           <LocaleSwitcher />
           <PublicHeaderAccountMenu
@@ -134,6 +138,7 @@ export default async function LessonsPage({ searchParams }: Props) {
               user_metadata: claimsData?.claims?.user_metadata && typeof claimsData.claims.user_metadata === 'object' ? claimsData.claims.user_metadata as Record<string, unknown> : {},
             }}
           />
+          <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
         </div>
       </header>
 
@@ -143,7 +148,7 @@ export default async function LessonsPage({ searchParams }: Props) {
           <h1>{ui('Moje lekce', 'My lessons')}</h1>
           <p>{entitlement.enabled ? ui('Uspořádej lekce podle škol, tříd nebo předmětů.', 'Organize lessons by school, class or subject.') : ui('Všechny připravené lekce se sem ukládají automaticky.', 'All prepared lessons are saved here automatically.')}</p>
         </div>
-        <Link href="/new" className="primary button-link">{ui('+ Nová lekce', '+ New lesson')}</Link>
+
       </section>
 
       {error ? <div className="error">{ui('Lekce se nepodařilo načíst. Zkus stránku obnovit.', 'Lessons could not be loaded. Refresh the page and try again.')}</div> : null}
