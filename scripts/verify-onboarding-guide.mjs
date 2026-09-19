@@ -103,6 +103,10 @@ requireText(startSession, 'chapter="lesson" step={6} labelCs="Jak spustit hodinu
 requireText(quickAction, 'chapter="live" step={0} labelCs="Jak promítat studentům"', 'Presenter contextual help must start Chapter 2');
 requireText(teacher, 'chapter="live" step={2} labelCs="Jak se připojují studenti"', 'student-join contextual help step index');
 requireText(teacher, 'chapter="live" step={3} labelCs="Jak vytvořit týmy"', 'team contextual help step index');
+requireText(teacher, '<div data-tour="live-team-create">', 'team guide spotlight must expose the full team setup panel');
+if (teacher.includes('button className="primary" data-tour="live-team-create"')) {
+  throw new Error('onboarding guide regression: team guide target must not be limited to the create button');
+}
 requireText(state, "startSyllonautGuide(userId, 'live', 5);", 'live contextual restart must start at live controls');
 const liveStepsStart = guide.indexOf('const liveSteps: GuideStep[] = [');
 const presenterStep = guide.indexOf("target: 'live-presenter'", liveStepsStart);
