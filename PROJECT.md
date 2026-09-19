@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-18 po synchronizaci paralelních prací: release 0.9 (CS/EN + multilingual lessons), zachovaný live hardening 0.8.12–0.8.16, dokončený Stripe sandbox lifecycle, aktivní GA4 produktová analytika a rozhodovací bod Supabase → Neon po ostrých testech 2026-09-21.
+Aktualizováno: 2026-09-19 pro verzi 0.9.01 — multilingual lesson generation je nově placený entitlement pro Teacher/Teacher Pro a produktově pro všechny školní tarify; Free generuje pouze v aktivním jazyce UI. Zachovaný je live hardening 0.8.12–0.8.16, Stripe sandbox lifecycle i aktivní GA4 produktová analytika.
 
-**Aktuální produktová verze: 0.9** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka, persistentní ruční přepínač a oddělený jazyk generované lekce. Lekce lze vytvářet v libovolném jazyce podporovaném modelem; UI locale, billing country/currency a lesson language jsou samostatné veličiny. Live student, Presenter, teacher workspace, Pricing, auth, GDPR i metadata jsou locale-aware. Produkční live-control hardening z verze 0.8.16 zůstává zachovaný.
+**Aktuální produktová verze: 0.9.01** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI; Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání a explicitní volby dalšího jazyka. Entitlement je vynucený serverově. UI locale, billing country/currency a lesson language zůstávají samostatné veličiny.
 
 Produkční release 0.8:
 
@@ -120,9 +120,9 @@ Ruční přepínač CZ/EN je dostupný v hlavních veřejných i pracovních obr
 Tvorba lekce:
 
 - formulář výslovně říká, že učitel může zadání napsat v jazyce, ve kterém chce učit;
-- `Jazyk lekce / Lesson language` má default `Automaticky podle zadání`;
-- lze vybrat běžný jazyk nebo zadat jiný vlastní jazyk bez pevného whitelistu;
-- při auto režimu má případný explicitní jazykový požadavek v zadání přednost, jinak se použije jazyk volného zadání; UI locale je pouze fallback pro nejednoznačný/absentující text;
+- Free: jazyk nové lekce je serverově vynucený na aktivní UI locale (`cs` nebo `en`), takže jiné jazyky nelze obejít přes prompt ani přímé API volání;
+- Teacher / Teacher Pro / admin: `Jazyk lekce / Lesson language` má default `Automaticky podle zadání`, lze vybrat běžný jazyk nebo zadat jiný vlastní jazyk bez pevného whitelistu;
+- u oprávněných účtů má v auto režimu případný explicitní jazykový požadavek v zadání přednost, jinak se použije jazyk volného zadání; UI locale je pouze fallback pro nejednoznačný/absentující text;
 - jazyk podkladů sám o sobě nesmí změnit jazyk lekce;
 - AI revize zachovávají jazyk existující lekce, pokud učitel výslovně nepožádá o překlad;
 - lesson content používá vlastní `lang` a `dir=auto` tam, kde je potřeba, takže jazyk obsahu nemusí odpovídat jazyku UI.
@@ -284,17 +284,17 @@ Roční varianta komunikuje přibližně **2 měsíce zdarma**. Placené tarify 
 
 Individuální plány:
 
-- **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
-- **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 25 AI lekcí + 100 AI úprav; bez placeného AI gradingu a bez prémiových složek;
-- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 60 AI lekcí + 250 AI úprav; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
+- **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně; nové lekce pouze v aktivním jazyce UI; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
+- **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 25 AI lekcí + 100 AI úprav; **lekce v libovolném jazyce**; bez placeného AI gradingu a bez prémiových složek;
+- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 60 AI lekcí + 250 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
 
 Všechny individuální plány počítají s live hodinami bez tarifního limitu a se studentským připojením bez plnohodnotného účtu.
 
 Školní/týmové plány:
 
-- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav společně; 1 290 Kč / €54.99 / $59.99 měsíčně nebo 12 900 Kč / €549.90 / $599 ročně;
-- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav; 3 190 Kč / €139.99 / $149.99 měsíčně nebo 31 900 Kč / €1,399.90 / $1,499 ročně; **AI grading + složky/podsložky**;
-- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav; 8 490 Kč / €369.99 / $399.99 měsíčně nebo 84 900 Kč / €3,699.90 / $3,999 ročně; **AI grading + složky/podsložky**.
+- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav společně; lekce v libovolném jazyce; 1 290 Kč / €54.99 / $59.99 měsíčně nebo 12 900 Kč / €549.90 / $599 ročně;
+- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav; lekce v libovolném jazyce; 3 190 Kč / €139.99 / $149.99 měsíčně nebo 31 900 Kč / €1,399.90 / $1,499 ročně; **AI grading + složky/podsložky**;
+- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav; lekce v libovolném jazyce; 8 490 Kč / €369.99 / $399.99 měsíčně nebo 84 900 Kč / €3,699.90 / $3,999 ročně; **AI grading + složky/podsložky**.
 
 Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obsahují.
 
@@ -311,6 +311,7 @@ Free default:
 - `monthly_revision_limit=20`
 - `ai_grading_enabled=false`
 - `lesson_folders_enabled=false`
+- `multilingual_lessons_enabled=false`
 
 Admin:
 
@@ -318,11 +319,12 @@ Admin:
 - lesson/revision limity `NULL`
 - AI grading entitlement automaticky
 - folder entitlement automaticky
+- multilingual lesson entitlement automaticky
 
 Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
 
 - `profiles.active_plan_code` nese aplikovaný základní plán;
-- `billing_plans` definuje server-authoritative entitlementy pro `free`, `teacher`, `teacher_pro` a interní `admin`;
+- `billing_plans` definuje server-authoritative entitlementy pro `free`, `teacher`, `teacher_pro` a interní `admin`, včetně `multilingual_lessons_enabled`;
 - `billing_prices` mapuje Stripe Price ID → plán / měnu / období; sandbox má připravené CZK/EUR/USD ceny pro Teacher a Teacher Pro;
 - `billing_customers`, `billing_subscriptions` a `billing_events` drží provider stav a idempotenci;
 - `manual_entitlement_overrides` zachovává explicitní beta/admin výjimky nad základním plánem;
@@ -351,6 +353,15 @@ Fail-closed ochrana je v submit/queue, background processoru, `/grade` endpointu
 - Teacher Pro: `lesson_folders_enabled=true`;
 - admin: entitlement automaticky;
 - server/RLS/DB write boundary vynucují oprávnění.
+
+### Multilingual lesson entitlement
+
+- Free: `multilingual_lessons_enabled=false`; nová lekce se vždy generuje v aktivním UI locale;
+- Teacher a Teacher Pro: `multilingual_lessons_enabled=true`;
+- admin: entitlement automaticky;
+- Team / School / Campus mají benefit produktově uvedený v Pricing; skutečné organization provisioning zatím není implementované;
+- UI pouze zpřístupňuje volbu, ale bezpečnostní hranice je v `/api/generate`: server načte profil a pro Free přepíše jazyk generování na serverově odvozený UI locale;
+- manual entitlement override podporuje `multilingual_lessons_enabled`.
 
 ## 8. Lesson workspace a knihovna
 
@@ -1060,9 +1071,10 @@ Další významné změny 2026-09-18:
 - **0.8.15** — live cache epoch rotation: service worker používá `syllonaut-live-shell-v2`; při aktivaci smaže starší `syllonaut-live-shell-*` cache včetně před-hardeningové `v1`, takže dříve uložený chybný live navigation response nemůže přežít opravu 0.8.13.
 - **0.8.16** — Presenter least-privilege fáze 2: browser požaduje `?role=presenter`, ukládá capability odděleně pod presenter storage key a pro fallback state/WebSocket už nepoužívá teacher token; aktivováno až po potvrzeném produkčním Worker 0.8.14 / protocol 2.
 - **0.9** — Internationalization + multilingual lessons: CS/EN rozhraní, locale routing podle explicitní preference/regionu, oddělený lesson language s auto detekcí podle zadání a explicitním override, zachování jazyka při revizích, locale-aware live/student/Presenter/auth/Pricing/GDPR/SEO a anonymní analytické dimenze `ui_locale` + `lesson_language`.
+- **0.9.01** — multilingual generation jako placený entitlement: Free generuje pouze v aktivním UI locale; Teacher/Teacher Pro a produktově všechny školní plány mají „Lekce v libovolném jazyce“. Serverové vynucení brání obcházení přes prompt/API; Pricing benefit zvýrazňuje u obou placených individuálních tarifů.
 - viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a ve verzi 0.9 zobrazuje `v0.9`.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce.**
 
 ## 21. Pravidla další práce
 
