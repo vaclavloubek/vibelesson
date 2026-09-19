@@ -1,26 +1,15 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { startOrganizationPayment } from '@/lib/organization-payment';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const InputSchema = z.object({
-  environment: z.enum(['sandbox', 'live']).default('live'),
-});
 
-export async function POST(request: Request) {
+export async function POST() {
   const { userId } = await getAuthenticatedUserId();
   if (!userId) {
     return NextResponse.json({ error: 'authentication_required' }, { status: 401 });
-  }
-
-  let input: z.infer<typeof InputSchema>;
-  try {
-    input = InputSchema.parse(await request.json());
-  } catch {
-    return NextResponse.json({ error: 'invalid_payment_request' }, { status: 400 });
   }
 
   const organization = await getCurrentOrganizationForUser(userId);
@@ -35,17 +24,6 @@ export async function POST(request: Request) {
     .eq('id', userId)
     .maybeSingle();
 
-  if (input.environment === 'sandbox' && profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'school_sandbox_billing_forbidden' }, { status: 403 });
-  }
-  if (
-    input.environment === 'live'
-    && !isPublicSchoolBillingEnabled()
-    && profile?.role !== 'admin'
-  ) {
-    return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
-  }
-
   if (organization.status !== 'awaiting_payment' && organization.status !== 'past_due') {
     return NextResponse.json({ error: 'organization_not_payable' }, { status: 409 });
   }
@@ -59,7 +37,7 @@ export async function POST(request: Request) {
     admin
       .from('organization_orders')
       .select(
-        'id, billing_period, currency, amount_minor, payment_method, external_customer_id, external_checkout_session_id, external_checkout_url, external_invoice_id, hosted_invoice_url',
+        'id, billing_period, currency, amount_minor, payment_method, external_customer_id, external_checkout_session_id, external_checkout_url, external_invoice_id, hosted_invoice_url, livemode',
       )
       .eq('organization_id', organization.id)
       .in('status', ['awaiting_payment', 'ordered'])
@@ -72,9 +50,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'payable_order_not_found' }, { status: 404 });
   }
 
+  const livemode = orderResult.data.livemode !== false;
+  if (!livemode && profile?.role !== 'admin') {
+    return NextResponse.json({ error: 'school_sandbox_billing_forbidden' }, { status: 403 });
+  }
+  if (livemode && !isPublicSchoolBillingEnabled() && profile?.role !== 'admin') {
+    return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
+  }
+
   try {
     const payment = await startOrganizationPayment({
-      environment: input.environment,
+      environment: livemode ? 'live' : 'sandbox',
       organization: {
         id: organization.id,
         name: organization.name,
