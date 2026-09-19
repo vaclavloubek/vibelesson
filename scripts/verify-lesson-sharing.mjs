@@ -52,6 +52,8 @@ requirePattern(migration, /create or replace function public\.get_lesson_share\(
 requirePattern(migration, /revoke all on function public\.get_lesson_share\(text\) from public;[\s\S]*grant execute on function public\.get_lesson_share\(text\) to anon, authenticated/, 'only the public snapshot lookup may be called without an account.');
 requirePattern(migration, /create policy lesson_clients_cannot_forge_share_provenance[\s\S]*as restrictive[\s\S]*source_share_id is null[\s\S]*source_lesson_id is null/, 'authenticated clients must not forge import provenance.');
 requirePattern(migration, /create trigger enforce_lesson_share_provenance_immutability[\s\S]*before update of source_share_id, source_lesson_id/, 'import provenance must remain immutable after creation.');
+requirePattern(migration, /old\.source_share_id is not null[\s\S]*new\.source_share_id is null[\s\S]*not exists \([\s\S]*from public\.lesson_shares/, 'share provenance may be cleared only after the referenced share is actually gone.');
+requirePattern(migration, /old\.source_lesson_id is not null[\s\S]*new\.source_lesson_id is null[\s\S]*not exists \([\s\S]*from public\.lessons/, 'source provenance may be cleared only after the referenced source lesson is actually gone.');
 requirePattern(migration, /sessions_one_active_per_teacher_idx[\s\S]*where status in \('lobby', 'live'\)/, 'the database must enforce one active lesson per teacher.');
 
 requirePattern(ownerRoute, /\.eq\('owner_id', userId\)/, 'share management must scope every share to the lesson owner.');
