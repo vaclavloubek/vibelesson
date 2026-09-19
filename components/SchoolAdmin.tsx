@@ -30,6 +30,9 @@ type Summary = {
   status: 'awaiting_payment' | 'active' | 'past_due' | 'suspended' | 'expired' | 'cancelled';
   role: 'owner' | 'admin' | 'teacher';
   manager: boolean;
+  renewalMode: 'automatic_card' | 'manual_invoice';
+  cancelAtPeriodEnd: boolean;
+  pastDueAt: string | null;
   currentPeriodEnd: string | null;
   seats: { active: number; pending: number; limit: number };
   usage: {
@@ -60,6 +63,10 @@ type Summary = {
     billing_period: string;
     created_at: string;
     paid_at: string | null;
+    hosted_invoice_url: string | null;
+    invoice_pdf_url: string | null;
+    external_subscription_id: string | null;
+    livemode: boolean;
   }>;
 };
 
@@ -250,6 +257,89 @@ export default function SchoolAdmin({
     }
 
     window.location.assign(payload.paymentUrl);
+  }
+
+  async function setAutomaticRenewalCancellation(cancelAtPeriodEnd: boolean) {
+    setBusy(true);
+    setMessage('');
+
+    const response = await fetch('/api/organizations/subscription', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancelAtPeriodEnd }),
+    });
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Nastavení automatického obnovení se nepodařilo změnit.',
+        'Automatic renewal settings could not be changed.',
+      ));
+      return;
+    }
+
+    setMessageKind('info');
+    setMessage(cancelAtPeriodEnd
+      ? ui(
+        'Automatické obnovení je vypnuté. Licence poběží do konce zaplaceného období.',
+        'Automatic renewal is off. The licence remains active until the end of the paid period.',
+      )
+      : ui(
+        'Automatické obnovení je znovu aktivní.',
+        'Automatic renewal is active again.',
+      ));
+    await load();
+  }
+
+  async function createRenewalInvoice() {
+    setBusy(true);
+    setMessage('');
+
+    const response = await fetch('/api/organizations/renewal', {
+      method: 'POST',
+    });
+    const payload = await response.json().catch(() => ({})) as {
+      error?: string;
+      paymentUrl?: string;
+      orderCreated?: boolean;
+    };
+    setBusy(false);
+
+    if (!response.ok) {
+      if (payload.error === 'organization_renewal_too_early') {
+        setMessageKind('error');
+        setMessage(ui(
+          'Obnovovací fakturu lze vystavit nejdříve 90 dní před koncem licence.',
+          'A renewal invoice can be issued no earlier than 90 days before the licence ends.',
+        ));
+        return;
+      }
+      if (payload.error === 'organization_pending_order_exists') {
+        setMessageKind('error');
+        setMessage(ui(
+          'Pro tuto školu už existuje nezaplacená objednávka.',
+          'This school already has an unpaid order.',
+        ));
+        return;
+      }
+
+      setMessageKind('error');
+      setMessage(ui(
+        'Obnovovací fakturu se nepodařilo vytvořit.',
+        'The renewal invoice could not be created.',
+      ));
+      if (payload.orderCreated) await load();
+      return;
+    }
+
+    if (payload.paymentUrl) {
+      window.location.assign(payload.paymentUrl);
+      return;
+    }
+
+    await load();
   }
 
   async function invite(event: FormEvent) {
@@ -615,6 +705,54 @@ export default function SchoolAdmin({
                   )}
                 </p>
               ) : null}
+
+              {summary.manager && summary.renewalMode === 'automatic_card' && summary.status === 'active' ? (
+                <div className={styles.planNote} style={{ marginTop: 14 }}>
+                  <strong>{ui('Obnovení', 'Renewal')}</strong>
+                  <p>
+                    {summary.cancelAtPeriodEnd
+                      ? ui(
+                        'Automatické obnovení je vypnuté. Licence skončí na konci zaplaceného období.',
+                        'Automatic renewal is off. The licence will end at the end of the paid period.',
+                      )
+                      : ui(
+                        'Licence se obnovuje automaticky platební kartou.',
+                        'The licence renews automatically by card.',
+                      )}
+                  </p>
+                  <button
+                    type="button"
+                    className={summary.cancelAtPeriodEnd ? styles.primary : styles.secondary}
+                    disabled={busy}
+                    onClick={() => setAutomaticRenewalCancellation(!summary.cancelAtPeriodEnd)}
+                  >
+                    {summary.cancelAtPeriodEnd
+                      ? ui('Znovu zapnout automatické obnovení', 'Restore automatic renewal')
+                      : ui('Vypnout automatické obnovení', 'Turn off automatic renewal')}
+                  </button>
+                </div>
+              ) : null}
+
+              {summary.manager && summary.renewalMode === 'manual_invoice'
+                && ['active', 'past_due', 'expired'].includes(summary.status) ? (
+                <div className={styles.planNote} style={{ marginTop: 14 }}>
+                  <strong>{ui('Obnovení na fakturu', 'Invoice renewal')}</strong>
+                  <p>
+                    {ui(
+                      'Nové období se aktivuje až po potvrzené úhradě obnovovací faktury.',
+                      'The new period activates only after the renewal invoice is confirmed as paid.',
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    className={styles.primary}
+                    disabled={busy}
+                    onClick={createRenewalInvoice}
+                  >
+                    {ui('Vystavit obnovovací fakturu', 'Create renewal invoice')}
+                  </button>
+                </div>
+              ) : null}
             </section>
 
             <section className={styles.card}>
@@ -756,6 +894,7 @@ export default function SchoolAdmin({
                           <th>{ui('Částka', 'Amount')}</th>
                           <th>{ui('Platba', 'Payment')}</th>
                           <th>Status</th>
+                          <th>{ui('Doklady', 'Documents')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -769,6 +908,30 @@ export default function SchoolAdmin({
                             <td>{money(order.amount_minor, order.currency, locale)}</td>
                             <td>{order.payment_method}</td>
                             <td>{order.status}</td>
+                            <td>
+                              <div className={styles.rowActions}>
+                                {order.hosted_invoice_url ? (
+                                  <a
+                                    className={styles.back}
+                                    href={order.hosted_invoice_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    {ui('Faktura', 'Invoice')}
+                                  </a>
+                                ) : null}
+                                {order.invoice_pdf_url ? (
+                                  <a
+                                    className={styles.back}
+                                    href={order.invoice_pdf_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    PDF
+                                  </a>
+                                ) : null}
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
