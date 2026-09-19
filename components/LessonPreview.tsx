@@ -58,7 +58,7 @@ function Block({ block, index, teacherMode, editable, selected, recentlyChanged,
 
   return (
     <article className={`lesson-block lesson-block-type-${block.type}${recentlyChanged ? ' recently-changed-block' : ''}${selected ? ' selected-block' : ''}`}>
-      {editable ? <button type="button" className="edit-block" aria-pressed={selected} onClick={onSelect}>{selected ? (english ? 'Selected for editing' : 'Vybráno k úpravě') : (english ? 'Edit block' : 'Upravit blok')}</button> : null}
+      {editable ? <button type="button" className="edit-block" data-tour="lesson-edit-block" aria-pressed={selected} onClick={onSelect}>{selected ? (english ? 'Selected for editing' : 'Vybráno k úpravě') : (english ? 'Edit block' : 'Upravit blok')}</button> : null}
       <div className="block-head">
         <div style={{ display: 'grid', gap: 6 }}>
           {editable && recentlyChanged ? <span className="revision-change-badge">{english ? 'New / updated' : 'Nové / upravené'}</span> : null}
