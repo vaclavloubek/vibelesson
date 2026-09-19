@@ -48,10 +48,13 @@ for (const signal of ['lesson-created', 'lesson-revised', 'activity-revised', 's
   requireText([workspace, startSession, teacher].join('\n'), `'${signal}'`, `guide signal emitter ${signal}`);
 }
 
-requireText(state, 'syllonaut_guide_v2:', 'current per-user persisted guide state');
-requireText(state, 'syllonaut_guide_v1:', 'legacy guide state migration source');
-requireText(state, 'version: 2', 'guide state schema v2');
-requireText(state, 'migrateLegacyState', 'legacy guide state migration');
+requireText(state, 'syllonaut_guide_v3:', 'current per-user persisted guide state');
+requireText(state, 'syllonaut_guide_v2:', 'v2 guide state migration source');
+requireText(state, 'syllonaut_guide_v1:', 'v1 guide state migration source');
+requireText(state, 'version: 3', 'guide state schema v3');
+requireText(state, 'migrateV2State', 'v2 guide state migration');
+requireText(state, 'migrateV1State', 'v1 guide state migration');
+requireText(state, 'V2_LIVE_STEP_TO_V3 = [2, 3, 0, 1, 4, 5, 6]', 'live step order migration');
 requireText(state, 'step = SYLLONAUT_LESSON_REVIEW_STEP', 'legacy running lesson resumes at review step');
 requireText(state, 'satisfiedSteps', 'persisted satisfied guide steps');
 requireText(state, 'restartSyllonautGuideForCurrentContext', 'manual contextual restart');
@@ -84,6 +87,17 @@ requireText(guide, 'step: SYLLONAUT_LESSON_REVIEW_STEP', 'lesson creation review
 requireText(guide, "if (!step?.signal || custom.detail.action !== step.signal) return;", 'manual optional action can still listen for success signal');
 requireText(workspace, 'chapter="lesson" step={3} labelCs="Jak upravit celou lekci"', 'whole-edit contextual help step index');
 requireText(startSession, 'chapter="lesson" step={6} labelCs="Jak spustit hodinu"', 'start-session contextual help step index');
+requireText(quickAction, 'chapter="live" step={0} labelCs="Jak promítat studentům"', 'Presenter contextual help must start Chapter 2');
+requireText(teacher, 'chapter="live" step={2} labelCs="Jak se připojují studenti"', 'student-join contextual help step index');
+requireText(teacher, 'chapter="live" step={3} labelCs="Jak vytvořit týmy"', 'team contextual help step index');
+requireText(state, "startSyllonautGuide(userId, 'live', 5);", 'live contextual restart must start at live controls');
+const liveStepsStart = guide.indexOf('const liveSteps: GuideStep[] = [');
+const presenterStep = guide.indexOf("target: 'live-presenter'", liveStepsStart);
+const joinStep = guide.indexOf("target: 'live-join'", liveStepsStart);
+const teamStep = guide.indexOf("target: 'live-team-create'", liveStepsStart);
+if (!(liveStepsStart >= 0 && presenterStep > liveStepsStart && joinStep > presenterStep && teamStep > joinStep)) {
+  throw new Error('onboarding guide regression: Chapter 2 must explain Presenter mode before student joining and teams');
+}
 requireText(lessonPage, 'userId={userId}', 'user-scoped lesson start guide state');
 
 console.log('onboarding guide regression checks passed');
