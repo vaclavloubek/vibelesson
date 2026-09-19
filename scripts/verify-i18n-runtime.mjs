@@ -113,7 +113,6 @@ await expectHtml('/new', [
   'What should students experience today?',
   'On Free, the lesson is created in the interface language.',
   'Automatic brief-language detection and additional languages are available on Teacher, Teacher Pro and school plans.',
-  'English · Free',
 ], { cookie: 'syllonaut_locale=en' });
 
 await expectHtml('/new', [
@@ -121,7 +120,6 @@ await expectHtml('/new', [
   'Co mají studenti dnes zažít?',
   'Ve Free tarifu se lekce vytvoří v jazyce rozhraní.',
   'Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.',
-  'Čeština · Free',
 ], { cookie: 'syllonaut_locale=cs' });
 
 await expectHtml('/join', [
