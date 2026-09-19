@@ -10,6 +10,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 
@@ -50,6 +51,7 @@ export default async function LessonsPage({ searchParams }: Props) {
   if (!userId) redirect(`/${locale}`);
 
   const entitlement = await getLessonFolderEntitlement(supabase, userId);
+  const reusableLessons = await getLessonReuseEntitlement(supabase);
 
   const { data: rows, error } = await supabase
     .from('lessons')
@@ -81,6 +83,21 @@ export default async function LessonsPage({ searchParams }: Props) {
   if (foldersError) console.error('load lesson folders failed', foldersError);
   if (sessionsError) console.error('load ended sessions failed', sessionsError);
 
+  const usedLessonIds = new Set<string>();
+  if (!reusableLessons) {
+    const { data: usageRows, error: usageError } = await supabase
+      .from('lesson_live_usage')
+      .select('lesson_id');
+
+    if (usageError) {
+      console.error('load lesson live usage failed', usageError);
+    } else {
+      for (const usage of usageRows ?? []) {
+        if (typeof usage.lesson_id === 'string') usedLessonIds.add(usage.lesson_id);
+      }
+    }
+  }
+
   const lessons: LessonListItem[] = (rows ?? []).flatMap((row) => {
     const parsed = LessonSchema.safeParse(row.lesson);
     if (!parsed.success) return [];
@@ -93,6 +110,7 @@ export default async function LessonsPage({ searchParams }: Props) {
       blockCount: parsed.data.blocks.length,
       updatedAt: row.updated_at as string,
       folderId: typeof row.folder_id === 'string' ? row.folder_id : null,
+      archived: !reusableLessons && usedLessonIds.has(row.id as string),
     }];
   });
 

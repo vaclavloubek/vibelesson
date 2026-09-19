@@ -93,6 +93,16 @@ export async function POST(req: Request) {
         });
       }
 
+      if (insertError?.message?.includes('free_lesson_replay_locked')) {
+        return NextResponse.json(
+          {
+            error: 'Tuto lekci už jsi ve Free tarifu použil. Můžeš ji dál upravovat; další živé použití odemkne placený tarif.',
+            code: 'free_lesson_replay_locked',
+          },
+          { status: 403 },
+        );
+      }
+
       if (insertError?.code !== '23505') throw insertError;
 
       const racedActive = await findActiveSession(supabase, userId);

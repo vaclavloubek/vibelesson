@@ -110,6 +110,8 @@ export async function POST(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
+  let requestId: string | null = null;
+
   try {
     const { id } = await params;
     const { data: current, error: readError } = await supabase
@@ -120,6 +122,30 @@ export async function POST(_req: Request, { params }: RouteContext) {
       .single();
 
     if (readError || !current) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+
+    const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_lesson_generation');
+    if (quotaError) throw quotaError;
+
+    const quota = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as {
+      request_id?: string | null;
+      allowed?: boolean;
+      used?: number;
+      monthly_limit?: number | null;
+    } | null;
+
+    if (!quota?.allowed) {
+      return NextResponse.json({
+        error: `Měsíční limit ${quota?.monthly_limit ?? 5} nových lekcí je vyčerpaný. Duplikace se do tohoto limitu počítá.`,
+        quota: {
+          used: quota?.used ?? quota?.monthly_limit ?? 5,
+          monthlyLimit: quota?.monthly_limit ?? 5,
+          remaining: 0,
+        },
+      }, { status: 429 });
+    }
+
+    requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
+    if (!requestId) throw new Error('Duplicate quota reservation is missing request id.');
 
     const lesson = LessonSchema.parse(current.lesson);
     const copyTitle = `${current.title} – kopie`.slice(0, 200);
@@ -138,8 +164,27 @@ export async function POST(_req: Request, { params }: RouteContext) {
       .single();
 
     if (insertError || !copy?.id) throw insertError ?? new Error('Duplicate returned no row.');
+
+    const { error: finishError } = await supabase.rpc('finish_generation_request', {
+      p_request_id: requestId,
+      p_status: 'succeeded',
+      p_cost_usd: 0,
+      p_lesson_id: copy.id,
+    });
+    if (finishError) console.error('finish duplicate quota request failed', finishError);
+
     return NextResponse.json({ lessonId: copy.id });
   } catch (error) {
+    if (requestId) {
+      const { error: finishError } = await supabase.rpc('finish_generation_request', {
+        p_request_id: requestId,
+        p_status: 'failed',
+        p_cost_usd: 0,
+        p_lesson_id: null,
+      });
+      if (finishError) console.error('fail duplicate quota request cleanup failed', finishError);
+    }
+
     console.error('duplicate lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo duplikovat.' }, { status: 500 });
   }

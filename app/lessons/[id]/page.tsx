@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import LessonWorkspace from '@/components/LessonWorkspace';
 import StartSessionButton from '@/components/StartSessionButton';
+import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 
@@ -29,9 +30,26 @@ export default async function LessonPage({ params }: Props) {
   const parsed = LessonSchema.safeParse(row.lesson);
   if (!parsed.success) notFound();
 
+  const reusableLessons = await getLessonReuseEntitlement(supabase);
+  let liveLocked = false;
+
+  if (!reusableLessons) {
+    const { data: usage, error: usageError } = await supabase
+      .from('lesson_live_usage')
+      .select('lesson_id')
+      .eq('lesson_id', id)
+      .maybeSingle();
+
+    if (usageError) {
+      console.error('load lesson live usage failed', usageError);
+    } else {
+      liveLocked = Boolean(usage);
+    }
+  }
+
   return (
     <>
-      <StartSessionButton lessonId={row.id as string} userId={userId} />
+      <StartSessionButton lessonId={row.id as string} userId={userId} liveLocked={liveLocked} />
       <LessonWorkspace
         initialLesson={parsed.data}
         initialLessonId={row.id as string}

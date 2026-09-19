@@ -18,6 +18,7 @@ export type LessonListItem = {
   blockCount: number;
   updatedAt: string;
   folderId: string | null;
+  archived: boolean;
 };
 
 export type LessonFolderItem = {
@@ -361,16 +362,49 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
   }
 
   if (!canManageFolders) {
-    return (
+    const activeLessons = lessons.filter((lesson) => !lesson.archived);
+    const archivedLessons = lessons.filter((lesson) => lesson.archived);
+    const renderCards = (items: LessonListItem[]) => (
       <section className="lesson-grid">
-        {lessons.map((lesson) => (
+        {items.map((lesson) => (
           <article className="lesson-card" key={lesson.id}>
-            <div className="lesson-card-top"><div><Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>{lesson.subtitle ? <p>{lesson.subtitle}</p> : null}</div><LessonActions lessonId={lesson.id} title={lesson.title} /></div>
+            <div className="lesson-card-top">
+              <div>
+                <Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>
+                {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
+                {lesson.archived ? <span className="beta">{ui('ARCHIV', 'ARCHIVED')}</span> : null}
+              </div>
+              <LessonActions lessonId={lesson.id} title={lesson.title} />
+            </div>
             <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
-            <div className="lesson-card-footer"><span>{ui('Upraveno', 'Updated')} {formatUpdatedAt(lesson.updatedAt, locale)}</span><Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link></div>
+            <div className="lesson-card-footer">
+              <span>{lesson.archived ? ui('První živé použití dokončeno', 'First live use completed') : `${ui('Upraveno', 'Updated')} ${formatUpdatedAt(lesson.updatedAt, locale)}`}</span>
+              <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
+            </div>
           </article>
         ))}
       </section>
+    );
+
+    return (
+      <>
+        {activeLessons.length ? renderCards(activeLessons) : null}
+        {archivedLessons.length ? (
+          <>
+            <section className="lessons-heading" style={{ marginTop: activeLessons.length ? 36 : 0 }}>
+              <div>
+                <span className="eyebrow">{ui('Archiv', 'Archive')}</span>
+                <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>{ui('Archivované lekce', 'Archived lessons')}</h2>
+                <p>{ui(
+                  'Tyto lekce už mají za sebou první živé použití ve Free tarifu. Stále je můžeš otevírat a upravovat ručně i pomocí AI v rámci svého limitu; placený tarif odemkne jejich další živé použití.',
+                  'These lessons have completed their first live use on the Free plan. You can still open and edit them manually or with AI within your allowance; a paid plan unlocks further live use.',
+                )}</p>
+              </div>
+            </section>
+            {renderCards(archivedLessons)}
+          </>
+        ) : null}
+      </>
     );
   }
 
