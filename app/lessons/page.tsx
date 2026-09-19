@@ -6,7 +6,7 @@ import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
-import DashboardLogoutButton from '@/components/DashboardLogoutButton';
+import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
@@ -127,13 +127,13 @@ export default async function LessonsPage({ searchParams }: Props) {
         <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons" className="active">{ui('Moje lekce', 'My lessons')}</Link></nav>
         <div className="lessons-user">
           <LocaleSwitcher />
-          <span
-            className="lessons-user-email"
-            title={typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : undefined}
-          >
-            {typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : ui('Přihlášený učitel', 'Signed-in teacher')}
-          </span>
-          <DashboardLogoutButton />
+          <PublicHeaderAccountMenu
+            user={{
+              id: userId,
+              email: typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : null,
+              user_metadata: claimsData?.claims?.user_metadata && typeof claimsData.claims.user_metadata === 'object' ? claimsData.claims.user_metadata as Record<string, unknown> : {},
+            }}
+          />
         </div>
       </header>
 
