@@ -46,6 +46,19 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
     return active.prices.find((price) => price.planId === targetPlan && price.billingPeriod === targetBilling) ?? null;
   }, [active, targetBilling, targetPlan]);
 
+  if (state.kind === 'admin') {
+    return (
+      <section className={styles.emptyCard}>
+        <span className={styles.kicker}>{ui('Předplatné', 'Subscription')}</span>
+        <h1>{ui('Administrátorský účet', 'Administrator account')}</h1>
+        <p>{ui(
+          'Máš plný přístup ke všem funkcím Syllonautu. Administrátorský přístup není placené předplatné a nespravuje se přes Stripe.',
+          'You have full access to all Syllonaut features. Administrator access is not a paid subscription and is not managed through Stripe.',
+        )}</p>
+      </section>
+    );
+  }
+
   if (!active) {
     return (
       <section className={styles.emptyCard}>

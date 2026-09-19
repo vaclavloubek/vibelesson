@@ -66,6 +66,10 @@ requireText(stripeManagement, "/release'", 'scheduled changes must be reversible
 requireText(stripeManagement, 'syllonaut_managed_change', 'schedule replacement must be limited to Syllonaut-managed schedules.');
 
 if (state.includes('retrieveStripePrice')) throw new Error('subscription management regression: page rendering must not require Stripe Prices permission.');
+requireText(state, "profile?.role === 'admin'", 'admin accounts must be recognized before paid subscription lookup.');
+requireText(state, "return { kind: 'admin' }", 'admin accounts must use their own management state instead of Free.');
+requireText(component, 'Administrátorský účet', 'admin subscription page must not label an administrator as Free.');
+requireText(component, 'Administrator account', 'admin subscription page must have localized English copy.');
 requireText(state, "['trialing', 'active', 'past_due'].includes(subscription.status ?? '')", 'canceled or otherwise inactive Stripe subscriptions must render as no active paid plan.');
 requireText(state, 'individualMinorUnitPrice', 'displayed individual prices must use the central Syllonaut billing catalog.');
 requireText(catalog, 'monthly: { czk: 199, eur: 7.99, usd: 8.99 }', 'Teacher pricing must stay in the central catalog.');
@@ -77,6 +81,6 @@ requireText(webhookRoute, 'canonicalStripeSubscriptionState', 'LIVE subscription
 requireText(portalRoute, "returnPath: z.enum(['pricing', 'subscription'])", 'Stripe Portal must support returning to subscription management.');
 requireText(pricing, '/subscription', 'paid Pricing management CTA must route through Syllonaut management.');
 requireText(email, 'const subscriptionUrl =', 'lifecycle emails must link active subscription management to the dedicated page.');
-requireText(version, "APP_VERSION = '0.9.20'", 'internal 0.9.23 hotfix must not change the dashboard-visible 0.9.20 release.');
+requireText(version, "APP_VERSION = '0.9.20'", 'internal 0.9.25 hotfix must not change the dashboard-visible 0.9.20 release.');
 
 console.log('Subscription management checks passed.');

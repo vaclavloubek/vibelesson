@@ -21,6 +21,9 @@ export type SubscriptionPriceOption = {
 
 export type LiveSubscriptionManagementState =
   | {
+      kind: 'admin';
+    }
+  | {
       kind: 'none';
     }
   | {
@@ -45,10 +48,20 @@ export type LiveSubscriptionManagementState =
     };
 
 export async function getLiveSubscriptionManagementState(userId: string): Promise<LiveSubscriptionManagementState> {
+  const admin = createAdminClient();
+
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (profileError) throw new Error('profile_lookup_failed');
+  if (profile?.role === 'admin') return { kind: 'admin' };
+
   const secretKey = process.env.STRIPE_SECRET_KEY_LIVE;
   if (!secretKey || !/^(?:sk|rk)_live_/.test(secretKey)) throw new Error('live_billing_not_configured');
 
-  const admin = createAdminClient();
   const { data: dbSubscription, error: subscriptionError } = await admin
     .from('billing_subscriptions')
     .select('external_subscription_id, external_customer_id')
