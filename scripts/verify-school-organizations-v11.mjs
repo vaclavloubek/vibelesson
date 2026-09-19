@@ -274,3 +274,17 @@ for (const needle of [
     throw new Error('School library subject filter contract missing: ' + needle);
   }
 }
+
+
+const schoolInviteClient = fs.readFileSync('components/SchoolInviteClient.tsx', 'utf8');
+for (const needle of [
+  "initialUser && token && state === 'idle'",
+  "setState('accepting')",
+  "router.replace('/school')",
+  "className={styles.topActions}",
+  "Přihlášení najdete vpravo nahoře",
+]) {
+  if (!schoolInviteClient.includes(needle)) {
+    throw new Error('School invitation UX regression: ' + needle);
+  }
+}

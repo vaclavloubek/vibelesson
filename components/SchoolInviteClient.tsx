@@ -25,6 +25,12 @@ export default function SchoolInviteClient({
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    if (initialUser && token && state === 'idle') {
+      setState('accepting');
+    }
+  }, [initialUser, state, token]);
+
+  useEffect(() => {
     if (!initialUser || !token || state !== 'accepting') return;
 
     void (async () => {
@@ -37,6 +43,7 @@ export default function SchoolInviteClient({
 
       if (response.ok) {
         setState('accepted');
+        router.replace('/school');
         return;
       }
 
@@ -52,7 +59,7 @@ export default function SchoolInviteClient({
             : ui('Pozvánku se nepodařilo přijmout.', 'The invitation could not be accepted.'),
       );
     })();
-  }, [initialUser, state, token, english]);
+  }, [initialUser, state, token, english, router]);
 
   return (
     <main className={styles.page}>
@@ -62,6 +69,16 @@ export default function SchoolInviteClient({
             <SyllonautMark />
             <span>Syllonaut</span>
           </Link>
+          {!initialUser && token ? (
+            <div className={styles.topActions}>
+              <AuthControls
+                onAuthChange={(user) => { if (user) router.refresh(); }}
+                initialOpen
+                initialMode="signin"
+                signupRedirectPath={'/school/invite?token=' + encodeURIComponent(token)}
+              />
+            </div>
+          ) : null}
         </header>
 
         <section className={styles.hero}>
@@ -84,12 +101,12 @@ export default function SchoolInviteClient({
                   'Sign in with the same email address that received the invitation',
                 )}
               </h2>
-              <AuthControls
-                onAuthChange={(user) => { if (user) router.refresh(); }}
-                initialOpen
-                initialMode="signin"
-                signupRedirectPath={'/school/invite?token=' + encodeURIComponent(token)}
-              />
+              <p>
+                {ui(
+                  'Přihlášení najdete vpravo nahoře. Po přihlášení se pozvánka ověří a přijme automaticky.',
+                  'Sign in from the top right. After sign-in, the invitation will be verified and accepted automatically.',
+                )}
+              </p>
             </>
           ) : null}
 

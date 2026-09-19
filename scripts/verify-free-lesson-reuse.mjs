@@ -74,7 +74,7 @@ if (!splitQuotaMigration) {
 }
 
 for (const [needle, label] of [
-  ["monthly_import_limit = 3", 'Free plan stores a three-import monthly limit'],
+  ["when code = 'free' then 3", 'Free plan stores a three-import monthly limit'],
   ["action = 'import_lesson'", 'import/copy usage is tracked separately from AI generations'],
   ['free_lesson_import_quota_exhausted', 'shared imports enforce the import/copy quota'],
 ]) {
@@ -84,7 +84,7 @@ for (const [needle, label] of [
 const lockdownMigration = fs.readdirSync(migrationDir)
   .filter((name) => name.endsWith('.sql'))
   .map((name) => ({ name, content: read(path.join('supabase/migrations', name)) }))
-  .find(({ content }) => content.includes('revoke insert on table public.lessons from authenticated'));
+  .find(({ content }) => content.includes('revoke insert on table public.lessons from anon, authenticated'));
 
 if (!lockdownMigration) {
   throw new Error('Missing migration that closes direct authenticated lesson inserts.');
