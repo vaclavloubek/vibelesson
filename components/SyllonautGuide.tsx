@@ -5,13 +5,15 @@ import SyllonautMark from '@/components/SyllonautMark';
 import { useUiLocale } from '@/components/LocaleProvider';
 import {
   readSyllonautGuideState,
+  SYLLONAUT_GUIDE_ACTION_EVENT,
   SYLLONAUT_GUIDE_EVENT,
+  type SyllonautGuideAction,
   type SyllonautGuideChapter,
   type SyllonautGuideState,
   writeSyllonautGuideState,
 } from '@/lib/onboarding-guide';
 
-type AdvanceMode = 'manual' | 'click' | 'input';
+type AdvanceMode = 'manual' | 'click' | 'input' | 'signal';
 
 type GuideCopy = {
   cs: string;
@@ -23,6 +25,7 @@ type GuideStep = {
   title: GuideCopy;
   body: GuideCopy;
   advanceOn: AdvanceMode;
+  signal?: SyllonautGuideAction;
   optional?: boolean;
   button?: GuideCopy;
 };
@@ -57,7 +60,8 @@ const lessonSteps: GuideStep[] = [
       cs: 'Až je zadání připravené, klikněte sem. Po vygenerování se průvodce sám přesune k úpravám.',
       en: 'When the brief is ready, click here. The guide will continue with editing after generation.',
     },
-    advanceOn: 'click',
+    advanceOn: 'signal',
+    signal: 'lesson-created',
   },
   {
     target: 'lesson-edit-whole',
@@ -95,7 +99,8 @@ const lessonSteps: GuideStep[] = [
       cs: 'Kliknutím vytvoříte živou hodinu. Otevře se řídicí centrum pro učitele; studenti se pak připojí přes kód nebo QR.',
       en: 'Click to create a live lesson. The teacher control centre opens and students can join by code or QR.',
     },
-    advanceOn: 'click',
+    advanceOn: 'signal',
+    signal: 'session-created',
   },
 ];
 
@@ -117,7 +122,8 @@ const liveSteps: GuideStep[] = [
       cs: 'Pokud lekce obsahuje týmový úkol, nastavte počet týmů a vytvořte je. Studenti si tým vyberou ve startovní zóně.',
       en: 'If the lesson includes a team task, choose the number of teams and create them. Students select a team in the lobby.',
     },
-    advanceOn: 'click',
+    advanceOn: 'signal',
+    signal: 'teams-created',
     optional: true,
   },
   {
@@ -146,7 +152,8 @@ const liveSteps: GuideStep[] = [
       cs: 'Až jsou studenti připojení a případné týmy připravené, spusťte hodinu. Prezentační i studentská obrazovka se budou řídit stejným stavem.',
       en: 'When students are connected and any teams are ready, start the lesson. Presenter and student views follow the same lesson state.',
     },
-    advanceOn: 'click',
+    advanceOn: 'signal',
+    signal: 'live-started',
   },
   {
     target: 'live-controls',
@@ -363,7 +370,7 @@ export default function SyllonautGuide({ userId }: Props) {
   }, [advance, rect, state?.running, state?.chapter, state?.step, step?.optional]);
 
   useEffect(() => {
-    if (!state?.running || !step || step.advanceOn === 'manual') return;
+    if (!state?.running || !step || step.advanceOn === 'manual' || step.advanceOn === 'signal') return;
     const target = targetRef.current;
     if (!target) return;
 
@@ -372,6 +379,17 @@ export default function SyllonautGuide({ userId }: Props) {
     target.addEventListener(eventName, handler, { once: true });
     return () => target.removeEventListener(eventName, handler);
   }, [advance, rect, state?.running, state?.chapter, state?.step, step]);
+
+  useEffect(() => {
+    if (!userId || !state?.running || !step || step.advanceOn !== 'signal' || !step.signal) return;
+    const onAction = (event: Event) => {
+      const custom = event as CustomEvent<{ userId?: string; action?: SyllonautGuideAction }>;
+      if (custom.detail?.userId !== userId || custom.detail.action !== step.signal) return;
+      advance();
+    };
+    window.addEventListener(SYLLONAUT_GUIDE_ACTION_EVENT, onAction);
+    return () => window.removeEventListener(SYLLONAUT_GUIDE_ACTION_EVENT, onAction);
+  }, [advance, state?.running, state?.chapter, state?.step, step, userId]);
 
   const blockerStyles = useMemo(() => {
     if (!rect) return null;
