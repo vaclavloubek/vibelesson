@@ -82,6 +82,6 @@ for (const [name, block] of [['Teacher', teacher], ['Teacher Pro', teacherPro], 
 }
 requireText(pricing, "feature === 'Lekce v libovolném jazyce'", 'teacher multilingual feature must use the premium emphasis hook.');
 requireText(pricing, "plan.id === 'teacher' || plan.id === 'teacher-pro'", 'premium multilingual emphasis must be limited to individual paid teacher plans.');
-requireText(version, "APP_VERSION = '0.9.04'", 'the Free revision language feedback must publish as version 0.9.04.');
+requireText(version, "APP_VERSION = '0.9.05'", 'the block-editor focus UX change must publish as version 0.9.05.');
 
 console.log('Multilingual entitlement checks passed.');
