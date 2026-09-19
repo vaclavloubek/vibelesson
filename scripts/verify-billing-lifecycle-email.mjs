@@ -160,6 +160,8 @@ assert(localeSource.includes("supabase.rpc('set_ui_locale'"), 'explicit locale s
 assert(authSource.includes('ui_locale: locale'), 'signup must persist the initial UI locale');
 assert(migrationSource.includes('enable row level security'), 'delivery ledger must use RLS');
 assert(migrationSource.includes('revoke all on table public.billing_email_deliveries'), 'delivery ledger must not be client-readable');
+const indexMigrationSource = await source('supabase/migrations/20260919081500_index_billing_email_deliveries_user.sql');
+assert(indexMigrationSource.includes('billing_email_deliveries_user_id_idx'), 'delivery ledger user foreign key must have a covering index');
 assert(envSource.includes('BILLING_EMAIL_FROM'), 'sender configuration must be documented');
 
 console.log('Billing lifecycle email checks passed.');
