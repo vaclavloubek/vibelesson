@@ -27,6 +27,7 @@ const analytics = await source('lib/analytics.ts');
 const cookieConsent = await source('components/CookieConsent.tsx');
 const pricingPage = await source('components/PricingPage.tsx');
 const pricingRoute = await source('app/pricing/page.tsx');
+const sharedLessonImport = await source('components/ImportSharedLessonButton.tsx');
 const ga4Setup = await source('scripts/setup-ga4.mjs');
 
 requirePattern(analytics, /export function trackEvent</, 'central trackEvent helper is missing.');
@@ -44,6 +45,13 @@ requirePattern(pricingPage, /checkoutResult !== 'success'[\s\S]*!liveCheckout[\s
 requirePattern(pricingPage, /trackEvent\('subscription_activated',[\s\S]*plan:\s*activePlanCode[\s\S]*source:\s*'stripe_live'/, 'subscription activation must be emitted only after the paid plan is active.');
 requirePattern(ga4Setup, /'subscription_activated'/, 'GA4 setup must mark subscription activation as a Key Event.');
 requirePattern(ga4Setup, /\['Plan', 'plan'/, 'GA4 setup must register the paid plan dimension.');
+requirePattern(analytics, /shared_lesson_import_started:\s*undefined;/, 'shared lesson import start event is missing.');
+requirePattern(analytics, /shared_lesson_imported:\s*undefined;/, 'shared lesson import success event is missing.');
+requirePattern(analytics, /shared_lesson_import_started:\s*\[\]/, 'shared lesson import start must not send custom identifiers.');
+requirePattern(analytics, /shared_lesson_imported:\s*\[\]/, 'shared lesson import success must not send custom identifiers.');
+requirePattern(sharedLessonImport, /trackEvent\('shared_lesson_import_started'\)/, 'shared lesson import CTA must emit an import-start event.');
+requirePattern(sharedLessonImport, /trackEvent\('shared_lesson_imported'\)/, 'successful shared lesson import must emit an import-success event.');
+forbidPattern(sharedLessonImport, /trackEvent\('shared_lesson_imported'\s*,/, 'shared lesson import analytics must not send lesson/share identifiers.');
 requirePattern(analytics, /catch \{[\s\S]*Analytics is observational only/, 'analytics failures must never break product flows.');
 
 const allowlistMatch = analytics.match(/const EVENT_PARAMETER_KEYS[\s\S]*?= \{([\s\S]*?)\n\};/);
