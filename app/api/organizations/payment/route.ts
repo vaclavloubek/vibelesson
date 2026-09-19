@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     admin
       .from('organization_orders')
       .select(
-        'id, billing_period, currency, amount_minor, payment_method, external_customer_id, external_checkout_session_id, external_invoice_id, hosted_invoice_url',
+        'id, billing_period, currency, amount_minor, payment_method, external_customer_id, external_checkout_session_id, external_checkout_url, external_invoice_id, hosted_invoice_url',
       )
       .eq('organization_id', organization.id)
       .in('status', ['awaiting_payment', 'ordered'])
@@ -99,6 +99,7 @@ export async function POST(request: Request) {
         paymentMethod: orderResult.data.payment_method,
         externalCustomerId: orderResult.data.external_customer_id,
         externalCheckoutSessionId: orderResult.data.external_checkout_session_id,
+        externalCheckoutUrl: orderResult.data.external_checkout_url,
         externalInvoiceId: orderResult.data.external_invoice_id,
         hostedInvoiceUrl: orderResult.data.hosted_invoice_url,
       },
