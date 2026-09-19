@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
@@ -306,6 +307,8 @@ export default function PricingPage({
   sandboxCheckoutEnabled = false,
   billingTestEnvironment = 'sandbox',
   checkoutResult = null,
+  checkoutSessionId = null,
+  activePlanCode = null,
 }: {
   startSignup?: boolean;
   currency: BillingCurrency;
@@ -313,7 +316,10 @@ export default function PricingPage({
   sandboxCheckoutEnabled?: boolean;
   billingTestEnvironment?: 'sandbox' | 'live';
   checkoutResult?: 'success' | 'cancelled' | null;
+  checkoutSessionId?: string | null;
+  activePlanCode?: 'teacher' | 'teacher-pro' | null;
 }) {
+  const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
   const liveAcceptance = billingTestEnvironment === 'live';
@@ -336,6 +342,8 @@ export default function PricingPage({
   const [portalError, setPortalError] = useState('');
   const checkoutDialogRef = useRef<HTMLDivElement | null>(null);
   const pricingViewTrackedRef = useRef(false);
+  const activationRefreshAttemptsRef = useRef(0);
+  const subscriptionActivationTrackedRef = useRef(false);
   const countryOptions = useMemo(() => {
     let displayNames: Intl.DisplayNames | null = null;
     try {
@@ -367,6 +375,41 @@ export default function PricingPage({
       trackEvent('checkout_complete', { source: billingAnalyticsSource });
     }
   }, [billingAnalyticsSource, checkoutResult]);
+
+  useEffect(() => {
+    if (
+      checkoutResult !== 'success'
+      || !liveAcceptance
+      || !checkoutSessionId
+      || subscriptionActivationTrackedRef.current
+    ) return;
+
+    if (activePlanCode) {
+      const storageKey = `syllonaut_subscription_activated:${checkoutSessionId}`;
+      if (window.sessionStorage.getItem(storageKey) === '1') {
+        subscriptionActivationTrackedRef.current = true;
+        return;
+      }
+
+      const sent = trackEvent('subscription_activated', {
+        plan: activePlanCode,
+        source: 'stripe_live',
+      });
+      if (sent) {
+        subscriptionActivationTrackedRef.current = true;
+        window.sessionStorage.setItem(storageKey, '1');
+      }
+      return;
+    }
+
+    if (activationRefreshAttemptsRef.current >= 6) return;
+    const timer = window.setTimeout(() => {
+      activationRefreshAttemptsRef.current += 1;
+      router.refresh();
+    }, 750);
+
+    return () => window.clearTimeout(timer);
+  }, [activePlanCode, checkoutResult, checkoutSessionId, liveAcceptance, router]);
 
   useEffect(() => {
     if (!checkoutPlan) return;
