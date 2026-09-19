@@ -59,6 +59,37 @@ export async function PUT(req: Request, { params }: RouteContext) {
     const { id } = await params;
     const { lesson } = ReplaceLessonSchema.parse(await req.json());
 
+    const { data: current, error: readError } = await supabase
+      .from('lessons')
+      .select('lesson')
+      .eq('id', id)
+      .eq('owner_id', userId)
+      .maybeSingle();
+
+    if (readError || !current) {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
+
+    const currentLesson = LessonSchema.parse(current.lesson);
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, multilingual_lessons_enabled')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    const allowLanguageChange = Boolean(
+      profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled),
+    );
+
+    if (!allowLanguageChange && (lesson.language ?? null) !== (currentLesson.language ?? null)) {
+      return NextResponse.json(
+        { error: 'Ve Free tarifu nelze změnit hlavní jazyk uložené lekce.' },
+        { status: 403 },
+      );
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from('lessons')
       .update({ title: lesson.title, lesson, updated_at: new Date().toISOString() })

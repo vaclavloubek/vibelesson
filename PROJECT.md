@@ -1,14 +1,14 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.16 — akviziční GA4 funnel má serverově potvrzený finální conversion event `subscription_activated`: po LIVE Checkout návratu se odešle až tehdy, když `profiles.active_plan_code` skutečně hlásí Teacher nebo Teacher Pro. Stripe provisioning ani webhook logika se kvůli analytice nemění.
+Aktualizováno: 2026-09-19 pro verzi 0.9.17 — SEC-017 uzavírá serverový multilingual entitlement bypass na replacement endpointu uložené lekce: Free účet už nemůže přes PUT /api/lessons/[id] změnit autoritativní lesson.language a následně tím posunout jazykový zámek AI revizí.
 
-**Aktuální produktová verze: 0.9.16** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.17** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
 `45fe128e05bc9007ef9a927d70562d6d4c80ac77` — **Release Syllonaut 0.8 live resilience**.
 
-Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `3044c41b-c0b4-443b-81e5-57fabb0d4419`, `workerVersion=0.8.14`, `protocolVersion=2`. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 14 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
+Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `3044c41b-c0b4-443b-81e5-57fabb0d4419`, `workerVersion=0.8.14`, `protocolVersion=2`. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 15 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -812,6 +812,7 @@ Důkladný audit celé aplikace proběhl 2026-09-17.
 - **SEC-014** — browser security headers → CSP, HSTS, nosniff, DENY framing, Referrer/Permissions Policy, no X-Powered-By;
 - **SEC-015** — provider-level ZDR → fail-closed AI Gateway `zeroDataRetention: true` + AST regression check;
 - **SEC-016** — cross-account lesson leakage / stale client state → server-hydrated lesson nese explicitního ownera, změna auth identity okamžitě čistí lesson/undo/recovery/highlight stav a opouští stale route, logout provede hard navigation; uložené full/block AI revize před kvótou i AI načítají autoritativní lesson přes `lessonId + owner_id` a ignorují klientský lesson payload jako zdroj pravdy.
+- **SEC-017** — Free multilingual entitlement bypass přes full lesson replacement → `PUT /api/lessons/[id]` před zápisem načte autoritativní vlastněnou lekci a serverový profil; bez `multilingual_lessons_enabled`/admin role odmítne změnu `lesson.language` proti DB hodnotě HTTP 403. Undo i jiné legitimní replacement operace zůstávají funkční, pokud hlavní jazyk nemění.
 
 ### Accepted / deferred
 
@@ -834,6 +835,7 @@ Zachovat:
 - Realtime = invalidation, ne citlivý datový kanál;
 - secrets/service role pouze serverově;
 - quota a paid-AI entitlement enforcement server/DB;
+- klientský full-lesson replacement nesmí bez multilingual entitlementu změnit autoritativní `lesson.language`;
 - destructive operace kontrolují ownership;
 - auth redirecty nesmí být open redirect;
 - podklady i student text jsou pro AI nedůvěryhodná data.
@@ -1075,6 +1077,7 @@ Bezpečnostní a produktové změny:
 - **0.9.14** — sjednocení hlaviček napříč učitelskými obrazovkami: dashboard, lesson workspace, GDPR a Teacher Live používají stejnou hlavní navigaci a společný profilový dropdown; dashboard přesunul primární vytvoření lekce do header CTA a Teacher Live oddělil stav spojení od navigace
 - **0.9.15** — live Checkout verification hotfix: webhook lookup nepoužívá subscription filtr na Stripe list endpointu, ale stabilní Customer filtr + lokální párování subscription; krátký retry pokrývá nedeterministické pořadí Stripe eventů
 - **0.9.16** — growth funnel analytics: `checkout_complete` zůstává pouze signál návratu ze Stripe; nový Key Event `subscription_activated` se v LIVE prostředí odešle až po serverově potvrzeném Teacher/Teacher Pro v `profiles.active_plan_code`. Pricing krátce refreshuje stav, pokud webhook při návratu ještě dobíhá; Checkout Session ID se do GA4 neposílá a používá se jen lokálně pro deduplikaci. GA4 setup doplňuje dimenze `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`.
+- **0.9.17 / SEC-017** — serverový guard na `PUT /api/lessons/[id]`: Free účet nesmí přes replacement payload změnit `lesson.language`; guard používá autoritativní DB lekci + serverový profil a je krytý regresním testem `verify-lesson-replacement-entitlement.mjs`
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1164,7 +1167,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.16; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.17; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 
