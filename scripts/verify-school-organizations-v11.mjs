@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const requiredFiles = [
   'supabase/migrations/20260919180000_add_school_library_and_owner_transfer.sql',
   'supabase/migrations/20260919181500_add_internal_test_school.sql',
+  'supabase/migrations/20260919184500_add_school_library_subject.sql',
   'app/api/organizations/library/route.ts',
   'app/api/organizations/library/[id]/import/route.ts',
   'app/api/organizations/library/[id]/route.ts',
@@ -226,5 +227,50 @@ for (const needle of [
 ]) {
   if (!schoolAdmin.includes(needle)) {
     throw new Error('Internal test school UI contract missing: ' + needle);
+  }
+}
+
+
+const subjectMigration = fs.readFileSync(
+  'supabase/migrations/20260919184500_add_school_library_subject.sql',
+  'utf8',
+);
+for (const needle of [
+  'add column if not exists subject text',
+  'organization_lesson_library_org_subject_idx',
+  "snapshot->>'subject'",
+  'new.subject is distinct from old.subject',
+]) {
+  if (!subjectMigration.includes(needle)) {
+    throw new Error('School library subject migration contract missing: ' + needle);
+  }
+}
+
+const lessonSchema = fs.readFileSync('lib/schema.ts', 'utf8');
+if (!lessonSchema.includes("subject: z.string().trim().min(1).max(80).optional()")) {
+  throw new Error('Lesson schema must keep subject optional for backward compatibility.');
+}
+
+const ai = fs.readFileSync('lib/ai.ts', 'utf8');
+for (const needle of [
+  'subject: z.string().trim().min(1).max(80)',
+  'Pole subject vždy vyplň jako stručný název ŠIROKÉHO školního předmětu',
+  'subject: output.subject',
+]) {
+  if (!ai.includes(needle)) {
+    throw new Error('AI subject classification contract missing: ' + needle);
+  }
+}
+
+const schoolAdminSubjectUi = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
+for (const needle of [
+  'librarySubjectFilter',
+  'Všechny předměty',
+  'Nezařazeno',
+  'filteredLibrary.length >= 10',
+  'styles.libraryScrollable',
+]) {
+  if (!schoolAdminSubjectUi.includes(needle)) {
+    throw new Error('School library subject filter contract missing: ' + needle);
   }
 }

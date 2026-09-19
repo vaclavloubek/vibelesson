@@ -49,6 +49,7 @@ export const LessonBlockSchema = z.object({
 export const LessonSchema = z.object({
   title: z.string().min(1),
   subtitle: z.string().optional(),
+  subject: z.string().trim().min(1).max(80).optional(),
   audience: z.string().min(1),
   totalMinutes: z.number().int().min(10).max(360),
   groupSize: z.string().min(1),
