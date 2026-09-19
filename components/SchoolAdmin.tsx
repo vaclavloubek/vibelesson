@@ -35,7 +35,17 @@ type Summary = {
   cancelAtPeriodEnd: boolean;
   pastDueAt: string | null;
   currentPeriodEnd: string | null;
-  seats: { active: number; pending: number; limit: number };
+  seats: {
+    active: number;
+    pending: number;
+    limit: number;
+    periodUniqueUsed: number;
+    periodUniqueLimit: number;
+    replacementAllowance: number;
+    pendingNewReservations: number;
+    periodStart: string | null;
+    periodEnd: string | null;
+  };
   usage: {
     lessonUsed: number;
     lessonLimit: number;
@@ -493,15 +503,20 @@ export default function SchoolAdmin({
     if (!response.ok) {
       setMessageKind('error');
       setMessage(
-        payload.error === 'organization_seat_limit_reached'
+        payload.error === 'organization_replacement_limit_reached'
           ? ui(
-            'Kapacita tarifu je už vyčerpaná nebo rezervovaná čekajícími pozvánkami.',
-            'The plan capacity is already full or reserved by pending invitations.',
+            'V tomto fakturačním období už byla využita povolená kapacita výměn členů. Dalšího nového člověka lze přidat až v dalším období.',
+            'The member replacement allowance for this billing period has been used. Another new person can be added in the next period.',
           )
-          : ui(
-            'Pozvánku se nepodařilo vytvořit.',
-            'The invitation could not be created.',
-          ),
+          : payload.error === 'organization_seat_limit_reached'
+            ? ui(
+              'Všechna aktivní místa jsou obsazená nebo rezervovaná čekajícími pozvánkami.',
+              'All active seats are occupied or reserved by pending invitations.',
+            )
+            : ui(
+              'Pozvánku se nepodařilo vytvořit.',
+              'The invitation could not be created.',
+            ),
       );
       return;
     }
@@ -581,11 +596,19 @@ export default function SchoolAdmin({
     }
 
     setBulkInviteEntries([]);
+    const replacementLimitHit = payload.failed?.some(
+      (item) => item.error === 'replacement_limit_reached',
+    ) ?? false;
     setMessageKind(failedCount ? 'error' : 'info');
-    setMessage(ui(
-      'Odesláno: ' + invitedCount + (failedCount ? ', neodesláno: ' + failedCount : '') + '.',
-      'Sent: ' + invitedCount + (failedCount ? ', failed: ' + failedCount : '') + '.',
-    ));
+    setMessage(replacementLimitHit
+      ? ui(
+        'Část pozvánek byla odeslána, ale další nové osoby už překročily povolenou kapacitu výměn pro toto fakturační období.',
+        'Some invitations were sent, but additional new people would exceed the replacement allowance for this billing period.',
+      )
+      : ui(
+        'Odesláno: ' + invitedCount + (failedCount ? ', neodesláno: ' + failedCount : '') + '.',
+        'Sent: ' + invitedCount + (failedCount ? ', failed: ' + failedCount : '') + '.',
+      ));
     await load();
   }
 
@@ -1093,9 +1116,17 @@ export default function SchoolAdmin({
               <h2>{ui('Kapacita a AI pool', 'Capacity and AI pool')}</h2>
               <div className={styles.metrics}>
                 <div className={styles.metric}>
-                  <span>{ui('Místa', 'Seats')}</span>
+                  <span>{ui('Aktivní místa', 'Active seats')}</span>
+                  <strong>{summary.seats.active}/{summary.seats.limit}</strong>
+                </div>
+                <div className={styles.metric}>
+                  <span>{ui('Čekající pozvánky', 'Pending invitations')}</span>
+                  <strong>{summary.seats.pending}</strong>
+                </div>
+                <div className={styles.metric}>
+                  <span>{ui('Unikátní uživatelé v období', 'Unique users this period')}</span>
                   <strong>
-                    {summary.seats.active + summary.seats.pending}/{summary.seats.limit}
+                    {summary.seats.periodUniqueUsed}/{summary.seats.periodUniqueLimit}
                   </strong>
                 </div>
                 <div className={styles.metric}>
@@ -1107,6 +1138,46 @@ export default function SchoolAdmin({
                   <strong>{summary.usage.revisionUsed}/{summary.usage.revisionLimit}</strong>
                 </div>
               </div>
+
+              {summary.seats.periodStart ? (
+                <div className={styles.planNote} style={{ marginTop: 14 }}>
+                  <strong>{ui('Jak fungují výměny členů', 'How member replacements work')}</strong>
+                  <p>
+                    {ui(
+                      'Nejde o souběžná místa. Tarif má stále ' + summary.seats.limit
+                        + ' současně aktivních míst. Limit ' + summary.seats.periodUniqueLimit
+                        + ' unikátních uživatelů znamená těchto ' + summary.seats.limit
+                        + ' míst plus rezervu ' + summary.seats.replacementAllowance
+                        + ' uživatelů pro personální výměny během tohoto fakturačního období.',
+                      'This is not a concurrent-seat limit. The plan still has '
+                        + summary.seats.limit + ' simultaneously active seats. The '
+                        + summary.seats.periodUniqueLimit + ' unique-user limit means those '
+                        + summary.seats.limit + ' seats plus a replacement allowance of '
+                        + summary.seats.replacementAllowance + ' users during this billing period.',
+                    )}
+                  </p>
+                  {summary.seats.pendingNewReservations ? (
+                    <p className={styles.muted}>
+                      {ui(
+                        'Čekající pozvánky pro nové osoby nyní rezervují '
+                          + summary.seats.pendingNewReservations
+                          + ' z této výměnové kapacity.',
+                        'Pending invitations for new people currently reserve '
+                          + summary.seats.pendingNewReservations
+                          + ' of this replacement capacity.',
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className={styles.muted}>
+                  {ui(
+                    'Limit výměn členů se začne počítat od začátku aktivního fakturačního období.',
+                    'The member replacement limit starts with the active billing period.',
+                  )}
+                </p>
+              )}
+
               <p className={styles.muted}>
                 {ui(
                   'AI počítadla jsou společná pro aktivní licenci celé organizace.',
@@ -1116,8 +1187,8 @@ export default function SchoolAdmin({
               {summary.isInternalTest ? (
                 <p className={styles.muted}>
                   {ui(
-                    'Tvůj interní admin účet zůstává neomezený a tento školní AI pool nečerpá. Přizvané běžné účty Campus pool čerpají standardně.',
-                    'Your internal admin account remains unlimited and does not consume this school AI pool. Invited regular accounts use the Campus pool normally.',
+                    'Tvůj interní admin účet zůstává neomezený a nepočítá se do komerčních míst ani výměn. Přizvané běžné účty Campus limity používají standardně.',
+                    'Your internal admin account remains unlimited and does not count toward commercial seats or replacements. Invited regular accounts use the Campus limits normally.',
                   )}
                 </p>
               ) : null}

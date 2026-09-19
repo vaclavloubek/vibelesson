@@ -56,7 +56,17 @@ export default function SchoolInviteClient({
           )
           : payload.error === 'invitation_expired'
             ? ui('Platnost pozvánky vypršela.', 'This invitation has expired.')
-            : ui('Pozvánku se nepodařilo přijmout.', 'The invitation could not be accepted.'),
+            : payload.error === 'organization_replacement_limit_reached'
+              ? ui(
+                'Škola už v tomto fakturačním období vyčerpala povolenou kapacitu výměn členů. Pozvánku bude možné přijmout v dalším období.',
+                'The school has used its member replacement allowance for this billing period. The invitation can be accepted in the next period.',
+              )
+              : payload.error === 'organization_seat_limit_reached'
+                ? ui(
+                  'Škola má právě obsazená všechna aktivní místa.',
+                  'All active seats are currently occupied.',
+                )
+                : ui('Pozvánku se nepodařilo přijmout.', 'The invitation could not be accepted.'),
       );
     })();
   }, [initialUser, state, token, english, router]);

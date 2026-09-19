@@ -43,9 +43,11 @@ export async function POST(request: Request) {
         ? 'invitation_expired'
         : message.includes('membership_exists')
           ? 'active_organization_membership_exists'
-          : message.includes('seat_limit')
-            ? 'organization_seat_limit_reached'
-            : message.includes('not_found')
+          : message.includes('replacement_limit')
+            ? 'organization_replacement_limit_reached'
+            : message.includes('seat_limit')
+              ? 'organization_seat_limit_reached'
+              : message.includes('not_found')
               ? 'invitation_not_found'
               : 'invitation_accept_failed';
 
