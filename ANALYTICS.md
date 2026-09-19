@@ -1,6 +1,6 @@
 # Syllonaut — GA4 a produktová analytika
 
-Aktualizováno: 2026-09-18
+Aktualizováno: 2026-09-19
 
 Tento dokument je zdroj pravdy pro produktovou eventovou taxonomii GA4. `PROJECT.md` zůstává samostatným zdrojem pravdy pro produkt a architekturu.
 
@@ -72,6 +72,11 @@ Pro DebugView přes Preview se má použít samostatná **testovací GA4 propert
 | `pricing_segment_change` | Uživatel skutečně změní učitel/škola | `PricingPage` | `segment` | Zájem o individuální vs. školní nabídku |
 | `pricing_billing_period_change` | Uživatel změní měsíčně/ročně | `PricingPage` | `billing_period` | Citlivost na roční nabídku |
 | `free_signup_click` | Kliknutí na Free signup CTA / auth signup | Pricing/Auth | `location` | Pricing/auth → registrace |
+| `plan_select` | Uživatel zvolí Teacher / Teacher Pro před Checkoutem | `PricingPage` | `plan`, `billing_period`, `source` | Zájem o konkrétní placený plán |
+| `checkout_start` | Stripe Checkout Session byla úspěšně vytvořena a browser na ni odchází | `PricingPage` | `plan`, `billing_period`, `billing_country`, `source` | Začátek placené konverze |
+| `checkout_complete` | Browser se vrátí ze Stripe přes success URL | `PricingPage` | `source` | Dokončený Checkout; není sám o sobě placenou konverzí |
+| `subscription_activated` | Po LIVE Checkout návratu serverový profil skutečně hlásí aktivní Teacher / Teacher Pro | `PricingPage` + serverový Pricing route | `plan`, `source` | Finální placená konverze |
+| `billing_portal_open` | Úspěšně se vytvoří Stripe Customer Portal session | `PricingPage` | `source` | Billing self-service |
 | `signup_started` | Otevření skutečného registračního flow | `AuthControls` | — | Začátek registrace |
 | `signup_completed` | Účet je skutečně vytvořen; běžně až po úspěšném potvrzení e-mailu | `SignupCompletedAnalytics`, immediate-session fallback v Auth | — | Hlavní registrační konverze |
 | `login_completed` | Úspěšný explicitní `signInWithPassword` | `AuthControls` | — | Aktivní návrat uživatele; ne refresh session |
@@ -136,12 +141,17 @@ Doporučený počáteční set event-scoped custom dimensions:
 | Error code | `error_code` |
 | Session state | `session_state` |
 | Grading result state | `result_state` |
+| UI locale | `ui_locale` |
+| Lesson language | `lesson_language` |
+| Plan | `plan` |
+| Billing country | `billing_country` |
+| Analytics source | `source` |
 
 Další buckety (`group_size_bucket`, `file_type_group`, `size_bucket`, `item_count_bucket`, `planned_duration_bucket`, `completed_activity_count_bucket`) jsou posílané jako nízkokardinalitní parametry, ale není nutné je registrovat jako custom dimensions hned v MVP. Přidat je až podle reálné reporting potřeby.
 
-### Plan tier
+### Placený plán
 
-`plan_tier` se zatím **neposílá**. Současný backend nemá autoritativní billing/provisioning plan tier; má pouze explicitní serverové entitlementy a kvóty. Odvozovat plán z UI, ceny nebo klientského stavu by bylo nepřesné. Parametr lze přidat až po zavedení server-authoritative plan modelu.
+Billing už má server-authoritative `profiles.active_plan_code`. Analytika přesto neposílá plán plošně ke každému eventu. Parametr `plan` se používá pouze v úzkých billing událostech, kde je jeho význam jednoznačný. `subscription_activated` vznikne až po LIVE Checkout návratu a až ve chvíli, kdy serverový profil skutečně hlásí `teacher` nebo `teacher_pro`. Stripe Checkout Session ID se do GA4 neposílá; klient jej používá pouze lokálně pro deduplikaci.
 
 ## 8. Key Events
 
@@ -152,6 +162,7 @@ V GA4 označit jako Key Events:
 | `signup_completed` | skutečná registrace |
 | `lesson_generation_completed` | activation |
 | `live_session_started` | hlavní product-value moment |
+| `subscription_activated` | serverově potvrzená placená konverze |
 
 ## 9. Funnels
 
@@ -159,17 +170,21 @@ V GA4 označit jako Key Events:
 
 `Landing / page_view → prepare_lesson_cta_click → signup_completed → lesson_generation_completed → live_session_started`
 
+Zdroj kampaně se bere ze standardní GA4 acquisition atribuce (UTM / source / medium), nikoli z vlastních identifikátorů v event payloadu.
+
 Poznámka: strict opt-in znamená, že uživatelé bez analytického souhlasu nejsou v GA4 funnelu vůbec. GA4 funnel proto měří chování consenting populace, nikoli absolutní počet všech uživatelů.
 
 ### Engagement
 
 `lesson_generation_completed → lesson_revision_completed → live_session_started → live_session_ended → session_report_viewed`
 
-### Pricing
+### Pricing / paid conversion
 
-Do zavedení billing/checkoutu se sleduje pouze `pricing_view`, změna segmentu/fakturace a `free_signup_click`.
+`pricing_view → plan_select → checkout_start → checkout_complete → subscription_activated`
 
-Až bude billing implementovaný, mají se použít standardní GA4 ecommerce eventy, zejména `purchase`, místo vlastních náhražek.
+`checkout_complete` znamená pouze návrat přes Stripe success URL. Za skutečnou placenou konverzi se považuje až `subscription_activated`, který vyžaduje LIVE prostředí, validní Checkout Session ID v návratové URL a serverově aktivní `Teacher` nebo `Teacher Pro` v `profiles.active_plan_code`. Pokud webhook při návratu ještě dobíhá, Pricing klient provede několik krátkých `router.refresh()` retry; analytika přitom nemění billing ani provisioning.
+
+Standardní GA4 ecommerce `purchase` lze doplnit později, až bude potřeba hodnotová revenue atribuce. Pro současný nízkorozpočtový acquisition funnel je autoritativním conversion eventem `subscription_activated`.
 
 ## 10. Eventy, které se záměrně neposílají
 
@@ -221,8 +236,8 @@ Výchozí režim je pouze DRY RUN. Změny se provedou až přes:
 
 Skript:
 - načte existující custom dimensions a Key Events;
-- vytvoří pouze chybějících 15 event-scoped custom dimensions;
-- vytvoří pouze chybějící Key Events `signup_completed`, `lesson_generation_completed`, `live_session_started`;
+- vytvoří pouze chybějících 20 event-scoped custom dimensions;
+- vytvoří pouze chybějící Key Events `signup_completed`, `lesson_generation_completed`, `live_session_started`, `subscription_activated`;
 - u existujících Key Events případně opraví counting method na `ONCE_PER_EVENT`;
 - po APPLY znovu načte konfiguraci a ověří výsledek.
 
