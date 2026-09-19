@@ -174,32 +174,42 @@ export async function verifyStripeCheckoutBillingCountry(
   if (!/^cus_[A-Za-z0-9_]+$/.test(input.customerId)) throw new Error('stripe_checkout_customer_id_invalid');
   if (!/^[0-9a-f-]{36}$/i.test(input.userId)) throw new Error('stripe_checkout_user_id_invalid');
 
-  const query = new URLSearchParams({ subscription: input.subscriptionId, status: 'complete', limit: '10' });
-  const response = await fetchImpl('https://api.stripe.com/v1/checkout/sessions?' + query.toString(), {
-    method: 'GET',
-    headers: { authorization: 'Bearer ' + input.secretKey, 'stripe-version': '2026-07-29.dahlia' },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(12_000),
-  });
-  const payload = await response.json() as StripeCheckoutSessionListResponse;
-  if (!response.ok) {
-    console.error('stripe checkout billing-country verification failed', {
-      status: response.status, type: payload.error?.type, code: payload.error?.code, livemode: input.livemode,
-    });
-    throw new StripeCheckoutVerificationApiError(payload.error?.type ?? null, payload.error?.code ?? null, sanitizeStripeMessage(payload.error?.message));
-  }
-  if (!Array.isArray(payload.data)) throw new Error('stripe_checkout_session_list_invalid');
+  const query = new URLSearchParams({ customer: input.customerId, status: 'complete', limit: '20' });
+  let matches: NonNullable<StripeCheckoutSessionListResponse['data']> = [];
 
-  const matches = payload.data.filter((session) => (
-    session.livemode === input.livemode
-    && session.mode === 'subscription'
-    && session.status === 'complete'
-    && session.subscription === input.subscriptionId
-    && session.customer === input.customerId
-    && session.client_reference_id === input.userId
-    && session.metadata?.syllonaut_user_id === input.userId
-    && session.metadata?.syllonaut_billing_country === input.declaredBillingCountry
-  ));
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetchImpl('https://api.stripe.com/v1/checkout/sessions?' + query.toString(), {
+      method: 'GET',
+      headers: { authorization: 'Bearer ' + input.secretKey, 'stripe-version': '2026-07-29.dahlia' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(12_000),
+    });
+    const payload = await response.json() as StripeCheckoutSessionListResponse;
+    if (!response.ok) {
+      console.error('stripe checkout billing-country verification failed', {
+        status: response.status, type: payload.error?.type, code: payload.error?.code, livemode: input.livemode,
+      });
+      throw new StripeCheckoutVerificationApiError(payload.error?.type ?? null, payload.error?.code ?? null, sanitizeStripeMessage(payload.error?.message));
+    }
+    if (!Array.isArray(payload.data)) throw new Error('stripe_checkout_session_list_invalid');
+
+    matches = payload.data.filter((session) => (
+      session.livemode === input.livemode
+      && session.mode === 'subscription'
+      && session.status === 'complete'
+      && session.subscription === input.subscriptionId
+      && session.customer === input.customerId
+      && session.client_reference_id === input.userId
+      && session.metadata?.syllonaut_user_id === input.userId
+      && session.metadata?.syllonaut_billing_country === input.declaredBillingCountry
+    ));
+
+    if (matches.length > 0) break;
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
+
   if (matches.length !== 1) {
     throw new Error(matches.length === 0 ? 'stripe_checkout_completed_session_missing' : 'stripe_checkout_completed_session_ambiguous');
   }
