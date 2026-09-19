@@ -69,7 +69,7 @@ requireText(css, '.syllonaut-guide-back', 'back button styling');
 requireText(css, '.syllonaut-guide-help', 'contextual help styling');
 requireText(workspace, '<form data-tour="lesson-create-form"', 'first guide step must expose the complete lesson form');
 requireText(guide, "target: 'lesson-create-form'", 'first guide step must spotlight the complete lesson form');
-requireText(workspace, 'data-tour={lesson ? "lesson-review" : undefined}', 'generated lesson review target');
+requireText(workspace, 'data-tour="lesson-review"', 'generated lesson review target');
 requireText(guide, "target: 'lesson-review'", 'review step before whole-lesson editing');
 requireText(guide, "button: { cs: 'Lekci jsem prošel', en: 'I reviewed the lesson' }", 'explicit review confirmation');
 requireText(guide, "button: { cs: 'Bez úpravy pokračovat', en: 'Continue without editing' }", 'optional whole-lesson edit skip');
