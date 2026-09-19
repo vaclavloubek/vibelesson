@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -533,6 +534,7 @@ export default function PricingPage({
             initialOpen={startSignup}
             initialMode={startSignup ? 'signup' : 'signin'}
           />
+          {user ? <PublicHeaderAccountMenu user={user} /> : null}
           <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'pricing' })}>{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
           <HeaderMobileNav signedIn={Boolean(user)} current="pricing" />
         </div>
