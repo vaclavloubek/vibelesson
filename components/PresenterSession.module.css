@@ -26,13 +26,13 @@
 .lobby { flex: 1; display: grid; grid-template-columns: minmax(0, .8fr) minmax(480px, 1.2fr); gap: clamp(34px, 6vw, 90px); align-items: center; }
 .lobbyIntro h1 { margin: 0 0 18px; font-size: clamp(42px, 5.5vw, 84px); line-height: .98; letter-spacing: -.055em; }
 .lobbyIntro > p:last-child { margin: 0; max-width: 760px; color: rgba(247,248,255,.68); font-size: clamp(18px, 1.7vw, 27px); line-height: 1.45; }
-.joinPanel { display: grid; grid-template-columns: auto 1fr; gap: clamp(24px, 3vw, 46px); align-items: center; padding: clamp(24px, 3vw, 42px); border: 1px solid rgba(255,255,255,.12); border-radius: 28px; background: rgba(255,255,255,.05); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-.qrWrap { padding: 16px; border-radius: 20px; background: white; line-height: 0; }
-.qrWrap svg { width: min(24vw, 272px); height: auto; }
-.joinDetails { display: grid; align-content: center; gap: 9px; min-width: 0; }
+.joinPanel { display: grid; grid-template-columns: minmax(220px, 340px) minmax(0, 1fr); gap: clamp(24px, 3vw, 46px); align-items: center; padding: clamp(24px, 3vw, 42px); border: 1px solid rgba(255,255,255,.12); border-radius: 28px; background: rgba(255,255,255,.05); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.qrWrap { width: 100%; max-width: 304px; justify-self: center; padding: 16px; border-radius: 20px; background: white; line-height: 0; }
+.qrWrap svg { display: block; width: 100%; height: auto; }
+.joinDetails { display: grid; align-content: center; gap: 9px; min-width: 0; width: 100%; }
 .detailLabel { color: rgba(247,248,255,.5); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
-.joinLink { font-size: clamp(22px, 2vw, 34px); overflow-wrap: anywhere; }
-.joinCode { margin: 2px 0 10px; font-size: clamp(52px, 6vw, 94px); line-height: .95; letter-spacing: .09em; }
+.joinLink { min-width: 0; font-size: clamp(20px, 1.8vw, 32px); overflow-wrap: anywhere; }
+.joinCode { display: block; width: 100%; min-width: 0; max-width: 100%; margin: 2px 0 10px; font-size: clamp(44px, 4.2vw, 72px); line-height: .95; letter-spacing: clamp(.03em, .28vw, .055em); white-space: nowrap; }
 .joinCount { display: flex; align-items: baseline; gap: 9px; color: rgba(247,248,255,.58); }
 .joinCount strong { color: white; font-size: 30px; }
 
@@ -54,9 +54,14 @@
 .joinDock { display: flex; justify-content: center; gap: 22px; flex-wrap: wrap; padding: 10px 16px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: rgba(255,255,255,.045); color: rgba(247,248,255,.58); font-size: clamp(11px, .95vw, 15px); }
 .joinDock strong { color: white; }
 
+@media (max-width: 1200px) {
+  .joinPanel { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .joinDetails { justify-items: center; }
+  .joinCode { width: auto; max-width: 100%; }
+}
+
 @media (max-width: 900px) {
   .lobby { grid-template-columns: 1fr; }
-  .joinPanel { grid-template-columns: 1fr; justify-items: center; text-align: center; }
   .optionGrid { grid-template-columns: 1fr; }
 }
 
