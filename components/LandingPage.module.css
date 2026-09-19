@@ -67,9 +67,6 @@
   min-width: 0;
 }
 
-.headerActions :global(.auth-signed-in) {
-  display: none;
-}
 
 .headerCta,
 .primaryCta,
