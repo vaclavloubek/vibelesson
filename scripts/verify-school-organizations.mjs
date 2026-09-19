@@ -17,6 +17,11 @@ const requiredFiles = [
   'app/school/page.tsx',
   'app/school/invite/page.tsx',
   'components/SchoolAdmin.tsx',
+  'app/api/organizations/subscription/route.ts',
+  'app/api/organizations/renewal/route.ts',
+  'app/api/cron/organization-billing/route.ts',
+  'supabase/migrations/20260919172000_add_school_renewal_lifecycle.sql',
+  'supabase/migrations/20260919173000_harden_school_overdue_and_admin_quota.sql',
 ];
 
 for (const path of requiredFiles) {
@@ -111,3 +116,44 @@ if (!currentRoute.includes("from('generation_requests')")) {
 }
 
 console.log('School organization V1 source contracts: OK');
+
+
+const lifecycleMigration = fs.readFileSync(
+  'supabase/migrations/20260919173000_harden_school_overdue_and_admin_quota.sql',
+  'utf8',
+);
+for (const needle of [
+  "p.role <> 'admin'",
+  "status = 'past_due'",
+  "status = 'suspended'",
+  'suspend_overdue_organizations',
+  'p_grace_days: 14',
+]) {
+  if (!lifecycleMigration.includes(needle) && needle !== 'p_grace_days: 14') {
+    throw new Error('School overdue lifecycle contract missing: ' + needle);
+  }
+}
+
+const cron = fs.readFileSync('app/api/cron/organization-billing/route.ts', 'utf8');
+for (const needle of [
+  "authorization !== 'Bearer ' + secret",
+  "rpc('expire_organization_licenses')",
+  "rpc('suspend_overdue_organizations', { p_grace_days: 14 })",
+]) {
+  if (!cron.includes(needle)) {
+    throw new Error('School billing cron contract missing: ' + needle);
+  }
+}
+
+const renewalRoute = fs.readFileSync('app/api/organizations/renewal/route.ts', 'utf8');
+if (!renewalRoute.includes("paymentMethod: 'invoice'")) {
+  throw new Error('Manual school renewal must remain invoice-based.');
+}
+
+const subscriptionRoute = fs.readFileSync(
+  'app/api/organizations/subscription/route.ts',
+  'utf8',
+);
+if (!subscriptionRoute.includes('cancelAtPeriodEnd')) {
+  throw new Error('Card school subscriptions must support period-end cancellation.');
+}
