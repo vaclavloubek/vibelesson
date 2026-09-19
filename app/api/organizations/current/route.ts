@@ -63,10 +63,27 @@ export async function GET() {
 
   const requestsResult = await admin
     .from('generation_requests')
-    .select('action, status')
+    .select('user_id, action, status')
     .eq('organization_id', organization.id)
     .gte('created_at', monthStart.toISOString())
     .in('status', ['pending', 'succeeded']);
+
+  const libraryResult = plan.libraryEnabled
+    ? await admin
+      .from('organization_lesson_library')
+      .select('id, title, published_by, created_at')
+      .eq('organization_id', organization.id)
+      .order('created_at', { ascending: false })
+    : { data: [], error: null };
+
+  const ownLessonsResult = plan.libraryEnabled
+    ? await admin
+      .from('lessons')
+      .select('id, title, updated_at')
+      .eq('owner_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(200)
+    : { data: [], error: null };
 
   const ordersResult = manager
     ? await admin
@@ -82,6 +99,8 @@ export async function GET() {
     || membersResult.error
     || invitesResult.error
     || requestsResult.error
+    || libraryResult.error
+    || ownLessonsResult.error
     || ordersResult.error
   ) {
     console.error('organization summary lookup failed', {
@@ -89,6 +108,8 @@ export async function GET() {
       members: membersResult.error?.code,
       invites: invitesResult.error?.code,
       requests: requestsResult.error?.code,
+      library: libraryResult.error?.code,
+      ownLessons: ownLessonsResult.error?.code,
       orders: ordersResult.error?.code,
     });
     return NextResponse.json({ error: 'organization_summary_failed' }, { status: 500 });
@@ -120,6 +141,21 @@ export async function GET() {
     (row) => row.action === 'revise_lesson' || row.action === 'revise_block',
   ).length;
 
+  const usageByMember = manager
+    ? memberRows.map((member) => {
+      const memberRequests = requestRows.filter((row) => row.user_id === member.user_id);
+      const memberInfo = members.find((item) => item.userId === member.user_id);
+      return {
+        userId: member.user_id,
+        email: memberInfo?.email ?? null,
+        lessonUsed: memberRequests.filter((row) => row.action === 'generate_lesson').length,
+        revisionUsed: memberRequests.filter(
+          (row) => row.action === 'revise_lesson' || row.action === 'revise_block',
+        ).length,
+      };
+    })
+    : [];
+
   return NextResponse.json({
     organization: {
       ...organization,
@@ -140,6 +176,10 @@ export async function GET() {
         revisionLimit: plan.monthlyRevisionLimit,
         shared: true,
       },
+      usageByMember,
+      libraryEnabled: plan.libraryEnabled,
+      library: libraryResult.data ?? [],
+      ownLessons: ownLessonsResult.data ?? [],
       members,
       invitations: invitesResult.data ?? [],
       orders: ordersResult.data ?? [],
