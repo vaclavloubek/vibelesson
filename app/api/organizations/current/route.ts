@@ -71,7 +71,7 @@ export async function GET() {
   const libraryResult = plan.libraryEnabled
     ? await admin
       .from('organization_lesson_library')
-      .select('id, title, published_by, created_at')
+      .select('id, title, subject, published_by, created_at')
       .eq('organization_id', organization.id)
       .order('created_at', { ascending: false })
     : { data: [], error: null };
