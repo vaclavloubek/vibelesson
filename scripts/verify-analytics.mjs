@@ -87,6 +87,15 @@ for (const key of forbiddenKeys) {
 }
 
 requirePattern(cookieConsent, /!consent\?\.analytics/, 'GA loader must remain consent-gated.');
+requirePattern(cookieConsent, /send_page_view:\s*false/, 'automatic config pageviews must stay disabled; Syllonaut sends sanitized manual pageviews.');
+requirePattern(cookieConsent, /trackPageView\(\)/, 'CookieConsent must send the sanitized manual pageview.');
+forbidPattern(cookieConsent, /send_page_view:\s*true/, 'automatic config pageviews can leak dynamic route identifiers.');
+requirePattern(analytics, /sanitizeAnalyticsPathname/, 'dynamic route sanitizer is missing.');
+requirePattern(analytics, /UUID_PATH_SEGMENT/, 'UUID path segments must be sanitized before analytics.');
+requirePattern(analytics, /TOKEN_PATH_SEGMENT/, 'token-like path segments must be sanitized before analytics.');
+requirePattern(analytics, /JOIN_CODE_PATH_SEGMENT/, 'join codes must be sanitized before analytics.');
+requirePattern(analytics, /page_location:\s*analyticsPageLocation\(\)/, 'custom events must override page_location with a sanitized URL.');
+requirePattern(analytics, /window\.gtag\('event', 'page_view'/, 'manual page_view emission is missing.');
 requirePattern(cookieConsent, /ad_storage:\s*'denied'/, 'ad_storage must remain denied.');
 requirePattern(cookieConsent, /ad_user_data:\s*'denied'/, 'ad_user_data must remain denied.');
 requirePattern(cookieConsent, /ad_personalization:\s*'denied'/, 'ad_personalization must remain denied.');
@@ -94,8 +103,7 @@ requirePattern(cookieConsent, /allow_google_signals:\s*false/, 'Google Signals m
 requirePattern(cookieConsent, /allow_ad_personalization_signals:\s*false/, 'ad personalization signals must remain disabled.');
 requirePattern(cookieConsent, /dataLayer\?\.push\(arguments\)/, 'gtag must queue canonical arguments objects so gtag.js processes commands.');
 forbidPattern(cookieConsent, /dataLayer\?\.push\(args\)/, 'gtag must not queue rest-parameter arrays; gtag.js expects the canonical arguments object.');
-forbidPattern(cookieConsent, /gtag\?\.\('event',\s*'page_view'/, 'CookieConsent must not manually track SPA route changes when Enhanced Measurement is authoritative.');
-forbidPattern(cookieConsent, /page_path:\s*pathname/, 'manual route page_view tracking can duplicate Enhanced Measurement.');
+forbidPattern(cookieConsent, /LESSON_SHARE_PATH/, 'share pages should use sanitized manual analytics rather than route-wide GA blocking.');
 
 const files = [
   ...(await collectSourceFiles('app')),
