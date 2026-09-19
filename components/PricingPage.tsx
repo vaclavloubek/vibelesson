@@ -15,6 +15,7 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { ORGANIZATION_PLANS, type OrganizationPlanCode } from '@/lib/organization-billing-catalog';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -38,7 +39,20 @@ type Plan = {
   features: string[];
   featured?: boolean;
   free?: boolean;
+  seatLimit?: number;
 };
+
+function organizationPricingPagePrice(planCode: OrganizationPlanCode): Price {
+  const prices = ORGANIZATION_PLANS[planCode].prices;
+  return {
+    monthlyCzk: prices.monthly.czk,
+    annualCzk: prices.annual.czk,
+    monthlyEur: prices.monthly.eur,
+    annualEur: prices.annual.eur,
+    monthlyUsd: prices.monthly.usd,
+    annualUsd: prices.annual.usd,
+  };
+}
 
 const teacherPlansCs: Plan[] = [
   {
@@ -64,11 +78,12 @@ const teacherPlansCs: Plan[] = [
     description: 'Pro učitele, kteří Syllonaut používají pravidelně během měsíce.',
     price: pricingPagePrice('teacher'),
     features: [
+      'Celý proces: AI příprava → úpravy → živá hodina → výsledky',
+      'Živé hodiny a opakované používání lekcí bez omezení',
+      'Studenti se připojují bez plnohodnotného účtu',
       '25 nových AI lekcí za měsíc',
       '100 AI úprav za měsíc',
       'Lekce v libovolném jazyce',
-      'Opakované používání lekcí bez omezení',
-      'Studenti se připojují bez plnohodnotného účtu',
       'Automatické bodování kvízů',
       'Ruční hodnocení otevřených a týmových odpovědí',
     ],
@@ -80,14 +95,15 @@ const teacherPlansCs: Plan[] = [
     description: 'Pro intenzivní výuku, více kurzů a pokročilou práci s výsledky.',
     price: pricingPagePrice('teacher_pro'),
     features: [
+      'Celý proces: AI příprava → úpravy → živá hodina → výsledky',
+      'Živé hodiny a opakované používání lekcí bez omezení',
+      'Studenti se připojují bez plnohodnotného účtu',
       '60 nových AI lekcí za měsíc',
       '250 AI úprav za měsíc',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
-      'Opakované používání lekcí bez omezení',
-      'Studenti se připojují bez plnohodnotného účtu',
     ],
   },
 ];
@@ -96,57 +112,60 @@ const schoolPlansCs: Plan[] = [
   {
     id: 'team',
     name: 'Team',
-    description: 'Pro menší kabinet, metodický tým nebo skupinu učitelů.',
-    price: { monthlyCzk: 1290, annualCzk: 12900, monthlyEur: 54.99, annualEur: 549.9, monthlyUsd: 59.99, annualUsd: 599 },
+    description: 'Pro kabinet nebo menší tým, který chce připravovat i vést interaktivní hodiny v jednom nástroji.',
+    price: organizationPricingPagePrice('team'),
+    seatLimit: ORGANIZATION_PLANS.team.seatLimit,
     features: [
-      'Až 10 učitelů',
-      'Samostatný účet pro každého učitele',
-      '200 nových AI lekcí za měsíc společně',
-      '800 AI úprav za měsíc společně',
+      'Celý proces: AI příprava → úpravy → živá hodina → výsledky',
+      'Až 10 učitelů · samostatný účet pro každého',
+      '60 nových AI lekcí za měsíc společně',
+      '180 AI úprav za měsíc společně',
+      'Živé hodiny a opakované používání lekcí bez omezení',
+      'Studenti se připojují bez plnohodnotného účtu',
       'Lekce v libovolném jazyce',
-      'Opakované používání lekcí bez omezení',
-      'Sdílený měsíční AI limit pro celý tým',
     ],
   },
   {
     id: 'school',
     name: 'School',
-    description: 'Pro školu, která chce Syllonaut zpřístupnit širšímu pedagogickému týmu.',
-    price: { monthlyCzk: 3190, annualCzk: 31900, monthlyEur: 139.99, annualEur: 1399.9, monthlyUsd: 149.99, annualUsd: 1499 },
+    description: 'Pro školu, která chce společný prostor pro přípravu, živou výuku a výsledky napříč týmem.',
+    price: organizationPricingPagePrice('school'),
+    seatLimit: ORGANIZATION_PLANS.school.seatLimit,
     features: [
-      'Až 30 učitelů',
-      'Samostatný účet pro každého učitele',
-      '600 nových AI lekcí za měsíc společně',
-      '2 400 AI úprav za měsíc společně',
+      'Celý proces: AI příprava → úpravy → živá hodina → výsledky',
+      'Až 30 učitelů · samostatný účet pro každého',
+      '150 nových AI lekcí za měsíc společně',
+      '300 AI úprav za měsíc společně',
+      'Živé hodiny a opakované používání lekcí bez omezení',
+      'Studenti se připojují bez plnohodnotného účtu',
+      'Sdílená knihovna lekcí',
+      'Licenční zámek školních lekcí',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
-      'Opakované používání lekcí bez omezení',
-      'Sdílená knihovna lekcí',
-      'Licenční zámek školních lekcí',
-      'Sdílený měsíční AI limit pro celou školu',
     ],
     featured: true,
   },
   {
     id: 'campus',
     name: 'Campus',
-    description: 'Pro velkou školu, síť pracovišť nebo instituci s více týmy.',
-    price: { monthlyCzk: 8490, annualCzk: 84900, monthlyEur: 369.99, annualEur: 3699.9, monthlyUsd: 399.99, annualUsd: 3999 },
+    description: 'Pro velkou školu, síť pracovišť nebo instituci, která chce celý výukový workflow pro více týmů.',
+    price: organizationPricingPagePrice('campus'),
+    seatLimit: ORGANIZATION_PLANS.campus.seatLimit,
     features: [
-      'Až 100 učitelů',
-      'Samostatný účet pro každého učitele',
-      '2 000 nových AI lekcí za měsíc společně',
-      '8 000 AI úprav za měsíc společně',
+      'Celý proces: AI příprava → úpravy → živá hodina → výsledky',
+      'Až 100 učitelů · samostatný účet pro každého',
+      '400 nových AI lekcí za měsíc společně',
+      '700 AI úprav za měsíc společně',
+      'Živé hodiny a opakované používání lekcí bez omezení',
+      'Studenti se připojují bez plnohodnotného účtu',
+      'Sdílená knihovna lekcí',
+      'Licenční zámek školních lekcí',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
-      'Opakované používání lekcí bez omezení',
-      'Sdílená knihovna lekcí',
-      'Licenční zámek školních lekcí',
-      'Sdílený měsíční AI limit pro celou organizaci',
     ],
   },
 ];
@@ -168,11 +187,12 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   teacher: {
     description: 'For teachers who use Syllonaut regularly throughout the month.',
     features: [
+      'End-to-end workflow: AI preparation → refinements → live lesson → results',
+      'Unlimited live lessons and repeated lesson use',
+      'Students join without a full account',
       '25 new AI lessons per month',
       '100 AI edits per month',
       'Lessons in any language',
-      'Unlimited repeated use of lessons',
-      'Students join without a full account',
       'Automatic quiz scoring',
       'Manual grading of open and team responses',
     ],
@@ -180,60 +200,61 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   'teacher-pro': {
     description: 'For intensive teaching, multiple courses and advanced work with results.',
     features: [
+      'End-to-end workflow: AI preparation → refinements → live lesson → results',
+      'Unlimited live lessons and repeated lesson use',
+      'Students join without a full account',
       '60 new AI lessons per month',
       '250 AI edits per month',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
-      'Unlimited repeated use of lessons',
-      'Students join without a full account',
     ],
   },
   team: {
-    description: 'For a small department, subject team or group of teachers.',
+    description: 'For a department or small team that wants to prepare and run interactive lessons in one tool.',
     features: [
-      'Up to 10 teachers',
-      'A separate account for every teacher',
-      '200 new AI lessons per month shared',
-      '800 AI edits per month shared',
+      'End-to-end workflow: AI preparation → refinements → live lesson → results',
+      'Up to 10 teachers · a separate account for each',
+      '60 new AI lessons per month shared',
+      '180 AI edits per month shared',
+      'Unlimited live lessons and repeated lesson use',
+      'Students join without a full account',
       'Lessons in any language',
-      'Unlimited repeated use of lessons',
-      'Shared monthly AI allowance for the whole team',
     ],
   },
   school: {
-    description: 'For a school that wants to make Syllonaut available to a broader teaching team.',
+    description: 'For a school that wants one shared space for preparation, live teaching and results across the team.',
     features: [
-      'Up to 30 teachers',
-      'A separate account for every teacher',
-      '600 new AI lessons per month shared',
-      '2,400 AI edits per month shared',
+      'End-to-end workflow: AI preparation → refinements → live lesson → results',
+      'Up to 30 teachers · a separate account for each',
+      '150 new AI lessons per month shared',
+      '300 AI edits per month shared',
+      'Unlimited live lessons and repeated lesson use',
+      'Students join without a full account',
+      'Shared lesson library',
+      'School lesson license lock',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
-      'Unlimited repeated use of lessons',
-      'Shared lesson library',
-      'School lesson license lock',
-      'Shared monthly AI allowance for the whole school',
     ],
   },
   campus: {
-    description: 'For a large school, multi-site organisation or institution with several teams.',
+    description: 'For a large school, multi-site organisation or institution that wants the full teaching workflow across several teams.',
     features: [
-      'Up to 100 teachers',
-      'A separate account for every teacher',
-      '2,000 new AI lessons per month shared',
-      '8,000 AI edits per month shared',
+      'End-to-end workflow: AI preparation → refinements → live lesson → results',
+      'Up to 100 teachers · a separate account for each',
+      '400 new AI lessons per month shared',
+      '700 AI edits per month shared',
+      'Unlimited live lessons and repeated lesson use',
+      'Students join without a full account',
+      'Shared lesson library',
+      'School lesson license lock',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
-      'Unlimited repeated use of lessons',
-      'Shared lesson library',
-      'School lesson license lock',
-      'Shared monthly AI allowance for the whole organisation',
     ],
   },
 };
@@ -283,6 +304,9 @@ function PlanCard({
   const primary = priceValue(plan, billing, currency);
   const annualPrice = priceValue(plan, 'annual', currency);
   const monthlyEquivalent = plan.free ? 0 : annualPrice / 12;
+  const perSeatMonthly = plan.seatLimit
+    ? (annual ? annualPrice / 12 : primary) / plan.seatLimit
+    : null;
 
   return (
     <article className={`${styles.card} ${plan.featured ? styles.featured : ''}`} id={plan.id}>
@@ -301,6 +325,13 @@ function PlanCard({
           <div className={styles.priceNote}>≈ {formatPrice(monthlyEquivalent, currency, english)} {english ? '/ month · 2 months free' : '/ měsíc · 2 měsíce zdarma'}</div>
         ) : null}
         {plan.free ? <div className={styles.priceNote}>{english ? 'No payment card required.' : 'Bez platební karty.'}</div> : null}
+        {perSeatMonthly !== null ? (
+          <div className={styles.seatValue}>
+            {english
+              ? `≈ ${formatPrice(perSeatMonthly, currency, english)} / teacher / month at full capacity`
+              : `≈ ${formatPrice(perSeatMonthly, currency, english)} / učitele / měsíc při plné kapacitě`}
+          </div>
+        ) : null}
       </div>
 
       <ul className={styles.features}>
@@ -311,9 +342,14 @@ function PlanCard({
             || feature.startsWith('Printable worksheets');
           const unlimitedReuseHook = feature === 'Opakované používání lekcí bez omezení'
             || feature === 'Unlimited repeated use of lessons';
+          const processHook = feature.startsWith('Celý proces')
+            || feature.startsWith('End-to-end workflow')
+            || feature.startsWith('Živé hodiny')
+            || feature.startsWith('Unlimited live lessons');
           const premiumHook = multilingualTeacherHook
             || worksheetHook
             || unlimitedReuseHook
+            || processHook
             || feature.startsWith('AI hodnocení')
             || feature.startsWith('Složky a podsložky')
             || feature === 'Sdílená knihovna lekcí'
@@ -661,11 +697,25 @@ export default function PricingPage({
 
       <section className={styles.hero}>
         <span className={styles.eyebrow}>{english ? 'Pricing' : 'Pricing · Ceník'}</span>
-        <h1>{ui('Začněte zdarma. Přidejte výkon, až ho budete potřebovat.', 'Start free. Add more capacity when you need it.')}</h1>
-        <p>{ui(
-          'Free stačí na vyzkoušení celého toku od přípravy po první živé použití každé lekce. Placené plány odemknou opakované používání lekcí bez omezení, větší AI kapacitu a lekce v libovolném jazyce; Teacher Pro navíc automatické AI hodnocení a organizaci lekcí do složek.',
-          'Free is enough to try the full flow from preparation through the first live use of each lesson. Paid plans unlock unlimited repeated use of lessons, more AI capacity and lessons in any language; Teacher Pro also adds automatic AI grading and lesson folders.'
-        )}</p>
+        <h1>{audience === 'schools'
+          ? ui('Jedna licence pro tým. Celý výukový proces od AI přípravy po výsledky.', 'One licence for the team. The full teaching workflow from AI preparation to results.')
+          : ui('Od nápadu k odučené hodině. Vyberte kapacitu, která vám sedí.', 'From idea to live teaching. Choose the capacity that fits you.')}</h1>
+        <p>{audience === 'schools'
+          ? ui(
+            'Syllonaut nekončí u vygenerovaného materiálu. Učitelé připraví lekci s AI, doladí ji běžnou řečí, odučí ji živě se studenty a pracují s odpověďmi i výsledky v jednom prostředí.',
+            'Syllonaut does not stop at generated materials. Teachers prepare with AI, refine in plain language, teach live with students and work with responses and results in one environment.'
+          )
+          : ui(
+            'Neplatíte jen za generování. Syllonaut spojuje AI přípravu, úpravy přirozeným jazykem, živou výuku a výsledky studentů do jednoho souvislého procesu.',
+            'You are not paying only for generation. Syllonaut connects AI preparation, natural-language refinements, live teaching and student results in one continuous workflow.'
+          )}</p>
+
+        <div className={styles.processFlow} aria-label={ui('Celý proces v Syllonautu', 'The full Syllonaut workflow')}>
+          <div><span>01</span><strong>{ui('Připravit s AI', 'Prepare with AI')}</strong><small>{ui('Z tématu vznikne strukturovaná interaktivní lekce.', 'Turn a topic into a structured interactive lesson.')}</small></div>
+          <div><span>02</span><strong>{ui('Doladit běžnou řečí', 'Refine naturally')}</strong><small>{ui('Měňte aktivity, délku i jazyk bez stavění od nuly.', 'Change activities, timing or language without rebuilding.')}</small></div>
+          <div><span>03</span><strong>{ui('Odučit živě', 'Teach live')}</strong><small>{ui('Studenti se připojí telefonem bez plnohodnotného účtu.', 'Students join on their phones without full accounts.')}</small></div>
+          <div><span>04</span><strong>{ui('Vyhodnotit', 'Review results')}</strong><small>{ui('Odpovědi, skóre a podle tarifu i AI hodnocení.', 'Responses, scores and, on eligible plans, AI grading.')}</small></div>
+        </div>
       </section>
 
       {checkoutResult && (sandboxCheckoutEnabled || publicLiveBillingEnabled) ? (
