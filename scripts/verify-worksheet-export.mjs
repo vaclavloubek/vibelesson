@@ -29,6 +29,8 @@ expect(pdfRoute.includes("select('role, worksheet_export_enabled')"),'Worksheet 
 expect(pdfRoute.includes("profileResult.data.role === 'admin' || profileResult.data.worksheet_export_enabled"),'Worksheet PDF endpoint must fail closed for non-entitled users.');
 expect(pdfRoute.includes("'Content-Type': 'application/pdf'"),'Worksheet PDF endpoint must return application/pdf.');
 expect(pdfBuilder.includes('dontBreakRows: true'),'Server PDF must keep each activity together as a non-breaking row.');
+expect(worksheetPage.includes("blocks.map(({ block }, worksheetIndex)")&&worksheetPage.includes('{worksheetIndex + 1}'),'Worksheet preview must renumber selected activities sequentially.');
+expect(pdfBuilder.includes("blocks.forEach(({ block }, worksheetIndex)")&&pdfBuilder.includes('activityNode(block, worksheetIndex'),'Server PDF must renumber selected activities sequentially.');
 expect(pdfBuilder.includes('pdfMake.addVirtualFileSystem'),'Server PDF must embed its font through the bundled virtual file system.');
 expect(!worksheetCss.includes('body>:not(#main-content)'),'Print CSS must not hide the worksheet root through a fragile :not() body selector.');
 expect(!worksheetCss.includes('body>#main-content')&&!worksheetCss.includes('body>#main-content~*'),'Worksheet print CSS must not hide or force-display any body-level application wrapper.');
