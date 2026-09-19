@@ -27,16 +27,24 @@ function hasExpectedStripeSecretMode(value: string | undefined, livemode: boolea
   return livemode ? /^(?:sk|rk)_live_/.test(value) : /^(?:sk|rk)_test_/.test(value);
 }
 
-export async function createStripePortalSession(input: { secretKey: string; livemode: boolean; customerId: string }) {
+export async function createStripePortalSession(input: {
+  secretKey: string;
+  livemode: boolean;
+  customerId: string;
+  locale?: 'cs' | 'en';
+  returnPath?: 'pricing' | 'subscription';
+}) {
   if (!hasExpectedStripeSecretMode(input.secretKey, input.livemode)) {
     throw new Error(input.livemode ? 'stripe_live_secret_invalid' : 'stripe_test_secret_invalid');
   }
   if (!/^cus_[A-Za-z0-9_]+$/.test(input.customerId)) throw new Error('stripe_customer_id_invalid');
 
   const environment = input.livemode ? 'live' : 'sandbox';
+  const locale = input.locale ?? 'cs';
+  const returnPath = input.returnPath ?? 'pricing';
   const params = new URLSearchParams();
   params.set('customer', input.customerId);
-  params.set('return_url', 'https://www.syllonaut.com/pricing?billing_env=' + environment + '&portal=returned');
+  params.set('return_url', `https://www.syllonaut.com/${locale}/${returnPath}?billing_env=${environment}&portal=returned`);
 
   const response = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
     method: 'POST',

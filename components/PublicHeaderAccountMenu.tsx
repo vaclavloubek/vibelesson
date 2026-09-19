@@ -151,7 +151,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
             <Link role="menuitem" href="/lessons" className="auth-account-item" onClick={() => setOpen(false)}>
               {english ? 'My lessons' : 'Moje lekce'}
             </Link>
-            <Link role="menuitem" href={`/${locale}/pricing`} className="auth-account-item" onClick={() => setOpen(false)}>
+            <Link role="menuitem" href={`/${locale}/subscription`} className="auth-account-item" onClick={() => setOpen(false)}>
               {english ? 'Subscription' : 'Předplatné'}
             </Link>
             <button

@@ -74,7 +74,7 @@ export default async function SubscriptionPage() {
           <LocaleSwitcher />
           <PublicHeaderAccountMenu user={accountUser} />
           <Link href="/new" className={landing.headerCta}>{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
-          <HeaderMobileNav signedIn current={null} />
+          <HeaderMobileNav signedIn />
         </div>
       </header>
 

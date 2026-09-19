@@ -660,17 +660,11 @@ export default function PricingPage({
           <div>
             <span className={styles.checkoutKicker}>{ui('Aktivní předplatné', 'Active subscription')}</span>
             <strong>{activePlanCode === 'teacher-pro' ? 'Teacher Pro' : 'Teacher'}</strong>
-            <p>{ui('Platební metodu, fakturační údaje, historii faktur a zrušení předplatného spravuje Stripe Customer Portal.', 'Payment method, billing details, invoice history and cancellation are managed in Stripe Customer Portal.')}</p>
+            <p>{ui('Tarif, fakturaci, platby, faktury i zrušení teď spravuješ na jednom místě v Syllonautu.', 'Manage your plan, billing period, payments, invoices and cancellation from one Syllonaut page.')}</p>
           </div>
-          <button
-            type="button"
-            className={styles.dialogSecondary}
-            onClick={openSandboxPortal}
-            disabled={portalBusy}
-          >
-            {portalBusy ? ui('Otevírám portál…', 'Opening portal…') : ui('Spravovat předplatné', 'Manage subscription')}
-          </button>
-          {portalError ? <div className={styles.sandboxToolsError} role="alert">{portalError}</div> : null}
+          <Link className={styles.dialogSecondary} href={`/${locale}/subscription`}>
+            {ui('Spravovat předplatné', 'Manage subscription')}
+          </Link>
         </section>
       ) : null}
 
