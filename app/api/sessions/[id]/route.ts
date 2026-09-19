@@ -14,6 +14,14 @@ function sameJson(left: unknown, right: unknown) {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
+function databaseErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message ?? '');
+  }
+  return '';
+}
+
 async function loadOwnedSession(id: string, userId: string, supabase: SupabaseClient) {
   return supabase
     .from('sessions')
@@ -298,6 +306,13 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     });
   } catch (error) {
     console.error('update session failed', error);
+    const message = databaseErrorMessage(error);
+    if (message.includes('free_session_expired')) {
+      return NextResponse.json({ error: 'Tato Free hodina po 6 hodinách skončila.' }, { status: 410 });
+    }
+    if (message.includes('session_reopen_forbidden')) {
+      return NextResponse.json({ error: 'Ukončenou hodinu nelze znovu otevřít.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Stav hodiny se nepodařilo změnit.' }, { status: 500 });
   }
 }
