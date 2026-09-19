@@ -1,3 +1,4 @@
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 
@@ -6,10 +7,46 @@ type RouteContext = {
 };
 
 const SHARE_TOKEN_PATTERN = /^[0-9a-f]{48}$/;
+const BEARER_PATTERN = /^Bearer\s+(.+)$/i;
 
-export async function POST(_request: Request, { params }: RouteContext) {
+async function authenticatedRequestClient(request: Request) {
+  const authorization = request.headers.get('authorization');
+
+  if (authorization) {
+    const match = authorization.match(BEARER_PATTERN);
+    const accessToken = match?.[1]?.trim();
+    if (!accessToken) return { supabase: null, userId: null };
+
+    const supabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      {
+        global: {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      },
+    );
+
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data.user) return { supabase: null, userId: null };
+
+    return { supabase, userId: data.user.id };
+  }
+
   const { supabase, userId } = await getAuthenticatedUserId();
-  if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  return { supabase, userId };
+}
+
+export async function POST(request: Request, { params }: RouteContext) {
+  const { supabase, userId } = await authenticatedRequestClient(request);
+  if (!supabase || !userId) {
+    return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  }
 
   const { token } = await params;
   if (!SHARE_TOKEN_PATTERN.test(token)) {
