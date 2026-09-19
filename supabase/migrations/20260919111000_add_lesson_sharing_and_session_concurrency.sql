@@ -273,7 +273,13 @@ $$;
 revoke all on function public.import_lesson_share(text) from public, anon;
 grant execute on function public.import_lesson_share(text) to authenticated;
 
-do $$
+update public.sessions
+set status = 'ended',
+    ended_at = coalesce(ended_at, now())
+where status in ('lobby', 'live')
+  and created_at < now() - interval '24 hours';
+
+do $
 begin
   if exists (
     select 1
