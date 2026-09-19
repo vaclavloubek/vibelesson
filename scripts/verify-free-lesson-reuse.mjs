@@ -84,7 +84,7 @@ for (const [needle, label] of [
 const lockdownMigration = fs.readdirSync(migrationDir)
   .filter((name) => name.endsWith('.sql'))
   .map((name) => ({ name, content: read(path.join('supabase/migrations', name)) }))
-  .find(({ content }) => content.includes('revoke insert on table public.lessons from authenticated'));
+  .find(({ content }) => content.includes('revoke insert on table public.lessons from anon, authenticated'));
 
 if (!lockdownMigration) {
   throw new Error('Missing migration that closes direct authenticated lesson inserts.');
