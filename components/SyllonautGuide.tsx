@@ -68,8 +68,8 @@ const lessonSteps: GuideStep[] = [
     target: 'lesson-edit-whole',
     title: { cs: 'Celou lekci upravíte jedním pokynem', en: 'Edit the whole lesson with one instruction' },
     body: {
-      cs: 'Sem napište například „zkrátit na 45 minut“, „více týmové práce“ nebo „udělat druhou polovinu náročnější“. Nemusíte nic přepisovat ručně.',
-      en: 'Try instructions such as “shorten it to 45 minutes”, “add more teamwork” or “make the second half more challenging”. No manual rewriting is needed.',
+      cs: 'Napište například „zkrátit na 45 minut“, „více týmové práce“ nebo „udělat druhou polovinu náročnější“ a spusťte Upravit celou lekci. Další krok se otevře po dokončení změny.',
+      en: 'Try “shorten it to 45 minutes”, “add more teamwork” or “make the second half more challenging”, then run Edit whole lesson. The guide continues after the edit succeeds.',
     },
     advanceOn: 'signal',
     signal: 'lesson-revised',
@@ -87,8 +87,8 @@ const lessonSteps: GuideStep[] = [
     target: 'lesson-edit-block-editor',
     title: { cs: 'Úprava jedné aktivity', en: 'Edit one activity' },
     body: {
-      cs: 'Tady napište přesně, co chcete změnit. Syllonaut upraví jen vybranou aktivitu a změnu automaticky uloží.',
-      en: 'Describe exactly what should change. Syllonaut edits only the selected activity and saves the change automatically.',
+      cs: 'Napište přesně, co chcete změnit, a spusťte Upravit jen tuto aktivitu. Syllonaut změní pouze vybraný úkol; další krok se otevře po úspěšném uložení.',
+      en: 'Describe exactly what should change and run Edit this activity only. Syllonaut changes only the selected task; the guide continues after the edit is saved.',
     },
     advanceOn: 'signal',
     signal: 'activity-revised',
