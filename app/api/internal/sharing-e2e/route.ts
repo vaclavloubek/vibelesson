@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !publishableKey) return respond({ ok: false, stage: 'public-env' }, 500);
 
-  let admin;
+  let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
   } catch {
