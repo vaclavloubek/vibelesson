@@ -22,8 +22,15 @@ function safeSignupDestination(next: FormDataEntryValue | null, requestUrl: stri
     const requestOrigin = new URL(requestUrl).origin;
     const destination = new URL(next, requestOrigin);
     if (destination.origin !== requestOrigin || !SHARED_LESSON_PATH.test(destination.pathname)) return null;
-    if (destination.search || destination.hash) return null;
-    return `${destination.pathname}${destination.search}`;
+    if (destination.hash) return null;
+
+    const entries = Array.from(destination.searchParams.entries());
+    const importRequested = entries.length === 1
+      && entries[0][0] === 'import'
+      && entries[0][1] === '1';
+    if (destination.search && !importRequested) return null;
+
+    return `${destination.pathname}${importRequested ? '?import=1' : ''}`;
   } catch {
     return null;
   }
