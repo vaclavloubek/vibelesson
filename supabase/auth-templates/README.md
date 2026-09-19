@@ -19,10 +19,10 @@ Vizuální směr odpovídá design systému **Orbital Precision**: teplé světl
 
 `Confirm sign up` a `Reset password` používají vlastní token-hash odkazy:
 
-- signup: `{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
+- signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`
 - recovery: `{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
 
-`AuthControls` předává `emailRedirectTo` / `redirectTo` jako aktuální origin aplikace. Supabase Redirect URL allowlist proto musí obsahovat pouze důvěryhodné originy, na kterých má auth flow fungovat.
+`AuthControls` standardně předává `emailRedirectTo` / `redirectTo` jako aktuální origin aplikace. Registrace ze sdílené lekce předá přesnou URL dané lekce, aby se nový učitel po potvrzení účtu vrátil k jejímu náhledu. Ověřovací endpoint přijímá pouze cestu `/s/<48 hex znaků>` na stejném originu. Supabase Redirect URL allowlist proto musí obsahovat důvěryhodné produkční a lokální URL, na kterých má auth flow fungovat, včetně cest sdílených lekcí.
 
 Odkaz z těchto dvou e-mailů token nespotřebuje při prvním GET. `/auth/confirm` zobrazí mezistránku a `verifyOtp` proběhne až po uživatelském POST na `/auth/confirm/verify`; tím se flow chrání před automatickým prefetchováním odkazů e-mailovými bezpečnostními skenery.
 

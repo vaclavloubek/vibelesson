@@ -86,7 +86,7 @@ requirePattern(cookieConsent, /allow_google_signals:\s*false/, 'Google Signals m
 requirePattern(cookieConsent, /allow_ad_personalization_signals:\s*false/, 'ad personalization signals must remain disabled.');
 requirePattern(cookieConsent, /dataLayer\?\.push\(arguments\)/, 'gtag must queue canonical arguments objects so gtag.js processes commands.');
 forbidPattern(cookieConsent, /dataLayer\?\.push\(args\)/, 'gtag must not queue rest-parameter arrays; gtag.js expects the canonical arguments object.');
-forbidPattern(cookieConsent, /usePathname/, 'CookieConsent must not manually track SPA route changes when Enhanced Measurement is authoritative.');
+forbidPattern(cookieConsent, /gtag\?\.\('event',\s*'page_view'/, 'CookieConsent must not manually track SPA route changes when Enhanced Measurement is authoritative.');
 forbidPattern(cookieConsent, /page_path:\s*pathname/, 'manual route page_view tracking can duplicate Enhanced Measurement.');
 
 const files = [

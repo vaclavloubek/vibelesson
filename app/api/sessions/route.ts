@@ -7,6 +7,20 @@ import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-s
 
 const CreateSessionSchema = z.object({ lessonId: z.string().uuid() });
 
+async function findActiveSession(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase'],
+  userId: string,
+) {
+  return supabase
+    .from('sessions')
+    .select('id')
+    .eq('teacher_id', userId)
+    .in('status', ['lobby', 'live'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
 export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
@@ -25,6 +39,14 @@ export async function POST(req: Request) {
     }
 
     const lessonSnapshot = LessonSchema.parse(lessonRow.lesson);
+    const active = await findActiveSession(supabase, userId);
+    if (active.error) throw active.error;
+    if (active.data) {
+      return NextResponse.json({
+        error: 'Na tomto účtu už běží jiná hodina.',
+        activeSessionId: active.data.id,
+      }, { status: 409 });
+    }
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const joinCode = generateJoinCode();
@@ -72,6 +94,15 @@ export async function POST(req: Request) {
       }
 
       if (insertError?.code !== '23505') throw insertError;
+
+      const racedActive = await findActiveSession(supabase, userId);
+      if (racedActive.error) throw racedActive.error;
+      if (racedActive.data) {
+        return NextResponse.json({
+          error: 'Na tomto účtu už běží jiná hodina.',
+          activeSessionId: racedActive.data.id,
+        }, { status: 409 });
+      }
     }
 
     return NextResponse.json({ error: 'Nepodařilo se vytvořit unikátní kód hodiny.' }, { status: 503 });

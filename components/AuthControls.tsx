@@ -42,6 +42,7 @@ type Props = {
   quotaRefreshKey?: number;
   initialOpen?: boolean;
   initialMode?: 'signin' | 'signup';
+  signupRedirectPath?: string;
 };
 
 type Quota = {
@@ -139,6 +140,7 @@ export default function AuthControls({
   quotaRefreshKey = 0,
   initialOpen = false,
   initialMode = 'signin',
+  signupRedirectPath,
 }: Props) {
   const locale = useUiLocale();
   const english = locale === 'en';
@@ -279,6 +281,11 @@ export default function AuthControls({
     return window.location.origin;
   }
 
+  function signupRedirectUrl() {
+    if (!signupRedirectPath?.startsWith('/')) return authRedirectOrigin();
+    return new URL(signupRedirectPath, window.location.origin).toString();
+  }
+
   async function signIn(e: FormEvent) {
     e.preventDefault();
     if (!captchaToken) {
@@ -332,7 +339,7 @@ export default function AuthControls({
       email: normalizedEmail,
       password,
       options: {
-        emailRedirectTo: authRedirectOrigin(),
+        emailRedirectTo: signupRedirectUrl(),
         captchaToken: token,
         data: {
           marketing_email_consent: marketingConsent,

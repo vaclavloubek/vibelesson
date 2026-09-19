@@ -26,6 +26,7 @@ const [
   teamTask,
   lessonWorkspace,
   lessonPreview,
+  shareLessonButton,
   lessonLibrary,
   lessonActions,
   teacherSession,
@@ -52,6 +53,7 @@ const [
   source('components/TeamTaskResponseInput.tsx'),
   source('components/LessonWorkspace.tsx'),
   source('components/LessonPreview.tsx'),
+  source('components/ShareLessonButton.tsx'),
   source('app/lessons/LessonLibrary.tsx'),
   source('app/lessons/LessonActions.tsx'),
   source('components/TeacherSession.tsx'),
@@ -97,7 +99,11 @@ requirePattern(lessonWorkspace, /builder\.scrollTo\(/, 'Edit block must scroll t
 requirePattern(lessonWorkspace, /editor\?\.scrollIntoView/, 'Edit block must retain page-scroll fallback for non-scrollable layouts.');
 requirePattern(lessonWorkspace, /blockRevisionTextareaRef\.current\?\.focus\(\{ preventScroll: true \}\)/, 'Edit block must move keyboard focus into the block revision field.');
 requirePattern(lessonWorkspace, /prefers-reduced-motion: reduce/, 'block-editor navigation must respect reduced-motion preferences.');
-requirePattern(lessonPreview, /onEditBlock\(block\.id\)/, 'the explicit Edit block control must use the focus-and-scroll editing action.');
+requirePattern(lessonPreview, /onEditBlock\?\.\(block\.id\)/, 'the explicit Edit block control must use the focus-and-scroll editing action.');
+requirePattern(shareLessonButton, /role="dialog"/, 'lesson sharing must keep dialog semantics.');
+requirePattern(shareLessonButton, /aria-modal="true"/, 'lesson sharing must remain modal to assistive technology.');
+requirePattern(shareLessonButton, /event\.key !== 'Tab'/, 'lesson sharing lost keyboard focus trapping.');
+requirePattern(shareLessonButton, /triggerRef\.current\?\.focus\(\)/, 'lesson sharing no longer returns focus to its trigger.');
 requirePattern(lessonWorkspace, /folderId:\s*initialFolderId/, 'folder-aware generation was lost while applying accessibility changes.');
 requirePattern(lessonPreview, /Kontrola přístupnosti obsahu/, 'ATAG authoring feedback is missing from teacher preview.');
 requirePattern(lessonPreview, /Jak opravit:/, 'ATAG repair guidance is missing from teacher preview.');

@@ -25,7 +25,7 @@
             <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#4f525b;">Účet v Syllonautu je téměř připravený. Potvrďte svou e-mailovou adresu a můžete začít vytvářet, ukládat a vést interaktivní hodiny.</p>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 26px;">
               <tr><td style="border-radius:10px;background:#5b57e8;">
-                <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;padding:13px 20px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Potvrdit e-mail</a>
+                <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email&amp;next={{ .RedirectTo }}" style="display:inline-block;padding:13px 20px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Potvrdit e-mail</a>
               </td></tr>
             </table>
             <p style="margin:0;font-size:13px;line-height:1.6;color:#686b74;">Odkaz je určen pouze pro vás. Pokud jste si účet v Syllonautu nevytvářeli, zprávu můžete ignorovat.</p>

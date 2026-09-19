@@ -8,6 +8,7 @@ type Props = {
   searchParams: Promise<{
     token_hash?: string;
     type?: string;
+    next?: string;
   }>;
 };
 
@@ -28,7 +29,7 @@ export default async function ConfirmAuthPage({ searchParams }: Props) {
   const requestHeaders = await headers();
   const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
   const english = locale === 'en';
-  const { token_hash: tokenHash, type } = await searchParams;
+  const { token_hash: tokenHash, type, next } = await searchParams;
   const validRequest = Boolean(tokenHash) && isSupportedType(type);
   const recovery = type === 'recovery';
 
@@ -59,6 +60,7 @@ export default async function ConfirmAuthPage({ searchParams }: Props) {
             <form action="/auth/confirm/verify" method="post">
               <input type="hidden" name="token_hash" value={tokenHash} />
               <input type="hidden" name="type" value={type} />
+              {next ? <input type="hidden" name="next" value={next} /> : null}
               <button type="submit" className="primary">
                 {recovery ? (english ? 'Continue' : 'Pokračovat') : (english ? 'Confirm account' : 'Potvrdit účet')}
               </button>
