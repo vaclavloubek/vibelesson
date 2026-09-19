@@ -5,10 +5,10 @@ import SyllonautMark from '@/components/SyllonautMark';
 import { useUiLocale } from '@/components/LocaleProvider';
 import {
   readSyllonautGuideState,
+  subscribeSyllonautGuideState,
   syllonautGuideStepKey,
   SYLLONAUT_GUIDE_ACTION_EVENT,
   SYLLONAUT_LESSON_REVIEW_STEP,
-  SYLLONAUT_GUIDE_EVENT,
   type SyllonautGuideAction,
   type SyllonautGuideChapter,
   type SyllonautGuideState,
@@ -344,14 +344,7 @@ export default function SyllonautGuide({ userId }: Props) {
     }
 
     setState(readSyllonautGuideState(userId));
-
-    const onGuideState = (event: Event) => {
-      const custom = event as CustomEvent<{ userId?: string; state?: SyllonautGuideState }>;
-      if (custom.detail?.userId !== userId) return;
-      setState(custom.detail.state ?? readSyllonautGuideState(userId));
-    };
-    window.addEventListener(SYLLONAUT_GUIDE_EVENT, onGuideState);
-    return () => window.removeEventListener(SYLLONAUT_GUIDE_EVENT, onGuideState);
+    return subscribeSyllonautGuideState(userId, setState);
   }, [userId]);
 
   useEffect(() => {

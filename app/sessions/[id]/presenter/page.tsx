@@ -33,7 +33,7 @@ export default async function PresenterPage({ params }: Props) {
       sessionId: id,
       authError: true,
     });
-    return <PresenterMode sessionId={id} />;
+    return <PresenterMode sessionId={id} userId={resume.userId} />;
   }
 
   const { data: session, error: sessionError } = await supabase
@@ -46,9 +46,9 @@ export default async function PresenterPage({ params }: Props) {
   if (sessionError) {
     if (resume?.userId !== userId) throw sessionError;
     console.warn('presenter ownership lookup degraded; using resume ticket', { sessionId: id });
-    return <PresenterMode sessionId={id} />;
+    return <PresenterMode sessionId={id} userId={userId} />;
   }
   if (!session) notFound();
 
-  return <PresenterMode sessionId={id} />;
+  return <PresenterMode sessionId={id} userId={userId} />;
 }

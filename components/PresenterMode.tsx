@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PresenterScoreboard from '@/components/PresenterScoreboard';
 import FormattedInstructions from '@/components/FormattedInstructions';
 import SyllonautMark from '@/components/SyllonautMark';
+import PresenterGuideHandoff from '@/components/PresenterGuideHandoff';
 import styles from '@/components/PresenterSession.module.css';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import {
@@ -175,7 +176,7 @@ function presenterFromLiveControl(live: LiveControlState, english: boolean): Pre
   };
 }
 
-export default function PresenterMode({ sessionId }: { sessionId: string }) {
+export default function PresenterMode({ sessionId, userId }: { sessionId: string; userId: string | null }) {
   const locale = useUiLocale();
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
@@ -318,6 +319,7 @@ export default function PresenterMode({ sessionId }: { sessionId: string }) {
 
   return (
     <main className={styles.screen}>
+      <PresenterGuideHandoff userId={userId} />
       <header className={styles.header}>
         <div className={styles.brand}>
           <span className={styles.mark}><SyllonautMark /></span>
