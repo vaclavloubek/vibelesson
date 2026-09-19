@@ -24,8 +24,10 @@ export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !publishableKey) return json({ ok: false, stage: 'runtime-public-env' }, 500);
+  const supabaseUrl = url;
+  const supabasePublishableKey = publishableKey;
 
-  let admin;
+  let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
   } catch {
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
   }
 
   async function authenticatedClient(email: string) {
-    const client = createClient(url, publishableKey, {
+    const client = createClient(supabaseUrl, supabasePublishableKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
     const { data, error } = await client.auth.signInWithPassword({ email, password });
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
     const owner = await authenticatedClient(ownerEmail);
     stage = 'signin-recipient';
     const recipient = await authenticatedClient(recipientEmail);
-    const anon = createClient(url, publishableKey, {
+    const anon = createClient(supabaseUrl, supabasePublishableKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
 
@@ -212,7 +214,7 @@ export async function POST(request: Request) {
     const { error: secondSessionError } = await owner
       .from('sessions')
       .insert({ lesson_id: sourceLessonId, teacher_id: ownerId, join_code: joinCodeTwo, lesson_snapshot: lesson });
-    expect(Boolean(secondSessionError) && secondSessionError.code === '23505', 'second active session was not rejected');
+    expect(Boolean(secondSessionError) && secondSessionError?.code === '23505', 'second active session was not rejected');
 
     stage = 'revoke-share';
     const { error: revokeError } = await owner
