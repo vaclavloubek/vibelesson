@@ -16,8 +16,10 @@ function requireBefore(text, first, second, message) {
   }
 }
 
-const [lessonPage, workspace, authControls, revise, reviseBlock] = await Promise.all([
+const [lessonPage, lessonsIndex, dashboardLogout, workspace, authControls, revise, reviseBlock] = await Promise.all([
   source('app/lessons/[id]/page.tsx'),
+  source('app/lessons/page.tsx'),
+  source('components/DashboardLogoutButton.tsx'),
   source('components/LessonWorkspace.tsx'),
   source('components/AuthControls.tsx'),
   source('app/api/revise/route.ts'),
@@ -34,6 +36,9 @@ requirePattern(workspace, /window\.location\.replace\(nextUserId \? '\/lessons' 
 requirePattern(workspace, /authUser\.id !== initialOwnerId/, 'a server-hydrated lesson must never be re-stamped into recovery storage for another user.');
 requirePattern(workspace, /authUserIdRef\.current !== expectedOwnerId/, 'late async lesson responses must be rejected after an account change.');
 requirePattern(authControls, /window\.location\.assign\('\/'\)/, 'explicit sign-out must destroy page-local account state with a hard navigation.');
+requirePattern(lessonsIndex, /<DashboardLogoutButton\s*\/>/, 'My lessons must expose an explicit sign-out control for every signed-in account.');
+requirePattern(dashboardLogout, /supabase\.auth\.signOut\(\)/, 'dashboard logout must terminate the Supabase session.');
+requirePattern(dashboardLogout, /window\.location\.assign\(\`\/\$\{locale\}\`\)/, 'dashboard logout must hard-navigate after sign-out.');
 
 for (const [name, route] of [['whole lesson', revise], ['single block', reviseBlock]]) {
   requirePattern(route, /\.from\('lessons'\)[\s\S]*\.select\('lesson'\)[\s\S]*\.eq\('id', lessonId\)[\s\S]*\.eq\('owner_id', userId\)/, `${name} revision must load the authoritative owned lesson.`);
