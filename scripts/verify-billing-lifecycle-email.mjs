@@ -3,7 +3,7 @@ import { billingRouteForCountry } from '../lib/billing-region.ts';
 import {
   billingLifecycleNotification,
   renderBillingLifecycleEmail,
-} from '../lib/billing-email.ts';
+} from '../lib/billing-email-core.ts';
 import { normalizeStripeSubscriptionEvent } from '../lib/stripe-webhook.ts';
 
 function assert(condition, message) {
