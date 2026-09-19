@@ -358,3 +358,151 @@ export function normalizeStripeInvoiceEvent(
     subscriptionId,
   };
 }
+
+
+export type StripeOrganizationInvoiceEventSync = {
+  eventId: string;
+  eventType: 'invoice.payment_failed' | 'invoice.paid';
+  livemode: boolean;
+  organizationId: string;
+  orderId: string;
+  invoiceId: string;
+  currency: 'czk' | 'eur' | 'usd';
+  billingCountry: string;
+};
+
+export type StripeOrganizationSubscriptionEventSync = {
+  eventId: string;
+  eventType: string;
+  livemode: boolean;
+  organizationId: string;
+  orderId: string;
+  subscriptionId: string;
+  status: string;
+};
+
+function organizationMetadataFromInvoice(invoice: Record<string, unknown>) {
+  const directMetadata = optionalObjectRecord(invoice.metadata) ?? {};
+  if (
+    typeof directMetadata.syllonaut_organization_id === 'string'
+    || typeof directMetadata.syllonaut_order_id === 'string'
+  ) {
+    return directMetadata;
+  }
+
+  const parent = optionalObjectRecord(invoice.parent);
+  if (!parent || parent.type !== 'subscription_details') return null;
+  const subscriptionDetails = optionalObjectRecord(parent.subscription_details);
+  if (!subscriptionDetails) return null;
+  return optionalObjectRecord(subscriptionDetails.metadata) ?? null;
+}
+
+export function normalizeStripeOrganizationInvoiceEvent(
+  event: StripeWebhookEvent,
+): StripeOrganizationInvoiceEventSync | null {
+  if (!SUPPORTED_STRIPE_INVOICE_EVENTS.has(event.type)) return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const invoice = objectRecord(event.data.object);
+  if (invoice.object !== 'invoice') throw new Error('stripe_invoice_object_invalid');
+
+  const metadata = organizationMetadataFromInvoice(invoice);
+  if (!metadata || typeof metadata.syllonaut_organization_id !== 'string') {
+    return null;
+  }
+
+  const organizationId = stringField(
+    metadata.syllonaut_organization_id,
+    UUID_RE,
+    'stripe_organization_metadata_invalid',
+  );
+  const orderId = stringField(
+    metadata.syllonaut_order_id,
+    UUID_RE,
+    'stripe_organization_order_metadata_invalid',
+  );
+
+  const invoiceId = stringField(
+    invoice.id,
+    /^in_[A-Za-z0-9_]+$/,
+    'stripe_organization_invoice_id_invalid',
+  );
+  const currency = typeof invoice.currency === 'string'
+    ? invoice.currency.toLowerCase()
+    : '';
+  if (!['czk', 'eur', 'usd'].includes(currency)) {
+    throw new Error('stripe_organization_invoice_currency_invalid');
+  }
+
+  const customerAddress = optionalObjectRecord(invoice.customer_address);
+  const billingCountry = typeof customerAddress?.country === 'string'
+    ? customerAddress.country.trim().toUpperCase()
+    : '';
+  if (!/^[A-Z]{2}$/.test(billingCountry)) {
+    throw new Error('stripe_organization_invoice_country_invalid');
+  }
+
+  if (event.type !== 'invoice.payment_failed' && event.type !== 'invoice.paid') {
+    return null;
+  }
+
+  return {
+    eventId: event.id,
+    eventType: event.type,
+    livemode: event.livemode,
+    organizationId,
+    orderId,
+    invoiceId,
+    currency: currency as 'czk' | 'eur' | 'usd',
+    billingCountry,
+  };
+}
+
+export function normalizeStripeOrganizationSubscriptionEvent(
+  event: StripeWebhookEvent,
+): StripeOrganizationSubscriptionEventSync | null {
+  if (!SUPPORTED_STRIPE_SUBSCRIPTION_EVENTS.has(event.type)) return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const subscription = objectRecord(event.data.object);
+  if (subscription.object !== 'subscription') {
+    throw new Error('stripe_subscription_object_invalid');
+  }
+
+  const metadata = optionalObjectRecord(subscription.metadata) ?? {};
+  if (typeof metadata.syllonaut_organization_id !== 'string') return null;
+
+  const organizationId = stringField(
+    metadata.syllonaut_organization_id,
+    UUID_RE,
+    'stripe_organization_metadata_invalid',
+  );
+  const orderId = stringField(
+    metadata.syllonaut_order_id,
+    UUID_RE,
+    'stripe_organization_order_metadata_invalid',
+  );
+  const subscriptionId = stringField(
+    subscription.id,
+    SUBSCRIPTION_ID_RE,
+    'stripe_subscription_id_invalid',
+  );
+
+  const status = typeof subscription.status === 'string' ? subscription.status : '';
+  if (![
+    'trialing', 'active', 'past_due', 'unpaid', 'canceled',
+    'incomplete', 'incomplete_expired', 'paused',
+  ].includes(status)) {
+    throw new Error('stripe_subscription_status_invalid');
+  }
+
+  return {
+    eventId: event.id,
+    eventType: event.type,
+    livemode: event.livemode,
+    organizationId,
+    orderId,
+    subscriptionId,
+    status,
+  };
+}
