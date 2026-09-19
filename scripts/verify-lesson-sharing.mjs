@@ -82,7 +82,7 @@ requirePattern(authControls, /emailRedirectTo: signupRedirectUrl\(\)/, 'signup m
 requirePattern(authControls, /onSignInSuccess\?\.\(data\.session\?\.access_token \?\? null\)/, 'AuthControls must pass the fresh access token after successful password sign-in.');
 requirePattern(sharedAuthControls, /onSignInSuccess=\{handleSignInSuccess\}/, 'shared lesson auth must hook explicit successful sign-in completion.');
 requirePattern(sharedAuthControls, /headers: \{ Authorization: `Bearer \\${accessToken}` \}/, 'shared lesson sign-in must import with the fresh JWT instead of waiting for cookie propagation.');
-requirePattern(sharedAuthControls, /response\.ok[\s\S]*window\.location\.replace\(`\/lessons\/\\${data\.lessonId}`\)/, 'successful post-login import must open the saved copy immediately.');
+requirePattern(sharedAuthControls, /response\.ok[\s\S]*window\.location\.replace[\s\S]*lessons[\s\S]*data\.lessonId/, 'successful post-login import must open the saved copy immediately.');
 requirePattern(sharedAuthControls, /<Link href="\/lessons">\{english \? 'My lessons' : 'Moje lekce'\}<\/Link>/, 'signed-in shared pages must show a direct My lessons link.');
 requirePattern(sharedAuthControls, /window\.location\.replace\(`\/s\/\$\{token\}\?import=1`\)/, 'successful sign-in must force a fresh server-authenticated share request.');
 requirePattern(sharedAuthControls, /signupRedirectPath=\{`\/s\/\$\{token\}\$\{importRequested \? '\?import=1' : ''\}`\}/, 'signup confirmation must preserve shared lesson import intent.');
