@@ -114,6 +114,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
     <>
       <a
         className="secondary button-link"
+        data-tour="live-presenter"
         href={`/sessions/${sessionId}/presenter`}
         target="_blank"
         rel="noreferrer"
