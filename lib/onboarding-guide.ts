@@ -31,6 +31,7 @@ export function readSyllonautGuideState(userId: string): SyllonautGuideState | n
       parsed.version !== 1
       || typeof parsed.running !== 'boolean'
       || !['lesson', 'live', 'evaluation'].includes(parsed.chapter ?? '')
+      || typeof parsed.step !== 'number'
       || !Number.isInteger(parsed.step)
       || typeof parsed.dismissed !== 'boolean'
       || !Array.isArray(parsed.completed)
