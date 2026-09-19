@@ -51,7 +51,8 @@ const lessonSteps: GuideStep[] = [
       cs: 'Popište vlastními slovy, co mají studenti zažít a zvládnout. Klidně přidejte věk, délku hodiny, styl práce nebo zvláštní požadavky.',
       en: 'Describe in your own words what students should experience and learn. Add age, lesson length, working style or any special requirements.',
     },
-    advanceOn: 'input',
+    advanceOn: 'manual',
+    button: { cs: 'Zadání mám', en: 'Brief ready' },
   },
   {
     target: 'lesson-create-submit',
@@ -255,6 +256,7 @@ export default function SyllonautGuide({ userId }: Props) {
   const [rect, setRect] = useState<TargetRect | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
   const optionalTimerRef = useRef<number | null>(null);
+  const scrolledStepRef = useRef<string>('');
 
   const steps = state ? stepsByChapter[state.chapter] : lessonSteps;
   const step = state ? steps[state.step] ?? null : null;
@@ -331,7 +333,30 @@ export default function SyllonautGuide({ userId }: Props) {
       frame = window.requestAnimationFrame(() => {
         const target = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
         targetRef.current = target;
-        setRect(target ? padRect(target.getBoundingClientRect()) : null);
+        if (!target) {
+          setRect(null);
+          return;
+        }
+
+        const targetRect = target.getBoundingClientRect();
+        const stepKey = `${state.chapter}:${state.step}`;
+        const outsideViewport = targetRect.bottom < 24
+          || targetRect.top > window.innerHeight - 24
+          || targetRect.right < 24
+          || targetRect.left > window.innerWidth - 24;
+
+        if (outsideViewport && scrolledStepRef.current !== stepKey) {
+          scrolledStepRef.current = stepKey;
+          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          target.scrollIntoView({
+            behavior: reduceMotion ? 'auto' : 'smooth',
+            block: 'center',
+            inline: 'nearest',
+          });
+          return;
+        }
+
+        setRect(padRect(targetRect));
       });
     };
 
@@ -359,7 +384,7 @@ export default function SyllonautGuide({ userId }: Props) {
     optionalTimerRef.current = window.setTimeout(() => {
       optionalTimerRef.current = null;
       advance();
-    }, 5000);
+    }, 1200);
 
     return () => {
       if (optionalTimerRef.current !== null) {
