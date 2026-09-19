@@ -19,6 +19,17 @@ function json(data: unknown, status = 200) {
   });
 }
 
+function databaseErrorMessage(error: unknown) {
+  if (!error || typeof error !== "object" || !("message" in error)) return "";
+  return String((error as { message?: unknown }).message ?? "");
+}
+
+function freeSessionError(error: unknown) {
+  return databaseErrorMessage(error).includes("free_session_expired")
+    ? json({ error: "Tato Free hodina po 6 hodinách skončila." }, 410)
+    : null;
+}
+
 function toHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -211,8 +222,8 @@ async function claim(body: Record<string, unknown>, broadcast = true) {
     const result = await claimLock(loaded.context!, loaded.sessionId!);
     if (broadcast && result.acquired) scheduleBroadcastInvalidate(loaded.context!.session.realtime_key);
     return json({ ok: true, ...result });
-  } catch {
-    return json({ error: "Editor se nepodařilo zamknout." }, 500);
+  } catch (error) {
+    return freeSessionError(error) ?? json({ error: "Editor se nepodařilo zamknout." }, 500);
   }
 }
 
@@ -228,8 +239,8 @@ async function save(body: Record<string, unknown>) {
   let claimed;
   try {
     claimed = await claimLock(context, sessionId);
-  } catch {
-    return json({ error: "Editor se nepodařilo ověřit." }, 500);
+  } catch (error) {
+    return freeSessionError(error) ?? json({ error: "Editor se nepodařilo ověřit." }, 500);
   }
   if (!claimed.acquired) {
     return json({ error: "Týmovou odpověď právě upravuje jiný člen týmu.", lock: claimed.lock }, 409);
@@ -250,7 +261,7 @@ async function save(body: Record<string, unknown>) {
 
   if (saveError || !saved) {
     console.error("Autosave team response failed", saveError);
-    return json({ error: "Týmovou odpověď se nepodařilo uložit." }, 500);
+    return freeSessionError(saveError) ?? json({ error: "Týmovou odpověď se nepodařilo uložit." }, 500);
   }
 
   scheduleBroadcastInvalidate(context.session.realtime_key);
@@ -295,7 +306,7 @@ async function submit(body: Record<string, unknown>) {
 
   if (saveError || !saved) {
     console.error("Submit team response save failed", saveError);
-    return json({ error: "Týmovou odpověď se nepodařilo odevzdat." }, 500);
+    return freeSessionError(saveError) ?? json({ error: "Týmovou odpověď se nepodařilo odevzdat." }, 500);
   }
 
   const { data: queued, error: queueError } = await admin.rpc("queue_submitted_team_response_evaluation", {
