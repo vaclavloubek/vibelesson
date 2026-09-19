@@ -97,12 +97,14 @@ export default function SchoolAdmin({
   initialPlan,
   initialBilling,
   billingEnvironment,
+  schoolBillingAvailable,
   initialUser,
 }: {
   locale: 'cs' | 'en';
   initialPlan: OrganizationPlanCode;
   initialBilling: OrganizationBillingPeriod;
   billingEnvironment: 'sandbox' | 'live';
+  schoolBillingAvailable: boolean;
   initialUser: InitialUser | null;
 }) {
   const english = locale === 'en';
@@ -508,6 +510,19 @@ export default function SchoolAdmin({
         ) : !loaded ? (
           <section className={styles.card + ' ' + styles.wide}>
             {ui('Načítám správu školy…', 'Loading school administration…')}
+          </section>
+        ) : !summary && !schoolBillingAvailable ? (
+          <section className={styles.card + ' ' + styles.wide}>
+            <h2>{ui('Školní tarify připravujeme', 'School plans are coming soon')}</h2>
+            <p>
+              {ui(
+                'Správa školních licencí je technicky připravená, ale veřejné objednávky zatím nejsou spuštěné.',
+                'School licence management is technically ready, but public ordering has not launched yet.',
+              )}
+            </p>
+            <Link className={styles.back} href={'/' + locale + '/pricing'}>
+              {ui('Zpět na ceník →', 'Back to pricing →')}
+            </Link>
           </section>
         ) : !summary ? (
           <section className={styles.card + ' ' + styles.wide}>
