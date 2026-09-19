@@ -386,9 +386,13 @@ export default function PricingPage({
 
     if (activePlanCode) {
       const storageKey = `syllonaut_subscription_activated:${checkoutSessionId}`;
-      if (window.sessionStorage.getItem(storageKey) === '1') {
-        subscriptionActivationTrackedRef.current = true;
-        return;
+      try {
+        if (window.sessionStorage.getItem(storageKey) === '1') {
+          subscriptionActivationTrackedRef.current = true;
+          return;
+        }
+      } catch {
+        // Analytics deduplication is best-effort and must never affect Pricing.
       }
 
       const sent = trackEvent('subscription_activated', {
@@ -397,7 +401,11 @@ export default function PricingPage({
       });
       if (sent) {
         subscriptionActivationTrackedRef.current = true;
-        window.sessionStorage.setItem(storageKey, '1');
+        try {
+          window.sessionStorage.setItem(storageKey, '1');
+        } catch {
+          // The event was sent; blocked storage only disables browser-side deduplication.
+        }
       }
       return;
     }
