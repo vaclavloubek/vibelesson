@@ -1,15 +1,16 @@
 name: Verify sharing Preview E2E
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'feature/lesson-sharing-0.9.20'
+      - main
 
 permissions:
   contents: read
 
 jobs:
   verify-sharing:
+    if: github.head_ref == 'feature/lesson-sharing-0.9.20'
     runs-on: ubuntu-latest
     steps:
       - name: Wait for Preview and run isolated sharing E2E
