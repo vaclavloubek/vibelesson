@@ -16,17 +16,34 @@ if (!budget) throw new Error('Missing AI grading safety-budget migration.');
 
 for (const [needle, label] of [
   ["when 'teacher_pro' then 8.00", 'Teacher Pro monthly cost safety budget'],
-  ["when 'school' then 75.00", 'School monthly cost safety budget'],
-  ["when 'campus' then 200.00", 'Campus monthly cost safety budget'],
   ["when 'teacher_pro' then 1000", 'Teacher Pro grading count ceiling'],
-  ["when 'school' then 7500", 'School grading count ceiling'],
-  ["when 'campus' then 20000", 'Campus grading count ceiling'],
   ["v_reservation numeric(12,6) := 0.040000", 'conservative in-flight cost reservation'],
   ['for update of e', 'grading claims serialize on the evaluation row'],
   ['manual-budget-v1', 'budget exhaustion falls back to manual review'],
   ['private.complete_ai_grading_budget', 'finished/failed attempts settle reservations'],
 ]) {
   requireText(budget.content, needle, label);
+}
+
+
+const schoolReprice = migrations.find(({ content }) =>
+  content.includes('Rebalance organization pricing economics after measuring real AI Gateway costs.')
+);
+if (!schoolReprice) throw new Error('Missing school-plan economics rebalance migration.');
+
+for (const [needle, label] of [
+  ["when 'team' then 60", 'Team lesson pool'],
+  ["when 'school' then 150", 'School lesson pool'],
+  ["when 'campus' then 400", 'Campus lesson pool'],
+  ["when 'team' then 180", 'Team revision pool'],
+  ["when 'school' then 300", 'School revision pool'],
+  ["when 'campus' then 700", 'Campus revision pool'],
+  ["when 'school' then 20.00", 'School grading safety budget'],
+  ["when 'campus' then 40.00", 'Campus grading safety budget'],
+  ["when 'school' then 2500", 'School grading count ceiling'],
+  ["when 'campus' then 5000", 'Campus grading count ceiling'],
+]) {
+  requireText(schoolReprice.content, needle, label);
 }
 
 const joinLimits = migrations.find(({ content }) => content.includes('create or replace function public.enforce_participant_join_limits()'));
@@ -40,4 +57,4 @@ for (const [needle, label] of [
   requireText(joinLimits.content, needle, label);
 }
 
-console.log(`AI grading safety budget verified via ${budget.name}; participant hard caps remain enforced at INSERT.`);
+console.log(`AI grading safety budget verified via ${budget.name} + ${schoolReprice.name}; participant hard caps remain enforced at INSERT.`);
