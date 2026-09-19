@@ -25,6 +25,9 @@ async function collectSourceFiles(relativeDirectory) {
 
 const analytics = await source('lib/analytics.ts');
 const cookieConsent = await source('components/CookieConsent.tsx');
+const pricingPage = await source('components/PricingPage.tsx');
+const pricingRoute = await source('app/pricing/page.tsx');
+const ga4Setup = await source('scripts/setup-ga4.mjs');
 
 requirePattern(analytics, /export function trackEvent</, 'central trackEvent helper is missing.');
 requirePattern(analytics, /analyticsConsentGranted\(\)/, 'custom events are not gated by explicit analytics consent.');
@@ -34,6 +37,13 @@ requirePattern(analytics, /window\.gtag\('event', name/, 'custom events must be 
 requirePattern(analytics, /ui_locale:\s*uiLocale/, 'all custom events must include the active UI locale.');
 requirePattern(analytics, /lesson_generation_completed:[\s\S]*lesson_language:\s*string;/, 'completed lesson generation must expose lesson language as an analytics dimension.');
 requirePattern(analytics, /lesson_generation_completed:\s*\[[^\]]*'lesson_language'/, 'lesson language must remain in the generation-completed parameter allowlist.');
+requirePattern(analytics, /subscription_activated:[\s\S]*plan:\s*'teacher' \| 'teacher-pro';[\s\S]*source:\s*'stripe_live';/, 'verified paid subscription activation event is missing.');
+requirePattern(analytics, /subscription_activated:\s*\['plan', 'source'\]/, 'subscription activation parameters must remain explicitly allowlisted.');
+requirePattern(pricingRoute, /select\('role, active_plan_code'\)/, 'checkout return must read the server-authoritative active plan.');
+requirePattern(pricingPage, /checkoutResult !== 'success'[\s\S]*!liveAcceptance[\s\S]*!checkoutSessionId/, 'subscription activation tracking must require a successful live Checkout return.');
+requirePattern(pricingPage, /trackEvent\('subscription_activated',[\s\S]*plan:\s*activePlanCode[\s\S]*source:\s*'stripe_live'/, 'subscription activation must be emitted only after the paid plan is active.');
+requirePattern(ga4Setup, /'subscription_activated'/, 'GA4 setup must mark subscription activation as a Key Event.');
+requirePattern(ga4Setup, /\['Plan', 'plan'/, 'GA4 setup must register the paid plan dimension.');
 requirePattern(analytics, /catch \{[\s\S]*Analytics is observational only/, 'analytics failures must never break product flows.');
 
 const allowlistMatch = analytics.match(/const EVENT_PARAMETER_KEYS[\s\S]*?= \{([\s\S]*?)\n\};/);

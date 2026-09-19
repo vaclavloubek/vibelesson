@@ -50,6 +50,7 @@ type PricingRouteProps = {
     signup?: string | string[];
     checkout?: string | string[];
     billing_env?: string | string[];
+    session_id?: string | string[];
   }>;
 };
 
@@ -58,6 +59,10 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
   const signup = Array.isArray(params.signup) ? params.signup[0] : params.signup;
   const checkout = Array.isArray(params.checkout) ? params.checkout[0] : params.checkout;
   const billingEnvParam = Array.isArray(params.billing_env) ? params.billing_env[0] : params.billing_env;
+  const sessionIdParam = Array.isArray(params.session_id) ? params.session_id[0] : params.session_id;
+  const checkoutSessionId = typeof sessionIdParam === 'string' && /^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(sessionIdParam)
+    ? sessionIdParam
+    : null;
   const billingTestEnvironment = billingEnvParam === 'live' ? 'live' : 'sandbox';
   const requestHeaders = await headers();
   const countryHeader = requestHeaders.get('x-vercel-ip-country');
@@ -66,6 +71,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
   const currency = resolvePricingCurrency(countryHeader, acceptLanguage);
 
   let sandboxCheckoutEnabled = false;
+  let activePlanCode: 'teacher' | 'teacher-pro' | null = null;
   const requestedSecret = billingTestEnvironment === 'live'
     ? process.env.STRIPE_SECRET_KEY_LIVE
     : process.env.STRIPE_SECRET_KEY_TEST;
@@ -73,7 +79,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
     ? /^(?:sk|rk)_live_/.test(requestedSecret ?? '')
     : /^(?:sk|rk)_test_/.test(requestedSecret ?? '');
 
-  if (requestedSecretConfigured) {
+  if (requestedSecretConfigured || checkout === 'success') {
     const supabase = await createClient();
     const { data } = await supabase.auth.getClaims();
     const userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
@@ -81,10 +87,12 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
     if (userId) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, active_plan_code')
         .eq('id', userId)
         .maybeSingle();
-      sandboxCheckoutEnabled = profile?.role === 'admin';
+      sandboxCheckoutEnabled = requestedSecretConfigured && profile?.role === 'admin';
+      if (profile?.active_plan_code === 'teacher') activePlanCode = 'teacher';
+      if (profile?.active_plan_code === 'teacher_pro') activePlanCode = 'teacher-pro';
     }
   }
 
@@ -96,6 +104,8 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
       sandboxCheckoutEnabled={sandboxCheckoutEnabled}
       billingTestEnvironment={billingTestEnvironment}
       checkoutResult={checkout === 'success' || checkout === 'cancelled' ? checkout : null}
+      checkoutSessionId={checkoutSessionId}
+      activePlanCode={activePlanCode}
     />
   );
 }
