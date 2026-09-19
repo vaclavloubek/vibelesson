@@ -25,6 +25,17 @@ export async function POST(req: Request) {
   try {
     const { instruction, lesson, lessonId = null } = InputSchema.parse(await req.json());
 
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, multilingual_lessons_enabled')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    const allowLanguageChange = Boolean(
+      profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled),
+    );
+
     const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_revision_operation', { p_action: 'revise_lesson' });
     if (quotaError) {
       console.error('reserve revision quota failed', quotaError);
@@ -39,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
-    const revisedResult = await reviseLesson(lesson, instruction);
+    const revisedResult = await reviseLesson(lesson, instruction, { allowLanguageChange });
     const revised = revisedResult.lesson;
     costUsd = revisedResult.costUsd;
 
