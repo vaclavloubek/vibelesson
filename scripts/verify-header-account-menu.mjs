@@ -19,7 +19,7 @@ const [landing, pricing, menu, landingCss, globals] = await Promise.all([
 requireText(landing, '<PublicHeaderAccountMenu user={user} />', 'landing must render the compact signed-in account menu.');
 requireText(pricing, '<PublicHeaderAccountMenu user={user} />', 'pricing must render the compact signed-in account menu.');
 requireText(menu, "supabase.rpc('get_ai_quota')", 'the dropdown must keep AI quota information available.');
-requireText(menu, "href="/lessons"", 'the dropdown must expose My lessons.');
+requireText(menu, 'href="/lessons"', 'the dropdown must expose My lessons.');
 requireText(menu, "/pricing", 'the dropdown must expose subscription/pricing.');
 requireText(menu, "fetch('/api/auth/clear-live-resume'", 'logout must clear live-resume state.');
 requireText(menu, 'supabase.auth.signOut()', 'logout must terminate the Supabase session.');
