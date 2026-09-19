@@ -1,0 +1,242 @@
+.layout {
+  width: min(960px, calc(100% - 40px));
+  margin: 56px auto 84px;
+  display: grid;
+  gap: 18px;
+}
+
+.summaryCard,
+.changeCard,
+.emptyCard,
+.scheduledCard {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 10px 34px rgba(21,23,33,.05);
+}
+
+.summaryCard {
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+}
+
+.kicker {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.summaryCard h1,
+.emptyCard h1 {
+  margin: 7px 0 5px;
+  font-size: clamp(34px, 5vw, 48px);
+  letter-spacing: -.05em;
+}
+
+.summaryCard p,
+.emptyCard p,
+.changeHeading p,
+.scheduledCard p,
+.targetSummary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.details {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.details div {
+  display: grid;
+  gap: 5px;
+}
+
+.details dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 780;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.details dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.primary,
+.secondary,
+.ghost {
+  min-height: 44px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--accent);
+  color: white;
+  padding: 0 18px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primary:hover { background: var(--accent-hover); }
+.primary:disabled,
+.secondary:disabled,
+.ghost:disabled { opacity: .58; cursor: wait; }
+
+.secondary {
+  border: 1px solid var(--line);
+  background: #f4f3ef;
+  color: var(--ink);
+  padding: 0 16px;
+}
+
+.scheduledCard {
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-color: rgba(91,87,232,.26);
+  background: #f6f5ff;
+}
+
+.scheduledCard strong {
+  display: block;
+  margin: 5px 0 2px;
+  font-size: 16px;
+}
+
+.ghost {
+  border: 1px solid rgba(91,87,232,.28);
+  background: white;
+  color: #514dcc;
+  padding: 0 14px;
+}
+
+.notice,
+.warning,
+.success,
+.error {
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.notice { background: #f2f1ff; color: #484493; }
+.warning { background: #fff7e8; color: #765515; }
+.success { background: #eef8f4; color: #276a57; }
+.error { background: #fff2f1; color: #8a2e29; }
+
+.changeCard {
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+}
+
+.changeHeading h2 {
+  margin: 7px 0 8px;
+  font-size: 28px;
+  letter-spacing: -.04em;
+}
+
+.selectorGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.selectorGroup > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dfded8;
+  border-radius: 13px;
+  background: #f3f2ee;
+  width: fit-content;
+}
+
+.segmented button {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #676a73;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.segmented button.selected {
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 1px 4px rgba(21,23,33,.08);
+}
+
+.targetSummary {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fbfaf7;
+  display: grid;
+  gap: 10px;
+}
+
+.targetSummary > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.targetSummary > div > span { font-weight: 760; }
+.targetSummary strong { font-size: 24px; letter-spacing: -.035em; }
+.targetSummary small { color: var(--muted); font-size: 11px; letter-spacing: 0; }
+
+.emptyCard {
+  padding: 34px;
+}
+
+.emptyCard p {
+  max-width: 620px;
+  margin-bottom: 22px;
+}
+
+@media (max-width: 720px) {
+  .layout { width: min(100% - 24px, 960px); margin-top: 36px; }
+  .summaryCard { grid-template-columns: 1fr; padding: 22px; }
+  .summaryCard .secondary { width: 100%; }
+  .details { grid-template-columns: 1fr; }
+  .changeCard { padding: 22px; }
+  .segmented { width: 100%; }
+  .segmented button { flex: 1; }
+  .scheduledCard { align-items: stretch; flex-direction: column; }
+  .targetSummary > div { align-items: flex-start; flex-direction: column; gap: 6px; }
+}

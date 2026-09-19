@@ -9,7 +9,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const InputSchema = z.object({ environment: z.enum(['sandbox', 'live']).default('sandbox') });
+const InputSchema = z.object({
+  environment: z.enum(['sandbox', 'live']).default('sandbox'),
+  locale: z.enum(['cs', 'en']).default('cs'),
+  returnPath: z.enum(['pricing', 'subscription']).default('pricing'),
+});
 
 function jsonError(status: number, error: string, diagnostics?: { stripeType?: string | null; stripeCode?: string | null; stripeMessage?: string | null }) {
   return NextResponse.json({ error, diagnostics }, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -52,7 +56,13 @@ export async function POST(request: Request) {
   if (!billingCustomer?.external_customer_id) return jsonError(409, 'billing_customer_not_found');
 
   try {
-    const session = await createStripePortalSession({ secretKey, livemode, customerId: billingCustomer.external_customer_id });
+    const session = await createStripePortalSession({
+      secretKey,
+      livemode,
+      customerId: billingCustomer.external_customer_id,
+      locale: input.locale,
+      returnPath: input.returnPath,
+    });
     return NextResponse.json({ url: session.url, environment: input.environment }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('billing portal failed', { error: error instanceof Error ? error.message : 'unknown', userId, livemode });

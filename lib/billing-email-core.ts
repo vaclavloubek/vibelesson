@@ -136,6 +136,7 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
   const endDate = formatPeriodEnd(input.currentPeriodEnd, input.locale);
   const baseUrl = `https://www.syllonaut.com/${input.locale}`;
   const pricingUrl = `${baseUrl}/pricing`;
+  const subscriptionUrl = `${baseUrl}/subscription`;
 
   if (input.locale === 'cs') {
     if (input.notification === 'subscription_activated') {
@@ -148,15 +149,15 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
     }
 
     if (input.notification === 'cancellation_scheduled') {
-      const text = `Zrušení předplatného je naplánované.\n\nTarif ${name} zůstane aktivní do ${endDate}. Potom se účet přepne na Free. Do té doby můžeš všechny placené funkce dál používat.\n\nSpráva předplatného: ${pricingUrl}`;
+      const text = `Zrušení předplatného je naplánované.\n\nTarif ${name} zůstane aktivní do ${endDate}. Potom se účet přepne na Free. Do té doby můžeš všechny placené funkce dál používat.\n\nSpráva předplatného: ${subscriptionUrl}`;
       const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Zrušení předplatného je naplánované</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Tarif <strong style="color:#151721;">${name}</strong> zůstane aktivní do <strong style="color:#151721;">${endDate}</strong>. Potom se účet přepne na Free.</p><p style="margin:14px 0 0;color:#686b74;font-size:14px;line-height:1.6;">Do té doby můžeš všechny placené funkce dál používat.</p>`;
-      return { subject: 'Zrušení předplatného je naplánované · Syllonaut', text, html: shell(content, 'Spravovat předplatné', pricingUrl, input.locale) };
+      return { subject: 'Zrušení předplatného je naplánované · Syllonaut', text, html: shell(content, 'Spravovat předplatné', subscriptionUrl, input.locale) };
     }
 
     if (input.notification === 'cancellation_revoked') {
-      const text = `Předplatné pokračuje.\n\nZrušení tarifu ${name} bylo odvoláno. Tarif zůstává aktivní a bude pokračovat podle stávajícího fakturačního období.\n\nSpráva předplatného: ${pricingUrl}`;
+      const text = `Předplatné pokračuje.\n\nZrušení tarifu ${name} bylo odvoláno. Tarif zůstává aktivní a bude pokračovat podle stávajícího fakturačního období.\n\nSpráva předplatného: ${subscriptionUrl}`;
       const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Předplatné pokračuje</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Zrušení tarifu <strong style="color:#151721;">${name}</strong> bylo odvoláno. Tarif zůstává aktivní a bude pokračovat podle stávajícího fakturačního období.</p>`;
-      return { subject: 'Předplatné pokračuje · Syllonaut', text, html: shell(content, 'Spravovat předplatné', pricingUrl, input.locale) };
+      return { subject: 'Předplatné pokračuje · Syllonaut', text, html: shell(content, 'Spravovat předplatné', subscriptionUrl, input.locale) };
     }
 
     const text = `Předplatné bylo ukončeno.\n\nTarif ${name} skončil a účet pokračuje v tarifu Free.\n\nZobrazit tarify: ${pricingUrl}`;
@@ -174,15 +175,15 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
   }
 
   if (input.notification === 'cancellation_scheduled') {
-    const text = `Your cancellation is scheduled.\n\nYour ${name} plan remains active until ${endDate}. After that, your account will move to Free. You can keep using all paid features until then.\n\nManage subscription: ${pricingUrl}`;
+    const text = `Your cancellation is scheduled.\n\nYour ${name} plan remains active until ${endDate}. After that, your account will move to Free. You can keep using all paid features until then.\n\nManage subscription: ${subscriptionUrl}`;
     const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Your cancellation is scheduled</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Your <strong style="color:#151721;">${name}</strong> plan remains active until <strong style="color:#151721;">${endDate}</strong>. After that, your account will move to Free.</p><p style="margin:14px 0 0;color:#686b74;font-size:14px;line-height:1.6;">You can keep using all paid features until then.</p>`;
-    return { subject: 'Your cancellation is scheduled · Syllonaut', text, html: shell(content, 'Manage subscription', pricingUrl, input.locale) };
+    return { subject: 'Your cancellation is scheduled · Syllonaut', text, html: shell(content, 'Manage subscription', subscriptionUrl, input.locale) };
   }
 
   if (input.notification === 'cancellation_revoked') {
-    const text = `Your subscription will continue.\n\nThe cancellation of your ${name} plan was reversed. Your plan remains active and will continue under the current billing period.\n\nManage subscription: ${pricingUrl}`;
+    const text = `Your subscription will continue.\n\nThe cancellation of your ${name} plan was reversed. Your plan remains active and will continue under the current billing period.\n\nManage subscription: ${subscriptionUrl}`;
     const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Your subscription will continue</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">The cancellation of your <strong style="color:#151721;">${name}</strong> plan was reversed. Your plan remains active and will continue under the current billing period.</p>`;
-    return { subject: 'Your subscription will continue · Syllonaut', text, html: shell(content, 'Manage subscription', pricingUrl, input.locale) };
+    return { subject: 'Your subscription will continue · Syllonaut', text, html: shell(content, 'Manage subscription', subscriptionUrl, input.locale) };
   }
 
   const text = `Your subscription has ended.\n\nYour ${name} plan has ended and your account continues on Free.\n\nView plans: ${pricingUrl}`;
