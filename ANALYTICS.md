@@ -89,6 +89,8 @@ Pro DebugView přes Preview se má použít samostatná **testovací GA4 propert
 | `lesson_revision_completed` | AI revize se úspěšně vrátí a uloží | `LessonWorkspace` | `revision_scope` | AI revision value |
 | `lesson_revision_failed` | AI revize selže | `LessonWorkspace` | `revision_scope`, `error_code` | Revision drop-off |
 | `lesson_duplicated` | API úspěšně vytvoří kopii lekce | `LessonActions` | — | Library reuse |
+| `shared_lesson_import_started` | Uživatel explicitně zvolí u veřejného share náhledu „Uložit kopii do mých lekcí“ | `ImportSharedLessonButton` | — | Share acquisition intent |
+| `shared_lesson_imported` | Share import API úspěšně vrátí vlastní kopii lekce | `ImportSharedLessonButton` | — | Share activation; browser-side deduplikace bez odeslání tokenu |
 | `folder_created` | Folder API úspěšně vytvoří složku/podsložku | `LessonLibrary` | — | Premium organization engagement |
 | `lesson_moved_to_folder` | Jedna lekce se úspěšně přesune do složky | `LessonLibrary` | — | Folder utility |
 | `bulk_lessons_moved` | Úspěšný přesun více lekcí | `LessonLibrary` | `item_count_bucket` | Advanced folder utility |
@@ -168,9 +170,13 @@ V GA4 označit jako Key Events:
 
 ### Acquisition / activation
 
+Vlastní tvorba:
 `Landing / page_view → prepare_lesson_cta_click → signup_completed → lesson_generation_completed → live_session_started`
 
-Zdroj kampaně se bere ze standardní GA4 acquisition atribuce (UTM / source / medium), nikoli z vlastních identifikátorů v event payloadu.
+Ukázková / sdílená lekce:
+`page_view (/s/...) → shared_lesson_import_started → signup_completed nebo login_completed (pokud je potřeba) → shared_lesson_imported → live_session_started`
+
+Zdroj kampaně se bere ze standardní GA4 acquisition atribuce (UTM / source / medium), nikoli z vlastních identifikátorů v event payloadu. Share token ani lesson ID se do GA4 neposílají.
 
 Poznámka: strict opt-in znamená, že uživatelé bez analytického souhlasu nejsou v GA4 funnelu vůbec. GA4 funnel proto měří chování consenting populace, nikoli absolutní počet všech uživatelů.
 
