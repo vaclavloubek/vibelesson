@@ -522,7 +522,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <section className="panel">
               <span className="eyebrow">{ui('Týmy', 'Teams')}</span>
               {!session.teams.length ? (
-                <>
+                <div data-tour="live-team-create">
                   <div className="guide-heading-row">
                     <h2>{ui('Vytvořit týmy', 'Create teams')}</h2>
                     <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={3} labelCs="Jak vytvořit týmy" labelEn="How to create teams" />
@@ -533,9 +533,9 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                       {ui('Počet týmů', 'Number of teams')}
                       <input type="number" min={2} max={12} value={teamCount} onChange={(event) => setTeamCount(Math.max(2, Math.min(12, Number(event.target.value) || 2)))} />
                     </label>
-                    <button className="primary" data-tour="live-team-create" disabled={busy} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
+                    <button className="primary" disabled={busy} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
                   </div>
-                </>
+                </div>
               ) : (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
