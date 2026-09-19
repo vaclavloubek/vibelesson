@@ -11,9 +11,10 @@ type Props = {
   title: string;
   onMove?: () => void;
   moveDisabled?: boolean;
+  licenseLocked?: boolean;
 };
 
-export default function LessonActions({ lessonId, title, onMove, moveDisabled = false }: Props) {
+export default function LessonActions({ lessonId, title, onMove, moveDisabled = false, licenseLocked = false }: Props) {
   const router = useRouter();
   const english = useUiLocale() === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
@@ -87,9 +88,9 @@ export default function LessonActions({ lessonId, title, onMove, moveDisabled = 
       <details className="lesson-actions" ref={detailsRef}>
         <summary aria-label={english ? `Actions for lesson ${title}` : `Akce pro lekci ${title}`}>•••</summary>
         <div className="lesson-actions-menu">
-          <button type="button" onClick={renameLesson} disabled={busy}>{ui('Přejmenovat', 'Rename')}</button>
-          <button type="button" onClick={duplicateLesson} disabled={busy}>{ui('Duplikovat', 'Duplicate')}</button>
-          {onMove ? <button type="button" onClick={moveLesson} disabled={busy || moveDisabled}>{ui('Přesunout do…', 'Move to…')}</button> : null}
+          {!licenseLocked ? <button type="button" onClick={renameLesson} disabled={busy}>{ui('Přejmenovat', 'Rename')}</button> : null}
+          {!licenseLocked ? <button type="button" onClick={duplicateLesson} disabled={busy}>{ui('Duplikovat', 'Duplicate')}</button> : null}
+          {onMove && !licenseLocked ? <button type="button" onClick={moveLesson} disabled={busy || moveDisabled}>{ui('Přesunout do…', 'Move to…')}</button> : null}
           <button type="button" className="danger-action" onClick={deleteLesson} disabled={busy}>{ui('Smazat', 'Delete')}</button>
         </div>
       </details>

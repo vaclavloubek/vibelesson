@@ -123,6 +123,8 @@ const schoolPlansCs: Plan[] = [
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
+      'Sdílená knihovna lekcí',
+      'Licenční zámek školních lekcí',
       'Sdílený měsíční AI limit pro celou školu',
     ],
     featured: true,
@@ -142,6 +144,8 @@ const schoolPlansCs: Plan[] = [
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
+      'Sdílená knihovna lekcí',
+      'Licenční zámek školních lekcí',
       'Sdílený měsíční AI limit pro celou organizaci',
     ],
   },
@@ -210,6 +214,8 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
+      'Shared lesson library',
+      'School lesson license lock',
       'Shared monthly AI allowance for the whole school',
     ],
   },
@@ -225,6 +231,8 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
+      'Shared lesson library',
+      'School lesson license lock',
       'Shared monthly AI allowance for the whole organisation',
     ],
   },
@@ -308,8 +316,10 @@ function PlanCard({
             || unlimitedReuseHook
             || feature.startsWith('AI hodnocení')
             || feature.startsWith('Složky a podsložky')
+            || feature === 'Sdílená knihovna lekcí'
             || feature.startsWith('AI grading')
-            || feature.startsWith('Folders and subfolders');
+            || feature.startsWith('Folders and subfolders')
+            || feature === 'Shared lesson library';
           return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}{worksheetHook ? <span className={styles.newFeatureBadge}>{english ? 'NEW' : 'NOVĚ'}</span> : null}</li>;
         })}
       </ul>

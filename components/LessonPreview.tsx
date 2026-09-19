@@ -83,9 +83,9 @@ function Block({ block, index, teacherMode, editable, selected, recentlyChanged,
   );
 }
 
-export default function LessonPreview({ lesson, mode, selectedBlockId = null, recentlyChangedBlockIds = [], onSelectBlock, onEditBlock }: { lesson: Lesson; mode: 'teacher' | 'student' | 'shared'; selectedBlockId?: string | null; recentlyChangedBlockIds?: string[]; onSelectBlock?: (id: string) => void; onEditBlock?: (id: string) => void }) {
+export default function LessonPreview({ lesson, mode, selectedBlockId = null, recentlyChangedBlockIds = [], onSelectBlock, onEditBlock, readOnly = false }: { lesson: Lesson; mode: 'teacher' | 'student' | 'shared'; selectedBlockId?: string | null; recentlyChangedBlockIds?: string[]; onSelectBlock?: (id: string) => void; onEditBlock?: (id: string) => void; readOnly?: boolean }) {
   const english = useUiLocale() === 'en';
-  const editable = mode === 'teacher';
+  const editable = mode === 'teacher' && !readOnly;
   const [studentPreviewIndex, setStudentPreviewIndex] = useState(0);
   const sum = lesson.blocks.reduce((total, block) => total + block.durationMinutes, 0);
   const starts = useMemo(() => lesson.blocks.map((_, index) => lesson.blocks.slice(0, index).reduce((total, block) => total + block.durationMinutes, 0)), [lesson.blocks]);

@@ -4,6 +4,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { generateJoinCode, generateRealtimeKey } from '@/lib/live-server';
 import { LessonSchema } from '@/lib/schema';
 import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-server';
+import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 
 const CreateSessionSchema = z.object({ lessonId: z.string().uuid() });
 
@@ -36,6 +37,14 @@ export async function POST(req: Request) {
 
     if (lessonError || !lessonRow) {
       return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
+
+    const originAccess = await getLessonOrganizationOriginAccess(userId, lessonId);
+    if (originAccess?.locked) {
+      return NextResponse.json({
+        error: organizationOriginLockedMessage(originAccess.organizationName),
+        code: 'organization_origin_access_required',
+      }, { status: 403 });
     }
 
     const lessonSnapshot = LessonSchema.parse(lessonRow.lesson);

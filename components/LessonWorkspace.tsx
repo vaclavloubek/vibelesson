@@ -63,9 +63,19 @@ type Props = {
   initialOwnerId?: string | null;
   initialPrompt?: string | null;
   initialFolderId?: string | null;
+  licenseLocked?: boolean;
+  organizationName?: string | null;
 };
 
-export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialOwnerId = null, initialPrompt = null, initialFolderId = null }: Props) {
+export default function LessonWorkspace({
+  initialLesson = null,
+  initialLessonId = null,
+  initialOwnerId = null,
+  initialPrompt = null,
+  initialFolderId = null,
+  licenseLocked = false,
+  organizationName = null,
+}: Props) {
   const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
@@ -673,8 +683,25 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
             <div className="panel current-lesson-panel">
               <span className="eyebrow">{ui('Uložená lekce', 'Saved lesson')}</span>
               <h1>{lesson.title}</h1>
-              <p className="muted-copy">{ui('Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.', 'Continue with AI edits below. Every successful change is saved automatically.')}</p>
-              {entitlementsLoaded && !multilingualLessonsEnabled ? (
+              <p className="muted-copy">{licenseLocked
+                ? ui('Lekce je nyní pouze pro čtení. Obsah se znovu odemkne po obnovení školní licence.', 'This lesson is currently read-only. Its content unlocks again when the school licence is restored.')
+                : ui('Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.', 'Continue with AI edits below. Every successful change is saved automatically.')}</p>
+              {licenseLocked ? (
+                <div className="language-plan-notice" role="status" aria-live="polite">
+                  <div>
+                    <strong>{ui('Licenční zámek školní lekce', 'School lesson licence lock')}</strong>
+                    <p>{organizationName
+                      ? ui(
+                          `Tato lekce pochází z knihovny organizace „${organizationName}“. Můžeš ji otevřít a prohlížet, ale upravovat a používat ji lze jen s aktivním přístupem k této organizaci.`,
+                          `This lesson comes from the ${organizationName} library. You can open and view it, but editing and use require active access to that organisation.`,
+                        )
+                      : ui(
+                          'Tato lekce pochází ze školní knihovny. Můžeš ji otevřít a prohlížet, ale upravovat a používat ji lze jen s aktivním přístupem k původní organizaci.',
+                          'This lesson comes from a school library. You can open and view it, but editing and use require active access to the originating organisation.',
+                        )}</p>
+                  </div>
+                </div>
+              ) : entitlementsLoaded && !multilingualLessonsEnabled ? (
                 <div className="language-plan-notice" role="status" aria-live="polite">
                   <div>
                     <strong>{ui('Free tarif omezuje hlavní jazyk lekce.', 'Free limits the lesson’s main language.')}</strong>
@@ -688,7 +715,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   </Link>
                 </div>
               ) : null}
-              {aiGradingEnabled ? (
+              {aiGradingEnabled && !licenseLocked ? (
                 <GradingStrictnessControl
                   value={gradingStrictness}
                   disabled={busy || saveStatus === 'saving'}
@@ -696,7 +723,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   compact
                 />
               ) : null}
-              <div className="actions"><Link href="/lessons" className="secondary button-link">← {ui('Moje lekce', 'My lessons')}</Link><ShareLessonButton lessonId={lessonId} /><Link href="/new" className="primary button-link">+ {ui('Nová lekce', 'New lesson')}</Link></div>
+              <div className="actions"><Link href="/lessons" className="secondary button-link">← {ui('Moje lekce', 'My lessons')}</Link>{!licenseLocked ? <ShareLessonButton lessonId={lessonId} /> : null}<Link href="/new" className="primary button-link">+ {ui('Nová lekce', 'New lesson')}</Link></div>
             </div>
           ) : (
             <div className="panel">
@@ -781,7 +808,16 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
             </div>
           )}
 
-          {lesson ? <>
+          {lesson ? licenseLocked ? (
+            <div className="panel">
+              <span className="eyebrow">{ui('Pouze pro čtení', 'Read only')}</span>
+              <h2>{ui('Úpravy jsou dočasně uzamčené', 'Editing is temporarily locked')}</h2>
+              <p className="muted-copy">{ui(
+                'AI úpravy, ruční změny, duplikace, exporty i další živé použití se odemknou po obnovení aktivního členství v původní organizaci.',
+                'AI edits, manual changes, duplication, exports and further live use unlock when active membership in the originating organisation is restored.',
+              )}</p>
+            </div>
+          ) : <>
             <div className="panel vibe-editor" data-tour="lesson-edit-whole">
               <span className="eyebrow">{ui('AI úprava celé lekce', 'AI edit · whole lesson')}</span>
               <div className="guide-heading-row">
@@ -830,7 +866,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         </section>
 
         <section className="stage" data-tour="lesson-review">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={setSelectedBlockId} onEditBlock={editBlock} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId && !licenseLocked ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId && !licenseLocked ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={licenseLocked ? undefined : setSelectedBlockId} onEditBlock={licenseLocked ? undefined : editBlock} readOnly={licenseLocked} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
       <SyllonautGuide userId={authUser?.id ?? null} />

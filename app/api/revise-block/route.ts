@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { LessonSchema } from '@/lib/schema';
 import { reviseBlock } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 
 // Keep the same ceiling across AI endpoints; complex block edits can still be slow.
 export const maxDuration = 300;
@@ -37,6 +38,13 @@ export async function POST(req: Request) {
 
       if (ownedLessonError || !ownedLesson) {
         return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+      }
+      const originAccess = await getLessonOrganizationOriginAccess(userId, lessonId);
+      if (originAccess?.locked) {
+        return NextResponse.json({
+          error: organizationOriginLockedMessage(originAccess.organizationName),
+          code: 'organization_origin_access_required',
+        }, { status: 403 });
       }
       sourceLesson = LessonSchema.parse(ownedLesson.lesson);
     }

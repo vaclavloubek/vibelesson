@@ -53,7 +53,7 @@ await expectRedirect('/gdpr', '/en/gdpr', { country: 'US' });
 
 const enHome = await expectHtml('/en', [
   '<html lang="en"',
-  'From an idea to a live interactive lesson.',
+  'From idea to live teaching. With AI.',
   'Write in the language you want to teach in.',
 ]);
 const enHomeLower = enHome.toLowerCase();
@@ -62,16 +62,16 @@ for (const hreflang of ['cs', 'en', 'x-default']) {
     fail(`/en is missing hreflang="${hreflang}"`);
   }
 }
-if (enHome.includes('Z nápadu do živé interaktivní hodiny.')) {
+if (enHome.includes('Od nápadu k odučené hodině. S AI.')) {
   fail('/en contains the Czech hero headline');
 }
 
 const csHome = await expectHtml('/cs', [
   '<html lang="cs"',
-  'Z nápadu do živé interaktivní hodiny.',
+  'Od nápadu k odučené hodině. S AI.',
   'Pište v jazyce, ve kterém chcete učit.',
 ]);
-if (csHome.includes('From an idea to a live interactive lesson.')) {
+if (csHome.includes('From idea to live teaching. With AI.')) {
   fail('/cs contains the English hero headline');
 }
 

@@ -16,6 +16,7 @@ function dbErrorMessage(error: unknown) {
 }
 function sessionWriteError(error: unknown, fallback: string) {
   const message = dbErrorMessage(error);
+  if (message.includes("organization_origin_access_required")) return reply({ error: "Přístup školy k této hodině už není aktivní." }, 403);
   if (message.includes("free_session_join_window_closed")) return reply({ error: "Okno pro připojení nových studentů v této Free hodině už skončilo." }, 409);
   if (message.includes("free_session_expired")) return reply({ error: "Tato Free hodina po 6 hodinách skončila." }, 410);
   if (message.includes("participant_session_ended")) return reply({ error: "Tato hodina už skončila." }, 410);
