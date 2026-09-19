@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.14 — sjednocená hlavička učitelských částí používá stejnou navigační logiku a kompaktní profilový dropdown na veřejném webu, dashboardu, editoru lekcí, GDPR stránce a v Teacher Live; e-mail, AI kvóta a bezpečné odhlášení už nezabírají samostatné místo v hlavní liště.
+Aktualizováno: 2026-09-19 pro verzi 0.9.15 — live billing-country guard při subscription webhooku hledá dokončený Checkout přes Customer a páruje správnou subscription lokálně; krátký bounded retry odstraňuje závod mezi subscription eventem a dokončením Checkout Session bez rozšíření Stripe oprávnění.
 
-**Aktuální produktová verze: 0.9.14** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.15** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -1073,6 +1073,7 @@ Bezpečnostní a produktové změny:
 - **0.9.12** — hotfix PDF podkladů: worker `pdf-parse` je self-hostovaný jako build-time asset z vlastní domény místo externího jsDelivr URL, takže funguje pod stávající CSP bez jejího oslabení; přidán `verify-pdf-worker.mjs`
 - **0.9.13** — live Stripe acceptance foundation: live Teacher/Teacher Pro katalog + DB mappings, live Portal/webhook isolation, admin-only live Checkout/Portal gate a fail-closed ověření skutečné billing country z dokončeného Checkout Session před entitlement provisioningem
 - **0.9.14** — sjednocení hlaviček napříč učitelskými obrazovkami: dashboard, lesson workspace, GDPR a Teacher Live používají stejnou hlavní navigaci a společný profilový dropdown; dashboard přesunul primární vytvoření lekce do header CTA a Teacher Live oddělil stav spojení od navigace
+- **0.9.15** — live Checkout verification hotfix: webhook lookup nepoužívá subscription filtr na Stripe list endpointu, ale stabilní Customer filtr + lokální párování subscription; krátký retry pokrývá nedeterministické pořadí Stripe eventů
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1162,7 +1163,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.14; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.15; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 

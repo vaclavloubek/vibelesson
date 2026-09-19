@@ -80,6 +80,7 @@ function checkoutListResponse(country, {
   }), { status: 200, headers: { 'content-type': 'application/json' } });
 }
 
+let successfulLookupUrl = '';
 const verifiedSameRoute = await verifyStripeCheckoutBillingCountry({
   secretKey: 'rk_live_regression',
   livemode: true,
@@ -89,8 +90,13 @@ const verifiedSameRoute = await verifyStripeCheckoutBillingCountry({
   declaredBillingCountry: 'DE',
   expectedCurrency: 'eur',
   expectedManagedPayments: true,
-}, billingRouteForCountry, async () => checkoutListResponse('FR'));
+}, billingRouteForCountry, async (url) => {
+  successfulLookupUrl = String(url);
+  return checkoutListResponse('FR');
+});
 assert.equal(verifiedSameRoute.billingCountry, 'FR');
+assert.match(successfulLookupUrl, /customer=cus_regression001/);
+assert.doesNotMatch(successfulLookupUrl, /subscription=/);
 
 await assert.rejects(
   () => verifyStripeCheckoutBillingCountry({
@@ -119,5 +125,28 @@ await assert.rejects(
   }, billingRouteForCountry, async () => checkoutListResponse(null)),
   /stripe_checkout_actual_billing_country_missing/,
 );
+
+let attempts = 0;
+const verifiedAfterRace = await verifyStripeCheckoutBillingCountry({
+  secretKey: 'rk_live_regression',
+  livemode: true,
+  subscriptionId: 'sub_regression001',
+  customerId: 'cus_regression001',
+  userId: '123e4567-e89b-42d3-a456-426614174000',
+  declaredBillingCountry: 'DE',
+  expectedCurrency: 'eur',
+  expectedManagedPayments: true,
+}, billingRouteForCountry, async () => {
+  attempts += 1;
+  if (attempts === 1) {
+    return new Response(JSON.stringify({ object: 'list', data: [] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  return checkoutListResponse('DE');
+});
+assert.equal(attempts, 2);
+assert.equal(verifiedAfterRace.billingCountry, 'DE');
 
 console.log('Stripe checkout checks passed.');
