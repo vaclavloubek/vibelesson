@@ -1,0 +1,193 @@
+name: Preview lesson sharing QA
+
+on:
+  push:
+    branches:
+      - feature/lesson-sharing-0.9.20
+    paths:
+      - .github/workflows/preview-lesson-sharing-qa.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preview-qa:
+    runs-on: ubuntu-latest
+    env:
+      BASE: https://edupilot2-git-feature-lesson-sharing-0920-vaclavloubek1.vercel.app
+      INVALID_TOKEN: 000000000000000000000000000000000000000000000000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            code="$(curl -sS -o /tmp/root.html -w '%{http_code}' "$BASE/" || true)"
+            if [[ "$code" =~ ^(200|307|308)$ ]]; then
+              echo "Preview reachable: HTTP $code"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Preview did not become reachable"
+          exit 1
+
+      - name: Verify Czech and English pricing
+        shell: bash
+        run: |
+          set -euo pipefail
+          cs_code="$(curl -sS -L -o /tmp/pricing-cs.html -w '%{http_code}' "$BASE/cs/pricing")"
+          en_code="$(curl -sS -L -o /tmp/pricing-en.html -w '%{http_code}' "$BASE/en/pricing")"
+          test "$cs_code" = "200"
+          test "$en_code" = "200"
+          grep -Fq 'U školních plánů má každý učitel vlastní účet.' /tmp/pricing-cs.html
+          grep -Fq 'On school plans, every teacher has their own account.' /tmp/pricing-en.html
+          grep -Fq 'Sdílený měsíční AI limit pro celou školu' /tmp/pricing-cs.html
+          grep -Fq 'Shared monthly AI allowance for the whole school' /tmp/pricing-en.html
+          echo "PRICING_CS=PASS"
+          echo "PRICING_EN=PASS"
+
+      - name: Verify invalid share is a safe 404
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -L -D /tmp/share.headers -o /tmp/share.html -w '%{http_code}' "$BASE/s/$INVALID_TOKEN")"
+          echo "INVALID_SHARE_HTTP=$code"
+          test "$code" = "404"
+          if grep -Eqi 'Internal Server Error|Application error: a server-side exception|FUNCTION_INVOCATION_FAILED' /tmp/share.html; then
+            echo "Unsafe server error marker found in 404 body"
+            exit 1
+          fi
+          echo "INVALID_SHARE_SAFE_404=PASS"
+
+      - name: Extract public Supabase project ref only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/chunks
+          {
+            cat /tmp/root.html
+            cat /tmp/pricing-cs.html
+            cat /tmp/pricing-en.html
+          } > /tmp/pages.html
+          grep -oE 'src="[^"]+\.js[^"]*"' /tmp/pages.html             | sed -E 's/^src="//; s/"$//'             | sort -u > /tmp/scripts.txt || true
+          while IFS= read -r src; do
+            [ -n "$src" ] || continue
+            case "$src" in
+              http://*|https://*) url="$src" ;;
+              *) url="$BASE$src" ;;
+            esac
+            name="$(printf '%s' "$src" | sha256sum | cut -d' ' -f1)"
+            curl -sS -L "$url" -o "/tmp/chunks/$name.js" || true
+          done < /tmp/scripts.txt
+          refs="$(
+            (cat /tmp/pages.html /tmp/chunks/*.js 2>/dev/null || true)               | grep -oE 'https://[a-z0-9]{20}\.supabase\.co'               | sed -E 's#https://([a-z0-9]{20})\.supabase\.co#\1#'               | sort -u
+          )"
+          count="$(printf '%s\n' "$refs" | sed '/^$/d' | wc -l | tr -d ' ')"
+          echo "SUPABASE_REF_COUNT=$count"
+          printf '%s\n' "$refs" | sed '/^$/d' | sed 's/^/SUPABASE_PROJECT_REF=/'
+          test "$count" -eq 1
+
+      - name: Verify GA stays off on share path even with analytics consent
+        shell: bash
+        run: |
+          set -euo pipefail
+          google-chrome --headless=new --no-sandbox --disable-gpu             --remote-debugging-port=9222 --user-data-dir=/tmp/syllonaut-chrome             about:blank >/tmp/chrome.log 2>&1 &
+          chrome_pid=$!
+          trap 'kill "$chrome_pid" 2>/dev/null || true' EXIT
+
+          node <<'NODE'
+          const base = process.env.BASE;
+          const token = process.env.INVALID_TOKEN;
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+          let target;
+          for (let i = 0; i < 50; i++) {
+            try {
+              const list = await fetch('http://127.0.0.1:9222/json/list').then((r) => r.json());
+              target = list.find((x) => x.type === 'page');
+              if (target?.webSocketDebuggerUrl) break;
+            } catch {}
+            await sleep(100);
+          }
+          if (!target?.webSocketDebuggerUrl) throw new Error('Chrome DevTools target unavailable');
+
+          const ws = new WebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            ws.addEventListener('open', resolve, { once: true });
+            ws.addEventListener('error', reject, { once: true });
+          });
+
+          let nextId = 1;
+          const pending = new Map();
+          const requests = [];
+          ws.addEventListener('message', (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.id && pending.has(msg.id)) {
+              const { resolve, reject } = pending.get(msg.id);
+              pending.delete(msg.id);
+              if (msg.error) reject(new Error(JSON.stringify(msg.error)));
+              else resolve(msg.result);
+            }
+            if (msg.method === 'Network.requestWillBeSent') {
+              requests.push(msg.params.request.url);
+            }
+          });
+
+          const send = (method, params = {}) => new Promise((resolve, reject) => {
+            const id = nextId++;
+            pending.set(id, { resolve, reject });
+            ws.send(JSON.stringify({ id, method, params }));
+          });
+
+          await send('Network.enable');
+          await send('Page.enable');
+          await send('Runtime.enable');
+
+          const host = new URL(base).hostname;
+          const consent = encodeURIComponent(JSON.stringify({
+            version: '2026-09-18-v1',
+            analytics: true,
+            decidedAt: new Date().toISOString(),
+          }));
+          const cookieResult = await send('Network.setCookie', {
+            name: 'syllonaut_cookie_consent_v1',
+            value: consent,
+            domain: host,
+            path: '/',
+            secure: true,
+            sameSite: 'Lax',
+          });
+          if (!cookieResult.success) throw new Error('Failed to set analytics consent cookie');
+
+          await send('Page.navigate', { url: `${base}/s/${token}` });
+          await sleep(5000);
+
+          const evalResult = await send('Runtime.evaluate', {
+            expression: `JSON.stringify({
+              robots: document.querySelector('meta[name="robots"]')?.content || '',
+              referrer: document.querySelector('meta[name="referrer"]')?.content || '',
+              title: document.title,
+              body: document.body?.innerText?.slice(0, 1000) || ''
+            })`,
+            returnByValue: true,
+          });
+          const meta = JSON.parse(evalResult.result.value);
+          const gaRequests = requests.filter((url) =>
+            /googletagmanager\.com|google-analytics\.com|\/g\/collect(?:\?|$)/i.test(url)
+          );
+
+          console.log('SHARE_META=' + JSON.stringify(meta));
+          console.log('GA_REQUEST_COUNT=' + gaRequests.length);
+          if (gaRequests.length !== 0) {
+            console.log('GA_HOSTS=' + JSON.stringify(gaRequests.map((u) => new URL(u).hostname)));
+            process.exit(1);
+          }
+          if (!String(meta.robots).toLowerCase().includes('noindex')) {
+            throw new Error('Share/404 route missing noindex');
+          }
+          console.log('GA_BLOCK_ON_SHARE=PASS');
+          ws.close();
+          NODE
