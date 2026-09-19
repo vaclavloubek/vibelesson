@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
+import { restartSyllonautGuideForCurrentContext } from '@/lib/onboarding-guide';
 
 export type HeaderAccountUser = Pick<User, 'id' | 'email' | 'user_metadata'>;
 
@@ -154,6 +155,17 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
             <Link role="menuitem" href={`/${locale}/subscription`} className="auth-account-item" onClick={() => setOpen(false)}>
               {english ? 'Subscription' : 'Předplatné'}
             </Link>
+            <button
+              type="button"
+              role="menuitem"
+              className="auth-account-item"
+              onClick={() => {
+                setOpen(false);
+                restartSyllonautGuideForCurrentContext(user.id);
+              }}
+            >
+              {english ? 'Syllonaut guide' : 'Průvodce Syllonautem'}
+            </button>
             <button
               type="button"
               role="menuitem"
