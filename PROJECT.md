@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 — kontextový průvodce „První let“ je po iteracích 0.9.30–0.9.41 dokončený a produkčně ručně ověřený jako **COMPLETE / PASS**. Ověřen byl celý tok od vytvoření a kontroly lekce přes volitelné AI úpravy, spuštění live session, handoff do Prezentačního režimu, připojování studentů a tvorbu týmů až po řízení hodiny, ukončení a vyhodnocení. Součástí finálního stavu jsou kontextová `?`, návrat mezi kroky, bezpečné přeskočení volitelných úprav, cross-window synchronizace Presenter handoffu a responzivní projekční layout. Interní verze zůstává 0.9.41; veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-19 — kontextový průvodce „První let“ zůstává produkčně **COMPLETE / PASS**. Interní verze 0.9.42 připravuje privacy-safe growth měření: `shared_lesson_import_started` a `shared_lesson_imported` bez lesson ID/share tokenu/obsahu a ruční sanitizované GA4 pageviews, které anonymizují UUID, capability tokeny a join kódy. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -1076,16 +1076,19 @@ Stav k 2026-09-19:
 - aktivní jsou **4 Key Events**: `signup_completed`, `lesson_generation_completed`, `live_session_started`, `subscription_activated`;
 - `subscription_activated` je finální placená konverze a vzniká až po LIVE Checkout návratu a serverově potvrzeném Teacher / Teacher Pro plánu;
 - akviziční zdroj se má vyhodnocovat přes standardní GA4 campaign attribution / UTM, ne přes PII nebo vlastní uživatelské identifikátory;
+- v produkčním GA4 Web streamu bylo 2026-09-19 ručně vypnuto Enhanced Measurement → Page views → **Page changes based on browser history events**, aby 0.9.42 mohla bezpečně používat pouze sanitizované ruční pageviews;
 - strict opt-in zůstává zachovaný: GA4 reprezentuje consenting populaci, nikoli absolutní počet všech uživatelů.
 
 Bezprostřední growth krok:
 
-1. vytvořit první sadu **5–10 kvalitních ukázkových lekcí** napříč ročníky a předměty;
-2. každá má demonstrovat skutečný výukový výsledek Syllonautu, ne fungovat jako obecná reklamní stránka;
-3. použít hotové přenositelné share linky jako hlavní distribuční vrstvu ukázkových lekcí a připravit konzistentní CTA cestu „prohlédnout → uložit vlastní kopii → registrace/přihlášení → upravit / spustit vlastní lekci“;
-4. připravit UTM naming convention pro organické sdílení, ambasadory, sociální sítě a později placené kampaně;
-5. první měsíc optimalizovat primárně na `lesson_generation_completed` a `live_session_started`; placený `subscription_activated` sledovat jako výslednou obchodní konverzi;
-6. placenou reklamu spouštět až po dokončení ukázkového balíčku a prvním organickém ověření, co skutečně přivádí aktivované učitele.
+1. první balíček ukázkových lekcí je **vytvořený** a pokrývá 1. stupeň, 2. stupeň, SŠ, matematiku, jazyky, humanitní i přírodovědné předměty a anglickou výuku;
+2. distribuční vrstva používá hotové přenositelné share linky a cestu „prohlédnout → uložit vlastní kopii → registrace/přihlášení → upravit / spustit vlastní lekci“;
+3. interní 0.9.42 měří `shared_lesson_import_started` a `shared_lesson_imported`; oba eventy jsou bez custom parametrů a neposílají share token, lesson ID ani obsah;
+4. stejná revize přepíná GA4 pageviews na ruční sanitizované odesílání: UUID → `:id`, capability token → `:token`, join kód → `:code`; zachovává se jen bezpečný UTM allowlist. Před produkčním mergem musí být v GA4 Web streamu vypnuto Enhanced Measurement → Page views → **Page changes based on browser history events**;
+5. pro vlastní tvorbu zůstává activation signálem `lesson_generation_completed`; pro ukázkové/share lekce je hlavním mezikrokem `shared_lesson_imported`; společný hlavní product-value moment je `live_session_started`;
+6. připravit jednotnou UTM naming convention pro organické sdílení, ambasadory, sociální sítě a později placené kampaně;
+7. vybrat první **3 ukázkové lekce** pro organický test, vytvořit jim aktivní share linky a publikovat je odděleně tak, aby šlo porovnat zdroj i konkrétní kreativní/tématický vstup;
+8. placenou reklamu spouštět až po prvním organickém ověření, co přivádí importované a následně skutečně spuštěné lekce.
 
 ### Další produktové položky
 
@@ -1167,6 +1170,7 @@ Bezpečnostní a produktové změny:
 - **0.9.39 interní UI hotfix — nezalamovaná adresa v Presenter join kartě** — `www.syllonaut.com/join` má nově vlastní menší responzivní typografii (`clamp(18px, 1.45vw, 26px)`), lehce záporný tracking a `white-space: nowrap`; odstraněno `overflow-wrap: anywhere`, které na projektoru lámalo poslední znak `join` na nový řádek. Regresní live-resilience kontrola hlídá nezalamování adresy i zákaz původního wrap pravidla. Veřejně zobrazovaná verze zůstává 0.9.30.
 - **0.9.40 interní UX — handoff průvodce do Presenter okna** — klik na „Prezentační režim“ dál bezpečně otevírá nové okno s `rel="noreferrer"`, ale krok 2/7 „Toto je studentská obrazovka“ se nyní vykreslí přímo v Presenter okně. Učitel dostane instrukci přesunout okno na projektor / druhý displej a dál řídit hodinu v původním okně. „Hotovo – pokračovat“ označí handoff jako splněný a přesune sdílený guide state na krok 3/7; učitelské okno změnu převezme přes BroadcastChannel nebo `storage` event fallback. Presenter získává user scope serverově z Auth/resume ticketu, nikoli přes URL. Veřejně zobrazovaná verze zůstává 0.9.30.
 - **0.9.41 interní UX hotfix — celý panel pro vytvoření týmů** — `data-tour="live-team-create"` je nyní na obalu celého formuláře pro vytvoření týmů, nikoli pouze na tlačítku. Spotlight proto nechává použitelné číselné pole „Počet týmů“ i akční tlačítko; po vytvoření týmů tento obal zmizí a volitelný guide krok se již necílí na neaktuální UI. Regresní onboarding kontrola hlídá, že kotva není znovu zúžena jen na tlačítko. Veřejně zobrazovaná verze zůstává 0.9.30. **Produkční acceptance COMPLETE / PASS (2026-09-19):** uživatel ručně prošel celý „První let“ po finální opravě týmového panelu a potvrdil, že zbývající kroky fungují. Tím je implementace a UX ladění průvodce uzavřené; další zásahy jen při nově nalezené regresi nebo nové funkční změně.
+- **0.9.42 interní growth/privacy analytics — shared lesson acquisition + sanitizované pageviews** — veřejná/share ukázka nově měří explicitní záměr uložit kopii přes `shared_lesson_import_started` a úspěšný import vlastní kopie přes `shared_lesson_imported`. Eventy nemají custom parametry; share token, lesson ID ani obsah lekce se do GA4 neposílají. GA4 `send_page_view` je vypnutý a Syllonaut posílá ruční pageviews se sanitizovanou route: UUID → `:id`, dlouhý capability token → `:token`, join kód → `:code`; do query se propouští jen validní `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_id`. Custom eventy dostávají stejný sanitizovaný `page_location`. Produkční Web stream musí mít vypnuté history-based pageviews v Enhanced Measurement, jinak by vznikaly duplicitní/nesanitizované SPA pageviews. Úspěšný import se best-effort deduplikuje přes `sessionStorage`; analytika zůstává consent-gated a nesmí ovlivnit import. Veřejně zobrazovaná verze zůstává 0.9.30.
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
