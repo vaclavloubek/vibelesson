@@ -2,12 +2,18 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
 
+export type HeaderAccountUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+};
+
 type Props = {
-  user: User;
+  user: HeaderAccountUser;
+  quotaRefreshKey?: number;
 };
 
 type Quota = {
@@ -21,7 +27,7 @@ type Quota = {
 
 const ACCOUNT_MENU_ID = 'public-header-account-menu';
 
-export default function PublicHeaderAccountMenu({ user }: Props) {
+export default function PublicHeaderAccountMenu({ user, quotaRefreshKey = 0 }: Props) {
   const locale = useUiLocale();
   const english = locale === 'en';
   const supabase = useMemo(() => createClient(), []);
@@ -31,7 +37,7 @@ export default function PublicHeaderAccountMenu({ user }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const metadata = user.user_metadata as Record<string, unknown> | undefined;
+  const metadata = user.user_metadata ?? undefined;
   const metadataName = [metadata?.full_name, metadata?.name, metadata?.given_name]
     .find((value): value is string => typeof value === 'string' && value.trim().length > 0);
   const accountName = metadataName?.trim()
@@ -54,7 +60,7 @@ export default function PublicHeaderAccountMenu({ user }: Props) {
     return () => {
       active = false;
     };
-  }, [supabase, user.id]);
+  }, [quotaRefreshKey, supabase, user.id]);
 
   useEffect(() => {
     if (!open) return;
