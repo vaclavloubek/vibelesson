@@ -80,6 +80,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [undoLesson, setUndoLesson] = useState<Lesson | null>(null);
   const [revision, setRevision] = useState('');
   const [blockRevision, setBlockRevision] = useState('');
+  const [revisionLanguageNotice, setRevisionLanguageNotice] = useState<'whole_lesson' | 'activity' | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -357,6 +358,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     trackEvent('lesson_revision_started', { revision_scope: 'whole_lesson' });
     setBusy(true);
     setError('');
+    setRevisionLanguageNotice(null);
     if (lessonId) setSaveStatus('saving');
     try {
       const res = await fetch('/api/revise', {
@@ -369,6 +371,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       applyLessonResponse(data);
       setUndoLesson(data.lessonId ? before : null);
       setRevision('');
+      if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('whole_lesson');
       setQuotaRefreshKey((value) => value + 1);
       trackEvent('lesson_revision_completed', { revision_scope: 'whole_lesson' });
     } catch (err) {
@@ -387,6 +390,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     trackEvent('lesson_revision_started', { revision_scope: 'activity' });
     setBusy(true);
     setError('');
+    setRevisionLanguageNotice(null);
     if (lessonId) setSaveStatus('saving');
     try {
       const res = await fetch('/api/revise-block', {
@@ -399,6 +403,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       applyLessonResponse(data);
       setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
+      if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('activity');
       setQuotaRefreshKey((value) => value + 1);
       trackEvent('lesson_revision_completed', { revision_scope: 'activity' });
     } catch (err) {
@@ -622,12 +627,32 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                 </label>
                 <button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit celou lekci', 'Edit whole lesson')}</button>
               </form>
+              {revisionLanguageNotice === 'whole_lesson' ? (
+                <div className="revision-plan-notice" role="status" aria-live="polite">
+                  <strong>{ui('Úprava byla dokončena v rámci Free tarifu.', 'The edit was completed within the Free plan.')}</strong>
+                  <p>{ui(
+                    'Hlavní jazyk lekce zůstává ve Free uzamčený. Pokud pokyn žádal překlad nebo změnu hlavního jazyka, tato část se proto neprovedla.',
+                    'The lesson’s main language stays locked on Free. If your instruction asked for a translation or a main-language change, that part was not applied.',
+                  )}</p>
+                  <Link href="/pricing">{ui('Zobrazit tarify s lekcemi v libovolném jazyce', 'View plans with lessons in any language')}</Link>
+                </div>
+              ) : null}
               <div className="quick-edits"><button type="button" onClick={() => setRevision(ui('Udělej lekci zábavnější, ale ne infantilní.', 'Make the lesson more engaging, but not childish.'))}>{ui('Vtipnější', 'More playful')}</button><button type="button" onClick={() => setRevision(ui('Přidej více týmové soutěže a jasné bodování.', 'Add more team competition and clear scoring.'))}>{ui('Více soutěže', 'More competition')}</button><button type="button" onClick={() => setRevision(ui('Omez výklad a přidej více práce studentů.', 'Reduce lecturing and add more student work.'))}>{ui('Méně výkladu', 'Less lecturing')}</button></div>
             </div>
             <div className="panel block-editor">
               <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
               <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
               {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
+              {revisionLanguageNotice === 'activity' ? (
+                <div className="revision-plan-notice" role="status" aria-live="polite">
+                  <strong>{ui('Aktivita byla upravena v rámci Free tarifu.', 'The activity was edited within the Free plan.')}</strong>
+                  <p>{ui(
+                    'Hlavní jazyk aktivity zůstává ve Free uzamčený. Pokud pokyn žádal překlad nebo změnu hlavního jazyka, tato část se proto neprovedla.',
+                    'The activity’s main language stays locked on Free. If your instruction asked for a translation or a main-language change, that part was not applied.',
+                  )}</p>
+                  <Link href="/pricing">{ui('Zobrazit tarify s lekcemi v libovolném jazyce', 'View plans with lessons in any language')}</Link>
+                </div>
+              ) : null}
             </div>
           </> : null}
           {error ? <div className="error" role="alert">{error}</div> : null}

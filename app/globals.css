@@ -373,6 +373,19 @@ button:active:not(:disabled), .button-link:active { transform: translateY(1px); 
 button:disabled { opacity: .48; cursor: not-allowed; }
 .vibe-editor textarea { min-height: 90px; }
 .vibe-editor form { display: grid; gap: 10px; }
+.revision-plan-notice {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid rgba(91,87,232,.22);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.revision-plan-notice strong { display: block; margin-bottom: 3px; color: var(--ink); }
+.revision-plan-notice p { margin: 0 0 7px; color: var(--muted); }
+.revision-plan-notice a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.revision-plan-notice a:hover { text-decoration: underline; }
 .quick-edits { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
 .quick-edits button { font-size: 12px; padding: 7px 9px; min-height: 34px; }
 .error {
