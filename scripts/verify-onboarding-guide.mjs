@@ -40,7 +40,7 @@ for (const target of [
   requireText(all, `data-tour="${target}"`, target);
 }
 
-for (const signal of ['lesson-created', 'session-created', 'teams-created', 'live-started']) {
+for (const signal of ['lesson-created', 'session-created', 'teams-created', 'live-started', 'live-ended']) {
   requireText(guide, `signal: '${signal}'`, `guide signal step ${signal}`);
   requireText([workspace, startSession, teacher].join('\n'), `'${signal}'`, `guide signal emitter ${signal}`);
 }
