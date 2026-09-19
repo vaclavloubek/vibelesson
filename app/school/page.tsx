@@ -33,6 +33,21 @@ export default async function SchoolPage({
   const { data } = await supabase.auth.getClaims();
   const userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
   const email = typeof data?.claims?.email === 'string' ? data.claims.email : null;
+  let appRole: string | null = null;
+
+  if (userId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    appRole = profile?.role ?? null;
+  }
+
+  const schoolBillingAvailable =
+    process.env.STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED === 'true'
+    || (appRole === 'admin' && billingEnvironment === 'sandbox')
+    || appRole === 'admin';
 
   return (
     <SchoolAdmin
@@ -40,6 +55,7 @@ export default async function SchoolPage({
       initialPlan={initialPlan}
       initialBilling={initialBilling}
       billingEnvironment={billingEnvironment}
+      schoolBillingAvailable={schoolBillingAvailable}
       initialUser={userId ? { id: userId, email } : null}
     />
   );
