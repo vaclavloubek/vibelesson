@@ -1,0 +1,34 @@
+import fs from 'node:fs';
+function read(path){return fs.readFileSync(path,'utf8')}
+function expect(condition,message){if(!condition){console.error('worksheet export verification failed:',message);process.exit(1)}}
+const migration=read('supabase/migrations/20260919105521_add_printable_worksheet_entitlement.sql');
+const entitlements=read('app/api/entitlements/route.ts');
+const workspace=read('components/LessonWorkspace.tsx');
+const dialog=read('components/WorksheetExportDialog.tsx');
+const worksheetPage=read('app/lessons/[id]/worksheet/page.tsx');
+const toolbar=read('app/lessons/[id]/worksheet/WorksheetPrintToolbar.tsx');
+const pricing=read('components/PricingPage.tsx');
+const packageJson=read('package.json');
+expect(migration.includes("code in ('teacher_pro', 'admin')"),'Teacher Pro and admin must receive the worksheet entitlement.');
+expect(migration.includes('worksheet_export_enabled = v_worksheet_export'),'Plan recomputation must persist the worksheet entitlement.');
+expect(migration.includes('v_override.worksheet_export_enabled'),'Manual overrides must support worksheet export.');
+expect(entitlements.includes('worksheet_export_enabled')&&entitlements.includes('worksheetExportEnabled'),'Entitlements API must expose worksheet export.');
+expect(workspace.includes('WorksheetExportDialog')&&workspace.includes('worksheetExportEnabled'),'Lesson workspace must consume worksheet entitlement.');
+expect(dialog.includes("window.open('/lessons/'")&&dialog.includes('Teacher Pro, School and Campus'),'Worksheet dialog must open the protected route and explain eligible plans.');
+expect(worksheetPage.includes(".eq('owner_id', userId)"),'Worksheet page must scope lesson to owner.');
+expect(worksheetPage.includes("select('role, worksheet_export_enabled')"),'Worksheet page must enforce entitlement server-side.');
+expect(worksheetPage.includes("profileResult.data.role === 'admin' || profileResult.data.worksheet_export_enabled"),'Worksheet route must fail closed.');
+expect(toolbar.includes('window.print()'),'Worksheet output must use browser print/PDF.');
+const teacher=pricing.slice(pricing.indexOf("id: 'teacher'"),pricing.indexOf("id: 'teacher-pro'"));
+const teacherPro=pricing.slice(pricing.indexOf("id: 'teacher-pro'"),pricing.indexOf('const schoolPlansCs'));
+const team=pricing.slice(pricing.indexOf("id: 'team'"),pricing.indexOf("id: 'school'"));
+const school=pricing.slice(pricing.indexOf("id: 'school'"),pricing.indexOf("id: 'campus'"));
+const campus=pricing.slice(pricing.indexOf("id: 'campus'"),pricing.indexOf('const PLAN_TRANSLATIONS'));
+expect(!teacher.includes('Pracovní listy z každé lekce'),'Teacher must not advertise worksheet export.');
+expect(teacherPro.includes('Pracovní listy z každé lekce · tisk a PDF'),'Teacher Pro must advertise worksheet export.');
+expect(!team.includes('Pracovní listy z každé lekce'),'Team must not advertise worksheet export.');
+expect(school.includes('Pracovní listy z každé lekce · tisk a PDF'),'School must advertise worksheet export.');
+expect(campus.includes('Pracovní listy z každé lekce · tisk a PDF'),'Campus must advertise worksheet export.');
+expect(pricing.includes('styles.newFeatureBadge'),'Pricing must highlight worksheet feature.');
+expect(packageJson.includes('node scripts/verify-worksheet-export.mjs'),'npm check must run worksheet regression check.');
+console.log('worksheet export verification passed');
