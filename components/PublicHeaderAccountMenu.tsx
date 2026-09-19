@@ -6,8 +6,13 @@ import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
 
+export type HeaderAccountUser = Pick<User, 'id' | 'email' | 'user_metadata'>;
+
 type Props = {
-  user: User;
+  user: HeaderAccountUser;
+  quota?: Quota | null;
+  quotaRefreshKey?: number;
+  onSignOut?: () => Promise<void> | void;
 };
 
 type Quota = {
@@ -21,11 +26,12 @@ type Quota = {
 
 const ACCOUNT_MENU_ID = 'public-header-account-menu';
 
-export default function PublicHeaderAccountMenu({ user }: Props) {
+export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, quotaRefreshKey = 0, onSignOut }: Props) {
   const locale = useUiLocale();
   const english = locale === 'en';
   const supabase = useMemo(() => createClient(), []);
-  const [quota, setQuota] = useState<Quota | null>(null);
+  const [loadedQuota, setLoadedQuota] = useState<Quota | null>(null);
+  const quota = controlledQuota === undefined ? loadedQuota : controlledQuota;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -40,21 +46,23 @@ export default function PublicHeaderAccountMenu({ user }: Props) {
   const initial = accountName.trim().charAt(0).toLocaleUpperCase(locale === 'en' ? 'en' : 'cs') || 'S';
 
   useEffect(() => {
+    if (controlledQuota !== undefined) return;
+
     let active = true;
     supabase.rpc('get_ai_quota').then(({ data, error }) => {
       if (!active) return;
       if (error) {
         console.error('load header quota failed', error);
-        setQuota(null);
+        setLoadedQuota(null);
         return;
       }
       const row = Array.isArray(data) ? data[0] : data;
-      setQuota((row as Quota | undefined) ?? null);
+      setLoadedQuota((row as Quota | undefined) ?? null);
     });
     return () => {
       active = false;
     };
-  }, [supabase, user.id]);
+  }, [controlledQuota, quotaRefreshKey, supabase, user.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -81,6 +89,16 @@ export default function PublicHeaderAccountMenu({ user }: Props) {
   async function signOut() {
     if (busy) return;
     setBusy(true);
+
+    if (onSignOut) {
+      try {
+        await onSignOut();
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     try {
       await fetch('/api/auth/clear-live-resume', { method: 'POST', cache: 'no-store' });
     } catch {
