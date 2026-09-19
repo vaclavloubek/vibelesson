@@ -396,10 +396,14 @@ export default function AuthControls({
       // Logout still clears the primary Supabase session. Live recovery tickets
       // are short-lived and the server endpoint will be retried on a later logout.
     }
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
     setBusy(false);
     setOpen(false);
     switchMode('signin');
+
+    if (!error) {
+      window.location.assign('/');
+    }
   }
 
   if (user) {

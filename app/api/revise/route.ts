@@ -25,6 +25,21 @@ export async function POST(req: Request) {
   try {
     const { instruction, lesson, lessonId = null } = InputSchema.parse(await req.json());
 
+    let sourceLesson = lesson;
+    if (lessonId) {
+      const { data: ownedLesson, error: ownedLessonError } = await supabase
+        .from('lessons')
+        .select('lesson')
+        .eq('id', lessonId)
+        .eq('owner_id', userId)
+        .maybeSingle();
+
+      if (ownedLessonError || !ownedLesson) {
+        return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+      }
+      sourceLesson = LessonSchema.parse(ownedLesson.lesson);
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, multilingual_lessons_enabled')
@@ -50,7 +65,7 @@ export async function POST(req: Request) {
     }
 
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
-    const revisedResult = await reviseLesson(lesson, instruction, { allowLanguageChange });
+    const revisedResult = await reviseLesson(sourceLesson, instruction, { allowLanguageChange });
     const revised = revisedResult.lesson;
     costUsd = revisedResult.costUsd;
 

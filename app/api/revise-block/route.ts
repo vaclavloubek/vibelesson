@@ -26,6 +26,21 @@ export async function POST(req: Request) {
   try {
     const { instruction, lesson, lessonId = null, blockId } = InputSchema.parse(await req.json());
 
+    let sourceLesson = lesson;
+    if (lessonId) {
+      const { data: ownedLesson, error: ownedLessonError } = await supabase
+        .from('lessons')
+        .select('lesson')
+        .eq('id', lessonId)
+        .eq('owner_id', userId)
+        .maybeSingle();
+
+      if (ownedLessonError || !ownedLesson) {
+        return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+      }
+      sourceLesson = LessonSchema.parse(ownedLesson.lesson);
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, multilingual_lessons_enabled')
@@ -37,7 +52,7 @@ export async function POST(req: Request) {
       profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled),
     );
 
-    const block = lesson.blocks.find((item) => item.id === blockId);
+    const block = sourceLesson.blocks.find((item) => item.id === blockId);
     if (!block) {
       return NextResponse.json({ error: 'Vybraná aktivita už v lekci není.' }, { status: 400 });
     }
@@ -58,18 +73,18 @@ export async function POST(req: Request) {
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
 
     const revisedResult = await reviseBlock(block, instruction, {
-      title: lesson.title,
-      audience: lesson.audience,
-      groupSize: lesson.groupSize,
-      language: lesson.language,
-      learningObjectives: lesson.learningObjectives,
+      title: sourceLesson.title,
+      audience: sourceLesson.audience,
+      groupSize: sourceLesson.groupSize,
+      language: sourceLesson.language,
+      learningObjectives: sourceLesson.learningObjectives,
     }, { allowLanguageChange });
     const revisedBlock = revisedResult.block;
     costUsd = revisedResult.costUsd;
 
-    const blocks = lesson.blocks.map((item) => item.id === revisedBlock.id ? revisedBlock : item);
+    const blocks = sourceLesson.blocks.map((item) => item.id === revisedBlock.id ? revisedBlock : item);
     const revisedLesson = LessonSchema.parse({
-      ...lesson,
+      ...sourceLesson,
       blocks,
       totalMinutes: blocks.reduce((sum, item) => sum + item.durationMinutes, 0),
     });
