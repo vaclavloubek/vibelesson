@@ -37,7 +37,7 @@ for (const [name, text] of [['dashboard', dashboard], ['workspace', workspace], 
 
 requireText(menu, "supabase.rpc('get_ai_quota')", 'the dropdown must keep AI quota information available when quota is not supplied by AuthControls.');
 requireText(menu, 'href="/lessons"', 'the dropdown must expose My lessons.');
-requireText(menu, '/pricing', 'the dropdown must expose subscription/pricing.');
+requireText(menu, '/subscription', 'the dropdown must expose direct subscription management.');
 requireText(menu, "fetch('/api/auth/clear-live-resume'", 'standalone logout must clear live-resume state.');
 requireText(menu, 'supabase.auth.signOut()', 'standalone logout must terminate the Supabase session.');
 requireText(menu, "event.key !== 'Escape'", 'the dropdown must support Escape closing.');
