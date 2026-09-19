@@ -12,7 +12,9 @@ Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel 
 
 ## 1. Produkt a zdroj pravdy
 
-**Syllonaut — AI navigátor pro interaktivní výuku.**
+**Syllonaut — Od nápadu k odučené hodině. S AI.**
+
+Produktová kategorie: **AI navigátor pro interaktivní výuku.** Hlavní positioning není „AI generátor materiálů“, ale jeden souvislý tok od zadání přes AI přípravu a úpravy až po skutečně vedenou živou hodinu.
 
 Syllonaut umožňuje učiteli vytvořit, upravit, uložit, organizovat, vést a vyhodnotit interaktivní hodinu. Učitel zadá téma, cílovou skupinu, délku, velikost skupiny, tón a další požadavky nebo nahraje vlastní podklady. AI z toho vytvoří validovanou strukturovanou lekci. Učitel ji může upravovat přirozeným jazykem, uložit ke svému účtu, spustit live session a studenti se připojí bez plnohodnotného účtu přes QR, link nebo kód.
 

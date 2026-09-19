@@ -10,13 +10,13 @@ type Props = {
 
 const metadataByLocale: Record<UiLocale, { title: string; description: string; ogLocale: string }> = {
   cs: {
-    title: 'Syllonaut — AI navigátor pro interaktivní výuku',
-    description: 'Z nápadu do živé interaktivní hodiny. Syllonaut připraví, upraví a pomůže vést výuku se studenty v reálném čase.',
+    title: 'Syllonaut — Od nápadu k odučené hodině s AI',
+    description: 'Od nápadu k odučené hodině s AI. Syllonaut připraví a upraví interaktivní lekci a pomůže ji rovnou vést se studenty.',
     ogLocale: 'cs_CZ',
   },
   en: {
-    title: 'Syllonaut — AI navigator for interactive teaching',
-    description: 'Turn an idea into a live interactive lesson. Syllonaut helps teachers create, refine and run engaging lessons in real time.',
+    title: 'Syllonaut — From idea to live teaching with AI',
+    description: 'From idea to live teaching with AI. Syllonaut creates and refines interactive lessons and helps teachers run them with students in real time.',
     ogLocale: 'en_US',
   },
 };

@@ -1,8 +1,8 @@
 # Syllonaut beta
 
-**Syllonaut — AI navigátor pro interaktivní výuku.**
+**Syllonaut — Od nápadu k odučené hodině. S AI.**
 
-Syllonaut je aplikace pro učitele: učitel popíše hodinu přirozeným jazykem a dostane hotovou interaktivní lekci, kterou může dál upravovat stejným způsobem. Cílem není generovat osnovu nebo prezentaci, ale přímo použitelný scénář výuky s aktivitami pro studenty.
+Syllonaut je AI navigátor pro interaktivní výuku: učitel popíše hodinu přirozeným jazykem a dostane hotovou interaktivní lekci, kterou může dál upravovat stejným způsobem. Cílem není generovat osnovu nebo prezentaci, ale přímo použitelný scénář výuky s aktivitami pro studenty.
 
 Název spojuje *syllabus* a *astronaut*. Kosmická metafora se v produktu používá střídmě: učitel připravuje výukovou misi, živou hodinu odstartuje a během ní má k dispozici řídicí centrum. Srozumitelnost má vždy přednost před metaforou.
 
@@ -48,7 +48,8 @@ Kosmický slovník je vrstva značky, ne nový odborný žargon. V datovém mode
 
 - produkt: **Syllonaut**;
 - hlavní doména: **syllonaut.com**;
-- claim: **AI navigátor pro interaktivní výuku.**
+- claim: **Od nápadu k odučené hodině. S AI.**;
+- produktová kategorie: **AI navigátor pro interaktivní výuku.**
 
 Autoritativní repository zůstává `vaclavloubek/vibelesson`, dokud nebude případně přejmenováno samostatným krokem.
 
