@@ -4,7 +4,7 @@ export type SyllonautGuideChapter = 'lesson' | 'live' | 'evaluation';
 export type SyllonautGuideAction = 'lesson-created' | 'lesson-revised' | 'activity-revised' | 'session-created' | 'teams-created' | 'live-started' | 'live-ended';
 
 export type SyllonautGuideState = {
-  version: 1;
+  version: 2;
   running: boolean;
   chapter: SyllonautGuideChapter;
   step: number;
@@ -15,45 +15,125 @@ export type SyllonautGuideState = {
 
 export const SYLLONAUT_GUIDE_EVENT = 'syllonaut:guide-state';
 export const SYLLONAUT_GUIDE_ACTION_EVENT = 'syllonaut:guide-action';
-const STORAGE_PREFIX = 'syllonaut_guide_v1:';
+export const SYLLONAUT_LESSON_REVIEW_STEP = 2;
+
+const STORAGE_PREFIX = 'syllonaut_guide_v2:';
+const LEGACY_STORAGE_PREFIX = 'syllonaut_guide_v1:';
 
 export function syllonautGuideStorageKey(userId: string) {
   return `${STORAGE_PREFIX}${userId}`;
+}
+
+function legacySyllonautGuideStorageKey(userId: string) {
+  return `${LEGACY_STORAGE_PREFIX}${userId}`;
 }
 
 export function syllonautGuideStepKey(chapter: SyllonautGuideChapter, step: number) {
   return `${chapter}:${step}`;
 }
 
+function isChapter(value: unknown): value is SyllonautGuideChapter {
+  return value === 'lesson' || value === 'live' || value === 'evaluation';
+}
+
+function normalizeCompleted(value: unknown): SyllonautGuideChapter[] {
+  return Array.isArray(value) ? value.filter(isChapter) : [];
+}
+
+function normalizeSatisfiedSteps(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
+function parseCurrentState(raw: string): SyllonautGuideState | null {
+  const parsed = JSON.parse(raw) as Partial<SyllonautGuideState>;
+  if (
+    parsed.version !== 2
+    || typeof parsed.running !== 'boolean'
+    || !isChapter(parsed.chapter)
+    || typeof parsed.step !== 'number'
+    || !Number.isInteger(parsed.step)
+    || typeof parsed.dismissed !== 'boolean'
+    || !Array.isArray(parsed.completed)
+  ) return null;
+
+  return {
+    version: 2,
+    running: parsed.running,
+    chapter: parsed.chapter,
+    step: Math.max(0, Number(parsed.step)),
+    dismissed: parsed.dismissed,
+    completed: normalizeCompleted(parsed.completed),
+    satisfiedSteps: normalizeSatisfiedSteps(parsed.satisfiedSteps),
+  };
+}
+
+function migrateLegacyState(raw: string): SyllonautGuideState | null {
+  const parsed = JSON.parse(raw) as {
+    version?: unknown;
+    running?: unknown;
+    chapter?: unknown;
+    step?: unknown;
+    dismissed?: unknown;
+    completed?: unknown;
+  };
+
+  if (
+    parsed.version !== 1
+    || typeof parsed.running !== 'boolean'
+    || !isChapter(parsed.chapter)
+    || typeof parsed.step !== 'number'
+    || !Number.isInteger(parsed.step)
+    || typeof parsed.dismissed !== 'boolean'
+    || !Array.isArray(parsed.completed)
+  ) return null;
+
+  let step = Math.max(0, Number(parsed.step));
+
+  if (parsed.running && parsed.chapter === 'lesson') {
+    const pathname = window.location.pathname;
+    if (/^\/lessons\/[^/]+\/?$/.test(pathname)) {
+      step = SYLLONAUT_LESSON_REVIEW_STEP;
+    } else if (pathname === '/new') {
+      step = 0;
+    }
+  }
+
+  return {
+    version: 2,
+    running: parsed.running,
+    chapter: parsed.chapter,
+    step,
+    dismissed: parsed.dismissed,
+    completed: normalizeCompleted(parsed.completed),
+    // v1 used numeric step indexes; those became ambiguous after inserting new steps.
+    satisfiedSteps: [],
+  };
+}
+
 export function readSyllonautGuideState(userId: string): SyllonautGuideState | null {
   if (typeof window === 'undefined') return null;
 
   try {
-    const raw = window.localStorage.getItem(syllonautGuideStorageKey(userId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<SyllonautGuideState>;
-    if (
-      parsed.version !== 1
-      || typeof parsed.running !== 'boolean'
-      || !['lesson', 'live', 'evaluation'].includes(parsed.chapter ?? '')
-      || typeof parsed.step !== 'number'
-      || !Number.isInteger(parsed.step)
-      || typeof parsed.dismissed !== 'boolean'
-      || !Array.isArray(parsed.completed)
-    ) return null;
+    const currentRaw = window.localStorage.getItem(syllonautGuideStorageKey(userId));
+    if (currentRaw) {
+      const current = parseCurrentState(currentRaw);
+      if (current) return current;
+    }
 
-    return {
-      version: 1,
-      running: parsed.running,
-      chapter: parsed.chapter as SyllonautGuideChapter,
-      step: Math.max(0, Number(parsed.step)),
-      dismissed: parsed.dismissed,
-      completed: parsed.completed.filter((value): value is SyllonautGuideChapter =>
-        value === 'lesson' || value === 'live' || value === 'evaluation'),
-      satisfiedSteps: Array.isArray(parsed.satisfiedSteps)
-        ? parsed.satisfiedSteps.filter((value): value is string => typeof value === 'string')
-        : [],
-    };
+    const legacyRaw = window.localStorage.getItem(legacySyllonautGuideStorageKey(userId));
+    if (!legacyRaw) return null;
+
+    const migrated = migrateLegacyState(legacyRaw);
+    if (!migrated) return null;
+
+    try {
+      window.localStorage.setItem(syllonautGuideStorageKey(userId), JSON.stringify(migrated));
+    } catch {
+      // A migration failure must not block the guide in the current tab.
+    }
+    return migrated;
   } catch {
     return null;
   }
@@ -86,7 +166,7 @@ export function startSyllonautGuide(
 ) {
   const previous = readSyllonautGuideState(userId);
   writeSyllonautGuideState(userId, {
-    version: 1,
+    version: 2,
     running: true,
     chapter,
     step,
@@ -120,7 +200,7 @@ export function restartSyllonautGuideForCurrentContext(userId: string) {
   }
 
   if (/^\/lessons\/[^/]+\/?$/.test(pathname)) {
-    startSyllonautGuide(userId, 'lesson', 2);
+    startSyllonautGuide(userId, 'lesson', SYLLONAUT_LESSON_REVIEW_STEP);
     return;
   }
 
