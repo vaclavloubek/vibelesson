@@ -96,6 +96,7 @@ const schoolPlansCs: Plan[] = [
     price: { monthlyCzk: 1290, annualCzk: 12900, monthlyEur: 54.99, annualEur: 549.9, monthlyUsd: 59.99, annualUsd: 599 },
     features: [
       'Až 10 učitelů',
+      'Samostatný účet pro každého učitele',
       '200 nových AI lekcí za měsíc společně',
       '800 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
@@ -110,6 +111,7 @@ const schoolPlansCs: Plan[] = [
     price: { monthlyCzk: 3190, annualCzk: 31900, monthlyEur: 139.99, annualEur: 1399.9, monthlyUsd: 149.99, annualUsd: 1499 },
     features: [
       'Až 30 učitelů',
+      'Samostatný účet pro každého učitele',
       '600 nových AI lekcí za měsíc společně',
       '2 400 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
@@ -127,6 +129,7 @@ const schoolPlansCs: Plan[] = [
     price: { monthlyCzk: 8490, annualCzk: 84900, monthlyEur: 369.99, annualEur: 3699.9, monthlyUsd: 399.99, annualUsd: 3999 },
     features: [
       'Až 100 učitelů',
+      'Samostatný účet pro každého učitele',
       '2 000 nových AI lekcí za měsíc společně',
       '8 000 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
@@ -178,6 +181,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     description: 'For a small department, subject team or group of teachers.',
     features: [
       'Up to 10 teachers',
+      'A separate account for every teacher',
       '200 new AI lessons per month shared',
       '800 AI edits per month shared',
       'Lessons in any language',
@@ -189,6 +193,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     description: 'For a school that wants to make Syllonaut available to a broader teaching team.',
     features: [
       'Up to 30 teachers',
+      'A separate account for every teacher',
       '600 new AI lessons per month shared',
       '2,400 AI edits per month shared',
       'Lessons in any language',
@@ -202,6 +207,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     description: 'For a large school, multi-site organisation or institution with several teams.',
     features: [
       'Up to 100 teachers',
+      'A separate account for every teacher',
       '2,000 new AI lessons per month shared',
       '8,000 AI edits per month shared',
       'Lessons in any language',
@@ -832,7 +838,7 @@ export default function PricingPage({
         <div>
           <span className={styles.noteIndex}>01</span>
           <strong>{ui('Měsíční limity se obnovují každý kalendářní měsíc.', 'Monthly limits reset every calendar month.')}</strong>
-          <p>{ui('U školních plánů jsou lekce a AI úpravy společným limitem pro všechny učitele v daném účtu.', 'For school plans, lessons and AI edits are shared allowances for all teachers in the account.')}</p>
+          <p>{ui('U školních plánů má každý učitel vlastní účet. AI lekce a úpravy se čerpají ze společného limitu pracovního prostoru školy.', 'On school plans, every teacher has their own account. AI lessons and edits use the school workspace’s shared allowance.')}</p>
         </div>
         <div>
           <span className={styles.noteIndex}>02</span>

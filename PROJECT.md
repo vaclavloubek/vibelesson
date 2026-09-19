@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.19 — veřejný LIVE billing má vlastní lokalizované transakční lifecycle e-maily Syllonautu pro aktivaci, naplánované zrušení, odvolání zrušení a definitivní ukončení předplatného; produkční E2E acceptance je COMPLETE / PASS včetně skutečně doručeného českého cancellation e-mailu přes Stripe webhook → Syllonaut → Resend. Finanční e-maily o platbě/refundu/failed payment zůstávají ve Stripe. Growth/GA4 baseline zůstává zachovaný.
+Aktualizováno: 2026-09-19 pro verzi 0.9.20 — učitel může sdílet neměnný náhled lekce a kolega si po přihlášení uloží vlastní kopii. Sdílení nikdy nezpřístupní výsledky, kódy hodin ani účet autora; jeden učitelský účet může mít nejvýše jednu aktivní živou hodinu.
 
-**Aktuální produktová verze: 0.9.19** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.20** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Uloženou lekci lze sdílet jako read-only snímek; příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -94,6 +94,7 @@ Dokud výjimka platí, Preview testy nesmí dělat destruktivní zásahy do prod
 - `/new` — tvorba nové lekce
 - `/lessons` — Moje lekce + Poslední výsledky + složky
 - `/lessons/<id>` — lesson workspace
+- `/s/<token>` — veřejný read-only snímek sdílené lekce; přihlášení je nutné až pro uložení vlastní kopie
 - `/sessions/<id>` — teacher live session / report
 - `/sessions/<id>/presenter` — projekční režim
 - `/join`, `/join/<code>` — studentský vstup
@@ -1086,7 +1087,7 @@ Bezprostřední growth krok:
 ### Další produktové položky
 
 - koš/verzování;
-- sdílení lekcí a public read-only link;
+- školní interní knihovna nad hotovým public read-only sdílením lekcí;
 - templates/favorites/search;
 - user export/delete;
 - skutečné školní/organizační účty, membership a správa rolí;
@@ -1140,6 +1141,7 @@ Bezpečnostní a produktové změny:
 - **0.9.17 / SEC-017** — serverový guard na `PUT /api/lessons/[id]`: Free účet nesmí přes replacement payload změnit `lesson.language`; guard používá autoritativní DB lekci + serverový profil a je krytý regresním testem `verify-lesson-replacement-entitlement.mjs`
 - **0.9.18** / `43a64db` — veřejný LIVE launch individuálního billingu: Teacher a Teacher Pro mají aktivní CZK/EUR/USD monthly/annual Stripe Checkout, placení uživatelé mají Customer Portal a GA4 funnel používá produkční `pricing_live` / `stripe_live`; školní tarify zůstávají vypnuté a serverový emergency kill-switch zůstává zachovaný; Preview, `npm run check`, security headers, accessibility i production deployment prošly zeleně
 - **0.9.19** / `f180758` — lokalizované subscription lifecycle e-maily Syllonautu přes Resend: aktivace tarifu, naplánované zrušení, odvolání zrušení a definitivní ukončení. Jazyk se drží jako uživatelská preference CZ/EN s billing-country fallbackem; delivery ledger + Resend idempotency chrání před duplicitami při Stripe retry. Transakční e-maily jsou nezávislé na marketingovém souhlasu; payment receipt/refund/failed payment zůstávají Stripe-owned. Produkční acceptance 2026-09-19: replay skutečného LIVE `customer.subscription.deleted` prošel přes produkční webhook, auditní delivery přešla do `sent`, Resend vykázal `delivered` a uživatel ručně potvrdil doručení správně lokalizovaného českého e-mailu. Během acceptance se odhalil chybějící produkční `RESEND_API_KEY`; po doplnění ve Vercelu a redeployi byl test úspěšně zopakován.
+- **0.9.20** — větší produktová úprava pro bezpečné sdílení lekcí: autor vytváří odvolatelný odkaz na neměnný read-only snímek, příjemce se přihlásí a importuje vlastní idempotentní kopii bez přístupu k výsledkům, session kódům nebo historii AI úprav. Databázový unikátní index vynucuje nejvýše jednu aktivní živou hodinu na učitelský účet; školní ceník výslovně uvádí samostatný účet každého učitele.
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1231,7 +1233,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou veřejně prodejné; 0.9.19 doplňuje vlastní CZ/EN lifecycle e-maily Syllonautu, zatímco finanční e-maily zůstávají ve Stripe. Školní tarify zůstávají mimo live billing.** Aktuální produktová verze je 0.9.19; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou veřejně prodejné; 0.9.19 doplňuje vlastní CZ/EN lifecycle e-maily Syllonautu, zatímco finanční e-maily zůstávají ve Stripe. Školní tarify zůstávají mimo live billing.** Verze 0.9.20 připravuje bezpečné read-only sdílení a samostatné kopie lekcí; live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2 zůstává zachovaný.
 
 Nejbližší priority v tomto pořadí:
 

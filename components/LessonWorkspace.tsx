@@ -10,6 +10,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
 import GradingStrictnessControl from '@/components/GradingStrictnessControl';
 import LessonPreview from '@/components/LessonPreview';
+import ShareLessonButton from '@/components/ShareLessonButton';
 import SyllonautMark from '@/components/SyllonautMark';
 import { demoLesson, demoLessonEn } from '@/lib/demo';
 import {
@@ -679,7 +680,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                   compact
                 />
               ) : null}
-              <div className="actions"><Link href="/lessons" className="secondary button-link">← {ui('Moje lekce', 'My lessons')}</Link><Link href="/new" className="primary button-link">+ {ui('Nová lekce', 'New lesson')}</Link></div>
+              <div className="actions"><Link href="/lessons" className="secondary button-link">← {ui('Moje lekce', 'My lessons')}</Link><ShareLessonButton lessonId={lessonId} /><Link href="/new" className="primary button-link">+ {ui('Nová lekce', 'New lesson')}</Link></div>
             </div>
           ) : (
             <div className="panel">
