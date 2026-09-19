@@ -58,9 +58,14 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
   const selectedIds = new Set(resolveWorksheetBlockIds(values(query.block), lesson));
   const blocks = lesson.blocks.map((block, originalIndex) => ({ block, originalIndex })).filter(({ block }) => selectedIds.has(block.id));
   const teacherMode = mode === 'teacher';
+  const pdfParams = new URLSearchParams();
+  pdfParams.set('mode', mode);
+  pdfParams.set('space', space);
+  pdfParams.set('locale', english ? 'en' : 'cs');
+  for (const blockId of selectedIds) pdfParams.append('block', blockId);
 
   return <main className={styles.worksheetShell}>
-    <WorksheetPrintToolbar lessonId={id} lessonTitle={lesson.title} english={english} teacherMode={teacherMode} />
+    <WorksheetPrintToolbar lessonId={id} lessonTitle={lesson.title} english={english} teacherMode={teacherMode} worksheetQuery={pdfParams.toString()} />
     <article className={styles.paper} lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>
       <header className={styles.sheetHeader}>
         <div className={styles.brandRow}><div className={styles.brand}><SyllonautMark /><span>Syllonaut</span></div><span className={styles.documentType}>{teacherMode ? (english ? 'Teacher key' : 'Klíč pro učitele') : (english ? 'Worksheet' : 'Pracovní list')}</span></div>
