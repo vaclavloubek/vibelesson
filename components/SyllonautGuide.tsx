@@ -71,8 +71,8 @@ const lessonSteps: GuideStep[] = [
       cs: 'Sem napište například „zkrátit na 45 minut“, „více týmové práce“ nebo „udělat druhou polovinu náročnější“. Nemusíte nic přepisovat ručně.',
       en: 'Try instructions such as “shorten it to 45 minutes”, “add more teamwork” or “make the second half more challenging”. No manual rewriting is needed.',
     },
-    advanceOn: 'manual',
-    button: { cs: 'Další: jedna aktivita', en: 'Next: one activity' },
+    advanceOn: 'signal',
+    signal: 'lesson-revised',
   },
   {
     target: 'lesson-edit-block',
@@ -90,8 +90,8 @@ const lessonSteps: GuideStep[] = [
       cs: 'Tady napište přesně, co chcete změnit. Syllonaut upraví jen vybranou aktivitu a změnu automaticky uloží.',
       en: 'Describe exactly what should change. Syllonaut edits only the selected activity and saves the change automatically.',
     },
-    advanceOn: 'manual',
-    button: { cs: 'Další: spustit hodinu', en: 'Next: start the lesson' },
+    advanceOn: 'signal',
+    signal: 'activity-revised',
   },
   {
     target: 'lesson-start',
