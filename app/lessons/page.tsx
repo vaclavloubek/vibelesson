@@ -6,6 +6,7 @@ import SessionActions from './SessionActions';
 import SyllonautMark from '@/components/SyllonautMark';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
+import DashboardLogoutButton from '@/components/DashboardLogoutButton';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
@@ -124,7 +125,16 @@ export default async function LessonsPage({ searchParams }: Props) {
       <header className="brand lessons-brand">
         <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="dashboard-version-stack"><span className="beta">BETA</span><span className="dashboard-version">v{APP_VERSION}</span></span></div>
         <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons" className="active">{ui('Moje lekce', 'My lessons')}</Link></nav>
-        <div className="lessons-user"><LocaleSwitcher />{typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : ui('Přihlášený učitel', 'Signed-in teacher')}</div>
+        <div className="lessons-user">
+          <LocaleSwitcher />
+          <span
+            className="lessons-user-email"
+            title={typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : undefined}
+          >
+            {typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : ui('Přihlášený učitel', 'Signed-in teacher')}
+          </span>
+          <DashboardLogoutButton />
+        </div>
       </header>
 
       <section className="lessons-heading">
