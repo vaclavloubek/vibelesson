@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.04 — Free uživatel dostává po každé úspěšné AI revizi kontextové vysvětlení, že hlavní jazyk lekce/aktivity je uzamčený a případný požadavek na překlad nebo změnu hlavního jazyka se neprovedl. Součástí je odkaz na Ceník.
+Aktualizováno: 2026-09-19 pro verzi 0.9.05 — tlačítko „Upravit blok“ v učitelském náhledu nyní vybere aktivitu, přesune uživatele přímo k editoru aktivity a vloží fokus do textového pole pro AI úpravu. Navigační body průběhu lekce zůstávají pouze výběrové.
 
-**Aktuální produktová verze: 0.9.04** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.05** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -383,7 +383,8 @@ Lesson workspace má:
 - lokální recovery snapshot;
 - ochranu před zavřením při ukládání;
 - zobrazení kvóty;
-- Poslední výsledky / historické sessions.
+- Poslední výsledky / historické sessions;
+- kliknutí na **Upravit blok** v učitelském náhledu automaticky přesune editor vybrané aktivity do záběru a nastaví fokus do pole s pokynem pro AI úpravu; respektuje `prefers-reduced-motion`.
 
 ### Prémiové složky a podsložky
 
@@ -1082,9 +1083,10 @@ Další významné změny 2026-09-18:
 - **0.9.02** — uzavření revizního bypassu: Free už nemůže změnit hlavní jazyk přes AI úpravu celé lekce ani jednotlivého bloku; entitlement se kontroluje serverově a jazykový lock je autoritativní systémová instrukce modelu. Cizojazyčné učivo zůstává povolené.
 - **0.9.03** — UX doplnění k Free jazykovému omezení: po vytvoření/otevření uložené lekce se zobrazuje výrazné vysvětlení, že nové lekce používají jazyk rozhraní a AI úpravy nemohou změnit hlavní jazyk; součástí je CTA na Ceník.
 - **0.9.04** — kontextová zpětná vazba po AI revizi ve Free: po úspěšné úpravě celé lekce nebo jedné aktivity UI vysvětlí, že hlavní jazyk zůstává uzamčený a případný požadavek na překlad/změnu hlavního jazyka se neprovedl; obsahové úpravy probíhají dál.
+- **0.9.05** — UX zrychlení editace aktivit: tlačítko „Upravit blok“ přesune uživatele přímo k editoru vybrané aktivity a zaměří textové pole pro pokyn; route/timeline výběr zůstává bez automatického skoku.
 - viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a zobrazuje aktuální produkční verzi.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích; 0.9.05 zrychluje přechod z náhledu bloku přímo do jeho editoru.**
 
 ## 21. Pravidla další práce
 
