@@ -88,6 +88,15 @@ await expectHtml('/cs/pricing', [
   'Pro školy',
 ]);
 
+await expectHtml('/en/pricing', [
+  '<html lang="en"',
+  '199 Kč',
+], { country: 'CZ' });
+await expectHtml('/cs/pricing', [
+  '<html lang="cs"',
+  '$8.99',
+], { country: 'US' });
+
 await expectHtml('/en/gdpr', [
   '<html lang="en"',
   'Privacy and personal data (GDPR)',
