@@ -1222,64 +1222,119 @@ export default function SchoolAdmin({
                   </p>
 
                   {summary.library.length ? (
-                    <div className={styles.tableWrap}>
-                      <table className={styles.table}>
-                        <thead>
-                          <tr>
-                            <th>{ui('Lekce', 'Lesson')}</th>
-                            <th>{ui('Přidal', 'Added by')}</th>
-                            <th>{ui('Datum', 'Date')}</th>
-                            <th>{ui('Akce', 'Actions')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {summary.library.map((entry) => {
-                            const publisher = summary.members.find(
-                              (member) => member.userId === entry.published_by,
-                            );
-                            const canRemove = summary.manager
-                              || entry.published_by === initialUser.id;
-                            return (
-                              <tr key={entry.id}>
-                                <td>{entry.title}</td>
-                                <td>{publisher?.email ?? '—'}</td>
-                                <td>{new Date(entry.created_at).toLocaleDateString(
-                                  english ? 'en-GB' : 'cs-CZ',
-                                )}</td>
-                                <td>
-                                  <div className={styles.rowActions}>
-                                    <button
-                                      type="button"
-                                      className={styles.secondary}
-                                      disabled={busy || summary.status !== 'active'}
-                                      onClick={() => importLibraryLesson(entry.id)}
-                                      title={summary.status === 'active'
-                                        ? undefined
-                                        : ui(
-                                          'Import je dostupný pouze s aktivní školní licencí.',
-                                          'Import is available only with an active school licence.',
-                                        )}
-                                    >
-                                      {ui('Vytvořit vlastní kopii', 'Create my copy')}
-                                    </button>
-                                    {canRemove ? (
-                                      <button
-                                        type="button"
-                                        className={styles.danger}
-                                        disabled={busy}
-                                        onClick={() => removeLibraryLesson(entry.id)}
-                                      >
-                                        {ui('Odebrat', 'Remove')}
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                </td>
+                    <>
+                      <div className={styles.libraryFilterBar}>
+                        <div className={styles.field}>
+                          <label htmlFor="school-library-subject-filter">
+                            {ui('Předmět', 'Subject')}
+                          </label>
+                          <select
+                            id="school-library-subject-filter"
+                            value={librarySubjectFilter}
+                            onChange={(event) => setLibrarySubjectFilter(event.target.value)}
+                          >
+                            <option value="__all__">
+                              {ui('Všechny předměty', 'All subjects')} ({summary.library.length})
+                            </option>
+                            {librarySubjects.map((subject) => (
+                              <option key={subject} value={subject}>
+                                {subject} ({summary.library.filter(
+                                  (entry) => entry.subject?.trim() === subject,
+                                ).length})
+                              </option>
+                            ))}
+                            {hasUnclassifiedLibraryLessons ? (
+                              <option value="__unclassified__">
+                                {ui('Nezařazeno', 'Unclassified')} ({summary.library.filter(
+                                  (entry) => !entry.subject?.trim(),
+                                ).length})
+                              </option>
+                            ) : null}
+                          </select>
+                        </div>
+                        <span className={styles.muted}>
+                          {ui('Zobrazeno', 'Showing')}: {filteredLibrary.length}/{summary.library.length}
+                        </span>
+                      </div>
+
+                      {filteredLibrary.length ? (
+                        <div
+                          className={
+                            styles.tableWrap
+                            + (filteredLibrary.length >= 10 ? ' ' + styles.libraryScrollable : '')
+                          }
+                        >
+                          <table className={styles.table}>
+                            <thead>
+                              <tr>
+                                <th>{ui('Lekce', 'Lesson')}</th>
+                                <th>{ui('Předmět', 'Subject')}</th>
+                                <th>{ui('Přidal', 'Added by')}</th>
+                                <th>{ui('Datum', 'Date')}</th>
+                                <th>{ui('Akce', 'Actions')}</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                            </thead>
+                            <tbody>
+                              {filteredLibrary.map((entry) => {
+                                const publisher = summary.members.find(
+                                  (member) => member.userId === entry.published_by,
+                                );
+                                const canRemove = summary.manager
+                                  || entry.published_by === initialUser.id;
+                                return (
+                                  <tr key={entry.id}>
+                                    <td>{entry.title}</td>
+                                    <td>
+                                      {entry.subject?.trim()
+                                        || ui('Nezařazeno', 'Unclassified')}
+                                    </td>
+                                    <td>{publisher?.email ?? '—'}</td>
+                                    <td>{new Date(entry.created_at).toLocaleDateString(
+                                      english ? 'en-GB' : 'cs-CZ',
+                                    )}</td>
+                                    <td>
+                                      <div className={styles.rowActions}>
+                                        <button
+                                          type="button"
+                                          className={styles.secondary}
+                                          disabled={busy || summary.status !== 'active'}
+                                          onClick={() => importLibraryLesson(entry.id)}
+                                          title={summary.status === 'active'
+                                            ? undefined
+                                            : ui(
+                                              'Import je dostupný pouze s aktivní školní licencí.',
+                                              'Import is available only with an active school licence.',
+                                            )}
+                                        >
+                                          {ui('Vytvořit vlastní kopii', 'Create my copy')}
+                                        </button>
+                                        {canRemove ? (
+                                          <button
+                                            type="button"
+                                            className={styles.danger}
+                                            disabled={busy}
+                                            onClick={() => removeLibraryLesson(entry.id)}
+                                          >
+                                            {ui('Odebrat', 'Remove')}
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className={styles.muted}>
+                          {ui(
+                            'Pro vybraný předmět tu zatím žádná lekce není.',
+                            'There are no lessons for the selected subject yet.',
+                          )}
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <p className={styles.muted}>
                       {ui('Školní knihovna je zatím prázdná.', 'The school library is empty.')}
