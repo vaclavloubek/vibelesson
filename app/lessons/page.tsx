@@ -134,7 +134,7 @@ export default async function LessonsPage({ searchParams }: Props) {
           <PublicHeaderAccountMenu
             user={{
               id: userId,
-              email: typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : null,
+              email: typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : undefined,
               user_metadata: claimsData?.claims?.user_metadata && typeof claimsData.claims.user_metadata === 'object' ? claimsData.claims.user_metadata as Record<string, unknown> : {},
             }}
           />
