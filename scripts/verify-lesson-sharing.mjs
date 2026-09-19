@@ -78,9 +78,16 @@ requirePattern(shareButton, /createPortal\([\s\S]*document\.body/, 'the share di
 requirePattern(authControls, /emailRedirectTo: signupRedirectUrl\(\)/, 'signup must accept the shared lesson return URL.');
 requirePattern(authControls, /onSignInSuccess\?\.\(\)/, 'AuthControls must expose a callback after successful password sign-in.');
 requirePattern(sharedAuthControls, /onSignInSuccess=\{handleSignInSuccess\}/, 'shared lesson auth must hook explicit successful sign-in completion.');
+requirePattern(sharedAuthControls, /<Link href="\/lessons">\{english \? 'My lessons' : 'Moje lekce'\}<\/Link>/, 'signed-in shared pages must show a direct My lessons link.');
 requirePattern(sharedAuthControls, /window\.location\.replace\(`\/s\/\$\{token\}\?import=1`\)/, 'successful sign-in must force a fresh server-authenticated share request.');
 requirePattern(sharedAuthControls, /signupRedirectPath=\{`\/s\/\$\{token\}\$\{importRequested \? '\?import=1' : ''\}`\}/, 'signup confirmation must preserve shared lesson import intent.');
 requirePattern(importButton, /\?signin=1&import=1/, 'unauthenticated import must preserve intent through sign-in.');
+requirePattern(importButton, /IMPORT_INTENT_STORAGE_KEY = 'syllonaut_pending_share_import_v1'/, 'shared import intent must be persisted per browser tab.');
+requirePattern(importButton, /IMPORT_INTENT_TTL_MS = 5 \* 60 \* 1000/, 'shared import intent must expire quickly.');
+requirePattern(importButton, /window\.sessionStorage\.setItem[\s\S]*rememberImportIntent/, 'explicit save-copy intent must be stored before authentication.');
+requirePattern(importButton, /hasRecentImportIntent\(token\)/, 'shared import must recover intent even if the URL flag is lost.');
+requirePattern(importButton, /setInterval[\s\S]*checkAuthenticatedUser/, 'pending shared imports must briefly retry auth propagation.');
+requirePattern(importButton, /clearImportIntent\(token\)[\s\S]*router\.replace/, 'successful imports must clear the pending session intent before navigation.');
 requirePattern(importButton, /supabase\.auth\.getUser\(\)[\s\S]*resumeImport/, 'shared import must resume when an authenticated user is already present.');
 requirePattern(importButton, /supabase\.auth\.onAuthStateChange[\s\S]*session\?\.user[\s\S]*resumeImport/, 'shared import must resume from the client auth state change after sign-in.');
 requirePattern(importButton, /resumedImportRef[\s\S]*importInFlightRef/, 'shared import resumption must be guarded against duplicate requests.');
