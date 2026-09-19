@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
+import GuideHelpButton from '@/components/GuideHelpButton';
 
 type ScoreboardControlState = {
   status: 'lobby' | 'live' | 'ended';
@@ -15,7 +16,7 @@ type ScoreboardControlState = {
   unconfirmedEvaluations: number;
 };
 
-export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId: string }) {
+export default function TeacherScoreboardQuickAction({ sessionId, userId }: { sessionId: string; userId: string | null }) {
   const english = useUiLocale() === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const [target, setTarget] = useState<Element | null>(null);
@@ -112,6 +113,7 @@ export default function TeacherScoreboardQuickAction({ sessionId }: { sessionId:
 
   return createPortal(
     <>
+      <GuideHelpButton userId={userId} chapter="live" step={2} labelCs="Jak promítat studentům" labelEn="How to present to students" />
       <a
         className="secondary button-link"
         data-tour="live-presenter"

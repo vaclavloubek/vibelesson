@@ -10,6 +10,7 @@ export type SyllonautGuideState = {
   step: number;
   dismissed: boolean;
   completed: SyllonautGuideChapter[];
+  satisfiedSteps: string[];
 };
 
 export const SYLLONAUT_GUIDE_EVENT = 'syllonaut:guide-state';
@@ -18,6 +19,10 @@ const STORAGE_PREFIX = 'syllonaut_guide_v1:';
 
 export function syllonautGuideStorageKey(userId: string) {
   return `${STORAGE_PREFIX}${userId}`;
+}
+
+export function syllonautGuideStepKey(chapter: SyllonautGuideChapter, step: number) {
+  return `${chapter}:${step}`;
 }
 
 export function readSyllonautGuideState(userId: string): SyllonautGuideState | null {
@@ -45,6 +50,9 @@ export function readSyllonautGuideState(userId: string): SyllonautGuideState | n
       dismissed: parsed.dismissed,
       completed: parsed.completed.filter((value): value is SyllonautGuideChapter =>
         value === 'lesson' || value === 'live' || value === 'evaluation'),
+      satisfiedSteps: Array.isArray(parsed.satisfiedSteps)
+        ? parsed.satisfiedSteps.filter((value): value is string => typeof value === 'string')
+        : [],
     };
   } catch {
     return null;
@@ -84,6 +92,7 @@ export function startSyllonautGuide(
     step,
     dismissed: false,
     completed: previous?.completed ?? [],
+    satisfiedSteps: previous?.satisfiedSteps ?? [],
   });
 }
 
