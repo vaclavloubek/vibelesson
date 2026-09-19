@@ -1,5 +1,5 @@
 .hero {
-  width: min(920px, calc(100% - 40px));
+  width: min(1120px, calc(100% - 40px));
   margin: 84px auto 0;
   text-align: center;
 }
@@ -28,6 +28,44 @@
   color: var(--muted);
   font-size: 18px;
   line-height: 1.58;
+}
+
+.processFlow {
+  margin: 34px auto 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  text-align: left;
+}
+
+.processFlow > div {
+  min-height: 138px;
+  padding: 18px 17px;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.68);
+  box-shadow: 0 6px 22px rgba(21,23,33,.035);
+}
+
+.processFlow span {
+  color: var(--accent);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.processFlow strong {
+  font-size: 14px;
+  letter-spacing: -.015em;
+}
+
+.processFlow small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.48;
 }
 
 .controls {
@@ -193,6 +231,13 @@
   font-weight: 680;
 }
 
+.seatValue {
+  margin-top: 8px;
+  color: #5b57e8;
+  font-size: 11px;
+  font-weight: 720;
+}
+
 .features {
   display: grid;
   gap: 11px;
@@ -331,6 +376,7 @@
 
 @media (max-width: 900px) {
   .hero { margin-top: 54px; }
+  .processFlow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .controls { align-items: stretch; }
   .cards { grid-template-columns: 1fr; max-width: 680px; }
   .card { min-height: auto; }
@@ -349,6 +395,8 @@
   .hero { margin-top: 42px; text-align: left; }
   .hero h1 { font-size: clamp(39px, 12vw, 54px); }
   .hero p { font-size: 16px; }
+  .processFlow { grid-template-columns: 1fr; gap: 9px; }
+  .processFlow > div { min-height: 0; }
   .controls { flex-direction: column; margin-top: 34px; }
   .segmented { width: 100%; }
   .segmented button { flex: 1; }
