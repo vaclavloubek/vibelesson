@@ -8,7 +8,11 @@ export const dynamic = 'force-dynamic';
 export default async function SchoolPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string | string[]; billing?: string | string[] }>;
+  searchParams: Promise<{
+    plan?: string | string[];
+    billing?: string | string[];
+    billing_env?: string | string[];
+  }>;
 }) {
   const requestHeaders = await headers();
   const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
@@ -20,6 +24,10 @@ export default async function SchoolPage({
       ? planValue
       : 'school';
   const initialBilling = billingValue === 'monthly' ? 'monthly' : 'annual';
+  const environmentValue = Array.isArray(params.billing_env)
+    ? params.billing_env[0]
+    : params.billing_env;
+  const billingEnvironment = environmentValue === 'sandbox' ? 'sandbox' : 'live';
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -31,6 +39,7 @@ export default async function SchoolPage({
       locale={locale}
       initialPlan={initialPlan}
       initialBilling={initialBilling}
+      billingEnvironment={billingEnvironment}
       initialUser={userId ? { id: userId, email } : null}
     />
   );
