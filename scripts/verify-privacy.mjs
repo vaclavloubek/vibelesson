@@ -8,9 +8,10 @@ function requirePattern(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(`Privacy regression: ${message}`);
 }
 
-const [layout, cookieConsent, footer, gdpr, auth, nextConfig, marketingPreferences] = await Promise.all([
+const [layout, cookieConsent, analytics, footer, gdpr, auth, nextConfig, marketingPreferences] = await Promise.all([
   source('app/layout.tsx'),
   source('components/CookieConsent.tsx'),
+  source('lib/analytics.ts'),
   source('components/SiteFooter.tsx'),
   source('app/gdpr/page.tsx'),
   source('components/AuthControls.tsx'),
@@ -27,6 +28,11 @@ requirePattern(cookieConsent, /COOKIE_MAX_AGE_SECONDS = 60 \* 60 \* 24 \* 180/, 
 requirePattern(cookieConsent, /allow_google_signals:\s*false/, 'GA4 must not enable advertising signals under analytics-only consent.');
 requirePattern(cookieConsent, /ad_personalization:\s*'denied'/, 'Google ad personalization must stay denied.');
 requirePattern(cookieConsent, /clearGaCookies\(\)/, 'withdrawing analytics consent must clear GA cookies.');
+requirePattern(cookieConsent, /send_page_view:\s*false/, 'automatic GA pageviews must remain disabled.');
+requirePattern(cookieConsent, /trackPageView\(\)/, 'sanitized manual pageview tracking is missing.');
+requirePattern(analytics, /sanitizeAnalyticsPathname/, 'analytics pathname sanitization is missing.');
+requirePattern(analytics, /page_location:\s*analyticsPageLocation\(\)/, 'custom analytics events must override the raw page URL.');
+requirePattern(analytics, /CAMPAIGN_QUERY_KEYS[\s\S]*'utm_source'[\s\S]*'utm_medium'[\s\S]*'utm_campaign'[\s\S]*'utm_content'/, 'safe campaign attribution allowlist is incomplete.');
 requirePattern(footer, /href=\{\`\/\$\{locale\}\/gdpr\`\}/, 'Locale-aware GDPR link is missing from the shared footer.');
 requirePattern(footer, /COOKIE_SETTINGS_EVENT/, 'cookie settings action is missing from the shared footer.');
 requirePattern(gdpr, /Ochrana osobních údajů \(GDPR\)/, 'GDPR page content is missing.');
