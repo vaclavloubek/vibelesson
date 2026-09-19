@@ -46,6 +46,11 @@ requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be norma
 requirePattern(liveServer, /randomInt\(JOIN_ALPHABET\.length\)/, 'join code generation must sample only valid alphabet indexes.');
 requirePattern(presenterStyles, /grid-template-columns:\s*minmax\(220px, 340px\) minmax\(0, 1fr\)/, 'Presenter lobby join panel must allow the details column to shrink safely.');
 requirePattern(presenterStyles, /\.joinCode[^}]*white-space:\s*nowrap/s, 'Presenter lesson code must stay on one line.');
+requirePattern(presenterStyles, /\.joinLink[^}]*white-space:\s*nowrap/s, 'Presenter join address must stay on one line.');
+requirePattern(presenterStyles, /\.joinLink[^}]*font-size:\s*clamp\(18px, 1\.45vw, 26px\)/s, 'Presenter join address must use the bounded projector-safe scale.');
+if (/\.joinLink[^}]*overflow-wrap:\s*anywhere/s.test(presenterStyles)) {
+  throw new Error('Live resilience regression: Presenter join address must not break inside /join.');
+}
 requirePattern(presenterStyles, /font-size:\s*clamp\(44px, 4\.2vw, 72px\)/, 'Presenter lesson code must use the bounded projector-safe scale.');
 requirePattern(presenterStyles, /@media \(max-width:\s*1200px\)[\s\S]*\.joinPanel \{ grid-template-columns: 1fr;/, 'Presenter join card must stack QR and details on narrower projection layouts.');
 if (/byte\s*&\s*31/.test(liveServer)) {
