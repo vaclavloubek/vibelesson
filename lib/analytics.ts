@@ -203,7 +203,6 @@ const CAMPAIGN_QUERY_KEYS = [
   'utm_medium',
   'utm_campaign',
   'utm_content',
-  'utm_term',
   'utm_id',
 ] as const;
 
