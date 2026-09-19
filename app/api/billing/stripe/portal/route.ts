@@ -23,8 +23,11 @@ export async function POST(request: Request) {
 
   const livemode = input.environment === 'live';
   const secretKey = livemode ? process.env.STRIPE_SECRET_KEY_LIVE : process.env.STRIPE_SECRET_KEY_TEST;
-  const secretConfigured = livemode ? isStripeLiveSecretKey(secretKey) : isStripeSandboxSecretKey(secretKey);
-  if (!secretConfigured) return jsonError(503, livemode ? 'live_portal_not_configured' : 'sandbox_portal_not_configured');
+  if (livemode) {
+    if (!isStripeLiveSecretKey(secretKey)) return jsonError(503, 'live_portal_not_configured');
+  } else if (!isStripeSandboxSecretKey(secretKey)) {
+    return jsonError(503, 'sandbox_portal_not_configured');
+  }
 
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return jsonError(401, 'authentication_required');

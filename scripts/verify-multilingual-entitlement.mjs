@@ -82,6 +82,6 @@ for (const [name, block] of [['Teacher', teacher], ['Teacher Pro', teacherPro], 
 }
 requireText(pricing, "feature === 'Lekce v libovolném jazyce'", 'teacher multilingual feature must use the premium emphasis hook.');
 requireText(pricing, "plan.id === 'teacher' || plan.id === 'teacher-pro'", 'premium multilingual emphasis must be limited to individual paid teacher plans.');
-requireText(version, "APP_VERSION = '0.9.12'", 'the live Stripe acceptance billing guard must publish as version 0.9.12.');
+requireText(version, "APP_VERSION = '0.9.13'", 'the live Stripe acceptance billing guard must publish as version 0.9.13.');
 
 console.log('Multilingual entitlement checks passed.');

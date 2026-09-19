@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.12 — live Stripe billing je připravený pro kontrolovaný admin acceptance: live Teacher/Teacher Pro katalog, Customer Portal a webhook jsou oddělené od sandboxu; live subscription se provisionuje pouze po serverovém ověření skutečné billing country z dokončeného Stripe Checkout Session.
+Aktualizováno: 2026-09-19 pro verzi 0.9.13 — live Stripe billing je připravený pro kontrolovaný admin acceptance: live Teacher/Teacher Pro katalog, Customer Portal a webhook jsou oddělené od sandboxu; live subscription se provisionuje pouze po serverovém ověření skutečné billing country z dokončeného Stripe Checkout Session.
 
-**Aktuální produktová verze: 0.9.12** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.13** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -250,7 +250,8 @@ Implementováno/ověřeno:
 - originál ani extrahovaný text se trvale neukládá;
 - bez OCR pro naskenované PDF;
 - režimy `primary`, `strict`, `inspiration`;
-- prompt injection uvnitř dokumentu se ignoruje jako nedůvěryhodný obsah.
+- prompt injection uvnitř dokumentu se ignoruje jako nedůvěryhodný obsah;
+- PDF text extraction používá self-hosted worker `/pdf.worker.mjs`, který se automaticky připraví z nainstalované verze `pdf-parse` před lokálním dev serverem i produkčním buildem; CSP zůstává přísná (`worker-src 'self' blob:`) a není potřeba povolit externí CDN.
 
 SEC-012 je uzavřený: DOCX/PPTX ZIP preflight omezuje počet položek a relevantních XML částí, odmítá ZIP64/multi-disk a streamovaně hlídá dekomprimovaná data.
 
@@ -337,7 +338,7 @@ Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
 - ostrý entitlement se počítá jen z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují;
 - admin zůstává vždy neomezený a ruční entitlement override se při změně tarifu zachovává.
 
-Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, u subscription lifecycle eventů vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Od 0.9.12 live subscription event před DB syncem navíc serverově vyhledá právě jeden dokončený Checkout Session podle subscription ID, ověří Customer/user vazbu a skutečnou `customer_details.address.country`; entitlement se fail-closed neprovisionuje, pokud skutečná země neodpovídá měně a Merchant-of-Record větvi. Do DB se ukládá skutečná Checkout country, nikoli pouze předvolená metadata. `invoice.payment_failed` a `invoice.paid` zůstávají pouze audit/recovery signál. Test-clock subscription eventy se dál ignorují. Production Vercel má oddělené test/live Stripe server-only credentials; veřejné placené CTA jsou stále vypnuté a live Checkout je do dokončení acceptance serverově admin-only.
+Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, u subscription lifecycle eventů vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Od 0.9.13 live subscription event před DB syncem navíc serverově vyhledá právě jeden dokončený Checkout Session podle subscription ID, ověří Customer/user vazbu a skutečnou `customer_details.address.country`; entitlement se fail-closed neprovisionuje, pokud skutečná země neodpovídá měně a Merchant-of-Record větvi. Do DB se ukládá skutečná Checkout country, nikoli pouze předvolená metadata. `invoice.payment_failed` a `invoice.paid` zůstávají pouze audit/recovery signál. Test-clock subscription eventy se dál ignorují. Production Vercel má oddělené test/live Stripe server-only credentials; veřejné placené CTA jsou stále vypnuté a live Checkout je do dokončení acceptance serverově admin-only.
 
 
 ### Stripe sandbox — dokončený acceptance stav 2026-09-19
@@ -361,7 +362,7 @@ Sandbox billing lifecycle je považovaný za **end-to-end ověřený** pro indiv
 - sandbox cleanup dokončen: osiřelá CZK test subscription byla zrušena a Simulation ukončena; aktivní zůstává pouze referenční Teacher/EUR Managed Payments subscription;
 - sandbox subscription nikdy nemění produkční entitlementy v `profiles`.
 
-**Live podmínka od 0.9.12 implementována:** routing už nedůvěřuje pouze předem zvolené zemi. Live webhook před provisioningem načte dokončený Checkout Session a ověří skutečnou billing country proti měně a Merchant-of-Record režimu. Země v jiné zemi stejné routing větve (např. DE → FR v EUR + Managed Payments) je přípustná a do DB se uloží skutečná země; přesun do jiné větve (např. DE → US) fail-closed odmítne provisioning. První skutečná live platba a E2E acceptance stále čekají na provedení.
+**Live podmínka od 0.9.13 implementována:** routing už nedůvěřuje pouze předem zvolené zemi. Live webhook před provisioningem načte dokončený Checkout Session a ověří skutečnou billing country proti měně a Merchant-of-Record režimu. Země v jiné zemi stejné routing větve (např. DE → FR v EUR + Managed Payments) je přípustná a do DB se uloží skutečná země; přesun do jiné větve (např. DE → US) fail-closed odmítne provisioning. První skutečná live platba a E2E acceptance stále čekají na provedení.
 
 ### AI grading entitlement
 
@@ -1067,7 +1068,8 @@ Bezpečnostní a produktové změny:
 - **0.9.09** — konzistentní bezpečný logout na stránce Moje lekce pro všechny tarify; e-mail se zkracuje samostatně, takže tlačítko Odhlásit zůstává vždy viditelné
 - **0.9.10** — jednoznačné číslování při AI revizi celé lekce: číselné odkazy učitele se mapují podle viditelného pořadí všech bloků, ne podle sémantického typu „úkolu“; přidán regresní check `verify-revision-references.mjs`
 - **0.9.11** — čistší přihlášená veřejná hlavička: e-mail, AI kvóta a logout jsou přesunuté z hlavní lišty do kompaktního profilového dropdownu; hlavní CTA zůstává jediným výrazným prvkem a nový regresní check hlídá dostupnost kvóty, odhlášení i responzivního triggeru
-- **0.9.12** — live Stripe acceptance foundation: live Teacher/Teacher Pro katalog + DB mappings, live Portal/webhook isolation, admin-only live Checkout/Portal gate a fail-closed ověření skutečné billing country z dokončeného Checkout Session před entitlement provisioningem
+- **0.9.12** — hotfix PDF podkladů: worker `pdf-parse` je self-hostovaný jako build-time asset z vlastní domény místo externího jsDelivr URL, takže funguje pod stávající CSP bez jejího oslabení; přidán `verify-pdf-worker.mjs`
+- **0.9.13** — live Stripe acceptance foundation: live Teacher/Teacher Pro katalog + DB mappings, live Portal/webhook isolation, admin-only live Checkout/Portal gate a fail-closed ověření skutečné billing country z dokončeného Checkout Session před entitlement provisioningem
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1157,7 +1159,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.12; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.13; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 
@@ -1166,7 +1168,7 @@ Nejbližší priority v tomto pořadí:
 3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
 5. po releasu 0.9 udělat v pondělním acceptance testu zároveň krátkou kontrolu českého i anglického UI a multilingual lesson flow, ale neměnit locale architekturu před ostrou výukou;
-6. dokončit **live billing acceptance**: live onboarding, Teacher/Teacher Pro Products/Prices, Customer Portal, webhook, minimální restricted key, Vercel secrets a fail-closed skutečná billing-country validace jsou připravené; zbývá nasadit 0.9.12 + live Price mapping migraci, provést první kontrolovanou skutečnou platbu a ověřit Stripe → webhook → Supabase → entitlement → Portal; placená CTA zapnout až po úspěšném E2E testu;
+6. dokončit **live billing acceptance**: live onboarding, Teacher/Teacher Pro Products/Prices, Customer Portal, webhook, minimální restricted key, Vercel secrets a fail-closed skutečná billing-country validace jsou připravené; zbývá nasadit 0.9.13 + live Price mapping migraci, provést první kontrolovanou skutečnou platbu a ověřit Stripe → webhook → Supabase → entitlement → Portal; placená CTA zapnout až po úspěšném E2E testu;
 7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions; zkontrolovat i nové anonymní parametry `ui_locale` a `lesson_language`;
 8. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
 9. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
