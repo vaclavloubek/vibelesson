@@ -914,6 +914,137 @@ body:has(.teacher-live-shell) {
 }
 .live-end { color: #ffb9bd !important; }
 
+/* Syllonaut contextual guide */
+.syllonaut-guide-shade {
+  position: fixed;
+  z-index: 200;
+  background: rgba(7, 9, 15, .76);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  touch-action: none;
+}
+.syllonaut-guide-spotlight {
+  position: fixed;
+  z-index: 201;
+  pointer-events: none;
+  border: 2px solid rgba(139, 135, 255, .92);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, .12),
+    0 0 34px rgba(91, 87, 232, .38);
+  transition: top .16s ease, left .16s ease, width .16s ease, height .16s ease;
+}
+.syllonaut-guide-card {
+  position: fixed;
+  z-index: 202;
+  max-height: calc(100svh - 24px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 85% -20%, rgba(113, 109, 241, .22), transparent 15rem),
+    rgba(15, 18, 28, .98);
+  color: #f7f8fb;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .38);
+}
+.syllonaut-guide-card-head,
+.syllonaut-guide-progress,
+.syllonaut-guide-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.syllonaut-guide-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #c6c8d2;
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: .14em;
+}
+.syllonaut-guide-brand .syllonaut-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #2b2e44, #181a27);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
+}
+.syllonaut-guide-close {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .06);
+  color: #d8dae2;
+  font-size: 22px;
+  line-height: 1;
+}
+.syllonaut-guide-close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.syllonaut-guide-progress {
+  margin-top: 16px;
+  color: #9298a6;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.syllonaut-guide-card h2 {
+  margin: 12px 0 8px;
+  color: #fff;
+  font-size: 22px;
+  letter-spacing: -.035em;
+  line-height: 1.15;
+}
+.syllonaut-guide-card > p {
+  margin: 0;
+  color: #c7cad4;
+  font-size: 14px;
+  line-height: 1.58;
+}
+.syllonaut-guide-actions {
+  align-items: flex-end;
+  margin-top: 18px;
+}
+.syllonaut-guide-card .primary {
+  flex: 0 0 auto;
+  background: #716df1;
+  color: #fff;
+}
+.syllonaut-guide-skip {
+  min-height: 34px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: #9298a6;
+  font-size: 11px;
+}
+.syllonaut-guide-skip:hover { color: #d7d9e1; }
+.syllonaut-guide-action-hint {
+  max-width: 190px;
+  color: #b5b9c5;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: right;
+}
+
+@media (max-width: 560px) {
+  .syllonaut-guide-card {
+    max-height: min(52svh, 430px);
+    padding: 16px;
+    border-radius: 17px;
+  }
+  .syllonaut-guide-card h2 { font-size: 20px; }
+  .syllonaut-guide-actions { align-items: stretch; flex-direction: column-reverse; }
+  .syllonaut-guide-actions .primary { width: 100%; }
+  .syllonaut-guide-action-hint { max-width: none; text-align: left; }
+  .syllonaut-guide-skip { align-self: flex-start; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
