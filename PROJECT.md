@@ -16,6 +16,20 @@ Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel 
 
 Produktová kategorie: **AI navigátor pro interaktivní výuku.** Hlavní positioning není „AI generátor materiálů“, ale jeden souvislý tok od zadání přes AI přípravu a úpravy až po skutečně vedenou živou hodinu.
 
+### Positioning a veřejný claim — dokončeno 2026-09-19
+
+Finální hlavní claim: **„Od nápadu k odučené hodině. S AI.“**
+
+Pravidla použití:
+- hlavní benefitový claim zdůrazňuje celý tok od zadání přes AI přípravu a úpravy až po skutečně vedenou hodinu;
+- **„AI navigátor pro interaktivní výuku“** zůstává produktovou kategorií / krátkým popisem značky, nikoli hlavním claimem;
+- Syllonaut nemá být veřejně positionován jako pouhý „AI generátor lekcí“ nebo „AI generátor materiálů“;
+- veřejná komunikace má zdůrazňovat spojení **AI přípravy + přirozených AI úprav + live vedení výuky + studentské interakce**;
+- česká homepage používá claim **„Od nápadu k odučené hodině. S AI.“**;
+- anglická homepage používá **„From idea to live teaching. With AI.“**;
+- claim byl sjednocen v homepage hero sekci, závěrečném CTA, SEO metadata, Open Graph náhledu, globálním description a README;
+- změna byla provedena přes PR **#155 – Refine Syllonaut AI positioning**, Vercel preview prošel a PR byl sloučen do `main`.
+
 Syllonaut umožňuje učiteli vytvořit, upravit, uložit, organizovat, vést a vyhodnotit interaktivní hodinu. Učitel zadá téma, cílovou skupinu, délku, velikost skupiny, tón a další požadavky nebo nahraje vlastní podklady. AI z toho vytvoří validovanou strukturovanou lekci. Učitel ji může upravovat přirozeným jazykem, uložit ke svému účtu, spustit live session a studenti se připojí bez plnohodnotného účtu přes QR, link nebo kód.
 
 Autoritativní repository: `vaclavloubek/vibelesson`.
