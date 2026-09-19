@@ -14,6 +14,7 @@ import VisuallyHidden from '@/components/VisuallyHidden';
 import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
+import { pricingPagePrice } from '@/lib/individual-billing-catalog';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -59,7 +60,7 @@ const teacherPlansCs: Plan[] = [
     id: 'teacher',
     name: 'Teacher',
     description: 'Pro učitele, kteří Syllonaut používají pravidelně během měsíce.',
-    price: { monthlyCzk: 199, annualCzk: 1990, monthlyEur: 7.99, annualEur: 79.9, monthlyUsd: 8.99, annualUsd: 89 },
+    price: pricingPagePrice('teacher'),
     features: [
       '25 nových AI lekcí za měsíc',
       '100 AI úprav za měsíc',
@@ -75,7 +76,7 @@ const teacherPlansCs: Plan[] = [
     id: 'teacher-pro',
     name: 'Teacher Pro',
     description: 'Pro intenzivní výuku, více kurzů a pokročilou práci s výsledky.',
-    price: { monthlyCzk: 329, annualCzk: 3290, monthlyEur: 13.99, annualEur: 139.9, monthlyUsd: 14.99, annualUsd: 149 },
+    price: pricingPagePrice('teacher_pro'),
     features: [
       '60 nových AI lekcí za měsíc',
       '250 AI úprav za měsíc',

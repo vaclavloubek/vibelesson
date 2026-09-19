@@ -1,0 +1,44 @@
+import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
+
+export type IndividualBillingCurrency = 'czk' | 'eur' | 'usd';
+
+const DISPLAY_PRICES: Record<
+  IndividualPlanCode,
+  Record<BillingPeriod, Record<IndividualBillingCurrency, number>>
+> = {
+  teacher: {
+    monthly: { czk: 199, eur: 7.99, usd: 8.99 },
+    annual: { czk: 1990, eur: 79.9, usd: 89 },
+  },
+  teacher_pro: {
+    monthly: { czk: 329, eur: 13.99, usd: 14.99 },
+    annual: { czk: 3290, eur: 139.9, usd: 149 },
+  },
+};
+
+export function individualDisplayPrice(
+  planCode: IndividualPlanCode,
+  billingPeriod: BillingPeriod,
+  currency: IndividualBillingCurrency,
+) {
+  return DISPLAY_PRICES[planCode][billingPeriod][currency];
+}
+
+export function individualMinorUnitPrice(
+  planCode: IndividualPlanCode,
+  billingPeriod: BillingPeriod,
+  currency: IndividualBillingCurrency,
+) {
+  return Math.round(individualDisplayPrice(planCode, billingPeriod, currency) * 100);
+}
+
+export function pricingPagePrice(planCode: IndividualPlanCode) {
+  return {
+    monthlyCzk: DISPLAY_PRICES[planCode].monthly.czk,
+    annualCzk: DISPLAY_PRICES[planCode].annual.czk,
+    monthlyEur: DISPLAY_PRICES[planCode].monthly.eur,
+    annualEur: DISPLAY_PRICES[planCode].annual.eur,
+    monthlyUsd: DISPLAY_PRICES[planCode].monthly.usd,
+    annualUsd: DISPLAY_PRICES[planCode].annual.usd,
+  };
+}

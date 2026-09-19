@@ -1,13 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   managedScheduleTarget,
-  retrieveStripePrice,
   retrieveStripeSchedule,
   retrieveStripeSubscription,
   singleSubscriptionItem,
   subscriptionCustomerId,
   subscriptionScheduleId,
 } from '@/lib/stripe-subscription-management';
+import { individualMinorUnitPrice } from '@/lib/individual-billing-catalog';
 import { publicPlanId, type BillingPeriod, type IndividualPlanCode } from '@/lib/subscription-change-policy';
 
 export type SubscriptionPriceOption = {
@@ -68,6 +68,10 @@ export async function getLiveSubscriptionManagementState(userId: string): Promis
     throw new Error('billing_customer_mismatch');
   }
 
+  if (!['trialing', 'active', 'past_due'].includes(subscription.status ?? '')) {
+    return { kind: 'none' };
+  }
+
   const item = singleSubscriptionItem(subscription);
   const currentPriceId = item.price?.id;
   const currentPeriodEnd = item.current_period_end;
@@ -116,22 +120,14 @@ export async function getLiveSubscriptionManagementState(userId: string): Promis
       || !row.external_price_id
     ) continue;
 
-    const stripePrice = await retrieveStripePrice(secretKey, row.external_price_id);
-    const expectedInterval = row.billing_period === 'annual' ? 'year' : 'month';
-    if (
-      stripePrice.currency?.toLowerCase() !== currency
-      || stripePrice.recurring?.interval !== expectedInterval
-      || typeof stripePrice.unit_amount !== 'number'
-    ) {
-      throw new Error('stripe_price_catalog_mismatch');
-    }
-
+    const rowPlan = row.plan_code as IndividualPlanCode;
+    const rowPeriod = row.billing_period as BillingPeriod;
     prices.push({
-      planId: publicPlanId(row.plan_code as IndividualPlanCode),
-      planCode: row.plan_code as IndividualPlanCode,
-      billingPeriod: row.billing_period as BillingPeriod,
+      planId: publicPlanId(rowPlan),
+      planCode: rowPlan,
+      billingPeriod: rowPeriod,
       currency,
-      amount: stripePrice.unit_amount,
+      amount: individualMinorUnitPrice(rowPlan, rowPeriod, currency),
       priceId: row.external_price_id,
     });
   }

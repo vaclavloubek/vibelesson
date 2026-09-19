@@ -25,6 +25,8 @@ export type StripeSubscription = {
   customer?: string | { id?: string } | null;
   status?: string;
   cancel_at_period_end?: boolean;
+  canceled_at?: number | null;
+  managed_payments?: { enabled?: boolean } | null;
   schedule?: string | { id?: string } | null;
   pending_update?: Record<string, unknown> | null;
   latest_invoice?: string | { id?: string } | null;
@@ -159,6 +161,74 @@ export function singleSubscriptionItem(subscription: StripeSubscription) {
     throw new StripeSubscriptionManagementError('subscription_item_invalid');
   }
   return item;
+}
+
+export function canonicalStripeSubscriptionState(subscription: StripeSubscription) {
+  if (!subscription.id?.startsWith('sub_')) {
+    throw new StripeSubscriptionManagementError('subscription_id_invalid');
+  }
+
+  const customerId = subscriptionCustomerId(subscription);
+  if (!customerId?.startsWith('cus_')) {
+    throw new StripeSubscriptionManagementError('subscription_customer_invalid');
+  }
+
+  const metadata = subscription.metadata ?? {};
+  const userId = metadata.syllonaut_user_id ?? '';
+  const billingCountry = (metadata.syllonaut_billing_country ?? '').trim().toUpperCase();
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+    throw new StripeSubscriptionManagementError('subscription_user_metadata_invalid');
+  }
+  if (!/^[A-Z]{2}$/.test(billingCountry)) {
+    throw new StripeSubscriptionManagementError('subscription_billing_country_invalid');
+  }
+
+  const item = singleSubscriptionItem(subscription);
+  const priceId = item.price?.id ?? '';
+  const currency = item.price?.currency?.toLowerCase() ?? '';
+  const currentPeriodStart = item.current_period_start;
+  const currentPeriodEnd = item.current_period_end;
+  const status = subscription.status ?? '';
+
+  if (!/^price_[A-Za-z0-9_]+$/.test(priceId)) {
+    throw new StripeSubscriptionManagementError('subscription_price_invalid');
+  }
+  if (!['czk', 'eur', 'usd'].includes(currency)) {
+    throw new StripeSubscriptionManagementError('subscription_currency_invalid');
+  }
+  if (!['trialing', 'active', 'past_due', 'unpaid', 'canceled', 'incomplete', 'incomplete_expired', 'paused'].includes(status)) {
+    throw new StripeSubscriptionManagementError('subscription_status_invalid');
+  }
+  if (
+    typeof currentPeriodStart !== 'number'
+    || typeof currentPeriodEnd !== 'number'
+    || !Number.isInteger(currentPeriodStart)
+    || !Number.isInteger(currentPeriodEnd)
+    || currentPeriodStart <= 0
+    || currentPeriodEnd <= currentPeriodStart
+  ) {
+    throw new StripeSubscriptionManagementError('subscription_period_invalid');
+  }
+
+  const canceledAt = subscription.canceled_at;
+  if (canceledAt !== null && canceledAt !== undefined && (!Number.isInteger(canceledAt) || canceledAt <= 0)) {
+    throw new StripeSubscriptionManagementError('subscription_canceled_at_invalid');
+  }
+
+  return {
+    subscriptionId: subscription.id,
+    customerId,
+    userId,
+    billingCountry,
+    priceId,
+    currency: currency as 'czk' | 'eur' | 'usd',
+    merchantOfRecord: subscription.managed_payments?.enabled === true,
+    status,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
+    currentPeriodStart: new Date(currentPeriodStart * 1000).toISOString(),
+    currentPeriodEnd: new Date(currentPeriodEnd * 1000).toISOString(),
+    canceledAt: canceledAt ? new Date(canceledAt * 1000).toISOString() : null,
+  };
 }
 
 export async function retrieveStripeSubscription(secretKey: string, subscriptionId: string) {

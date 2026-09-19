@@ -7,6 +7,7 @@ import {
 } from '@/lib/billing-email';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
+import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeInvoiceEvent,
@@ -150,6 +151,38 @@ export async function POST(request: Request) {
         expectedManagedPayments: sync.merchantOfRecord,
       }, billingRouteForCountry);
       verifiedBillingCountry = verification.billingCountry;
+
+      const currentSubscription = await retrieveStripeSubscription(liveSecretKey, sync.subscriptionId);
+      const canonical = canonicalStripeSubscriptionState(currentSubscription);
+      if (
+        canonical.subscriptionId !== sync.subscriptionId
+        || canonical.customerId !== sync.customerId
+        || canonical.userId !== sync.userId
+      ) {
+        throw new Error('stripe_subscription_canonical_identity_mismatch');
+      }
+
+      const canonicalRoute = billingRouteForCountry(canonical.billingCountry);
+      if (
+        canonicalRoute.currency !== canonical.currency
+        || canonicalRoute.managedPayments !== canonical.merchantOfRecord
+      ) {
+        throw new Error('stripe_subscription_canonical_route_mismatch');
+      }
+
+      verifiedBillingCountry = canonical.billingCountry;
+      sync = {
+        ...sync,
+        priceId: canonical.priceId,
+        currency: canonical.currency,
+        merchantOfRecord: canonical.merchantOfRecord,
+        status: canonical.status,
+        cancelAtPeriodEnd: canonical.cancelAtPeriodEnd,
+        currentPeriodStart: canonical.currentPeriodStart,
+        currentPeriodEnd: canonical.currentPeriodEnd,
+        canceledAt: canonical.canceledAt,
+        billingCountry: canonical.billingCountry,
+      };
     } catch (error) {
       console.warn('live Stripe billing-country verification rejected subscription event', {
         eventId: sync.eventId,

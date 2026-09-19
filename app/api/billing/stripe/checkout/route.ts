@@ -5,6 +5,7 @@ import { billingRouteForCountry } from '@/lib/billing-region';
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isSupportedCountryCode } from '@/lib/countries';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
+import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -75,8 +76,33 @@ export async function POST(request: Request) {
     return jsonError(500, 'billing_subscription_lookup_failed');
   }
   if (livemode && subscriptionResult.data) {
-    if (subscriptionResult.data.currency !== route.currency) return jsonError(409, 'billing_currency_migration_required');
-    return jsonError(409, 'active_subscription_exists');
+    try {
+      const { data: liveSubscriptionRow, error: liveSubscriptionError } = await admin
+        .from('billing_subscriptions')
+        .select('external_subscription_id')
+        .eq('user_id', userId)
+        .eq('provider', 'stripe')
+        .eq('livemode', true)
+        .in('status', ['trialing', 'active', 'past_due'])
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (liveSubscriptionError) return jsonError(500, 'billing_subscription_lookup_failed');
+      if (liveSubscriptionRow?.external_subscription_id) {
+        const currentStripeSubscription = await retrieveStripeSubscription(secretKey, liveSubscriptionRow.external_subscription_id);
+        if (['trialing', 'active', 'past_due'].includes(currentStripeSubscription.status ?? '')) {
+          if (subscriptionResult.data.currency !== route.currency) return jsonError(409, 'billing_currency_migration_required');
+          return jsonError(409, 'active_subscription_exists');
+        }
+      }
+    } catch (error) {
+      console.error('billing checkout canonical subscription lookup failed', {
+        userId,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(502, 'billing_subscription_verification_failed');
+    }
   }
 
   try {
