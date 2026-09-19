@@ -116,7 +116,17 @@ a { color: inherit; }
   gap: 20px;
   align-items: start;
 }
-.builder { display: grid; gap: 14px; position: sticky; top: 16px; }
+.builder {
+  display: grid;
+  gap: 14px;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 2px;
+}
 .panel, .stage {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -732,7 +742,14 @@ body:has(.teacher-live-shell) {
 
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 1fr; }
-  .builder { position: static; }
+  .builder {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+    padding-right: 0;
+  }
   .brand { align-items: flex-start; flex-direction: column; }
   .brand-side { width: 100%; justify-content: space-between; }
   .main-nav { order: initial; width: auto; }

@@ -92,7 +92,9 @@ requirePattern(teamTask, /Společná týmová odpověď/, 'team response field l
 requirePattern(teamTask, /aria-describedby=\{statusId\}/, 'team response field lost status description.');
 requirePattern(lessonWorkspace, /Pokyn pro úpravu celé lekce/, 'whole-lesson AI revision field lost its label.');
 requirePattern(lessonWorkspace, /Pokyn pro úpravu vybrané aktivity/, 'block AI revision field lost its label.');
-requirePattern(lessonWorkspace, /blockEditorRef\.current\?\.scrollIntoView/, 'Edit block must move the block editor into view.');
+requirePattern(lessonWorkspace, /builderRef\.current/, 'Edit block must address the desktop builder scroll container.');
+requirePattern(lessonWorkspace, /builder\.scrollTo\(/, 'Edit block must scroll the sticky builder itself on desktop.');
+requirePattern(lessonWorkspace, /editor\?\.scrollIntoView/, 'Edit block must retain page-scroll fallback for non-scrollable layouts.');
 requirePattern(lessonWorkspace, /blockRevisionTextareaRef\.current\?\.focus\(\{ preventScroll: true \}\)/, 'Edit block must move keyboard focus into the block revision field.');
 requirePattern(lessonWorkspace, /prefers-reduced-motion: reduce/, 'block-editor navigation must respect reduced-motion preferences.');
 requirePattern(lessonPreview, /onEditBlock\(block\.id\)/, 'the explicit Edit block control must use the focus-and-scroll editing action.');
