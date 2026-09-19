@@ -25,7 +25,11 @@ function databaseErrorMessage(error: unknown) {
 }
 
 function freeSessionError(error: unknown) {
-  return databaseErrorMessage(error).includes("free_session_expired")
+  const message = databaseErrorMessage(error);
+  if (message.includes("organization_origin_access_required")) {
+    return json({ error: "Přístup školy k této hodině už není aktivní." }, 403);
+  }
+  return message.includes("free_session_expired")
     ? json({ error: "Tato Free hodina po 6 hodinách skončila." }, 410)
     : null;
 }

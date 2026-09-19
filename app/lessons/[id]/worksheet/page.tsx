@@ -8,6 +8,7 @@ import { LessonSchema, type LessonBlock } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockIds, worksheetAnswerLineCount, worksheetBlockLabel } from '@/lib/worksheet';
 import WorksheetPrintToolbar from './WorksheetPrintToolbar';
+import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import styles from './WorksheetPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,8 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
     supabase.from('profiles').select('role, worksheet_export_enabled').eq('id', userId).maybeSingle(),
   ]);
   if (lessonResult.error || !lessonResult.data) notFound();
+  const originAccess = await getLessonOrganizationOriginAccess(userId, id);
+  if (originAccess?.locked) redirect(`/lessons/${id}`);
   if (profileResult.error || !profileResult.data) { console.error('worksheet entitlement lookup failed', profileResult.error); throw new Error('Worksheet entitlement lookup failed.'); }
   if (!(profileResult.data.role === 'admin' || profileResult.data.worksheet_export_enabled)) redirect('/pricing#teacher-pro');
 

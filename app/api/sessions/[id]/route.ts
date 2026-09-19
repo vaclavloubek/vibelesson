@@ -307,6 +307,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   } catch (error) {
     console.error('update session failed', error);
     const message = databaseErrorMessage(error);
+    if (message.includes('organization_origin_access_required')) {
+      return NextResponse.json({ error: 'Přístup k původní školní organizaci už není aktivní.' }, { status: 403 });
+    }
     if (message.includes('free_session_expired')) {
       return NextResponse.json({ error: 'Tato Free hodina po 6 hodinách skončila.' }, { status: 410 });
     }

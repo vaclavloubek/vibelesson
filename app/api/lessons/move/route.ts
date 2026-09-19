@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
 
 const MoveLessonsSchema = z.object({
   lessonIds: z.array(z.string().uuid()).min(1).max(200),
@@ -22,13 +23,27 @@ export async function PATCH(req: Request) {
 
     const { data: ownedLessons, error: lessonReadError } = await supabase
       .from('lessons')
-      .select('id')
+      .select('id, organization_origin_id')
       .eq('owner_id', userId)
       .in('id', lessonIds);
 
     if (lessonReadError) throw lessonReadError;
     if ((ownedLessons ?? []).length !== lessonIds.length) {
       return NextResponse.json({ error: 'Některá z vybraných lekcí nebyla nalezena.' }, { status: 404 });
+    }
+
+    const originIds = (ownedLessons ?? [])
+      .map((lesson) => typeof lesson.organization_origin_id === 'string' ? lesson.organization_origin_id : null)
+      .filter((value): value is string => Boolean(value));
+    const originAccess = await getOrganizationOriginAccessMap(userId, originIds);
+    if ((ownedLessons ?? []).some((lesson) => (
+      typeof lesson.organization_origin_id === 'string'
+      && originAccess.get(lesson.organization_origin_id)?.locked
+    ))) {
+      return NextResponse.json({
+        error: 'Školní lekci bez aktivního přístupu nelze přesouvat ani jinak měnit.',
+        code: 'organization_origin_access_required',
+      }, { status: 403 });
     }
 
     if (input.folderId) {

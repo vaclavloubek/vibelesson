@@ -19,6 +19,8 @@ export type LessonListItem = {
   updatedAt: string;
   folderId: string | null;
   archived: boolean;
+  licenseLocked: boolean;
+  organizationName: string | null;
 };
 
 export type LessonFolderItem = {
@@ -125,17 +127,19 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
     return map;
   }, [folders, locale]);
 
+  const accessibleLessons = useMemo(() => lessons.filter((lesson) => !lesson.licenseLocked), [lessons]);
+  const lockedLessons = useMemo(() => lessons.filter((lesson) => lesson.licenseLocked), [lessons]);
   const visibleLessons = useMemo(() => {
-    if (!canManageFolders || scope === 'all') return lessons;
-    if (scope === 'unfiled') return lessons.filter((lesson) => !lesson.folderId);
-    return lessons.filter((lesson) => lesson.folderId === scope);
-  }, [canManageFolders, lessons, scope]);
+    if (!canManageFolders || scope === 'all') return accessibleLessons;
+    if (scope === 'unfiled') return accessibleLessons.filter((lesson) => !lesson.folderId);
+    return accessibleLessons.filter((lesson) => lesson.folderId === scope);
+  }, [accessibleLessons, canManageFolders, scope]);
 
   const activeFolder = folders.find((folder) => folder.id === scope) ?? null;
   const newLessonHref = activeFolder ? `/new?folder=${encodeURIComponent(activeFolder.id)}` : '/new';
 
   function lessonCount(folderId: string | null) {
-    return lessons.filter((lesson) => lesson.folderId === folderId).length;
+    return accessibleLessons.filter((lesson) => lesson.folderId === folderId).length;
   }
 
   function toggleLesson(id: string) {
@@ -305,7 +309,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
           <button type="button" onClick={() => createFolder(null)} disabled={busy}>+ {ui('Složka', 'Folder')}</button>
         </div>
         <button type="button" aria-pressed={scope === 'all'} className={scope === 'all' ? styles.scopeActive : styles.scopeButton} onClick={() => setScope('all')}>
-          <span>{ui('Všechny lekce', 'All lessons')}</span><small>{lessons.length}</small>
+          <span>{ui('Všechny lekce', 'All lessons')}</span><small>{accessibleLessons.length}</small>
         </button>
         <button
           type="button"
@@ -361,9 +365,47 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
     );
   }
 
+  const renderLockedLessons = (items: LessonListItem[]) => (
+    <>
+      <section className="lessons-heading" style={{ marginTop: 36 }}>
+        <div>
+          <span className="eyebrow">{ui('Licenční zámek', 'Licence lock')}</span>
+          <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>{ui('Školní lekce bez aktivního přístupu', 'School lessons without active access')}</h2>
+          <p>{ui(
+            'Tyto lekce zůstávají uložené a můžeš je otevřít nebo smazat. Úpravy, kopírování, exporty a živé použití se znovu odemknou po obnovení přístupu k původní organizaci.',
+            'These lessons remain stored and can be opened or deleted. Editing, copying, exports and live use unlock again when access to the originating organisation is restored.',
+          )}</p>
+        </div>
+      </section>
+      <section className="lesson-grid">
+        {items.map((lesson) => (
+          <article className="lesson-card" key={lesson.id}>
+            <div className="lesson-card-top">
+              <div>
+                <Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>
+                {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
+                <span className="beta">{ui('ZAMČENO', 'LOCKED')}</span>
+              </div>
+              <LessonActions lessonId={lesson.id} title={lesson.title} licenseLocked />
+            </div>
+            <div className="lesson-card-meta">
+              <span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span>
+            </div>
+            <div className="lesson-card-footer">
+              <span>{lesson.organizationName
+                ? ui(`Původ: ${lesson.organizationName}`, `Origin: ${lesson.organizationName}`)
+                : ui('Původ: školní knihovna', 'Origin: school library')}</span>
+              <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
+            </div>
+          </article>
+        ))}
+      </section>
+    </>
+  );
+
   if (!canManageFolders) {
-    const activeLessons = lessons.filter((lesson) => !lesson.archived);
-    const archivedLessons = lessons.filter((lesson) => lesson.archived);
+    const activeLessons = accessibleLessons.filter((lesson) => !lesson.archived);
+    const archivedLessons = accessibleLessons.filter((lesson) => lesson.archived);
     const renderCards = (items: LessonListItem[]) => (
       <section className="lesson-grid">
         {items.map((lesson) => (
@@ -404,6 +446,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
             {renderCards(archivedLessons)}
           </>
         ) : null}
+        {lockedLessons.length ? renderLockedLessons(lockedLessons) : null}
       </>
     );
   }
@@ -471,6 +514,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
           </div>
         )}
       </div>
+
+      {lockedLessons.length ? <div style={{ gridColumn: '1 / -1' }}>{renderLockedLessons(lockedLessons)}</div> : null}
 
       {moveDialog ? (
         <div className={styles.dialogBackdrop} onMouseDown={() => { if (!busy) closeMoveDialog(); }}>

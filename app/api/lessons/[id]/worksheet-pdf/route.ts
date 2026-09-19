@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockIds } from '@/lib/worksheet';
+import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createWorksheetPdfBuffer } from '@/lib/worksheet-pdf';
 
 export const runtime = 'nodejs';
@@ -29,6 +30,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   ]);
 
   if (lessonResult.error || !lessonResult.data) return Response.json({ error: 'lesson_not_found' }, { status: 404 });
+  const originAccess = await getLessonOrganizationOriginAccess(userId, id);
+  if (originAccess?.locked) {
+    return Response.json({ error: 'organization_origin_access_required' }, { status: 403 });
+  }
   if (profileResult.error || !profileResult.data) {
     console.error('worksheet PDF entitlement lookup failed', profileResult.error);
     return Response.json({ error: 'entitlement_lookup_failed' }, { status: 500 });

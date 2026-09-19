@@ -12,9 +12,17 @@ type Props = {
   lessonId: string;
   userId: string;
   liveLocked?: boolean;
+  licenseLocked?: boolean;
+  organizationName?: string | null;
 };
 
-export default function StartSessionButton({ lessonId, userId, liveLocked = false }: Props) {
+export default function StartSessionButton({
+  lessonId,
+  userId,
+  liveLocked = false,
+  licenseLocked = false,
+  organizationName = null,
+}: Props) {
   const locale = useUiLocale();
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
@@ -24,7 +32,7 @@ export default function StartSessionButton({ lessonId, userId, liveLocked = fals
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   async function start() {
-    if (busy || liveLocked) return;
+    if (busy || liveLocked || licenseLocked) return;
     setBusy(true);
     setError('');
     setActiveSessionId(null);
@@ -57,6 +65,27 @@ export default function StartSessionButton({ lessonId, userId, liveLocked = fals
       setError(err instanceof Error ? err.message : ui('Hodinu se nepodařilo odstartovat.', 'The lesson could not be started.'));
       setBusy(false);
     }
+  }
+
+  if (licenseLocked) {
+    return (
+      <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 40, display: 'grid', justifyItems: 'end', gap: 8, maxWidth: 380 }}>
+        <div className="panel" style={{ padding: 16, boxShadow: '0 12px 30px rgba(24,24,23,.14)' }}>
+          <span className="eyebrow">{ui('Školní licence neaktivní', 'School licence inactive')}</span>
+          <p style={{ margin: '6px 0 0' }}>
+            {organizationName
+              ? ui(
+                  `Tato lekce pochází z knihovny organizace „${organizationName}“. Spuštění se odemkne po obnovení aktivního přístupu k této organizaci.`,
+                  `This lesson comes from the ${organizationName} library. Starting it unlocks when your access to that organisation becomes active again.`,
+                )
+              : ui(
+                  'Tato lekce pochází ze školní knihovny. Spuštění se odemkne po obnovení aktivního přístupu k původní organizaci.',
+                  'This lesson comes from a school library. Starting it unlocks when access to the originating organisation becomes active again.',
+                )}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (liveLocked) {

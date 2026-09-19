@@ -4,6 +4,7 @@ import { LessonSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -17,12 +18,23 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+async function schoolLicenseLockResponse(userId: string, lessonId: string) {
+  const access = await getLessonOrganizationOriginAccess(userId, lessonId);
+  if (!access?.locked) return null;
+  return NextResponse.json({
+    error: organizationOriginLockedMessage(access.organizationName),
+    code: 'organization_origin_access_required',
+  }, { status: 403 });
+}
+
 export async function PATCH(req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
   try {
     const { id } = await params;
+    const locked = await schoolLicenseLockResponse(userId, id);
+    if (locked) return locked;
     const { title } = RenameSchema.parse(await req.json());
 
     const { data: current, error: readError } = await supabase
@@ -59,6 +71,8 @@ export async function PUT(req: Request, { params }: RouteContext) {
 
   try {
     const { id } = await params;
+    const locked = await schoolLicenseLockResponse(userId, id);
+    if (locked) return locked;
     const { lesson } = ReplaceLessonSchema.parse(await req.json());
 
     const { data: current, error: readError } = await supabase
@@ -116,6 +130,8 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
   try {
     const { id } = await params;
+    const locked = await schoolLicenseLockResponse(userId, id);
+    if (locked) return locked;
     const { data: current, error: readError } = await supabase
       .from('lessons')
       .select('title, source_prompt, lesson, folder_id')

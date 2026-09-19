@@ -13,6 +13,7 @@ import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
+import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,7 @@ export default async function LessonsPage({ searchParams }: Props) {
 
   const { data: rows, error } = await supabase
     .from('lessons')
-    .select('id, title, lesson, folder_id, created_at, updated_at')
+    .select('id, title, lesson, folder_id, organization_origin_id, created_at, updated_at')
     .eq('owner_id', userId)
     .order('updated_at', { ascending: false });
 
@@ -98,6 +99,11 @@ export default async function LessonsPage({ searchParams }: Props) {
     }
   }
 
+  const originIds = (rows ?? [])
+    .map((row) => typeof row.organization_origin_id === 'string' ? row.organization_origin_id : null)
+    .filter((value): value is string => Boolean(value));
+  const originAccess = await getOrganizationOriginAccessMap(userId, originIds);
+
   const lessons: LessonListItem[] = (rows ?? []).flatMap((row) => {
     const parsed = LessonSchema.safeParse(row.lesson);
     if (!parsed.success) return [];
@@ -111,6 +117,12 @@ export default async function LessonsPage({ searchParams }: Props) {
       updatedAt: row.updated_at as string,
       folderId: typeof row.folder_id === 'string' ? row.folder_id : null,
       archived: !reusableLessons && usedLessonIds.has(row.id as string),
+      licenseLocked: typeof row.organization_origin_id === 'string'
+        ? Boolean(originAccess.get(row.organization_origin_id)?.locked)
+        : false,
+      organizationName: typeof row.organization_origin_id === 'string'
+        ? originAccess.get(row.organization_origin_id)?.organizationName ?? null
+        : null,
     }];
   });
 
