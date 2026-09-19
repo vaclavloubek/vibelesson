@@ -22,6 +22,7 @@ const [
   teacherPage,
   presenterPage,
   serviceWorker,
+  liveServer,
 ] = await Promise.all([
   source('lib/fetch-with-timeout.ts'),
   source('lib/live-resume.ts'),
@@ -36,9 +37,14 @@ const [
   source('app/sessions/[id]/page.tsx'),
   source('app/sessions/[id]/presenter/page.tsx'),
   source('public/sw.js'),
+  source('lib/live-server.ts'),
 ]);
 
 requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be normalized before reaching live UI.');
+requirePattern(liveServer, /randomInt\(JOIN_ALPHABET\.length\)/, 'join code generation must sample only valid alphabet indexes.');
+if (/byte\s*&\s*31/.test(liveServer)) {
+  throw new Error('Live resilience regression: join code generation must not use a 32-value bitmask with the 31-character alphabet.');
+}
 requirePattern(resume, /httpOnly:\s*true/, 'teacher live resume cookie must remain HttpOnly.');
 requirePattern(resume, /secure:\s*true/, 'teacher live resume cookie must remain Secure.');
 requirePattern(resume, /TOKEN_NAMESPACE = 'syllonaut-live-resume-v1'/, 'resume HMAC must remain domain-separated.');
