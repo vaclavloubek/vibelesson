@@ -14,6 +14,7 @@ import ShareLessonButton from '@/components/ShareLessonButton';
 import SyllonautMark from '@/components/SyllonautMark';
 import WorksheetExportDialog from '@/components/WorksheetExportDialog';
 import SyllonautGuide from '@/components/SyllonautGuide';
+import GuideHelpButton from '@/components/GuideHelpButton';
 import { demoLesson, demoLessonEn } from '@/lib/demo';
 import {
   bucketBlockCount,
@@ -700,10 +701,13 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           ) : (
             <div className="panel">
               <span className="eyebrow">{ui('Nová lekce', 'New lesson')}</span>
-              <h1>{ui('Co mají studenti dnes zažít?', 'What should students experience today?')}</h1>
+              <div className="guide-heading-row">
+                <h1>{ui('Co mají studenti dnes zažít?', 'What should students experience today?')}</h1>
+                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={0} labelCs="Jak vytvořit lekci" labelEn="How to create a lesson" />
+              </div>
               {initialFolderId ? <p className="auth-hint">{ui('Nová lekce se po vytvoření uloží přímo do vybrané složky.', 'The new lesson will be saved directly into the selected folder.')}</p> : null}
-              <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
-                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea data-tour="lesson-create-brief" name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
+              <form data-tour="lesson-create-form" onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
+                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
                 <p className="auth-hint">
                   {multilingualLessonsEnabled ? (
                     <><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</>
@@ -780,7 +784,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           {lesson ? <>
             <div className="panel vibe-editor" data-tour="lesson-edit-whole">
               <span className="eyebrow">{ui('AI úprava celé lekce', 'AI edit · whole lesson')}</span>
-              <h2>{ui('Uprav celou lekci', 'Edit the whole lesson')}</h2>
+              <div className="guide-heading-row">
+                <h2>{ui('Uprav celou lekci', 'Edit the whole lesson')}</h2>
+                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={2} labelCs="Jak upravit celou lekci" labelEn="How to edit the whole lesson" />
+              </div>
               <form onSubmit={revise}>
                 <label>
                   {ui('Pokyn pro úpravu celé lekce', 'Instruction for the whole-lesson edit')}
@@ -802,7 +809,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
             </div>
             <div className="panel block-editor" ref={blockEditorRef} data-tour="lesson-edit-block-editor">
               <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
-              <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
+              <div className="guide-heading-row">
+                <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
+                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={selectedBlock ? 4 : 3} labelCs="Jak upravit jednu aktivitu" labelEn="How to edit one activity" />
+              </div>
               {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
               {revisionLanguageNotice === 'activity' ? (
                 <div className="revision-plan-notice" role="status" aria-live="polite">

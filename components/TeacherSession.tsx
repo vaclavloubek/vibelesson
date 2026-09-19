@@ -19,6 +19,7 @@ import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import SyllonautMark from '@/components/SyllonautMark';
 import SyllonautGuide from '@/components/SyllonautGuide';
+import GuideHelpButton from '@/components/GuideHelpButton';
 import TeacherResponses from '@/components/TeacherResponses';
 import type { LiveTimerState, SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
@@ -498,7 +499,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         <div style={{ display: 'grid', gap: 14 }}>
           <section className="panel" data-tour="live-join">
             <span className="eyebrow">{ui('Startovní zóna', 'Starting area')}</span>
-            <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
+            <div className="guide-heading-row">
+              <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
+              <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={0} labelCs="Jak připravit start hodiny" labelEn="How to prepare the lesson start" />
+            </div>
             <p className="muted-copy">{ui('Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.', 'Students can join even after the lesson starts. The code stops working only when the lesson ends.')}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
               <div style={{ flex: '1 1 260px', minWidth: 0 }}>
@@ -519,7 +523,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               <span className="eyebrow">{ui('Týmy', 'Teams')}</span>
               {!session.teams.length ? (
                 <>
-                  <h2>{ui('Vytvořit týmy', 'Create teams')}</h2>
+                  <div className="guide-heading-row">
+                    <h2>{ui('Vytvořit týmy', 'Create teams')}</h2>
+                    <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={1} labelCs="Jak vytvořit týmy" labelEn="How to create teams" />
+                  </div>
                   <p className="muted-copy">{ui('Studenti si ve startovní zóně sami vyberou tým. Po odstartování se jejich volba zamkne.', 'Students choose their own team in the lobby. Their choice is locked when the lesson starts.')}</p>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 14, flexWrap: 'wrap' }}>
                     <label style={{ maxWidth: 160 }}>
@@ -561,7 +568,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <div className="live-control-layout">
               <div>
                 <span className="eyebrow"><span className="live-status-dot" aria-hidden="true" />{ui('Mise probíhá', 'Lesson in progress')}</span>
-                <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
+                <div className="guide-heading-row">
+                  <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
+                  <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={5} labelCs="Jak řídit probíhající hodinu" labelEn="How to control the live lesson" />
+                </div>
                 <p className="muted-copy">{ui('Blok', 'Block')} {activeIndex + 1} {ui('z', 'of')} {session.lessonSnapshot.blocks.length} · {session.participants.length} {english ? 'students' : 'studentů'}</p>
               </div>
               <div className="live-control-actions">
@@ -658,7 +668,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       {session?.status === 'ended' ? (
         <section className="panel" data-tour="session-ended-summary">
           <span className="eyebrow">{ui('Mise dokončena', 'Lesson completed')}</span>
-          <h1>{session.lessonSnapshot.title}</h1>
+          <div className="guide-heading-row">
+            <h1>{session.lessonSnapshot.title}</h1>
+            <GuideHelpButton userId={authUser?.id ?? null} chapter="evaluation" step={0} labelCs="Jak projít vyhodnocení" labelEn="How to review the evaluation" />
+          </div>
           <p className="muted-copy">{ui('Hodina je uzavřená. Připojilo se', 'The lesson is closed.')} {session.participants.length} {english ? 'students joined.' : 'studentů.'}</p>
           <div className="actions">{session.lessonId ? <Link href={`/lessons/${session.lessonId}`} className="primary button-link">{ui('Zpět k lekci', 'Back to lesson')}</Link> : null}<Link href="/lessons" className="secondary button-link">{ui('Moje lekce', 'My lessons')}</Link></div>
         </section>

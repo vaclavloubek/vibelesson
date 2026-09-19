@@ -5,6 +5,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import { useUiLocale } from '@/components/LocaleProvider';
 import {
   readSyllonautGuideState,
+  syllonautGuideStepKey,
   SYLLONAUT_GUIDE_ACTION_EVENT,
   SYLLONAUT_GUIDE_EVENT,
   type SyllonautGuideAction,
@@ -45,14 +46,14 @@ type TargetRect = {
 
 const lessonSteps: GuideStep[] = [
   {
-    target: 'lesson-create-brief',
-    title: { cs: 'Začněte tím nejdůležitějším', en: 'Start with what matters' },
+    target: 'lesson-create-form',
+    title: { cs: 'Nejdřív nastavte celou lekci', en: 'Set up the whole lesson first' },
     body: {
-      cs: 'Popište vlastními slovy, co mají studenti zažít a zvládnout. Klidně přidejte věk, délku hodiny, styl práce nebo zvláštní požadavky.',
-      en: 'Describe in your own words what students should experience and learn. Add age, lesson length, working style or any special requirements.',
+      cs: 'Vyplňte volný popis i parametry lekce: jazyk, cílovku, délku, velikost týmu a tón. Podklady můžete přidat volitelně. Vše v tomto zvýrazněném formuláři zůstává normálně použitelné.',
+      en: 'Fill in the lesson brief and settings: language, audience, duration, team size and tone. Source materials are optional. Everything in this highlighted form remains usable.',
     },
     advanceOn: 'manual',
-    button: { cs: 'Zadání mám', en: 'Brief ready' },
+    button: { cs: 'Zadání i parametry mám', en: 'Brief and settings ready' },
   },
   {
     target: 'lesson-create-submit',
@@ -267,11 +268,16 @@ export default function SyllonautGuide({ userId }: Props) {
     writeSyllonautGuideState(userId, next);
   }, [userId]);
 
-  const advance = useCallback(() => {
+  const advance = useCallback((markSatisfied = true) => {
     if (!state || !userId) return;
     const currentSteps = stepsByChapter[state.chapter];
+    const currentKey = syllonautGuideStepKey(state.chapter, state.step);
+    const satisfiedSteps = markSatisfied && !state.satisfiedSteps.includes(currentKey)
+      ? [...state.satisfiedSteps, currentKey]
+      : state.satisfiedSteps;
+
     if (state.step + 1 < currentSteps.length) {
-      persist({ ...state, step: state.step + 1 });
+      persist({ ...state, step: state.step + 1, satisfiedSteps });
       return;
     }
 
@@ -286,6 +292,7 @@ export default function SyllonautGuide({ userId }: Props) {
         chapter: chapterOrder[chapterIndex + 1],
         step: 0,
         completed,
+        satisfiedSteps,
       });
       return;
     }
@@ -295,7 +302,21 @@ export default function SyllonautGuide({ userId }: Props) {
       running: false,
       dismissed: false,
       completed,
+      satisfiedSteps,
     });
+  }, [persist, state, userId]);
+
+  const retreat = useCallback(() => {
+    if (!state || !userId || state.step <= 0) return;
+    const currentSteps = stepsByChapter[state.chapter];
+
+    for (let previousStep = state.step - 1; previousStep >= 0; previousStep -= 1) {
+      const previous = currentSteps[previousStep];
+      if (!previous) continue;
+      if (typeof document !== 'undefined' && !document.querySelector(`[data-tour="${previous.target}"]`)) continue;
+      persist({ ...state, step: previousStep });
+      return;
+    }
   }, [persist, state, userId]);
 
   const dismiss = useCallback(() => {
@@ -383,7 +404,7 @@ export default function SyllonautGuide({ userId }: Props) {
 
     optionalTimerRef.current = window.setTimeout(() => {
       optionalTimerRef.current = null;
-      advance();
+      advance(false);
     }, 1200);
 
     return () => {
@@ -432,6 +453,10 @@ export default function SyllonautGuide({ userId }: Props) {
   const title = english ? step.title.en : step.title.cs;
   const body = english ? step.body.en : step.body.cs;
   const button = step.button ? (english ? step.button.en : step.button.cs) : (english ? 'Continue' : 'Pokračovat');
+  const currentStepKey = syllonautGuideStepKey(state.chapter, state.step);
+  const stepSatisfied = state.satisfiedSteps.includes(currentStepKey);
+  const canGoBack = state.step > 0;
+  const primaryLabel = stepSatisfied ? (english ? 'Next' : 'Další') : button;
 
   return (
     <>
@@ -464,11 +489,18 @@ export default function SyllonautGuide({ userId }: Props) {
         <h2>{title}</h2>
         <p>{body}</p>
         <div className="syllonaut-guide-actions">
-          <button type="button" className="syllonaut-guide-skip" onClick={dismiss}>
-            {english ? 'Finish later' : 'Dokončit později'}
-          </button>
-          {step.advanceOn === 'manual' ? (
-            <button type="button" className="primary" onClick={advance}>{button}</button>
+          <div className="syllonaut-guide-secondary-actions">
+            {canGoBack ? (
+              <button type="button" className="syllonaut-guide-back" onClick={retreat}>
+                ← {english ? 'Back' : 'Zpět'}
+              </button>
+            ) : null}
+            <button type="button" className="syllonaut-guide-skip" onClick={dismiss}>
+              {english ? 'Finish later' : 'Dokončit později'}
+            </button>
+          </div>
+          {step.advanceOn === 'manual' || stepSatisfied ? (
+            <button type="button" className="primary" onClick={() => advance()}>{primaryLabel}</button>
           ) : (
             <span className="syllonaut-guide-action-hint">
               {english ? 'Use the highlighted control to continue.' : 'Pokračujte zvýrazněnou akcí.'}

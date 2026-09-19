@@ -5,6 +5,7 @@ import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
 import type { SessionReportBlock, SessionReportData } from '@/lib/session-report';
+import GuideHelpButton from '@/components/GuideHelpButton';
 
 const TYPE_LABELS = {
   cs: { poll: 'Hlasování', quiz: 'Kvíz', open_text: 'Otevřená odpověď', ranking: 'Pořadí', exit_ticket: 'Exit ticket', team_task: 'Týmový úkol' },
@@ -124,7 +125,7 @@ function downloadCsv(report: SessionReportData, english: boolean) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-export default function SessionReport({ sessionId }: { sessionId: string }) {
+export default function SessionReport({ sessionId, userId }: { sessionId: string; userId: string | null }) {
   const english = useUiLocale() === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const labels = TYPE_LABELS[english ? 'en' : 'cs'];
@@ -195,7 +196,10 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
           <span className="eyebrow">{ui('Výsledky mise', 'Mission results')}</span>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div>
-              <h2 style={{ marginBottom: 8 }}>{report.title}</h2>
+              <div className="guide-heading-row">
+                <h2 style={{ marginBottom: 8 }}>{report.title}</h2>
+                <GuideHelpButton userId={userId} chapter="evaluation" step={1} labelCs="Jak číst vyhodnocení" labelEn="How to read the evaluation" />
+              </div>
               <p className="muted-copy">{formatDateTime(report.startedAt, english)} → {formatDateTime(report.endedAt, english)} · {ui('délka', 'duration')} {formatDuration(report.durationSeconds)}</p>
             </div>
             <button className="secondary" onClick={() => { downloadCsv(report, english); trackEvent('session_csv_exported'); }}>{ui('Stáhnout CSV odpovědí', 'Download responses CSV')}</button>
