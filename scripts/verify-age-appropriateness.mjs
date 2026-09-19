@@ -12,11 +12,24 @@ requirePattern(/nejmladších žáků a začínajících čtenářů/, 'early-re
 requirePattern(/nepoužívej infantilní jazyk/, 'older-learner safeguard is missing.');
 requirePattern(/potichu zkontroluj každý blok proti cílové skupině/, 'pre-return block-level fit check is missing.');
 requirePattern(/Cílová skupina: \$\{input\.audience\}/, 'generation prompt no longer passes the teacher audience explicitly.');
-requirePattern(/system:\s*baseRules/g, 'AI authoring calls must continue to use the shared pedagogical rules.');
+const createStart = ai.indexOf('export async function createLesson');
+const reviseStart = ai.indexOf('export async function reviseLesson');
+const reviseBlockStart = ai.indexOf('export async function reviseBlock');
+if (createStart < 0 || reviseStart < 0 || reviseBlockStart < 0) {
+  throw new Error('Age-appropriateness regression: AI authoring function boundaries are missing.');
+}
 
-const baseRuleUses = ai.match(/system:\s*baseRules/g) ?? [];
-if (baseRuleUses.length < 3) {
-  throw new Error('Age-appropriateness regression: generation and both revision paths must use the shared pedagogical rules.');
+const createSection = ai.slice(createStart, reviseStart);
+const reviseSection = ai.slice(reviseStart, reviseBlockStart);
+const reviseBlockSection = ai.slice(reviseBlockStart);
+
+if (!/system:\s*baseRules/.test(createSection)) {
+  throw new Error('Age-appropriateness regression: lesson generation must use the shared pedagogical rules.');
+}
+for (const [name, section] of [['whole-lesson revision', reviseSection], ['block revision', reviseBlockSection]]) {
+  if (!section.includes('baseRules')) {
+    throw new Error(`Age-appropriateness regression: ${name} must keep the shared pedagogical rules even when additional system rules are applied.`);
+  }
 }
 
 console.log('Age-appropriateness source checks passed.');
