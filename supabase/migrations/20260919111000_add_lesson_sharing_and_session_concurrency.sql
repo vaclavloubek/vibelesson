@@ -279,7 +279,7 @@ set status = 'ended',
 where status in ('lobby', 'live')
   and created_at < now() - interval '24 hours';
 
-do $
+do $sharing_guard$
 begin
   if exists (
     select 1
@@ -291,7 +291,7 @@ begin
     raise exception 'Cannot enforce one active live session: duplicate active teacher sessions exist.';
   end if;
 end;
-$$;
+$sharing_guard$;
 
 create unique index sessions_one_active_per_teacher_idx
   on public.sessions(teacher_id)
