@@ -251,7 +251,7 @@ Implementováno/ověřeno:
 - bez OCR pro naskenované PDF;
 - režimy `primary`, `strict`, `inspiration`;
 - prompt injection uvnitř dokumentu se ignoruje jako nedůvěryhodný obsah;
-- PDF text extraction používá self-hosted worker `/pdf.worker.min.mjs`, který se automaticky připraví z nainstalované verze `pdf-parse` před lokálním dev serverem i produkčním buildem; CSP zůstává přísná (`worker-src 'self' blob:`) a není potřeba povolit externí CDN.
+- PDF text extraction používá self-hosted worker `/pdf.worker.mjs`, který se automaticky připraví z nainstalované verze `pdf-parse` před lokálním dev serverem i produkčním buildem; CSP zůstává přísná (`worker-src 'self' blob:`) a není potřeba povolit externí CDN.
 
 SEC-012 je uzavřený: DOCX/PPTX ZIP preflight omezuje počet položek a relevantních XML částí, odmítá ZIP64/multi-disk a streamovaně hlídá dekomprimovaná data.
 
