@@ -23,6 +23,11 @@ const customDimensions = [
   ['Error code', 'error_code', 'Low-cardinality product analytics error code.'],
   ['Session state', 'session_state', 'Lobby, live, or ended session state.'],
   ['Grading result state', 'result_state', 'AI grading result state.'],
+  ['UI locale', 'ui_locale', 'Active Syllonaut interface locale.'],
+  ['Lesson language', 'lesson_language', 'Language tag of a completed generated lesson.'],
+  ['Plan', 'plan', 'Selected or activated individual paid plan.'],
+  ['Billing country', 'billing_country', 'ISO billing country selected before Checkout.'],
+  ['Analytics source', 'source', 'Low-cardinality source for billing analytics events.'],
 ].map(([displayName, parameterName, description]) => ({
   displayName,
   parameterName,
@@ -34,6 +39,7 @@ const keyEvents = [
   'signup_completed',
   'lesson_generation_completed',
   'live_session_started',
+  'subscription_activated',
 ].map((eventName) => ({
   eventName,
   countingMethod: 'ONCE_PER_EVENT',
@@ -258,7 +264,7 @@ async function main() {
   }
 
   console.log('');
-  console.log('Verification passed: all 15 custom dimensions and 3 key events are configured.');
+  console.log(`Verification passed: all ${customDimensions.length} custom dimensions and ${keyEvents.length} key events are configured.`);
 }
 
 main().catch((error) => {
