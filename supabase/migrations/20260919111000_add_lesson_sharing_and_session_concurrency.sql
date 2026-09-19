@@ -133,9 +133,32 @@ security definer
 set search_path = ''
 as $$
 begin
-  if new.source_share_id is distinct from old.source_share_id
-     or new.source_lesson_id is distinct from old.source_lesson_id then
-    raise exception 'Shared lesson provenance is immutable.' using errcode = '23514';
+  if new.source_share_id is distinct from old.source_share_id then
+    if not (
+      old.source_share_id is not null
+      and new.source_share_id is null
+      and not exists (
+        select 1
+        from public.lesson_shares s
+        where s.id = old.source_share_id
+      )
+    ) then
+      raise exception 'Shared lesson provenance is immutable.' using errcode = '23514';
+    end if;
+  end if;
+
+  if new.source_lesson_id is distinct from old.source_lesson_id then
+    if not (
+      old.source_lesson_id is not null
+      and new.source_lesson_id is null
+      and not exists (
+        select 1
+        from public.lessons l
+        where l.id = old.source_lesson_id
+      )
+    ) then
+      raise exception 'Shared lesson provenance is immutable.' using errcode = '23514';
+    end if;
   end if;
 
   return new;
