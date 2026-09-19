@@ -126,6 +126,26 @@ export async function POST(request: Request) {
     );
   }
 
+  const { error: environmentError } = await admin
+    .from('organization_orders')
+    .update({ livemode: input.environment === 'live' })
+    .eq('id', orderId)
+    .eq('organization_id', organizationId);
+
+  if (environmentError) {
+    console.error('organization order environment persist failed', {
+      organizationId,
+      orderId,
+      code: environmentError.code,
+    });
+    return NextResponse.json({
+      error: 'organization_order_environment_failed',
+      orderCreated: true,
+      organizationId,
+      orderId,
+    }, { status: 500 });
+  }
+
   try {
     const payment = await startOrganizationPayment({
       environment: input.environment,
