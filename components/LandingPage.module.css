@@ -67,6 +67,10 @@
   min-width: 0;
 }
 
+.headerActions :global(.auth-signed-in) {
+  display: none;
+}
+
 .headerCta,
 .primaryCta,
 .secondaryCta {
@@ -417,8 +421,15 @@
 @media (max-width: 720px) {
   .header { width: min(100% - 24px, 1180px); min-height: 68px; gap: 10px; }
   .headerCta { display: none; }
-  .headerActions :global(.auth-signed-in) > span:first-child,
-  .headerActions :global(.auth-quota) { display: none; }
+  .headerActions :global(.auth-account-trigger) {
+    width: 40px;
+    max-width: 40px;
+    padding: 6px;
+    justify-content: center;
+    gap: 0;
+  }
+  .headerActions :global(.auth-account-label),
+  .headerActions :global(.auth-account-caret) { display: none; }
   .hero,
   .how,
   .notSlides,
