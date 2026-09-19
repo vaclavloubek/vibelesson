@@ -1014,6 +1014,13 @@ body:has(.teacher-live-shell) {
   background: #716df1;
   color: #fff;
 }
+.syllonaut-guide-secondary-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.syllonaut-guide-back,
 .syllonaut-guide-skip {
   min-height: 34px;
   padding: 6px 0;
@@ -1022,7 +1029,13 @@ body:has(.teacher-live-shell) {
   color: #9298a6;
   font-size: 11px;
 }
-.syllonaut-guide-skip:hover { color: #d7d9e1; }
+.syllonaut-guide-back {
+  padding-right: 2px;
+  color: #c5c8d2;
+  font-weight: 700;
+}
+.syllonaut-guide-back:hover,
+.syllonaut-guide-skip:hover { color: #fff; }
 .syllonaut-guide-action-hint {
   max-width: 190px;
   color: #b5b9c5;
@@ -1042,6 +1055,7 @@ body:has(.teacher-live-shell) {
   .syllonaut-guide-actions { align-items: stretch; flex-direction: column-reverse; }
   .syllonaut-guide-actions .primary { width: 100%; }
   .syllonaut-guide-action-hint { max-width: none; text-align: left; }
+  .syllonaut-guide-secondary-actions { width: 100%; justify-content: space-between; }
   .syllonaut-guide-skip { align-self: flex-start; }
 }
 

@@ -46,12 +46,17 @@ for (const signal of ['lesson-created', 'lesson-revised', 'activity-revised', 's
 }
 
 requireText(state, 'syllonaut_guide_v1:', 'per-user persisted guide state');
+requireText(state, 'satisfiedSteps', 'persisted satisfied guide steps');
 requireText(state, 'restartSyllonautGuideForCurrentContext', 'manual contextual restart');
+requireText(guide, 'const retreat = useCallback', 'back navigation within the current chapter');
+requireText(guide, 'state.satisfiedSteps.includes(currentStepKey)', 'manual next for already satisfied steps');
+requireText(guide, 'advance(false)', 'optional missing target must skip without marking the action complete');
 requireText(accountMenu, 'Průvodce Syllonautem', 'manual guide menu item');
 requireText(guide, 'role="dialog"', 'guide dialog semantics');
 requireText(guide, 'aria-label={english ? \'Close guide\' : \'Zavřít průvodce\'}', 'accessible close control');
 requireText(css, '.syllonaut-guide-shade', 'guide overlay styling');
 requireText(css, '.syllonaut-guide-spotlight', 'guide spotlight styling');
+requireText(css, '.syllonaut-guide-back', 'back button styling');
 requireText(lessonPage, 'userId={userId}', 'user-scoped lesson start guide state');
 
 console.log('onboarding guide regression checks passed');
