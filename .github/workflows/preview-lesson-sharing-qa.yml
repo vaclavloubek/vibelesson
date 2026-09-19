@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE: https://edupilot2-git-feature-lesson-sharing-0920-vaclavloubek1.vercel.app
-      INVALID_TOKEN: 000000000000000000000000000000000000000000000000
+      INVALID_TOKEN: '000000000000000000000000000000000000000000000000'
     steps:
       - uses: actions/checkout@v4
 
@@ -23,15 +23,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in {1..30}; do
-            code="$(curl -sS -o /tmp/root.html -w '%{http_code}' "$BASE/" || true)"
+          last_code=""
+          for attempt in {1..12}; do
+            set +e
+            code="$(curl -sS --connect-timeout 5 --max-time 10 -o /tmp/root.html -w '%{http_code}' "$BASE/" 2>/tmp/curl.err)"
+            curl_status=$?
+            set -e
+            last_code="$code"
             if [[ "$code" =~ ^(200|307|308)$ ]]; then
               echo "Preview reachable: HTTP $code"
               exit 0
             fi
+            if [ "$attempt" -eq 1 ]; then
+              echo "PREVIEW_HTTP=$code"
+              echo "CURL_EXIT=$curl_status"
+              sed -E 's#https?://[^ ]+#<preview-url>#g' /tmp/curl.err || true
+            fi
             sleep 5
           done
-          echo "Preview did not become reachable"
+          echo "Preview did not become reachable; last HTTP code: $last_code"
           exit 1
 
       - name: Verify Czech and English pricing
