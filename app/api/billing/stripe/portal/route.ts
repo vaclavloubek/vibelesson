@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { createStripePortalSession, StripePortalApiError } from '@/lib/stripe-portal';
+import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isStripeLiveSecretKey, isStripeSandboxSecretKey } from '@/lib/stripe-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   if (!livemode && profile?.role !== 'admin') return jsonError(403, 'sandbox_portal_forbidden');
-  const publicLiveBillingEnabled = process.env.STRIPE_LIVE_BILLING_PUBLIC_ENABLED === 'true';
+  const publicLiveBillingEnabled = isPublicLiveBillingEnabled();
   if (livemode && !publicLiveBillingEnabled && profile?.role !== 'admin') return jsonError(403, 'live_portal_acceptance_only');
 
   const admin = createAdminClient();

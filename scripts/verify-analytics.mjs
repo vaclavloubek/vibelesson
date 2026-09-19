@@ -40,7 +40,7 @@ requirePattern(analytics, /lesson_generation_completed:\s*\[[^\]]*'lesson_langua
 requirePattern(analytics, /subscription_activated:[\s\S]*plan:\s*'teacher' \| 'teacher-pro';[\s\S]*source:\s*'stripe_live';/, 'verified paid subscription activation event is missing.');
 requirePattern(analytics, /subscription_activated:\s*\['plan', 'source'\]/, 'subscription activation parameters must remain explicitly allowlisted.');
 requirePattern(pricingRoute, /select\('role, active_plan_code'\)/, 'checkout return must read the server-authoritative active plan.');
-requirePattern(pricingPage, /checkoutResult !== 'success'[\s\S]*!liveAcceptance[\s\S]*!checkoutSessionId/, 'subscription activation tracking must require a successful live Checkout return.');
+requirePattern(pricingPage, /checkoutResult !== 'success'[\s\S]*!liveCheckout[\s\S]*!checkoutSessionId/, 'subscription activation tracking must require a successful LIVE Checkout return, including public billing.');
 requirePattern(pricingPage, /trackEvent\('subscription_activated',[\s\S]*plan:\s*activePlanCode[\s\S]*source:\s*'stripe_live'/, 'subscription activation must be emitted only after the paid plan is active.');
 requirePattern(ga4Setup, /'subscription_activated'/, 'GA4 setup must mark subscription activation as a Key Event.');
 requirePattern(ga4Setup, /\['Plan', 'plan'/, 'GA4 setup must register the paid plan dimension.');
