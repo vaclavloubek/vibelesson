@@ -10,6 +10,7 @@ const toolbar=read('app/lessons/[id]/worksheet/WorksheetPrintToolbar.tsx');
 const pricing=read('components/PricingPage.tsx');
 const packageJson=read('package.json');
 const worksheetCss=read('app/lessons/[id]/worksheet/WorksheetPage.module.css');
+const cookieConsent=read('components/CookieConsent.tsx');
 expect(migration.includes("code in ('teacher_pro', 'admin')"),'Teacher Pro and admin must receive the worksheet entitlement.');
 expect(/worksheet_export_enabled\s*=\s*v_worksheet_export/.test(migration),'Plan recomputation must persist the worksheet entitlement.');
 expect(migration.includes('v_override.worksheet_export_enabled'),'Manual overrides must support worksheet export.');
@@ -21,7 +22,8 @@ expect(worksheetPage.includes("select('role, worksheet_export_enabled')"),'Works
 expect(worksheetPage.includes("profileResult.data.role === 'admin' || profileResult.data.worksheet_export_enabled"),'Worksheet route must fail closed.');
 expect(toolbar.includes('window.print()'),'Worksheet output must use browser print/PDF.');
 expect(!worksheetCss.includes('body>:not(#main-content)'),'Print CSS must not hide the worksheet root through a fragile :not() body selector.');
-expect(worksheetCss.includes('body>#main-content')&&worksheetCss.includes('body>#main-content~*'),'Print CSS must explicitly preserve #main-content and hide only following app chrome.');
+expect(!worksheetCss.includes('body>#main-content')&&!worksheetCss.includes('body>#main-content~*'),'Worksheet print CSS must not hide or force-display any body-level application wrapper.');
+expect(cookieConsent.includes('WORKSHEET_PATH')&&cookieConsent.includes('if (!ready || worksheetRoute) return null;'),'Cookie UI must not render on the dedicated worksheet route.');
 expect(worksheetCss.includes('.activities{display:block'),'Print layout must leave CSS Grid so page-break rules work reliably.');
 expect(worksheetCss.includes('break-inside:avoid-page')&&worksheetCss.includes('page-break-inside:avoid'),'Each worksheet activity must stay together on one printed page whenever it fits on A4.');
 const teacher=pricing.slice(pricing.indexOf("id: 'teacher'"),pricing.indexOf("id: 'teacher-pro'"));
