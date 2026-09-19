@@ -5,6 +5,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
+import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -27,9 +28,20 @@ async function schoolLicenseLockResponse(userId: string, lessonId: string) {
   }, { status: 403 });
 }
 
+async function trustedDeviceLockResponse(userId: string) {
+  const gate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (gate.allowed) return null;
+  return NextResponse.json({
+    error: trustedDeviceErrorMessage(gate.code),
+    code: gate.code,
+  }, { status: 403 });
+}
+
 export async function PATCH(req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  const deviceLocked = await trustedDeviceLockResponse(userId);
+  if (deviceLocked) return deviceLocked;
 
   try {
     const { id } = await params;
@@ -68,6 +80,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 export async function PUT(req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  const deviceLocked = await trustedDeviceLockResponse(userId);
+  if (deviceLocked) return deviceLocked;
 
   try {
     const { id } = await params;
@@ -125,6 +139,8 @@ export async function PUT(req: Request, { params }: RouteContext) {
 export async function POST(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  const deviceLocked = await trustedDeviceLockResponse(userId);
+  if (deviceLocked) return deviceLocked;
 
   let requestId: string | null = null;
 

@@ -7,6 +7,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import { classifySubscriptionChange, type BillingPeriod } from '@/lib/subscription-change-policy';
 import type { LiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
 import styles from './SubscriptionManagement.module.css';
+import TrustedDevicesPanel from './TrustedDevicesPanel';
 
 type ActiveState = Extract<LiveSubscriptionManagementState, { kind: 'active' }>;
 
@@ -198,6 +199,8 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
           {portalBusy ? ui('Otevírám Stripe…', 'Opening Stripe…') : ui('Platba, faktury a zrušení', 'Payment, invoices & cancellation')}
         </button>
       </section>
+
+      <TrustedDevicesPanel />
 
       {active.scheduledChange ? (
         <section className={styles.scheduledCard}>

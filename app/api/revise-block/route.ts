@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { LessonSchema } from '@/lib/schema';
 import { reviseBlock } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 
 // Keep the same ceiling across AI endpoints; complex block edits can still be slow.
@@ -19,6 +20,11 @@ export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) {
     return NextResponse.json({ error: 'Pro AI úpravy se nejdřív přihlas.' }, { status: 401 });
+  }
+
+  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (!deviceGate.allowed) {
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
   }
 
   let requestId: string | null = null;

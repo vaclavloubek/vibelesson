@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/proxy';
 import {
+  TRUSTED_DEVICE_COOKIE,
+  TRUSTED_DEVICE_COOKIE_MAX_AGE,
+  createTrustedDeviceToken,
+} from '@/lib/device-cookie';
+import {
   LOCALE_COOKIE,
   LOCALE_COOKIE_MAX_AGE,
   LOCALE_REQUEST_HEADER,
@@ -12,6 +17,19 @@ function persistLocale(response: NextResponse, request: NextRequest, locale: 'cs
   response.cookies.set(LOCALE_COOKIE, locale, {
     path: '/',
     maxAge: LOCALE_COOKIE_MAX_AGE,
+    sameSite: 'lax',
+    secure: request.nextUrl.protocol === 'https:',
+  });
+}
+
+function ensureTrustedDeviceCookie(response: NextResponse, request: NextRequest) {
+  const current = request.cookies.get(TRUSTED_DEVICE_COOKIE)?.value ?? '';
+  if (/^[0-9a-f]{64}$/.test(current)) return;
+
+  response.cookies.set(TRUSTED_DEVICE_COOKIE, createTrustedDeviceToken(), {
+    path: '/',
+    maxAge: TRUSTED_DEVICE_COOKIE_MAX_AGE,
+    httpOnly: true,
     sameSite: 'lax',
     secure: request.nextUrl.protocol === 'https:',
   });
@@ -33,6 +51,7 @@ export async function proxy(request: NextRequest) {
     target.pathname = `/${locale}`;
     const response = NextResponse.redirect(target);
     persistLocale(response, request, locale);
+    ensureTrustedDeviceCookie(response, request);
     return response;
   }
 
@@ -41,6 +60,7 @@ export async function proxy(request: NextRequest) {
     target.pathname = `/${locale}${pathname}`;
     const response = NextResponse.redirect(target);
     persistLocale(response, request, locale);
+    ensureTrustedDeviceCookie(response, request);
     return response;
   }
 
@@ -51,6 +71,7 @@ export async function proxy(request: NextRequest) {
   if (pathLocale && cookieLocale !== pathLocale) {
     persistLocale(response, request, pathLocale);
   }
+  ensureTrustedDeviceCookie(response, request);
 
   return response;
 }

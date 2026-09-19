@@ -5,6 +5,7 @@ import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 import { clearLiveResumeCookie } from '@/lib/live-resume';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
+import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 type RouteContext = { params: Promise<{ id: string }> };
 type SupabaseClient = Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase'];
@@ -172,6 +173,15 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
     const action = SessionActionSchema.parse(await req.json());
+    if (action.action !== 'end') {
+      const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+      if (!deviceGate.allowed) {
+        return NextResponse.json({
+          error: trustedDeviceErrorMessage(deviceGate.code),
+          code: deviceGate.code,
+        }, { status: 403 });
+      }
+    }
     const { data: session, error } = await loadOwnedSession(id, userId, supabase);
     if (error || !session) return NextResponse.json({ error: 'Hodina nebyla nalezena.' }, { status: 404 });
 

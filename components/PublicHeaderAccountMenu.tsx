@@ -47,6 +47,15 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
   const initial = accountName.trim().charAt(0).toLocaleUpperCase(locale === 'en' ? 'en' : 'cs') || 'S';
 
   useEffect(() => {
+    void fetch('/api/auth/devices/register', {
+      method: 'POST',
+      cache: 'no-store',
+    }).catch(() => {
+      // Device enforcement remains server-authoritative on paid operations.
+    });
+  }, [user.id]);
+
+  useEffect(() => {
     if (controlledQuota !== undefined) return;
 
     let active = true;

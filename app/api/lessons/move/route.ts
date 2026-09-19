@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
+import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 const MoveLessonsSchema = z.object({
   lessonIds: z.array(z.string().uuid()).min(1).max(200),
@@ -12,6 +13,10 @@ const MoveLessonsSchema = z.object({
 export async function PATCH(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (!deviceGate.allowed) {
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
 
   try {
     const input = MoveLessonsSchema.parse(await req.json());
