@@ -85,8 +85,9 @@ requireText(workspace, "localizedApiError(data.error, locale, 'Generování selh
 requireText(workspace, 'Write your brief in the language you want to use for the lesson.', 'lesson authoring must explicitly tell users they can write in the lesson language.');
 requireText(ai, 'JAZYK LEKCE:', 'AI generation must receive an explicit lesson-language instruction.');
 requireText(ai, 'Jazyk podkladů nesmí sám o sobě jazyk lekce změnit.', 'source-material language must not override lesson language.');
-requireText(ai, 'Zachovej také současný jazyk lekce', 'whole-lesson revisions must preserve language by default.');
-requireText(ai, 'Zachovej jazyk existující lekce', 'block revisions must preserve lesson language by default.');
+requireText(ai, 'JAZYK REVIZE: Zachovej hlavní jazyk existující lekce', 'locked whole-lesson revisions must preserve the current lesson language.');
+requireText(ai, 'JAZYK REVIZE: Zachovej jazyk existující lekce', 'entitled block revisions must preserve language unless a change is explicitly requested.');
+requireText(ai, 'options.allowLanguageChange === false', 'revision language behavior must remain entitlement-aware.');
 if (ai.includes('Jazyk výstupu je čeština')) {
   throw new Error('i18n regression: AI output must not default unconditionally to Czech.');
 }

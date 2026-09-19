@@ -15,10 +15,13 @@ function planBlock(pricing, id, nextId) {
   return pricing.slice(start, end < 0 ? pricing.length : end);
 }
 
-const [migration, entitlements, generate, workspace, pricing, version] = await Promise.all([
+const [migration, entitlements, generate, revise, reviseBlock, ai, workspace, pricing, version] = await Promise.all([
   source('supabase/migrations/20260919040333_add_multilingual_lessons_entitlement.sql'),
   source('app/api/entitlements/route.ts'),
   source('app/api/generate/route.ts'),
+  source('app/api/revise/route.ts'),
+  source('app/api/revise-block/route.ts'),
+  source('lib/ai.ts'),
   source('components/LessonWorkspace.tsx'),
   source('components/PricingPage.tsx'),
   source('lib/version.ts'),
@@ -39,6 +42,18 @@ requireText(generate, 'const effectiveLessonLanguage = multilingualLessonsEnable
 requireText(generate, ': requestLocale;', 'Free generation must fall back to the active UI locale.');
 requireText(generate, 'lessonLanguage: effectiveLessonLanguage', 'AI generation must receive the entitlement-enforced language.');
 requireText(generate, 'uiLocale: requestLocale', 'AI generation must use the server-resolved UI locale.');
+
+for (const [name, route] of [['whole-lesson revision', revise], ['block revision', reviseBlock]]) {
+  requireText(route, ".select('role, multilingual_lessons_enabled')", `${name} must load the multilingual entitlement server-side.`);
+  requireText(route, "profile.role === 'admin' || profile.multilingual_lessons_enabled", `${name} must derive language-change access from the server-authoritative profile.`);
+  requireText(route, '{ allowLanguageChange }', `${name} must pass the entitlement decision into the AI revision layer.`);
+}
+
+requireText(ai, 'type RevisionOptions = {', 'AI revision layer must expose an internal language-change policy option.');
+requireText(ai, 'options.allowLanguageChange === false', 'AI revisions must support an explicit language lock.');
+requireText(ai, 'TARIFNÍ OMEZENÍ JAZYKA REVIZE — ZÁVAZNÉ', 'Free revision language lock must be enforced in the AI system instruction.');
+requireText(ai, 'Cizojazyčný obsah je povolený jako učivo', 'language lock must still allow foreign-language teaching content.');
+requireText(ai, "throw new Error('Revision changed a locked lesson language.')", 'whole-lesson revisions must fail closed if the language tag changes despite the lock.');
 
 requireText(workspace, 'multilingualLessonsEnabled', 'lesson authoring must react to the multilingual entitlement.');
 requireText(workspace, "Ve Free tarifu se lekce vytvoří v jazyce rozhraní.", 'Free UI must explain its language restriction.');
@@ -62,6 +77,6 @@ for (const [name, block] of [['Teacher', teacher], ['Teacher Pro', teacherPro], 
 }
 requireText(pricing, "feature === 'Lekce v libovolném jazyce'", 'teacher multilingual feature must use the premium emphasis hook.');
 requireText(pricing, "plan.id === 'teacher' || plan.id === 'teacher-pro'", 'premium multilingual emphasis must be limited to individual paid teacher plans.');
-requireText(version, "APP_VERSION = '0.9.01'", 'this functional change must publish as version 0.9.01.');
+requireText(version, "APP_VERSION = '0.9.02'", 'the revision language-gate hardening must publish as version 0.9.02.');
 
 console.log('Multilingual entitlement checks passed.');

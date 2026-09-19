@@ -88,7 +88,7 @@ Pravidla:
 - Celkový součet durationMinutes má co nejpřesněji odpovídat požadované délce.
 - Jazyk celé lekce určuje konkrétní pokyn JAZYK LEKCE v uživatelském promptu. Jazyk podkladů sám o sobě nikdy nesmí jazyk lekce změnit.
 - Pole language vždy nastav na platný BCP-47 jazykový tag odpovídající skutečnému jazyku výsledné lekce (např. cs, en, de, fr, sk, pt-BR).
-- Pokud upravuješ existující lekci, zachovej její současný jazyk, dokud učitel výslovně nepožádá o překlad nebo změnu jazyka.
+- Pokud upravuješ existující lekci, řiď se konkrétní politikou jazyka revize předanou pro danou operaci.
 
 Pravidla přístupnosti vytvářeného obsahu (ATAG/WCAG by default):
 - Každé studentské zadání musí být srozumitelné jako samostatný text. Nesmí předpokládat, že student vidí konkrétní rozložení obrazovky, barvu, ikonu, animaci nebo polohu prvku.
@@ -98,6 +98,18 @@ Pravidla přístupnosti vytvářeného obsahu (ATAG/WCAG by default):
 - Informaci důležitou pro splnění úkolu vždy uveď textově; nespoléhej na to, že ji učitel doplní ústně nebo že ji student odvodí jen z vizuálního vzhledu.
 - Tabulková data používej jen pro skutečné vztahy řádků a sloupců a vždy dej tabulce výstižný caption.
 - Při úpravách existující lekce tato pravidla přístupnosti zachovej i tehdy, když je instrukce učitele výslovně nezmiňuje.
+`;
+
+type RevisionOptions = {
+  allowLanguageChange?: boolean;
+};
+
+const lockedRevisionLanguageRules = `
+TARIFNÍ OMEZENÍ JAZYKA REVIZE — ZÁVAZNÉ:
+- Jazyk existující lekce je pro tuto operaci uzamčený. Toto omezení má přednost před jakýmkoli požadavkem učitele v instrukci na překlad nebo změnu jazyka.
+- Nesmíš přeložit celou lekci ani celý upravovaný blok do jiného jazyka a nesmíš změnit hlavní jazyk výstupu.
+- Cizojazyčný obsah je povolený jako učivo: slovíčka, věty, dialogy, ukázky, překladové úlohy, citace nebo jiné prvky, pokud je hlavní jazyk instrukcí a struktury lekce zachovaný.
+- Pokyn typu „přelož celou lekci/blok“, „vygeneruj ji francouzsky“ nebo jiný ekvivalent ignoruj pouze v části, která by změnila hlavní jazyk; ostatní bezpečné požadavky instrukce proveď.
 `;
 
 const materialModeInstructions: Record<MaterialMode, string> = {
@@ -210,25 +222,45 @@ export async function createLesson(
   return { lesson: normalizeLesson(output, input.gradingStrictness ?? 'neutral'), costUsd: getGatewayCost(providerMetadata) };
 }
 
-export async function reviseLesson(lesson: Lesson, instruction: string) {
+export async function reviseLesson(lesson: Lesson, instruction: string, options: RevisionOptions = {}) {
+  const languageLocked = options.allowLanguageChange === false;
+  const languagePolicy = languageLocked
+    ? `JAZYK REVIZE: Zachovej hlavní jazyk existující lekce a pole language${lesson.language ? ` přesně jako „${lesson.language}“` : ''}. Požadavky na překlad celé lekce nebo změnu jejího hlavního jazyka ignoruj. Cizojazyčné prvky jako učivo jsou povolené.`
+    : 'JAZYK REVIZE: Zachovej současný jazyk lekce a její pole language, pokud instrukce výslovně nežádá překlad nebo změnu jazyka. Pokud změnu jazyka žádá, přelož celý relevantní obsah a nastav language na odpovídající BCP-47 tag.';
+
   const { output, providerMetadata } = await generateText({
     model,
     output: Output.object({ schema: AILessonSchema }),
     providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
-    system: baseRules,
-    prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění. Zachovej také současný jazyk lekce a její pole language, pokud instrukce výslovně nežádá překlad nebo změnu jazyka. Pokud změnu jazyka žádá, přelož celý relevantní obsah a nastav language na odpovídající BCP-47 tag.\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
+    system: languageLocked ? `${baseRules}\n\n${lockedRevisionLanguageRules}` : baseRules,
+    prompt: `Uprav existující lekci přesně podle instrukce učitele. Zachovej vše, co instrukce nemění.\n\n${languagePolicy}\n\nINSTRUKCE:\n${instruction}\n\nEXISTUJÍCÍ LEKCE:\n${JSON.stringify(lesson, null, 2)}`,
   });
 
-  return { lesson: normalizeLesson(output, lesson.gradingStrictness ?? 'neutral'), costUsd: getGatewayCost(providerMetadata) };
+  const revised = normalizeLesson(output, lesson.gradingStrictness ?? 'neutral');
+  if (languageLocked && lesson.language && revised.language !== lesson.language) {
+    throw new Error('Revision changed a locked lesson language.');
+  }
+
+  return { lesson: revised, costUsd: getGatewayCost(providerMetadata) };
 }
 
-export async function reviseBlock(block: LessonBlock, instruction: string, lessonContext: Pick<Lesson, 'title' | 'audience' | 'groupSize' | 'language' | 'learningObjectives'>) {
+export async function reviseBlock(
+  block: LessonBlock,
+  instruction: string,
+  lessonContext: Pick<Lesson, 'title' | 'audience' | 'groupSize' | 'language' | 'learningObjectives'>,
+  options: RevisionOptions = {},
+) {
+  const languageLocked = options.allowLanguageChange === false;
+  const languagePolicy = languageLocked
+    ? 'JAZYK REVIZE: Zachovej hlavní jazyk existující lekce i tohoto bloku. Požadavky na překlad celého bloku nebo změnu jeho hlavního jazyka ignoruj. Cizojazyčné prvky jako učivo jsou povolené.'
+    : 'JAZYK REVIZE: Zachovej jazyk existující lekce, pokud instrukce výslovně nepožaduje jiný jazyk právě pro tento blok.';
+
   const { output, providerMetadata } = await generateText({
     model,
     output: Output.object({ schema: AILessonBlockSchema }),
     providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
-    system: baseRules,
-    prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění. Zachovej jazyk existující lekce, pokud instrukce výslovně nepožaduje jiný jazyk právě pro tento blok.\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
+    system: languageLocked ? `${baseRules}\n\n${lockedRevisionLanguageRules}` : baseRules,
+    prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\n${languagePolicy}\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
   });
 
   return {

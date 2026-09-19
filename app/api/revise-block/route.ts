@@ -25,6 +25,18 @@ export async function POST(req: Request) {
 
   try {
     const { instruction, lesson, lessonId = null, blockId } = InputSchema.parse(await req.json());
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, multilingual_lessons_enabled')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    const allowLanguageChange = Boolean(
+      profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled),
+    );
+
     const block = lesson.blocks.find((item) => item.id === blockId);
     if (!block) {
       return NextResponse.json({ error: 'Vybraná aktivita už v lekci není.' }, { status: 400 });
@@ -51,7 +63,7 @@ export async function POST(req: Request) {
       groupSize: lesson.groupSize,
       language: lesson.language,
       learningObjectives: lesson.learningObjectives,
-    });
+    }, { allowLanguageChange });
     const revisedBlock = revisedResult.block;
     costUsd = revisedResult.costUsd;
 
