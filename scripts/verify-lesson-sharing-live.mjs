@@ -31,6 +31,8 @@ let sourceLessonId = null;
 let importedLessonId = null;
 let shareId = null;
 let firstSessionId = null;
+let stage = 'bootstrap';
+let failed = false;
 
 function expect(condition, message) {
   if (!condition) throw new Error(`Sharing live E2E: ${message}`);
@@ -69,15 +71,20 @@ const lesson = {
 };
 
 try {
+  stage = 'create-owner';
   ownerId = await createConfirmedUser(ownerEmail);
+  stage = 'create-recipient';
   recipientId = await createConfirmedUser(recipientEmail);
 
+  stage = 'signin-owner';
   const owner = await authenticatedClient(ownerEmail);
+  stage = 'signin-recipient';
   const recipient = await authenticatedClient(recipientEmail);
   const anon = createClient(url, publishableKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
 
+  stage = 'create-source-lesson';
   const { data: sourceLesson, error: sourceError } = await owner
     .from('lessons')
     .insert({
@@ -94,6 +101,7 @@ try {
   const token = randomBytes(24).toString('hex');
   expect(/^[0-9a-f]{48}$/.test(token), 'generated capability token is not 192-bit hex.');
 
+  stage = 'create-share';
   const { data: share, error: shareError } = await owner
     .from('lesson_shares')
     .insert({
@@ -107,22 +115,28 @@ try {
   expect(!shareError && share?.id, 'owner could not create an immutable share.');
   shareId = share.id;
 
+  stage = 'anon-direct-table-denied';
   const { data: anonRows, error: anonTableError } = await anon.from('lesson_shares').select('id').limit(1);
   expect(Boolean(anonTableError) && !anonRows, 'anonymous direct table access unexpectedly succeeded.');
 
+  stage = 'anon-capability-preview';
   const { data: preview, error: previewError } = await anon.rpc('get_lesson_share', { p_token: token });
   expect(!previewError && preview?.title === lesson.title, 'anonymous capability lookup did not return the snapshot.');
 
+  stage = 'invalid-token';
   const { data: invalidPreview, error: invalidPreviewError } = await anon.rpc('get_lesson_share', { p_token: 'not-a-share-token' });
   expect(!invalidPreviewError && invalidPreview === null, 'invalid capability token leaked data.');
 
+  stage = 'first-import';
   const { data: firstImport, error: firstImportError } = await recipient.rpc('import_lesson_share', { p_token: token });
   expect(!firstImportError && firstImport, 'recipient could not import the share.');
   importedLessonId = firstImport;
 
+  stage = 'idempotent-import';
   const { data: secondImport, error: secondImportError } = await recipient.rpc('import_lesson_share', { p_token: token });
   expect(!secondImportError && secondImport === importedLessonId, 'import is not idempotent.');
 
+  stage = 'verify-import-owner';
   const { data: imported, error: importedError } = await recipient
     .from('lessons')
     .select('id,owner_id,lesson,source_share_id,source_lesson_id')
@@ -131,6 +145,7 @@ try {
   expect(!importedError && imported?.owner_id === recipientId, 'imported copy is not owned by recipient.');
   expect(imported?.source_share_id === shareId && imported?.source_lesson_id === sourceLessonId, 'import provenance is missing.');
 
+  stage = 'forged-provenance-denied';
   const forgedId = crypto.randomUUID?.();
   const { error: forgedError } = await recipient.from('lessons').insert({
     ...(forgedId ? { id: forgedId } : {}),
@@ -143,6 +158,7 @@ try {
   });
   expect(Boolean(forgedError), 'recipient could forge shared-lesson provenance.');
 
+  stage = 'edit-recipient-copy';
   const changedLesson = { ...imported.lesson, title: 'Recipient independent copy' };
   const { error: copyUpdateError } = await recipient
     .from('lessons')
@@ -150,6 +166,7 @@ try {
     .eq('id', importedLessonId);
   expect(!copyUpdateError, 'recipient could not edit the imported copy.');
 
+  stage = 'verify-source-unchanged';
   const { data: sourceAfter, error: sourceAfterError } = await owner
     .from('lessons')
     .select('title,lesson')
@@ -158,6 +175,7 @@ try {
   expect(!sourceAfterError && sourceAfter?.title === lesson.title && sourceAfter?.lesson?.title === lesson.title,
     'editing the recipient copy changed the source lesson.');
 
+  stage = 'first-live-session';
   const joinCodeOne = randomBytes(6).toString('hex').slice(0, 7).toUpperCase();
   const joinCodeTwo = randomBytes(6).toString('hex').slice(0, 7).toUpperCase();
   const { data: firstSession, error: firstSessionError } = await owner
@@ -168,42 +186,57 @@ try {
   expect(!firstSessionError && firstSession?.id, 'teacher could not create the first active session.');
   firstSessionId = firstSession.id;
 
+  stage = 'second-live-session-rejected';
   const { error: secondSessionError } = await owner
     .from('sessions')
     .insert({ lesson_id: sourceLessonId, teacher_id: ownerId, join_code: joinCodeTwo, lesson_snapshot: lesson });
   expect(Boolean(secondSessionError) && secondSessionError.code === '23505',
     'database did not reject a second active session for the same teacher.');
 
+  stage = 'revoke-share';
   const { error: revokeError } = await owner
     .from('lesson_shares')
     .update({ status: 'revoked', revoked_at: new Date().toISOString() })
     .eq('id', shareId);
   expect(!revokeError, 'owner could not revoke the share.');
 
+  stage = 'revoked-preview-hidden';
   const { data: revokedPreview, error: revokedPreviewError } = await anon.rpc('get_lesson_share', { p_token: token });
   expect(!revokedPreviewError && revokedPreview === null, 'revoked share is still publicly visible.');
 
+  stage = 'revoked-import-denied';
   const { error: revokedImportError } = await recipient.rpc('import_lesson_share', { p_token: token });
   expect(Boolean(revokedImportError), 'revoked share could still be imported.');
 
   console.log('Sharing live E2E PASS');
+} catch (error) {
+  failed = true;
+  if (ownerId) {
+    await admin.auth.admin.updateUserById(ownerId, {
+      user_metadata: { sharing_e2e_failure_stage: stage },
+    });
+  }
+  console.error(`Sharing live E2E failed at stage: ${stage}`);
+  throw error;
 } finally {
-  if (ownerId) {
-    await admin.from('sessions').delete().eq('teacher_id', ownerId);
-  }
-  if (shareId) {
-    await admin.from('lesson_shares').delete().eq('id', shareId);
-  }
-  if (importedLessonId) {
-    await admin.from('lessons').delete().eq('id', importedLessonId);
-  }
-  if (sourceLessonId) {
-    await admin.from('lessons').delete().eq('id', sourceLessonId);
-  }
-  if (recipientId) {
-    await admin.auth.admin.deleteUser(recipientId);
-  }
-  if (ownerId) {
-    await admin.auth.admin.deleteUser(ownerId);
+  if (!failed) {
+    if (ownerId) {
+      await admin.from('sessions').delete().eq('teacher_id', ownerId);
+    }
+    if (shareId) {
+      await admin.from('lesson_shares').delete().eq('id', shareId);
+    }
+    if (importedLessonId) {
+      await admin.from('lessons').delete().eq('id', importedLessonId);
+    }
+    if (sourceLessonId) {
+      await admin.from('lessons').delete().eq('id', sourceLessonId);
+    }
+    if (recipientId) {
+      await admin.auth.admin.deleteUser(recipientId);
+    }
+    if (ownerId) {
+      await admin.auth.admin.deleteUser(ownerId);
+    }
   }
 }
