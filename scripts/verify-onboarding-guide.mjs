@@ -77,6 +77,7 @@ requireText(workspace, 'data-tour="lesson-review"', 'generated lesson review tar
 requireText(guide, "target: 'lesson-review'", 'review step before whole-lesson editing');
 requireText(guide, "button: { cs: 'Lekci jsem prošel', en: 'I reviewed the lesson' }", 'explicit review confirmation');
 requireText(guide, "button: { cs: 'Bez úpravy pokračovat', en: 'Continue without editing' }", 'optional whole-lesson edit skip');
+requireText(guide, "button: { cs: 'Pokračovat bez úpravy', en: 'Continue without editing' }", 'optional single-activity edit skip');
 requireText(guide, "signal: 'lesson-revised'", 'whole-lesson edit still advances after successful revision');
 requireText(guide, "custom.detail.action === 'lesson-created' && state.chapter === 'lesson'", 'lesson creation deterministically enters review step');
 requireText(guide, 'step: SYLLONAUT_LESSON_REVIEW_STEP', 'lesson creation review destination');

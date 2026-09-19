@@ -100,11 +100,12 @@ const lessonSteps: GuideStep[] = [
     target: 'lesson-edit-block-editor',
     title: { cs: 'Úprava jedné aktivity', en: 'Edit one activity' },
     body: {
-      cs: 'Napište přesně, co chcete změnit, a spusťte Upravit jen tuto aktivitu. Syllonaut změní pouze vybraný úkol; další krok se otevře po úspěšném uložení.',
-      en: 'Describe exactly what should change and run Edit this activity only. Syllonaut changes only the selected task; the guide continues after the edit is saved.',
+      cs: 'Pokud chcete něco změnit jen v této aktivitě, napište přesně co a spusťte Upravit jen tuto aktivitu. Jestli ji měnit nechcete, můžete pokračovat bez úpravy.',
+      en: 'If you want to change only this activity, describe exactly what should change and run Edit this activity only. If it does not need editing, you can continue without changing it.',
     },
-    advanceOn: 'signal',
+    advanceOn: 'manual',
     signal: 'activity-revised',
+    button: { cs: 'Pokračovat bez úpravy', en: 'Continue without editing' },
   },
   {
     target: 'lesson-start',
