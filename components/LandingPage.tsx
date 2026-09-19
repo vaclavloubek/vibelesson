@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import AuthControls from '@/components/AuthControls';
-import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
+import HeaderAccountSlot from '@/components/HeaderAccountSlot';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -181,8 +180,7 @@ export default function LandingPage() {
         </nav>
         <div className={styles.headerActions}>
           <LocaleSwitcher />
-          <AuthControls onAuthChange={setUser} />
-          {user ? <PublicHeaderAccountMenu user={user} /> : null}
+          <HeaderAccountSlot onAuthChange={setUser} />
           <Link href="/new" className={`${styles.headerCta} ${polish.headerCta}`} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'header' })}>{t.prepare}</Link>
           <HeaderMobileNav signedIn={Boolean(user)} current="home" />
         </div>
