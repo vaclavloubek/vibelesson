@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.18 — veřejný LIVE billing individuálních plánů je spuštěný: Teacher a Teacher Pro mají aktivní nákup přes Stripe, skutečná billing country se před provisioningem ověřuje fail-closed, Customer Portal je dostupný placeným uživatelům a Team / School / Campus zůstávají mimo live billing.
+Aktualizováno: 2026-09-19 pro verzi 0.9.18 — multilingual 0.9 acceptance zůstává COMPLETE / PASS a veřejný LIVE billing individuálních plánů je spuštěný: Teacher a Teacher Pro mají aktivní nákup přes Stripe, actual billing country se před provisioningem ověřuje fail-closed a Team / School / Campus zůstávají mimo live billing.
 
 **Aktuální produktová verze: 0.9.18** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -921,7 +921,7 @@ Zbývá:
 
 ### Milník A.5 — Lokalizace / multilingual lessons 0.9
 
-**Dokončeno a sloučeno do produkčního `main` jako Syllonaut 0.9.**
+**Dokončeno, sloučeno do produkčního `main` a 2026-09-19 produkčně acceptance ověřeno — COMPLETE / PASS.**
 
 Produkční model:
 
@@ -937,6 +937,25 @@ Produkční model:
 - analytika může anonymně rozlišovat `ui_locale` a `lesson_language` bez přenosu lesson content/PII.
 
 Release 0.9 prošel před merge Preview/build, `npm run check`, security a accessibility kontrolami; produkční `main` je nyní 0.9.
+
+
+Produkční acceptance 2026-09-19:
+
+- **Free / české UI / požadavek na francouzštinu** → hlavní jazyk zůstává `cs`;
+- **Free / anglické UI / požadavek na francouzštinu** → hlavní jazyk zůstává `en`; produkčně ověřeno na uložené lekci o Francouzské revoluci;
+- **Free / cizí jazyk jako učivo** → cizojazyčná slovíčka, dialogy a překladové úlohy jsou povolené bez změny hlavního jazyka lekce;
+- **Free / překlad celé lekce nebo jednoho bloku** → hlavní jazyk zůstává serverově uzamčený;
+- **Teacher/paid / explicitní jazyk** → prakticky ověřena generace v češtině, angličtině a němčině;
+- **Teacher/paid / jazyk instrukce ≠ jazyk lekce** → český revizní pokyn upravil německou lekci bez nechtěné změny jejího hlavního jazyka;
+- **Teacher/paid / překlad celé lekce** → německá lekce byla přeložena do angličtiny a `language` se změnil `de → en`;
+- **Teacher/paid / překlad jednoho bloku** → vybraný anglický blok byl přeložen do francouzštiny, sousední bloky zůstaly anglicky a lesson-level `language` zůstal `en`;
+- **číselné odkazy při AI revizi** → od 0.9.10 se „druhý úkol / aktivita 2 / block 2“ mapuje na druhý viditelný blok v `lesson.blocks`; živý test potvrdil správný zásah;
+- **cizojazyčné podklady** → německé PDF vytvořilo českou lekci; explicitní cílový jazyk má přednost před jazykem zdrojového materiálu;
+- **PDF podklady** → po hotfixu 0.9.12 se self-hosted `/pdf.worker.mjs` v produkci načetl a stejný německý PDF podklad byl úspěšně zpracován;
+- **SEC-016** → uložené AI revize načítají autoritativní lesson z DB podle `lessonId + owner_id`, klientský lesson payload není autorita; cross-account A → logout → B test prošel bez přenosu starého lesson stavu;
+- **SEC-017** → ruční produkční pokus Free účtu změnit přes `PUT /api/lessons/[id]` `language: en → fr` vrátil HTTP 403 a následná DB kontrola potvrdila, že uložená lekce zůstala `en`.
+
+Základní multilingual funkčnost a bezpečnostní hranice jsou tím považovány za uzavřené. Další jazykové testy mají charakter rozšiřující kombinatoriky (další souborové formáty, další BCP-47 varianty nebo další UI locale), nikoli blokující acceptance.
 
 Další práce na lokalizaci má být už pouze inkrementální: doplnění dalších jazyků/UI locale nebo copy úpravy podle reálného používání, nikoli nový paralelní i18n základ.
 
@@ -1176,7 +1195,7 @@ Nejbližší priority v tomto pořadí:
 2. 2026-09-21 provést reálný acceptance test a bezprostřední post-session audit Teacher/Presenter/student writes/AI grading/fallback-recovery;
 3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
-5. po releasu 0.9 udělat v pondělním acceptance testu zároveň krátkou kontrolu českého i anglického UI a multilingual lesson flow, ale neměnit locale architekturu před ostrou výukou;
+5. multilingual 0.9 acceptance je dokončený a produkčně PASS; v pondělním ostrém testu už jen krátce ověřit, že české/anglické UI a běžný lesson flow neutrpěly regresi, bez znovuotevírání locale architektury;
 6. **live billing acceptance dokončen a veřejný Teacher / Teacher Pro prodej spuštěn v 0.9.18**; sledovat první skutečné zákaznické nákupy, webhook delivery a `subscription_activated` funnel. Team / School / Campus zatím nezapínat;
 7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions; zkontrolovat i nové anonymní parametry `ui_locale` a `lesson_language`;
 8. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
