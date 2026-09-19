@@ -1054,6 +1054,29 @@ Zbývá do dalších verzí:
 - průběžné QA méně běžných písem a RTL jazyků;
 - lokalizace externě spravovaných e-mailových šablon podle potřeby.
 
+### Milník E — Growth / akviziční baseline
+
+**Měření připraveno pro první akviziční experimenty.**
+
+Stav k 2026-09-19:
+
+- produkční GA4 property: `554871574`;
+- GA4 Admin API setup je dokončený a v administraci ručně ověřený;
+- aktivních je **20 event-scoped custom dimensions**;
+- aktivní jsou **4 Key Events**: `signup_completed`, `lesson_generation_completed`, `live_session_started`, `subscription_activated`;
+- `subscription_activated` je finální placená konverze a vzniká až po LIVE Checkout návratu a serverově potvrzeném Teacher / Teacher Pro plánu;
+- akviziční zdroj se má vyhodnocovat přes standardní GA4 campaign attribution / UTM, ne přes PII nebo vlastní uživatelské identifikátory;
+- strict opt-in zůstává zachovaný: GA4 reprezentuje consenting populaci, nikoli absolutní počet všech uživatelů.
+
+Bezprostřední growth krok:
+
+1. vytvořit první sadu **5–10 kvalitních ukázkových lekcí** napříč ročníky a předměty;
+2. každá má demonstrovat skutečný výukový výsledek Syllonautu, ne fungovat jako obecná reklamní stránka;
+3. připravit konzistentní CTA / distribuční cestu „prohlédnout → použít / duplikovat → registrace → vytvořit / spustit vlastní lekci“ podle aktuálně dostupných funkcí;
+4. připravit UTM naming convention pro organické sdílení, ambasadory, sociální sítě a později placené kampaně;
+5. první měsíc optimalizovat primárně na `lesson_generation_completed` a `live_session_started`; placený `subscription_activated` sledovat jako výslednou obchodní konverzi;
+6. placenou reklamu spouštět až po dokončení ukázkového balíčku a prvním organickém ověření, co skutečně přivádí aktivované učitele.
+
 ### Další produktové položky
 
 - koš/verzování;
@@ -1063,7 +1086,7 @@ Zbývá do dalších verzí:
 - skutečné školní/organizační účty, membership a správa rolí;
 - live billing activation po produkčním acceptance a organization membership;
 - OCR;
-- produktová analytika GA4: další funnel/reporting a vyhodnocení jazykových dimenzí.
+- produktová analytika GA4: measurement baseline je hotový; další práce je reporting nad reálnými daty, UTM atribuce a vyhodnocení activation / paid funnelu.
 
 ## 19. Beta feedback — uzavřené body
 
@@ -1199,7 +1222,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou od 0.9.18 veřejně prodejné; školní tarify zůstávají mimo live billing.** Aktuální produktová verze je 0.9.18; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou od 0.9.18 veřejně prodejné; školní tarify zůstávají mimo live billing.** Aktuální produktová verze je 0.9.18; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 
@@ -1209,8 +1232,9 @@ Nejbližší priority v tomto pořadí:
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
 5. multilingual 0.9 acceptance je dokončený a produkčně PASS; v pondělním ostrém testu už jen krátce ověřit, že české/anglické UI a běžný lesson flow neutrpěly regresi, bez znovuotevírání locale architektury;
 6. **live billing acceptance dokončen a veřejný Teacher / Teacher Pro prodej spuštěn v 0.9.18**; sledovat první skutečné zákaznické nákupy, webhook delivery a `subscription_activated` funnel. Team / School / Campus zatím nezapínat;
-7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions; zkontrolovat i nové anonymní parametry `ui_locale` a `lesson_language`;
-8. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
-9. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
+7. vytvořit **5–10 ukázkových lekcí** jako první distribuční balíček, zvolit témata napříč věkem/předměty, připravit jasnou cestu k použití/registraci a UTM naming convention; nejprve je ověřit organicky, teprve potom pustit placené kampaně;
+8. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
+9. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
+10. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
 Security výjimky SEC-002/007 znovu otevřít při změně předpokladů. Případný odchod od Supabase by zároveň odstranil dnešní SEC-002 architektonický důvod pro sdílený Supabase trust boundary, ale nesmí se předjímat před pondělním rozhodovacím bodem.
