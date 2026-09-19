@@ -21,7 +21,7 @@ import {
   xmlParagraphText,
 } from './materials';
 
-const PDF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdf-parse@2.4.5/dist/pdf-parse/web/pdf.worker.min.mjs';
+const PDF_WORKER_URL = '/pdf.worker.mjs';
 let pdfWorkerConfigured = false;
 
 function fileNumber(path: string) {
