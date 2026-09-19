@@ -85,6 +85,10 @@ export async function GET() {
       .limit(200)
     : { data: [], error: null };
 
+  const seatUsageResult = await admin.rpc('get_organization_seat_usage', {
+    p_organization_id: organization.id,
+  });
+
   const ordersResult = manager
     ? await admin
       .from('organization_orders')
@@ -101,6 +105,7 @@ export async function GET() {
     || requestsResult.error
     || libraryResult.error
     || ownLessonsResult.error
+    || seatUsageResult.error
     || ordersResult.error
   ) {
     console.error('organization summary lookup failed', {
@@ -110,6 +115,7 @@ export async function GET() {
       requests: requestsResult.error?.code,
       library: libraryResult.error?.code,
       ownLessons: ownLessonsResult.error?.code,
+      seats: seatUsageResult.error?.code,
       orders: ordersResult.error?.code,
     });
     return NextResponse.json({ error: 'organization_summary_failed' }, { status: 500 });
@@ -156,6 +162,18 @@ export async function GET() {
     })
     : [];
 
+  const seatUsage = seatUsageResult.data as {
+    active?: number;
+    pending?: number;
+    limit?: number;
+    periodUniqueUsed?: number;
+    periodUniqueLimit?: number;
+    replacementAllowance?: number;
+    pendingNewReservations?: number;
+    periodStart?: string | null;
+    periodEnd?: string | null;
+  } | null;
+
   return NextResponse.json({
     organization: {
       ...organization,
@@ -165,9 +183,20 @@ export async function GET() {
       cancelAtPeriodEnd: lifecycleResult.data.cancel_at_period_end,
       pastDueAt: lifecycleResult.data.past_due_at,
       seats: {
-        active: memberRows.length,
-        pending: (invitesResult.data ?? []).length,
-        limit: plan.seatLimit,
+        active: seatUsage?.active ?? memberRows.length,
+        pending: seatUsage?.pending ?? (invitesResult.data ?? []).length,
+        limit: seatUsage?.limit ?? plan.seatLimit,
+        periodUniqueUsed: seatUsage?.periodUniqueUsed ?? 0,
+        periodUniqueLimit: seatUsage?.periodUniqueLimit ?? (
+          plan.seatLimit + Math.max(1, Math.ceil(plan.seatLimit * 0.10))
+        ),
+        replacementAllowance: seatUsage?.replacementAllowance ?? Math.max(
+          1,
+          Math.ceil(plan.seatLimit * 0.10),
+        ),
+        pendingNewReservations: seatUsage?.pendingNewReservations ?? 0,
+        periodStart: seatUsage?.periodStart ?? null,
+        periodEnd: seatUsage?.periodEnd ?? null,
       },
       usage: {
         lessonUsed,
