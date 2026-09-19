@@ -25,6 +25,7 @@ Pravidla použití:
 - **„AI navigátor pro interaktivní výuku“** zůstává produktovou kategorií / krátkým popisem značky, nikoli hlavním claimem;
 - Syllonaut nemá být veřejně positionován jako pouhý „AI generátor lekcí“ nebo „AI generátor materiálů“;
 - veřejná komunikace má zdůrazňovat spojení **AI přípravy + přirozených AI úprav + live vedení výuky + studentské interakce**;
+- Pricing tento princip konkretizuje jako čtyřkrokový tok **Připravit s AI → Doladit běžnou řečí → Odučit živě → Vyhodnotit**; ceník nemá začínat počtem AI operací, ale hodnotou celého workflow;
 - česká homepage používá claim **„Od nápadu k odučené hodině. S AI.“**;
 - anglická homepage používá **„From idea to live teaching. With AI.“**;
 - claim byl sjednocen v homepage hero sekci, závěrečném CTA, SEO metadata, Open Graph náhledu, globálním description a README;
@@ -323,15 +324,19 @@ Individuální plány:
 
 Všechny individuální plány počítají s live hodinami bez tarifního limitu a se studentským připojením bez plnohodnotného účtu.
 
-Školní/týmové plány:
+Školní/týmové plány — rebalancováno 2026-09-19:
 
-- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav společně; lekce v libovolném jazyce; 1 290 Kč / €54.99 / $59.99 měsíčně nebo 12 900 Kč / €549.90 / $599 ročně;
-- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav; lekce v libovolném jazyce; 3 190 Kč / €139.99 / $149.99 měsíčně nebo 31 900 Kč / €1,399.90 / $1,499 ročně; **AI grading + složky/podsložky**;
-- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav; lekce v libovolném jazyce; 8 490 Kč / €369.99 / $399.99 měsíčně nebo 84 900 Kč / €3,699.90 / $3,999 ročně; **AI grading + složky/podsložky**.
+- **Team** — až 10 učitelů; 60 AI lekcí + 180 AI úprav společně; lekce v libovolném jazyce; živé hodiny a opakované používání bez omezení; **990 Kč / €42.99 / $45.99 měsíčně** nebo **9 900 Kč / €429.90 / $459.90 ročně**;
+- **School** — až 30 učitelů; 150 AI lekcí + 300 AI úprav společně; sdílená knihovna a licenční zámek školních lekcí; lekce v libovolném jazyce; pracovní listy; **AI grading + složky/podsložky**; živé hodiny a opakované používání bez omezení; **2 690 Kč / €119.99 / $124.99 měsíčně** nebo **26 900 Kč / €1,199.90 / $1,249.90 ročně**;
+- **Campus** — až 100 učitelů; 400 AI lekcí + 700 AI úprav společně; sdílená knihovna a licenční zámek školních lekcí; lekce v libovolném jazyce; pracovní listy; **AI grading + složky/podsložky**; živé hodiny a opakované používání bez omezení; **6 490 Kč / €279.99 / $299.99 měsíčně** nebo **64 900 Kč / €2,799.90 / $2,999.90 ročně**.
 
-Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obsahují.
+Roční cena zůstává ekvivalentem 10 měsíčních plateb. Při plné kapacitě vychází roční česká cena přibližně na **83 Kč / 75 Kč / 54 Kč za učitele a měsíc** pro Team / School / Campus.
 
-Týmová administrace a skutečné organization membership zatím implementované nejsou. Billing foundation je připravený pouze pro individuální Free / Teacher / Teacher Pro; Team / School / Campus se zatím nesmí provisionovat.
+Rebalancing vychází z reálně naměřených nákladů AI Gateway k 2026-09-19: nová lekce průměrně ~$0.142, revize celé lekce ~$0.096 a revize bloku ~$0.032. Původní sdílené pooly 200/800, 600/2 400 a 2 000/8 000 byly při plném využití ekonomicky příliš štědré. Nové limity zachovávají vysokou praktickou kapacitu, ale oddělují placenou AI spotřebu od hlavní hodnoty produktu: **příprava → AI úpravy → živá hodina → výsledky**. Live session, studentské připojení a opakované používání placených lekcí se kvótou AI neomezují.
+
+Interní safety budget AI hodnocení se pro School snižuje na **$20 / měsíc + 2 500 pokusů**, pro Campus na **$40 / měsíc + 5 000 pokusů**. Jde o interní fair-use ochranu nákladů, nikoli veřejný zákaznický limit; při vyčerpání se hodnocení fail-safe přepne na ruční review.
+
+Organization V1/V1.1 je implementované: membership a role Owner/Admin/Teacher, pozvánky, shared quota, školní knihovna, owner transfer, quote PDF, card/invoice billing lifecycle, renewal a overdue/suspension flow. Veřejný prodej Team / School / Campus zůstává řízen samostatným school-billing launch gate a nesmí se zaměňovat s individuálním billingem.
 
 ### Server-authoritative profil a entitlementy
 
