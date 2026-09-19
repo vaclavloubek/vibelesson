@@ -121,11 +121,30 @@ const lessonSteps: GuideStep[] = [
 
 const liveSteps: GuideStep[] = [
   {
-    target: 'live-join',
-    title: { cs: 'Nejdřív připojte studenty', en: 'Connect students first' },
+    target: 'live-presenter',
+    title: { cs: 'Nejdřív prezentační režim', en: 'Start with Presenter mode' },
     body: {
-      cs: 'Promítněte kód nebo QR. Studenti nepotřebují plnohodnotný účet a mohou se připojit i po startu hodiny.',
-      en: 'Show the code or QR. Students do not need a full account and can still join after the lesson starts.',
+      cs: 'Studenti se už teď mohou připojovat přes kód nebo QR. Vy si mezitím připravte obrazovku pro třídu: Prezentační režim otevře samostatné okno bez učitelského ovládání, určené pro projektor nebo druhý displej.',
+      en: 'Students can already join now by code or QR. Meanwhile, prepare the classroom display: Presenter mode opens a separate window without teacher controls, intended for the projector or second display.',
+    },
+    advanceOn: 'click',
+  },
+  {
+    target: 'live-presenter',
+    title: { cs: 'Nové okno patří na projektor', en: 'Move the new window to the projector' },
+    body: {
+      cs: 'Přetáhněte nově otevřené okno na projektor nebo druhý displej a dejte ho přes celou obrazovku. Toto okno je pro studenty; hodinu dál řídíte v původním učitelském okně.',
+      en: 'Move the newly opened window to the projector or second display and make it full screen. That window is for students; keep controlling the lesson in the original teacher window.',
+    },
+    advanceOn: 'manual',
+    button: { cs: 'Hotovo, pokračovat', en: 'Done, continue' },
+  },
+  {
+    target: 'live-join',
+    title: { cs: 'Studenti se už mohou připojovat', en: 'Students can already join' },
+    body: {
+      cs: 'Kód a QR jsou aktivní od chvíle, kdy se live hodina vytvořila. Studenti nepotřebují plnohodnotný účet a nemusíte na všechny čekat — připojit se mohou i po odstartování hodiny.',
+      en: 'The code and QR have been active since the live lesson was created. Students do not need a full account, and you do not need to wait for everyone — they can still join after the lesson starts.',
     },
     advanceOn: 'manual',
     button: { cs: 'Další: týmy', en: 'Next: teams' },
@@ -142,30 +161,11 @@ const liveSteps: GuideStep[] = [
     optional: true,
   },
   {
-    target: 'live-presenter',
-    title: { cs: 'Teď otevřete prezentační režim', en: 'Now open Presenter mode' },
-    body: {
-      cs: 'Klikněte sem. Otevře se nové okno pro studenty — přetáhněte ho na projektor nebo druhý displej. Učitelské ovládání zůstává v tomto okně, ke kterému se pak vraťte.',
-      en: 'Click here. A new student window opens — move it to the projector or second display. Teacher controls stay in this window, which you can then return to.',
-    },
-    advanceOn: 'click',
-  },
-  {
-    target: 'live-presenter',
-    title: { cs: 'Nové okno patří na projektor', en: 'Move the new window to the projector' },
-    body: {
-      cs: 'Přetáhněte nově otevřené okno na projektor nebo druhý displej a dejte ho přes celou obrazovku. Toto okno je pro studenty; hodinu dál řídíte tady.',
-      en: 'Move the newly opened window to the projector or second display and make it full screen. That window is for students; keep controlling the lesson here.',
-    },
-    advanceOn: 'manual',
-    button: { cs: 'Hotovo, pokračovat', en: 'Done, continue' },
-  },
-  {
     target: 'live-start',
     title: { cs: 'Odstartujte hodinu', en: 'Start the lesson' },
     body: {
-      cs: 'Až jsou studenti připojení a případné týmy připravené, spusťte hodinu. Prezentační i studentská obrazovka se budou řídit stejným stavem.',
-      en: 'When students are connected and any teams are ready, start the lesson. Presenter and student views follow the same lesson state.',
+      cs: 'Až máte prezentační okno připravené a případné týmy vytvořené, spusťte hodinu. Není nutné čekat na všechny studenty — připojit se mohou i později.',
+      en: 'When the Presenter window is ready and any teams are set up, start the lesson. You do not need to wait for every student — they can still join later.',
     },
     advanceOn: 'signal',
     signal: 'live-started',

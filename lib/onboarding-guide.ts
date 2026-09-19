@@ -4,7 +4,7 @@ export type SyllonautGuideChapter = 'lesson' | 'live' | 'evaluation';
 export type SyllonautGuideAction = 'lesson-created' | 'lesson-revised' | 'activity-revised' | 'session-created' | 'teams-created' | 'live-started' | 'live-ended';
 
 export type SyllonautGuideState = {
-  version: 2;
+  version: 3;
   running: boolean;
   chapter: SyllonautGuideChapter;
   step: number;
@@ -17,15 +17,20 @@ export const SYLLONAUT_GUIDE_EVENT = 'syllonaut:guide-state';
 export const SYLLONAUT_GUIDE_ACTION_EVENT = 'syllonaut:guide-action';
 export const SYLLONAUT_LESSON_REVIEW_STEP = 2;
 
-const STORAGE_PREFIX = 'syllonaut_guide_v2:';
-const LEGACY_STORAGE_PREFIX = 'syllonaut_guide_v1:';
+const STORAGE_PREFIX = 'syllonaut_guide_v3:';
+const LEGACY_V2_STORAGE_PREFIX = 'syllonaut_guide_v2:';
+const LEGACY_V1_STORAGE_PREFIX = 'syllonaut_guide_v1:';
 
 export function syllonautGuideStorageKey(userId: string) {
   return `${STORAGE_PREFIX}${userId}`;
 }
 
-function legacySyllonautGuideStorageKey(userId: string) {
-  return `${LEGACY_STORAGE_PREFIX}${userId}`;
+function legacyV2SyllonautGuideStorageKey(userId: string) {
+  return `${LEGACY_V2_STORAGE_PREFIX}${userId}`;
+}
+
+function legacyV1SyllonautGuideStorageKey(userId: string) {
+  return `${LEGACY_V1_STORAGE_PREFIX}${userId}`;
 }
 
 export function syllonautGuideStepKey(chapter: SyllonautGuideChapter, step: number) {
@@ -49,7 +54,7 @@ function normalizeSatisfiedSteps(value: unknown) {
 function parseCurrentState(raw: string): SyllonautGuideState | null {
   const parsed = JSON.parse(raw) as Partial<SyllonautGuideState>;
   if (
-    parsed.version !== 2
+    parsed.version !== 3
     || typeof parsed.running !== 'boolean'
     || !isChapter(parsed.chapter)
     || typeof parsed.step !== 'number'
@@ -59,7 +64,7 @@ function parseCurrentState(raw: string): SyllonautGuideState | null {
   ) return null;
 
   return {
-    version: 2,
+    version: 3,
     running: parsed.running,
     chapter: parsed.chapter,
     step: Math.max(0, Number(parsed.step)),
@@ -69,7 +74,60 @@ function parseCurrentState(raw: string): SyllonautGuideState | null {
   };
 }
 
-function migrateLegacyState(raw: string): SyllonautGuideState | null {
+const V2_LIVE_STEP_TO_V3 = [2, 3, 0, 1, 4, 5, 6] as const;
+
+function remapV2LiveStep(step: number) {
+  return V2_LIVE_STEP_TO_V3[step] ?? step;
+}
+
+function migrateV2SatisfiedSteps(value: unknown) {
+  return normalizeSatisfiedSteps(value).map((entry) => {
+    const match = /^live:(\d+)$/.exec(entry);
+    if (!match) return entry;
+    return `live:${remapV2LiveStep(Number(match[1]))}`;
+  });
+}
+
+function migrateV2State(raw: string): SyllonautGuideState | null {
+  const parsed = JSON.parse(raw) as {
+    version?: unknown;
+    running?: unknown;
+    chapter?: unknown;
+    step?: unknown;
+    dismissed?: unknown;
+    completed?: unknown;
+    satisfiedSteps?: unknown;
+  };
+
+  if (
+    parsed.version !== 2
+    || typeof parsed.running !== 'boolean'
+    || !isChapter(parsed.chapter)
+    || typeof parsed.step !== 'number'
+    || !Number.isInteger(parsed.step)
+    || typeof parsed.dismissed !== 'boolean'
+    || !Array.isArray(parsed.completed)
+  ) return null;
+
+  const oldStep = Math.max(0, Number(parsed.step));
+  const step = parsed.chapter === 'live'
+    ? (parsed.running && oldStep < 4 ? 0 : remapV2LiveStep(oldStep))
+    : oldStep;
+
+  return {
+    version: 3,
+    running: parsed.running,
+    chapter: parsed.chapter,
+    step,
+    dismissed: parsed.dismissed,
+    completed: normalizeCompleted(parsed.completed),
+    satisfiedSteps: parsed.chapter === 'live' && parsed.running && oldStep < 4
+      ? normalizeSatisfiedSteps(parsed.satisfiedSteps).filter((entry) => !/^live:[0-3]$/.test(entry))
+      : migrateV2SatisfiedSteps(parsed.satisfiedSteps),
+  };
+}
+
+function migrateV1State(raw: string): SyllonautGuideState | null {
   const parsed = JSON.parse(raw) as {
     version?: unknown;
     running?: unknown;
@@ -98,10 +156,12 @@ function migrateLegacyState(raw: string): SyllonautGuideState | null {
     } else if (pathname === '/new') {
       step = 0;
     }
+  } else if (parsed.chapter === 'live') {
+    step = parsed.running && step < 4 ? 0 : remapV2LiveStep(step);
   }
 
   return {
-    version: 2,
+    version: 3,
     running: parsed.running,
     chapter: parsed.chapter,
     step,
@@ -122,10 +182,13 @@ export function readSyllonautGuideState(userId: string): SyllonautGuideState | n
       if (current) return current;
     }
 
-    const legacyRaw = window.localStorage.getItem(legacySyllonautGuideStorageKey(userId));
-    if (!legacyRaw) return null;
-
-    const migrated = migrateLegacyState(legacyRaw);
+    const legacyV2Raw = window.localStorage.getItem(legacyV2SyllonautGuideStorageKey(userId));
+    const legacyV1Raw = window.localStorage.getItem(legacyV1SyllonautGuideStorageKey(userId));
+    const migrated = legacyV2Raw
+      ? migrateV2State(legacyV2Raw)
+      : legacyV1Raw
+        ? migrateV1State(legacyV1Raw)
+        : null;
     if (!migrated) return null;
 
     try {
@@ -166,7 +229,7 @@ export function startSyllonautGuide(
 ) {
   const previous = readSyllonautGuideState(userId);
   writeSyllonautGuideState(userId, {
-    version: 2,
+    version: 3,
     running: true,
     chapter,
     step,
@@ -192,7 +255,7 @@ export function restartSyllonautGuideForCurrentContext(userId: string) {
       return;
     }
     if (document.querySelector('[data-tour="live-controls"]')) {
-      startSyllonautGuide(userId, 'live', 4);
+      startSyllonautGuide(userId, 'live', 5);
       return;
     }
     startSyllonautGuide(userId, 'live', 0);
