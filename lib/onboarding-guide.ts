@@ -1,7 +1,7 @@
 'use client';
 
 export type SyllonautGuideChapter = 'lesson' | 'live' | 'evaluation';
-export type SyllonautGuideAction = 'lesson-created' | 'session-created' | 'teams-created' | 'live-started';
+export type SyllonautGuideAction = 'lesson-created' | 'session-created' | 'teams-created' | 'live-started' | 'live-ended';
 
 export type SyllonautGuideState = {
   version: 1;
