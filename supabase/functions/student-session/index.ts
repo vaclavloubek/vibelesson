@@ -10,6 +10,19 @@ if (!url || !secret || !publicKey) throw new Error("Supabase Edge Function envir
 const db = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
 
 const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+function dbErrorMessage(error: unknown) {
+  if (!error || typeof error !== "object" || !("message" in error)) return "";
+  return String((error as { message?: unknown }).message ?? "");
+}
+function sessionWriteError(error: unknown, fallback: string) {
+  const message = dbErrorMessage(error);
+  if (message.includes("free_session_join_window_closed")) return reply({ error: "Okno pro připojení nových studentů v této Free hodině už skončilo." }, 409);
+  if (message.includes("free_session_expired")) return reply({ error: "Tato Free hodina po 6 hodinách skončila." }, 410);
+  if (message.includes("participant_session_ended")) return reply({ error: "Tato hodina už skončila." }, 410);
+  if (message.includes("participant_limit_reached")) return reply({ error: "Do hodiny je už připojen maximální počet studentů." }, 409);
+  if (message.includes("participant_join_rate_limited")) return reply({ error: "Připojuje se příliš mnoho studentů najednou. Zkus to za chvíli znovu." }, 429);
+  return reply({ error: fallback }, 500);
+}
 const hex = (bytes: Uint8Array) => Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
 async function hash(value: string) { return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)))); }
 function token() { const b = new Uint8Array(32); crypto.getRandomValues(b); let s = ""; for (const x of b) s += String.fromCharCode(x); return btoa(s).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, ""); }
@@ -43,7 +56,7 @@ async function join(b: Record<string, unknown>) {
   const code = typeof b.joinCode === "string" ? b.joinCode.trim().toUpperCase() : ""; const name = typeof b.displayName === "string" ? b.displayName.trim() : "";
   if (!/^[A-HJ-NP-Z2-9]{7}$/.test(code)) return reply({ error: "Neplatný kód hodiny." }, 400); if (name.length < 1 || name.length > 60) return reply({ error: "Jméno musí mít 1 až 60 znaků.", }, 400);
   const { data: s, error } = await db.from("sessions").select("id,status,realtime_key").eq("join_code", code).maybeSingle(); if (error) return reply({ error: "Hodinu se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina s tímto kódem neexistuje." }, 404); if (s.status === "ended") return reply({ error: "Tato hodina už skončila." }, 410);
-  const raw = token(); const { data: p, error: insertError } = await db.from("participants").insert({ session_id: s.id, display_name: name, participant_token_hash: await hash(raw) }).select("id,participant_token_expires_at").single(); if (insertError || !p) return reply({ error: "Ke hodině se nepodařilo připojit." }, 500); scheduleInvalidate(s.realtime_key as string); return reply({ sessionId: s.id, participantId: p.id, participantToken: raw, participantTokenExpiresAt: p.participant_token_expires_at });
+  const raw = token(); const { data: p, error: insertError } = await db.from("participants").insert({ session_id: s.id, display_name: name, participant_token_hash: await hash(raw) }).select("id,participant_token_expires_at").single(); if (insertError || !p) return sessionWriteError(insertError, "Ke hodině se nepodařilo připojit."); scheduleInvalidate(s.realtime_key as string); return reply({ sessionId: s.id, participantId: p.id, participantToken: raw, participantTokenExpiresAt: p.participant_token_expires_at });
 }
 
 async function state(b: Record<string, unknown>) {
@@ -62,7 +75,7 @@ async function state(b: Record<string, unknown>) {
 
 async function chooseTeam(b: Record<string, unknown>) {
   const sessionId = typeof b.sessionId === "string" ? b.sessionId : ""; const rawToken = typeof b.participantToken === "string" ? b.participantToken : ""; const teamId = typeof b.teamId === "string" ? b.teamId : ""; if (!/^[0-9a-f-]{36}$/i.test(teamId)) return reply({ error: "Neplatný tým." }, 400); const v = await verify(sessionId, rawToken); if (v.response) return v.response; const p = v.participant!;
-  const [{ data: s, error: se }, { data: team, error: te }] = await Promise.all([db.from("sessions").select("status,realtime_key").eq("id", sessionId).maybeSingle(), db.from("teams").select("id,name").eq("id", teamId).eq("session_id", sessionId).maybeSingle()]); if (se || te) return reply({ error: "Tým se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina neexistuje." }, 404); if (!team) return reply({ error: "Tým v této hodině neexistuje." }, 404); if (s.status === "ended") return reply({ error: "Tato hodina už skončila." }, 410); if (s.status === "live" && p.team_id && p.team_id !== teamId) return reply({ error: "Po zahájení hodiny už tým změnit nejde." }, 409); const { error } = await db.from("participants").update({ team_id: teamId }).eq("id", p.id).eq("session_id", sessionId); if (error) return reply({ error: "Tým se nepodařilo vybrat." }, 500); scheduleInvalidate(s.realtime_key as string); return reply({ ok: true, team: { id: team.id, name: team.name } });
+  const [{ data: s, error: se }, { data: team, error: te }] = await Promise.all([db.from("sessions").select("status,realtime_key").eq("id", sessionId).maybeSingle(), db.from("teams").select("id,name").eq("id", teamId).eq("session_id", sessionId).maybeSingle()]); if (se || te) return reply({ error: "Tým se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina neexistuje." }, 404); if (!team) return reply({ error: "Tým v této hodině neexistuje." }, 404); if (s.status === "ended") return reply({ error: "Tato hodina už skončila." }, 410); if (s.status === "live" && p.team_id && p.team_id !== teamId) return reply({ error: "Po zahájení hodiny už tým změnit nejde." }, 409); const { error } = await db.from("participants").update({ team_id: teamId }).eq("id", p.id).eq("session_id", sessionId); if (error) return sessionWriteError(error, "Tým se nepodařilo vybrat."); scheduleInvalidate(s.realtime_key as string); return reply({ ok: true, team: { id: team.id, name: team.name } });
 }
 
 async function respond(b: Record<string, unknown>) {
@@ -73,7 +86,7 @@ async function respond(b: Record<string, unknown>) {
   const timestamp = new Date().toISOString();
   const values: Record<string, unknown> = { session_id: sessionId, participant_id: p.id, block_id: blockId, answer: n.answer, updated_at: timestamp };
   if (explicitSubmit) { values.submitted_answer = n.answer; values.submitted_at = timestamp; }
-  const { data: saved, error: saveError } = await db.from("responses").upsert(values, { onConflict: "session_id,participant_id,block_id" }).select("id,answer,submitted_answer,submitted_at,updated_at").single(); if (saveError || !saved) return reply({ error: "Odpověď se nepodařilo uložit." }, 500);
+  const { data: saved, error: saveError } = await db.from("responses").upsert(values, { onConflict: "session_id,participant_id,block_id" }).select("id,answer,submitted_answer,submitted_at,updated_at").single(); if (saveError || !saved) return sessionWriteError(saveError, "Odpověď se nepodařilo uložit.");
   let queuedForEvaluation = false;
   if (explicitSubmit) {
     const { data: queued, error: queueError } = await db.rpc("queue_submitted_response_evaluation", { p_response_id: saved.id });
