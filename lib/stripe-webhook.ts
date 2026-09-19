@@ -26,6 +26,7 @@ type StripeWebhookEvent = {
   livemode: boolean;
   data: {
     object: unknown;
+    previous_attributes?: unknown;
   };
 };
 
@@ -58,6 +59,8 @@ export type StripeSubscriptionSync = {
   currentPeriodEnd: string;
   canceledAt: string | null;
   billingCountry: string;
+  previousStatus: string | null;
+  previousCancelAtPeriodEnd: boolean | null;
 };
 
 function splitSecrets(value: string | undefined) {
@@ -188,6 +191,11 @@ function objectRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function optionalObjectRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
 function stringField(value: unknown, pattern: RegExp, errorCode: string) {
   if (typeof value !== 'string' || !pattern.test(value)) throw new Error(errorCode);
   return value;
@@ -279,6 +287,14 @@ export function normalizeStripeSubscriptionEvent(
     canceledAt = unixSecondsToIso(subscription.canceled_at, 'stripe_canceled_at_invalid');
   }
 
+  const previousAttributes = optionalObjectRecord(event.data.previous_attributes);
+  const previousStatus = previousAttributes && typeof previousAttributes.status === 'string'
+    ? previousAttributes.status
+    : null;
+  const previousCancelAtPeriodEnd = previousAttributes && typeof previousAttributes.cancel_at_period_end === 'boolean'
+    ? previousAttributes.cancel_at_period_end
+    : null;
+
   return {
     eventId: event.id,
     eventType: event.type,
@@ -295,6 +311,8 @@ export function normalizeStripeSubscriptionEvent(
     currentPeriodEnd,
     canceledAt,
     billingCountry,
+    previousStatus,
+    previousCancelAtPeriodEnd,
   };
 }
 
