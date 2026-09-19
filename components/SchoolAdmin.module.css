@@ -51,3 +51,40 @@
   .full { grid-column:auto; }
   .metrics { grid-template-columns:1fr; }
 }
+
+.libraryFilterBar {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:14px;
+  margin:14px 0 4px;
+}
+.libraryFilterBar .field {
+  min-width:min(320px,100%);
+}
+.libraryScrollable {
+  max-height:480px;
+  overflow:auto;
+  border:1px solid var(--line,#e2e1dc);
+  border-radius:14px;
+  margin-top:14px;
+}
+.libraryScrollable .table {
+  margin-top:0;
+}
+.libraryScrollable .table th {
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#fff;
+  box-shadow:0 1px 0 var(--line,#e2e1dc);
+}
+@media (max-width: 760px) {
+  .libraryFilterBar {
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .libraryScrollable {
+    max-height:420px;
+  }
+}
