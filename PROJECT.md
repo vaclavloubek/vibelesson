@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro interní verzi 0.9.21 — přihlášený uživatel má vlastní správu předplatného Syllonautu: vidí aktuální Teacher / Teacher Pro, fakturační období, měnu a datum obnovení, může bezpečně změnit tarif nebo měsíční/roční fakturaci a přes Stripe Portal spravovat platbu, faktury a zrušení. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.20.
+Aktualizováno: 2026-09-19 pro interní verzi 0.9.22 — Teacher Pro a budoucí School/Campus mají serverově řízené pracovní listy z uložené lekce: studentskou verzi nebo klíč pro učitele, výběr aktivit, tři velikosti prostoru pro odpovědi a A4 výstup v balanced vizuálu Syllonautu pro tisk nebo uložení do PDF. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.20.
 
 **Aktuální produktová verze: 0.9.20** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -95,6 +95,7 @@ Dokud výjimka platí, Preview testy nesmí dělat destruktivní zásahy do prod
 - `/new` — tvorba nové lekce
 - `/lessons` — Moje lekce + Poslední výsledky + složky
 - `/lessons/<id>` — lesson workspace
+- `/lessons/<id>/worksheet` — serverově chráněný A4 pracovní list / klíč pro učitele; Teacher Pro + budoucí School/Campus, tisk nebo uložení jako PDF
 - `/s/<token>` — veřejný read-only snímek sdílené lekce; přihlášení je nutné až pro uložení vlastní kopie. Capability link je záměrně přenositelný/přeposílatelný a může sloužit i jako distribuční URL ukázkové lekce; zveřejnění neotevírá originál, účet autora, výsledky studentů, live session ani AI historii
 - `/sessions/<id>` — teacher live session / report
 - `/sessions/<id>/presenter` — projekční režim
@@ -1147,6 +1148,7 @@ Bezpečnostní a produktové změny:
 - **post‑0.9.20 interní didaktický fix** — revize bloku při výrazné změně délky musí odpovídajícím způsobem rozšířit nebo zjednodušit skutečnou studentskou činnost; duration-only výsledek se automaticky jednou opraví a při opakovaném selhání se neuloží. Veřejně zobrazovaná verze zůstává 0.9.20.
 - **post‑0.9.20 interní UX fix** — vlastní lokalizovaná 404 stránka v typografii a vizuálním jazyce Syllonautu: orbitální motiv, česká/anglická kosmická hláška, návrat na lokalizovaný landing a přímá cesta do Moje lekce. Regresní kontrakt: `scripts/verify-custom-404.mjs`. Veřejně zobrazovaná verze zůstává 0.9.20.
 - **0.9.21 interní** — samoobslužná správa individuálního předplatného: profilové menu vede přímo na vlastní stránku Syllonautu s aktuálním tarifem, obdobím, měnou, obnovením/ukončením a případnou naplánovanou změnou. Teacher → Teacher Pro při stejném období používá okamžitou Stripe proration s `always_invoice + pending_if_incomplete`, takže entitlement se změní až po úspěšné platbě; downgrade a každá změna monthly ↔ annual používá Subscription Schedule od dalšího období. Změna měny/fakturační země zůstává fail-closed mimo samoobsluhu. Payment method, faktury a cancellation zůstávají ve Stripe Customer Portalu. Veřejně zobrazovaná verze zůstává 0.9.20.
+- **0.9.22 interní** — pracovní listy z uložené lekce jako prémiový benefit: Teacher Pro má serverový entitlement `worksheet_export_enabled`; Free a Teacher jsou uzamčené, školní ceník benefit zvýrazňuje u budoucích School a Campus, nikoli Team. Učitel volí studentskou verzi nebo klíč, tisknutelné aktivity a množství prostoru pro odpověď; výstup používá balanced typografii a brand prvky Syllonautu, A4 print CSS a browserový tisk / Save as PDF bez dalšího AI callu a bez nové permanentní kopie dokumentu. Worksheet route znovu ověřuje vlastníka lekce i entitlement na serveru. Veřejně zobrazovaná verze zůstává 0.9.20.
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1247,7 +1249,7 @@ Nejbližší priority v tomto pořadí:
 3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
 5. multilingual 0.9 acceptance je dokončený a produkčně PASS; v pondělním ostrém testu už jen krátce ověřit, že české/anglické UI a běžný lesson flow neutrpěly regresi, bez znovuotevírání locale architektury;
-6. **live billing je veřejný a lifecycle e-maily mají produkční E2E acceptance COMPLETE / PASS**; interní 0.9.21 doplňuje samoobslužnou správu Teacher / Teacher Pro. Před širším použitím ověřit Preview/CI a následně první skutečnou změnu tarifu; změna země/měny zůstává řízená. Team / School / Campus zatím nezapínat;
+6. **live billing je veřejný a lifecycle e-maily mají produkční E2E acceptance COMPLETE / PASS**; interní 0.9.21 doplňuje samoobslužnou správu Teacher / Teacher Pro. Interní 0.9.22 přidává pracovní listy pro Teacher Pro; po produkčním nasazení ověřit reálný studentský i učitelský tisk/PDF. Před širším použitím subscription managementu ověřit první skutečnou změnu tarifu; změna země/měny zůstává řízená. Team / School / Campus zatím nezapínat;
 7. vytvořit **5–10 ukázkových lekcí** jako první distribuční balíček, publikovat je přes hotové přenositelné share linky, zvolit témata napříč věkem/předměty, připravit jasnou cestu k uložení vlastní kopie/registraci a UTM naming convention; nejprve je ověřit organicky, teprve potom pustit placené kampaně;
 8. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
 9. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
