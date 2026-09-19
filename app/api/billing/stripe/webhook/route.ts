@@ -11,6 +11,8 @@ import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeInvoiceEvent,
+  normalizeStripeOrganizationInvoiceEvent,
+  normalizeStripeOrganizationSubscriptionEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
 } from '@/lib/stripe-webhook';
@@ -49,6 +51,138 @@ export async function POST(request: Request) {
     const status = code === 'stripe_webhook_secret_missing' ? 503 : 400;
     console.warn('stripe webhook rejected', { code });
     return jsonError(status, 'invalid_webhook');
+  }
+
+  let organizationInvoiceSync;
+  try {
+    organizationInvoiceSync = normalizeStripeOrganizationInvoiceEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'organization_invoice_event_invalid';
+    console.warn('stripe organization invoice event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_organization_invoice_event');
+  }
+
+  if (organizationInvoiceSync) {
+    try {
+      const supabase = createAdminClient();
+      const { data: organization, error: organizationError } = await supabase
+        .from('organizations')
+        .select('billing_country, currency')
+        .eq('id', organizationInvoiceSync.organizationId)
+        .maybeSingle();
+
+      if (organizationError || !organization) {
+        return jsonError(404, 'organization_not_found');
+      }
+
+      if (
+        organization.billing_country !== organizationInvoiceSync.billingCountry
+        || organization.currency !== organizationInvoiceSync.currency
+      ) {
+        console.warn('stripe organization invoice route mismatch', {
+          eventId: organizationInvoiceSync.eventId,
+          organizationId: organizationInvoiceSync.organizationId,
+          expectedCountry: organization.billing_country,
+          actualCountry: organizationInvoiceSync.billingCountry,
+          expectedCurrency: organization.currency,
+          actualCurrency: organizationInvoiceSync.currency,
+        });
+        return jsonError(409, 'organization_billing_route_mismatch');
+      }
+
+      const { data, error } = await supabase.rpc('sync_organization_invoice_event', {
+        p_event_id: organizationInvoiceSync.eventId,
+        p_event_type: organizationInvoiceSync.eventType,
+        p_livemode: organizationInvoiceSync.livemode,
+        p_organization_id: organizationInvoiceSync.organizationId,
+        p_order_id: organizationInvoiceSync.orderId,
+        p_invoice_id: organizationInvoiceSync.invoiceId,
+      });
+
+      if (error) {
+        console.error('stripe organization invoice sync failed', {
+          eventId: organizationInvoiceSync.eventId,
+          organizationId: organizationInvoiceSync.organizationId,
+          code: error.code,
+        });
+        return jsonError(500, 'organization_invoice_sync_failed');
+      }
+
+      return NextResponse.json({
+        received: true,
+        organizationPaymentEvent: organizationInvoiceSync.eventType,
+        result: data,
+      }, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      console.error('stripe organization invoice event processing failed', {
+        eventId: organizationInvoiceSync.eventId,
+        organizationId: organizationInvoiceSync.organizationId,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(503, 'organization_billing_not_configured');
+    }
+  }
+
+  let organizationSubscriptionSync;
+  try {
+    organizationSubscriptionSync = normalizeStripeOrganizationSubscriptionEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'organization_subscription_event_invalid';
+    console.warn('stripe organization subscription event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_organization_subscription_event');
+  }
+
+  if (organizationSubscriptionSync) {
+    try {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase.rpc('sync_organization_subscription_event', {
+        p_event_id: organizationSubscriptionSync.eventId,
+        p_event_type: organizationSubscriptionSync.eventType,
+        p_livemode: organizationSubscriptionSync.livemode,
+        p_organization_id: organizationSubscriptionSync.organizationId,
+        p_order_id: organizationSubscriptionSync.orderId,
+        p_subscription_id: organizationSubscriptionSync.subscriptionId,
+        p_status: organizationSubscriptionSync.status,
+      });
+
+      if (error) {
+        console.error('stripe organization subscription sync failed', {
+          eventId: organizationSubscriptionSync.eventId,
+          organizationId: organizationSubscriptionSync.organizationId,
+          code: error.code,
+        });
+        return jsonError(500, 'organization_subscription_sync_failed');
+      }
+
+      return NextResponse.json({
+        received: true,
+        organizationSubscriptionEvent: organizationSubscriptionSync.eventType,
+        result: data,
+      }, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      console.error('stripe organization subscription event processing failed', {
+        eventId: organizationSubscriptionSync.eventId,
+        organizationId: organizationSubscriptionSync.organizationId,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(503, 'organization_billing_not_configured');
+    }
   }
 
   let invoiceSync;
