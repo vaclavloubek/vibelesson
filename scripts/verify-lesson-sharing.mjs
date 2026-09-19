@@ -24,6 +24,8 @@ const [
   confirmRoute,
   confirmTemplate,
   cookieConsent,
+  sharedAuthControls,
+  importButton,
 ] = await Promise.all([
   source('supabase/migrations/20260919105631_add_lesson_sharing_and_session_concurrency.sql'),
   source('app/api/lessons/[id]/share/route.ts'),
@@ -40,6 +42,8 @@ const [
   source('app/auth/confirm/verify/route.ts'),
   source('supabase/auth-templates/confirm-signup.html'),
   source('components/CookieConsent.tsx'),
+  source('components/SharedLessonAuthControls.tsx'),
+  source('components/ImportSharedLessonButton.tsx'),
 ]);
 
 requirePattern(migration, /alter table public\.lesson_shares enable row level security/, 'lesson_shares must have RLS enabled.');
@@ -63,13 +67,21 @@ requirePattern(publicPage, /supabase\.rpc\('get_lesson_share', \{ p_token: token
 requirePattern(publicPage, /mode="shared"/, 'the public page must use the read-only lesson preview.');
 requirePattern(publicPage, /robots: \{ index: false, follow: false \}/, 'capability links must not be indexed.');
 requirePattern(publicPage, /referrer: 'no-referrer'/, 'share tokens must not leak through browser referrers.');
-requirePattern(publicPage, /<SharedLessonAuthControls initialOpen=\{signin\} token=\{token\}/, 'the shared page must preserve its token through signup.');
+requirePattern(publicPage, /<SharedLessonAuthControls[\s\S]*initialOpen=\{signin\}[\s\S]*token=\{token\}/, 'the shared page must preserve its token through signup.');
+requirePattern(publicPage, /query\.import[\s\S]*autoImport = importRequested && Boolean\(authData\.user\)/, 'the shared page must auto-import only after authenticated return.');
+requirePattern(publicPage, /<ImportSharedLessonButton token=\{token\} autoImport=\{autoImport\}/, 'the shared page must pass authenticated import intent to the import button.');
 requirePattern(lessonPreview, /mode: 'teacher' \| 'student' \| 'shared'/, 'lesson preview must have an explicit shared read-only mode.');
 requirePattern(shareButton, /Neuvidí výsledky studentů, kódy hodin ani historii AI úprav/, 'the share dialog must explain its privacy boundary.');
 requirePattern(shareButton, /createPortal\([\s\S]*document\.body/, 'the share dialog must render through a body portal so workspace stacking contexts cannot cover it.');
 requirePattern(authControls, /emailRedirectTo: signupRedirectUrl\(\)/, 'signup must accept the shared lesson return URL.');
+requirePattern(sharedAuthControls, /window\.location\.replace\(`\/s\/\$\{token\}\?import=1`\)/, 'successful sign-in must resume the requested shared lesson import.');
+requirePattern(sharedAuthControls, /signupRedirectPath=\{`\/s\/\$\{token\}\$\{importRequested \? '\?import=1' : ''\}`\}/, 'signup confirmation must preserve shared lesson import intent.');
+requirePattern(importButton, /\?signin=1&import=1/, 'unauthenticated import must preserve intent through sign-in.');
+requirePattern(importButton, /autoImportStartedRef[\s\S]*void importLesson\(\)/, 'authenticated return must automatically continue the import exactly once per mount.');
+requirePattern(importButton, /router\.replace\(`\/lessons\/\$\{data\.lessonId\}`\)/, 'successful import should replace the transient share URL with the saved lesson.');
 requirePattern(confirmPage, /name="next"/, 'the confirmation interstitial must preserve the return URL.');
 requirePattern(confirmRoute, /SHARED_LESSON_PATH[\s\S]*destination\.origin !== requestOrigin/, 'the confirmation endpoint must restrict return URLs to same-origin share pages.');
+requirePattern(confirmRoute, /entries\.length === 1[\s\S]*entries\[0\]\[0\] === 'import'[\s\S]*entries\[0\]\[1\] === '1'/, 'the confirmation endpoint may preserve only the explicit import=1 share intent.');
 requirePattern(confirmTemplate, /\.SiteURL[\s\S]*next=\{\{ \.RedirectTo \}\}/, 'the signup email must carry the requested return URL through the safe confirmation endpoint.');
 requirePattern(cookieConsent, /LESSON_SHARE_PATH[\s\S]*analyticsBlocked[\s\S]*gaDisableKey/, 'GA4 must remain disabled on capability-bearing share URLs.');
 
