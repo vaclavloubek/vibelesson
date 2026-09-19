@@ -915,6 +915,52 @@ body:has(.teacher-live-shell) {
 .live-end { color: #ffb9bd !important; }
 
 /* Syllonaut contextual guide */
+.guide-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.guide-heading-row > h1,
+.guide-heading-row > h2 {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.syllonaut-guide-help-cluster {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.syllonaut-guide-help {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid rgba(91, 87, 232, .24);
+  border-radius: 999px;
+  background: rgba(91, 87, 232, .07);
+  color: #5652d9;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+.syllonaut-guide-help:hover {
+  border-color: rgba(91, 87, 232, .42);
+  background: rgba(91, 87, 232, .12);
+}
+.syllonaut-guide-help:focus-visible {
+  outline: 3px solid rgba(91, 87, 232, .28);
+  outline-offset: 2px;
+}
+.teacher-live-shell .syllonaut-guide-help {
+  border-color: rgba(139, 135, 255, .28);
+  background: rgba(113, 109, 241, .12);
+  color: #c9c7ff;
+}
 .syllonaut-guide-shade {
   position: fixed;
   z-index: 200;

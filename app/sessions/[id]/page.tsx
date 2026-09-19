@@ -56,14 +56,14 @@ async function loadOwnedSession(supabase: SupabaseServerClient, id: string, user
   throw lastError ?? new Error('Teacher session lookup failed.');
 }
 
-function teacherSurface(id: string) {
+function teacherSurface(id: string, userId: string | null) {
   return (
     <>
       <EvaluationBackgroundPump sessionId={id} />
       <TeacherSession sessionId={id} />
-      <TeacherScoreboardQuickAction sessionId={id} />
+      <TeacherScoreboardQuickAction sessionId={id} userId={userId} />
       <TeacherLiveTools sessionId={id} />
-      <SessionReport sessionId={id} />
+      <SessionReport sessionId={id} userId={userId} />
     </>
   );
 }
@@ -89,7 +89,7 @@ export default async function TeacherSessionPage({ params }: Props) {
       sessionId: id,
       authError: true,
     });
-    return teacherSurface(id);
+    return teacherSurface(id, resume?.userId ?? null);
   }
 
   let session: { id: string } | null = null;
@@ -98,10 +98,10 @@ export default async function TeacherSessionPage({ params }: Props) {
   } catch (error) {
     if (resume?.userId !== userId) throw error;
     console.warn('teacher live ownership lookup degraded; using resume ticket', { sessionId: id });
-    return teacherSurface(id);
+    return teacherSurface(id, userId);
   }
 
   if (!session) notFound();
-  return teacherSurface(id);
+  return teacherSurface(id, userId);
 }
 
