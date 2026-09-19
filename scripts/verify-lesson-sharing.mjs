@@ -24,6 +24,7 @@ const [
   confirmRoute,
   confirmTemplate,
   cookieConsent,
+  analytics,
   sharedAuthControls,
   importButton,
 ] = await Promise.all([
@@ -42,6 +43,7 @@ const [
   source('app/auth/confirm/verify/route.ts'),
   source('supabase/auth-templates/confirm-signup.html'),
   source('components/CookieConsent.tsx'),
+  source('lib/analytics.ts'),
   source('components/SharedLessonAuthControls.tsx'),
   source('components/ImportSharedLessonButton.tsx'),
 ]);
@@ -103,7 +105,11 @@ requirePattern(confirmPage, /name="next"/, 'the confirmation interstitial must p
 requirePattern(confirmRoute, /SHARED_LESSON_PATH[\s\S]*destination\.origin !== requestOrigin/, 'the confirmation endpoint must restrict return URLs to same-origin share pages.');
 requirePattern(confirmRoute, /entries\.length === 1[\s\S]*entries\[0\]\[0\] === 'import'[\s\S]*entries\[0\]\[1\] === '1'/, 'the confirmation endpoint may preserve only the explicit import=1 share intent.');
 requirePattern(confirmTemplate, /\.SiteURL[\s\S]*next=\{\{ \.RedirectTo \}\}/, 'the signup email must carry the requested return URL through the safe confirmation endpoint.');
-requirePattern(cookieConsent, /LESSON_SHARE_PATH[\s\S]*analyticsBlocked[\s\S]*gaDisableKey/, 'GA4 must remain disabled on capability-bearing share URLs.');
+requirePattern(cookieConsent, /send_page_view:\s*false/, 'share-capability analytics must never rely on raw automatic pageviews.');
+requirePattern(analytics, /TOKEN_PATH_SEGMENT[\s\S]*return ':token'/, 'share capability path segments must be redacted before analytics.');
+requirePattern(analytics, /page_location:\s*analyticsPageLocation\(\)/, 'share analytics events must override the raw capability URL with a sanitized page location.');
+requirePattern(importButton, /trackEvent\('shared_lesson_import_started'\)/, 'share import intent must be measured without sending the share token.');
+requirePattern(importButton, /trackEvent\('shared_lesson_imported'\)/, 'successful share import must be measured without sending the share token.');
 
 requirePattern(sessionRoute, /findActiveSession/, 'session creation must check for an existing live lesson.');
 requirePattern(sessionRoute, /activeSessionId/, 'the conflict response must identify the active lesson.');
