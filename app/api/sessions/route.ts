@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { generateJoinCode, generateRealtimeKey } from '@/lib/live-server';
 import { LessonSchema } from '@/lib/schema';
 import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-server';
@@ -25,6 +26,11 @@ async function findActiveSession(
 export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+
+  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (!deviceGate.allowed) {
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
 
   try {
     const { lessonId } = CreateSessionSchema.parse(await req.json());
