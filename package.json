@@ -17,8 +17,7 @@
     "check:security-headers": "node scripts/verify-security-headers.mjs",
     "check:accessibility": "node scripts/verify-accessibility.mjs",
     "ga4:setup": "node scripts/setup-ga4.mjs",
-    "ga4:setup:apply": "node scripts/setup-ga4.mjs --apply",
-    "postbuild": "node scripts/verify-lesson-sharing-live.mjs"
+    "ga4:setup:apply": "node scripts/setup-ga4.mjs --apply"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
