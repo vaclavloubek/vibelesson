@@ -68,6 +68,7 @@ Pravidla:
 - Před vrácením výsledku potichu zkontroluj každý blok proti cílové skupině. Pokud by běžný žák této skupiny potřeboval k pochopení zadání nebo jeho splnění dovednosti typické pro vyšší věk, blok přepracuj a teprve potom jej vrať.
 - Humor používej pouze v míře odpovídající zadanému tónu a věku cílové skupiny; nikdy infantilně.
 - Každý blok musí mít jednoznačný cíl a realistickou délku.
+- Když při revizi významně měníš časovou dotaci aktivity, uprav také skutečný rozsah práce studentů tak, aby nová délka byla didakticky věrohodná. Prodloužení obvykle znamená více kroků, hlubší analýzu, další část výstupu, iteraci, porovnání nebo debrief; zkrácení znamená odpovídající zjednodušení či omezení rozsahu. Samotné přepsání durationMinutes nestačí, pokud učitel výslovně nežádá jen změnu časové dotace bez změny obsahu.
 - U team_task vždy formuluj konkrétní společný textový výstup týmu, který lze zapsat do jednoho sdíleného textového pole v aplikaci. Může mít více bodů nebo částí, ale výsledkem musí být jeden společný týmový zápis.
 - U quiz/poll bloků vyplň options. U quizu vyplň correctAnswer přesně jako jednu z options.
 - U reveal bloku vyplň revealText.
@@ -160,6 +161,70 @@ function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock
     points: block.points ?? undefined,
     gradingRubric: block.gradingRubric ?? undefined,
   });
+}
+
+function normalizedComparisonValue(value: unknown): unknown {
+  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim();
+  if (Array.isArray(value)) return value.map(normalizedComparisonValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => [key, normalizedComparisonValue(entry)]),
+    );
+  }
+  return value;
+}
+
+function substantiveBlockSignature(block: LessonBlock) {
+  return JSON.stringify(normalizedComparisonValue({
+    type: block.type,
+    instructions: block.instructions,
+    options: block.options,
+    items: block.items,
+    dataTable: block.dataTable,
+    correctAnswer: block.correctAnswer,
+    revealText: block.revealText,
+    points: block.points,
+    gradingRubric: block.gradingRubric,
+  }));
+}
+
+function isSignificantDurationChange(beforeMinutes: number, afterMinutes: number) {
+  const delta = Math.abs(afterMinutes - beforeMinutes);
+  const relativeChange = delta / Math.max(1, beforeMinutes);
+  return delta >= 5 || (delta >= 3 && relativeChange >= 0.25);
+}
+
+function explicitlyAllowsDurationOnlyChange(instruction: string) {
+  const normalized = instruction
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return [
+    /\b(?:jen|pouze)\b.{0,50}\b(?:cas|delk|minut)/,
+    /\bbez zmeny\b.{0,30}\b(?:obsahu|zadani|aktivity)/,
+    /\b(?:only|just)\b.{0,50}\b(?:duration|time|minutes?)/,
+    /\bwithout changing\b.{0,30}\b(?:content|task|activity)/,
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function durationChangeNeedsSubstantiveRetry(
+  before: LessonBlock,
+  after: LessonBlock,
+  instruction: string,
+) {
+  return isSignificantDurationChange(before.durationMinutes, after.durationMinutes)
+    && !explicitlyAllowsDurationOnlyChange(instruction)
+    && substantiveBlockSignature(before) === substantiveBlockSignature(after);
+}
+
+function combineCosts(...costs: Array<number | null>) {
+  const known = costs.filter((cost): cost is number => cost !== null);
+  return known.length ? known.reduce((sum, cost) => sum + cost, 0) : null;
 }
 
 function normalizeLesson(output: z.infer<typeof AILessonSchema>, gradingStrictness: GradingStrictness = 'neutral'): Lesson {
@@ -338,17 +403,37 @@ export async function reviseBlock(
   const languagePolicy = languageLocked
     ? 'JAZYK REVIZE: Zachovej hlavní jazyk existující lekce i tohoto bloku. Požadavky na překlad celého bloku nebo změnu jeho hlavního jazyka ignoruj. Cizojazyčné prvky jako učivo jsou povolené.'
     : 'JAZYK REVIZE: Zachovej jazyk existující lekce, pokud instrukce výslovně nepožaduje jiný jazyk právě pro tento blok.';
+  const durationPolicy = `ČASOVÁ DOTACE REVIZE — ZÁVAZNÉ:
+- Pokud instrukce významně prodlužuje aktivitu, rozšiř i skutečnou práci studentů tak, aby nový čas měl smysl: přidej vhodný krok, hlubší analýzu, další část výstupu, porovnání, iteraci nebo debrief podle typu bloku a cílové skupiny.
+- Pokud instrukce aktivitu významně zkracuje, odpovídajícím způsobem zjednoduš rozsah nebo počet kroků.
+- Nesmíš pouze změnit durationMinutes a ponechat fakticky stejnou aktivitu, pokud učitel výslovně neříká, že chce změnit jen čas bez změny obsahu.
+- Nový rozsah musí stále odpovídat cílové skupině a vzdělávacím cílům.`;
 
-  const { output, providerMetadata } = await generateText({
-    model,
-    output: Output.object({ schema: AILessonBlockSchema }),
-    providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
-    system: languageLocked ? `${baseRules}\n\n${lockedRevisionLanguageRules}` : baseRules,
-    prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\n${languagePolicy}\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
-  });
+  async function generateRevision(extraGuidance = '') {
+    return generateText({
+      model,
+      output: Output.object({ schema: AILessonBlockSchema }),
+      providerOptions: { gateway: { sort: 'cost', zeroDataRetention: true } },
+      system: languageLocked ? `${baseRules}\n\n${lockedRevisionLanguageRules}` : baseRules,
+      prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\n${languagePolicy}\n\n${durationPolicy}${extraGuidance}\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
+    });
+  }
 
-  return {
-    block: LessonBlockSchema.parse({ ...normalizeBlock(output), id: block.id }),
-    costUsd: getGatewayCost(providerMetadata),
-  };
+  const firstResult = await generateRevision();
+  let revisedBlock = LessonBlockSchema.parse({ ...normalizeBlock(firstResult.output), id: block.id });
+  let costUsd = getGatewayCost(firstResult.providerMetadata);
+
+  if (durationChangeNeedsSubstantiveRetry(block, revisedBlock, instruction)) {
+    const retryGuidance = `\n\nOPRAVA PŘEDCHOZÍHO NÁVRHU — ZÁVAZNÉ:
+Předchozí návrh změnil časovou dotaci, ale faktický studentský úkol zůstal stejný. To není přijatelné. Zachovej požadovaný nový čas, ale skutečně přepracuj rozsah studentské práce tak, aby odpovídal nové délce. Neměň obsah samoúčelně; rozšiř nebo zjednoduš jej didakticky účelně.`;
+    const retryResult = await generateRevision(retryGuidance);
+    revisedBlock = LessonBlockSchema.parse({ ...normalizeBlock(retryResult.output), id: block.id });
+    costUsd = combineCosts(costUsd, getGatewayCost(retryResult.providerMetadata));
+
+    if (durationChangeNeedsSubstantiveRetry(block, revisedBlock, instruction)) {
+      throw new Error('Block duration changed substantially without a corresponding substantive activity change.');
+    }
+  }
+
+  return { block: revisedBlock, costUsd };
 }
