@@ -111,6 +111,18 @@ function statusLabel(
   return english ? labels[status][1] : labels[status][0];
 }
 
+function roleLabel(
+  role: Summary['role'],
+  english: boolean,
+) {
+  const labels: Record<Summary['role'], [string, string]> = {
+    owner: ['Vlastník', 'Owner'],
+    admin: ['Administrátor', 'Administrator'],
+    teacher: ['Učitel', 'Teacher'],
+  };
+  return english ? labels[role][1] : labels[role][0];
+}
+
 export default function SchoolAdmin({
   locale,
   initialPlan,
@@ -1110,103 +1122,132 @@ export default function SchoolAdmin({
                 <h2>{ui('Školní knihovna', 'School library')}</h2>
                 <p>
                   {ui(
-                    'Publikovaná lekce se ukládá jako samostatný snapshot. Vaše osobní lekce zůstává vaše.',
-                    'A published lesson is stored as a separate snapshot. Your personal lesson remains yours.',
+                    'Společné místo pro lekce, které členové školy předali škole jako samostatné kopie.',
+                    'A shared place for lessons that school members have contributed as separate copies.',
                   )}
                 </p>
 
-                {summary.status === 'active' && summary.ownLessons.length ? (
-                  <div className={styles.form} style={{ marginTop: 14 }}>
-                    <div className={styles.field}>
-                      <label>{ui('Moje lekce', 'My lessons')}</label>
-                      <select
-                        value={libraryLessonId}
-                        onChange={(event) => setLibraryLessonId(event.target.value)}
-                      >
-                        <option value="">{ui('Vyberte lekci…', 'Choose a lesson…')}</option>
-                        {summary.ownLessons.map((lesson) => (
-                          <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className={styles.field}>
-                      <label>&nbsp;</label>
-                      <button
-                        type="button"
-                        className={styles.primary}
-                        disabled={busy || !libraryLessonId}
-                        onClick={publishLibraryLesson}
-                      >
-                        {ui('Publikovat do školy', 'Publish to school')}
-                      </button>
-                    </div>
+                {summary.status === 'active' ? (
+                  <div className={styles.planNote} style={{ marginTop: 16 }}>
+                    <strong>{ui('Přidat lekci do školní knihovny', 'Add a lesson to the school library')}</strong>
+                    <p>
+                      {ui(
+                        'Vyberte jednu ze svých lekcí. Do školní knihovny se uloží její samostatná kopie; vaše původní lekce zůstane nezměněná.',
+                        'Choose one of your lessons. A separate copy will be stored in the school library; your original lesson stays unchanged.',
+                      )}
+                    </p>
+
+                    {summary.ownLessons.length ? (
+                      <div className={styles.form} style={{ marginTop: 14 }}>
+                        <div className={styles.field}>
+                          <label>{ui('Moje lekce', 'My lessons')}</label>
+                          <select
+                            value={libraryLessonId}
+                            onChange={(event) => setLibraryLessonId(event.target.value)}
+                          >
+                            <option value="">{ui('Vyberte lekci…', 'Choose a lesson…')}</option>
+                            {summary.ownLessons.map((lesson) => (
+                              <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className={styles.field}>
+                          <label>&nbsp;</label>
+                          <button
+                            type="button"
+                            className={styles.primary}
+                            disabled={busy || !libraryLessonId}
+                            onClick={publishLibraryLesson}
+                          >
+                            {ui('Přidat kopii do školní knihovny', 'Add copy to school library')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className={styles.muted}>
+                        {ui(
+                          'Zatím nemáte žádnou vlastní lekci, kterou by bylo možné do školy přidat.',
+                          'You do not have a personal lesson to add yet.',
+                        )}
+                      </p>
+                    )}
                   </div>
                 ) : null}
 
-                {summary.library.length ? (
-                  <div className={styles.tableWrap}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>{ui('Lekce', 'Lesson')}</th>
-                          <th>{ui('Publikoval', 'Published by')}</th>
-                          <th>{ui('Datum', 'Date')}</th>
-                          <th>{ui('Akce', 'Actions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {summary.library.map((entry) => {
-                          const publisher = summary.members.find(
-                            (member) => member.userId === entry.published_by,
-                          );
-                          const canRemove = summary.manager
-                            || entry.published_by === initialUser.id;
-                          return (
-                            <tr key={entry.id}>
-                              <td>{entry.title}</td>
-                              <td>{publisher?.email ?? '—'}</td>
-                              <td>{new Date(entry.created_at).toLocaleDateString(
-                                english ? 'en-GB' : 'cs-CZ',
-                              )}</td>
-                              <td>
-                                <div className={styles.rowActions}>
-                                  <button
-                                    type="button"
-                                    className={styles.secondary}
-                                    disabled={busy || summary.status !== 'active'}
-                                    onClick={() => importLibraryLesson(entry.id)}
-                                    title={summary.status === 'active'
-                                      ? undefined
-                                      : ui(
-                                        'Import je dostupný pouze s aktivní školní licencí.',
-                                        'Import is available only with an active school licence.',
-                                      )}
-                                  >
-                                    {ui('Vytvořit vlastní kopii', 'Create my copy')}
-                                  </button>
-                                  {canRemove ? (
+                <div style={{ marginTop: 22 }}>
+                  <h3>{ui('Lekce ve školní knihovně', 'Lessons in the school library')}</h3>
+                  <p className={styles.muted}>
+                    {ui(
+                      'Každý člen školy si může ze školní lekce vytvořit vlastní nezávislou kopii.',
+                      'Each school member can create an independent personal copy from a school lesson.',
+                    )}
+                  </p>
+
+                  {summary.library.length ? (
+                    <div className={styles.tableWrap}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th>{ui('Lekce', 'Lesson')}</th>
+                            <th>{ui('Přidal', 'Added by')}</th>
+                            <th>{ui('Datum', 'Date')}</th>
+                            <th>{ui('Akce', 'Actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summary.library.map((entry) => {
+                            const publisher = summary.members.find(
+                              (member) => member.userId === entry.published_by,
+                            );
+                            const canRemove = summary.manager
+                              || entry.published_by === initialUser.id;
+                            return (
+                              <tr key={entry.id}>
+                                <td>{entry.title}</td>
+                                <td>{publisher?.email ?? '—'}</td>
+                                <td>{new Date(entry.created_at).toLocaleDateString(
+                                  english ? 'en-GB' : 'cs-CZ',
+                                )}</td>
+                                <td>
+                                  <div className={styles.rowActions}>
                                     <button
                                       type="button"
-                                      className={styles.danger}
-                                      disabled={busy}
-                                      onClick={() => removeLibraryLesson(entry.id)}
+                                      className={styles.secondary}
+                                      disabled={busy || summary.status !== 'active'}
+                                      onClick={() => importLibraryLesson(entry.id)}
+                                      title={summary.status === 'active'
+                                        ? undefined
+                                        : ui(
+                                          'Import je dostupný pouze s aktivní školní licencí.',
+                                          'Import is available only with an active school licence.',
+                                        )}
                                     >
-                                      {ui('Odebrat', 'Remove')}
+                                      {ui('Vytvořit vlastní kopii', 'Create my copy')}
                                     </button>
-                                  ) : null}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className={styles.muted}>
-                    {ui('Školní knihovna je zatím prázdná.', 'The school library is empty.')}
-                  </p>
-                )}
+                                    {canRemove ? (
+                                      <button
+                                        type="button"
+                                        className={styles.danger}
+                                        disabled={busy}
+                                        onClick={() => removeLibraryLesson(entry.id)}
+                                      >
+                                        {ui('Odebrat', 'Remove')}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className={styles.muted}>
+                      {ui('Školní knihovna je zatím prázdná.', 'The school library is empty.')}
+                    </p>
+                  )}
+                </div>
               </section>
             ) : null}
 
@@ -1291,7 +1332,7 @@ export default function SchoolAdmin({
                           {member.email
                             ?? (member.userId === initialUser.id ? initialUser.email : '—')}
                         </td>
-                        <td>{member.role}</td>
+                        <td>{roleLabel(member.role, english)}</td>
                         {summary.manager ? (
                           <td>
                             <div className={styles.rowActions}>
