@@ -25,7 +25,7 @@ const [
   confirmTemplate,
   cookieConsent,
 ] = await Promise.all([
-  source('supabase/migrations/20260919111000_add_lesson_sharing_and_session_concurrency.sql'),
+  source('supabase/migrations/20260919105631_add_lesson_sharing_and_session_concurrency.sql'),
   source('app/api/lessons/[id]/share/route.ts'),
   source('app/api/lesson-shares/[token]/import/route.ts'),
   source('app/s/[token]/page.tsx'),
