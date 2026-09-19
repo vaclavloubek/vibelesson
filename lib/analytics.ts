@@ -64,6 +64,10 @@ type AnalyticsEventParameters = {
     source: 'pricing_sandbox' | 'pricing_live_acceptance';
   };
   checkout_complete: { source: 'stripe_sandbox' | 'stripe_live_acceptance' };
+  subscription_activated: {
+    plan: 'teacher' | 'teacher-pro';
+    source: 'stripe_live';
+  };
   billing_portal_open: { source: 'pricing_sandbox' | 'pricing_live_acceptance' };
 
   signup_started: undefined;
@@ -142,6 +146,7 @@ const EVENT_PARAMETER_KEYS: { [K in AnalyticsEventName]: readonly (keyof NonNull
   plan_select: ['plan', 'billing_period', 'source'],
   checkout_start: ['plan', 'billing_period', 'billing_country', 'source'],
   checkout_complete: ['source'],
+  subscription_activated: ['plan', 'source'],
   billing_portal_open: ['source'],
 
   signup_started: [],
