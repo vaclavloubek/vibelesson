@@ -1,0 +1,40 @@
+name: Verify public Supabase project ref
+
+on:
+  push:
+    branches:
+      - feature/lesson-sharing-0.9.20
+    paths:
+      - .github/workflows/verify-public-supabase-ref.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ref:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract only public Supabase project ref from production runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://www.syllonaut.com"
+          curl -sS -L --fail --max-time 20 "$BASE/cs" -o /tmp/page.html
+          mkdir -p /tmp/chunks
+          grep -oE 'src="[^"]+\.js[^"]*"' /tmp/page.html             | sed -E 's/^src="//; s/"$//'             | sort -u > /tmp/scripts.txt || true
+          while IFS= read -r src; do
+            [ -n "$src" ] || continue
+            case "$src" in
+              http://*|https://*) url="$src" ;;
+              *) url="$BASE$src" ;;
+            esac
+            name="$(printf '%s' "$src" | sha256sum | cut -d' ' -f1)"
+            curl -sS -L --fail --max-time 20 "$url" -o "/tmp/chunks/$name.js" || true
+          done < /tmp/scripts.txt
+          refs="$(
+            (cat /tmp/page.html /tmp/chunks/*.js 2>/dev/null || true)               | grep -oE 'https://[a-z0-9]{20}\.supabase\.co'               | sed -E 's#https://([a-z0-9]{20})\.supabase\.co#\1#'               | sort -u
+          )"
+          count="$(printf '%s\n' "$refs" | sed '/^$/d' | wc -l | tr -d ' ')"
+          echo "SUPABASE_REF_COUNT=$count"
+          printf '%s\n' "$refs" | sed '/^$/d' | sed 's/^/SUPABASE_PROJECT_REF=/'
+          test "$count" -eq 1
