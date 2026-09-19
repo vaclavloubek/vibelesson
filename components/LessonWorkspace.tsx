@@ -786,7 +786,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">{ui('AI úprava celé lekce', 'AI edit · whole lesson')}</span>
               <div className="guide-heading-row">
                 <h2>{ui('Uprav celou lekci', 'Edit the whole lesson')}</h2>
-                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={2} labelCs="Jak upravit celou lekci" labelEn="How to edit the whole lesson" />
+                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={3} labelCs="Jak upravit celou lekci" labelEn="How to edit the whole lesson" />
               </div>
               <form onSubmit={revise}>
                 <label>
@@ -811,7 +811,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
               <div className="guide-heading-row">
                 <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
-                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={selectedBlock ? 4 : 3} labelCs="Jak upravit jednu aktivitu" labelEn="How to edit one activity" />
+                <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={selectedBlock ? 5 : 4} labelCs="Jak upravit jednu aktivitu" labelEn="How to edit one activity" />
               </div>
               {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
               {revisionLanguageNotice === 'activity' ? (
@@ -829,7 +829,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           {error ? <div className="error" role="alert">{error}</div> : null}
         </section>
 
-        <section className="stage">
+        <section className="stage" data-tour={lesson ? "lesson-review" : undefined}>
           {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={setSelectedBlockId} onEditBlock={editBlock} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>

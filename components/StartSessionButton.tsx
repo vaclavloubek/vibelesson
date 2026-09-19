@@ -54,7 +54,7 @@ export default function StartSessionButton({ lessonId, userId }: { lessonId: str
         </button>
       ) : null}
       <div className="syllonaut-guide-help-cluster">
-        <GuideHelpButton userId={userId} chapter="lesson" step={5} labelCs="Jak spustit hodinu" labelEn="How to start a lesson" />
+        <GuideHelpButton userId={userId} chapter="lesson" step={6} labelCs="Jak spustit hodinu" labelEn="How to start a lesson" />
         <button type="button" className="primary" data-tour="lesson-start" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
       </div>
     </div>
