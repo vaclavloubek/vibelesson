@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
@@ -31,6 +31,7 @@ type Summary = {
   role: 'owner' | 'admin' | 'teacher';
   manager: boolean;
   renewalMode: 'automatic_card' | 'manual_invoice';
+  isInternalTest: boolean;
   cancelAtPeriodEnd: boolean;
   pastDueAt: string | null;
   currentPeriodEnd: string | null;
@@ -42,6 +43,24 @@ type Summary = {
     revisionLimit: number;
     shared: true;
   };
+  usageByMember: Array<{
+    userId: string;
+    email: string | null;
+    lessonUsed: number;
+    revisionUsed: number;
+  }>;
+  libraryEnabled: boolean;
+  library: Array<{
+    id: string;
+    title: string;
+    published_by: string | null;
+    created_at: string;
+  }>;
+  ownLessons: Array<{
+    id: string;
+    title: string;
+    updated_at: string;
+  }>;
   members: Array<{
     userId: string;
     email: string | null;
@@ -131,6 +150,11 @@ export default function SchoolAdmin({
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'teacher' | 'admin'>('teacher');
+  const [bulkInviteEntries, setBulkInviteEntries] = useState<Array<{
+    email: string;
+    role: 'teacher' | 'admin';
+  }>>([]);
+  const [libraryLessonId, setLibraryLessonId] = useState('');
 
   const load = useCallback(async () => {
     if (!initialUser) {
@@ -162,6 +186,61 @@ export default function SchoolAdmin({
     () => '/school?plan=' + planCode + '&billing=' + billingPeriod,
     [billingPeriod, planCode],
   );
+
+  async function downloadQuote() {
+    if (!name.trim()) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Nejdřív vyplňte název školy nebo týmu.',
+        'Enter the school or team name first.',
+      ));
+      return;
+    }
+
+    setBusy(true);
+    setMessage('');
+
+    const response = await fetch('/api/organizations/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        legalName,
+        registrationNumber,
+        vatId,
+        billingCountry,
+        billingAddress: {
+          line1: addressLine1,
+          city,
+          postalCode,
+        },
+        planCode,
+        billingPeriod,
+        locale,
+      }),
+    });
+
+    if (!response.ok) {
+      setBusy(false);
+      setMessageKind('error');
+      setMessage(ui(
+        'Cenovou nabídku se nepodařilo vytvořit.',
+        'The price quote could not be created.',
+      ));
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'syllonaut-nabidka-' + planCode + '.pdf';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setBusy(false);
+  }
 
   async function createOrder(event: FormEvent) {
     event.preventDefault();
@@ -387,6 +466,180 @@ export default function SchoolAdmin({
           'Invitation created, but email delivery failed. Link: ' + (payload.invitationUrl ?? ''),
         ),
     );
+    await load();
+  }
+
+  async function handleBulkInviteFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setBulkInviteEntries([]);
+      return;
+    }
+
+    const text = await file.text();
+    const entries: Array<{ email: string; role: 'teacher' | 'admin' }> = [];
+    const seen = new Set<string>();
+
+    for (const rawLine of text.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const cells = line.split(/[;,]/).map((value) => value.trim());
+      const email = (cells[0] ?? '').toLowerCase();
+      if (!email || email === 'email' || email === 'e-mail' || seen.has(email)) continue;
+      const roleCell = (cells[1] ?? '').toLowerCase();
+      const role = ['admin', 'administrator', 'administrátor'].includes(roleCell)
+        ? 'admin'
+        : 'teacher';
+      seen.add(email);
+      entries.push({ email, role });
+    }
+
+    setBulkInviteEntries(entries.slice(0, 100));
+    setMessageKind('info');
+    setMessage(ui(
+      'Načteno adres: ' + Math.min(entries.length, 100) + '.',
+      'Loaded addresses: ' + Math.min(entries.length, 100) + '.',
+    ));
+  }
+
+  async function sendBulkInvites() {
+    if (!bulkInviteEntries.length) return;
+    setBusy(true);
+    setMessage('');
+
+    const response = await fetch('/api/organizations/invitations/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: bulkInviteEntries }),
+    });
+    const payload = await response.json().catch(() => ({})) as {
+      invited?: string[];
+      failed?: Array<{ email: string; error: string }>;
+    };
+    setBusy(false);
+
+    const invitedCount = payload.invited?.length ?? 0;
+    const failedCount = payload.failed?.length ?? 0;
+
+    if (!response.ok && invitedCount === 0) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Hromadné pozvánky se nepodařilo odeslat.',
+        'Bulk invitations could not be sent.',
+      ));
+      return;
+    }
+
+    setBulkInviteEntries([]);
+    setMessageKind(failedCount ? 'error' : 'info');
+    setMessage(ui(
+      'Odesláno: ' + invitedCount + (failedCount ? ', neodesláno: ' + failedCount : '') + '.',
+      'Sent: ' + invitedCount + (failedCount ? ', failed: ' + failedCount : '') + '.',
+    ));
+    await load();
+  }
+
+  async function transferOwner(newOwnerUserId: string, email: string | null) {
+    if (!window.confirm(ui(
+      'Převést vlastnictví školy na ' + (email ?? newOwnerUserId) + '? Váš účet zůstane administrátorem.',
+      'Transfer school ownership to ' + (email ?? newOwnerUserId) + '? Your account will remain an administrator.',
+    ))) return;
+
+    setBusy(true);
+    const response = await fetch('/api/organizations/owner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newOwnerUserId }),
+    });
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Vlastnictví školy se nepodařilo převést.',
+        'School ownership could not be transferred.',
+      ));
+      return;
+    }
+
+    setMessageKind('info');
+    setMessage(ui('Vlastnictví školy bylo převedeno.', 'School ownership was transferred.'));
+    await load();
+  }
+
+  async function publishLibraryLesson() {
+    if (!libraryLessonId) return;
+    setBusy(true);
+    setMessage('');
+
+    const response = await fetch('/api/organizations/library', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lessonId: libraryLessonId }),
+    });
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(payload.error === 'lesson_already_in_school_library'
+        ? ui('Tato lekce už ve školní knihovně je.', 'This lesson is already in the school library.')
+        : ui('Lekci se nepodařilo publikovat do školy.', 'The lesson could not be published to the school.'));
+      return;
+    }
+
+    setLibraryLessonId('');
+    setMessageKind('info');
+    setMessage(ui('Lekce byla přidána do školní knihovny.', 'Lesson added to the school library.'));
+    await load();
+  }
+
+  async function importLibraryLesson(entryId: string) {
+    setBusy(true);
+    const response = await fetch(
+      '/api/organizations/library/' + encodeURIComponent(entryId) + '/import',
+      { method: 'POST' },
+    );
+    const payload = await response.json().catch(() => ({})) as {
+      error?: string;
+      lessonId?: string;
+    };
+    setBusy(false);
+
+    if (!response.ok || !payload.lessonId) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Kopii lekce se nepodařilo uložit.',
+        'The lesson copy could not be saved.',
+      ));
+      return;
+    }
+
+    router.push('/lessons/' + payload.lessonId);
+  }
+
+  async function removeLibraryLesson(entryId: string) {
+    if (!window.confirm(ui(
+      'Odebrat tuto lekci ze školní knihovny? Kopie, které si už učitelé importovali, zůstanou zachované.',
+      'Remove this lesson from the school library? Copies already imported by teachers will remain.',
+    ))) return;
+
+    setBusy(true);
+    const response = await fetch(
+      '/api/organizations/library/' + encodeURIComponent(entryId),
+      { method: 'DELETE' },
+    );
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Lekci se nepodařilo odebrat ze školní knihovny.',
+        'The lesson could not be removed from the school library.',
+      ));
+      return;
+    }
+
     await load();
   }
 
@@ -654,11 +907,21 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.full}>
-                <button className={styles.primary} type="submit" disabled={busy}>
-                  {busy
-                    ? ui('Zakládám…', 'Creating…')
-                    : ui('Pokračovat k platbě', 'Continue to payment')}
-                </button>
+                <div className={styles.rowActions}>
+                  <button className={styles.primary} type="submit" disabled={busy}>
+                    {busy
+                      ? ui('Zakládám…', 'Creating…')
+                      : ui('Pokračovat k platbě', 'Continue to payment')}
+                  </button>
+                  <button
+                    className={styles.secondary}
+                    type="button"
+                    disabled={busy || !name.trim()}
+                    onClick={downloadQuote}
+                  >
+                    {ui('Stáhnout cenovou nabídku PDF', 'Download price quote PDF')}
+                  </button>
+                </div>
               </div>
             </form>
           </section>
@@ -666,19 +929,25 @@ export default function SchoolAdmin({
           <div className={styles.grid}>
             <section className={styles.card}>
               <span className={styles.status}>
+                {summary.isInternalTest ? ui('INTERNÍ TEST · ', 'INTERNAL TEST · ') : ''}
                 {summary.planCode.toUpperCase()} · {statusLabel(summary.status, english)}
               </span>
               <h2 style={{ marginTop: 14 }}>{ui('Licence', 'Licence')}</h2>
               <p>
-                {summary.status === 'active'
+                {summary.isInternalTest
                   ? ui(
-                    'Licence je zaplacená a školní entitlementy jsou aktivní.',
-                    'The licence is paid and school entitlements are active.',
+                    'Interní testovací Campus je trvale aktivní a není napojený na fakturaci. Slouží k ověřování školních funkcí.',
+                    'The internal test Campus is permanently active and is not connected to billing. It is used to verify school features.',
                   )
-                  : ui(
-                    'Placené školní entitlementy nejsou aktivní. AI se zatím čerpá pouze z osobního tarifu každého uživatele.',
-                    'Paid school entitlements are not active. AI currently uses only each user’s personal plan.',
-                  )}
+                  : summary.status === 'active'
+                    ? ui(
+                      'Licence je zaplacená a školní entitlementy jsou aktivní.',
+                      'The licence is paid and school entitlements are active.',
+                    )
+                    : ui(
+                      'Placené školní entitlementy nejsou aktivní. AI se zatím čerpá pouze z osobního tarifu každého uživatele.',
+                      'Paid school entitlements are not active. AI currently uses only each user’s personal plan.',
+                    )}
               </p>
 
               {summary.status === 'awaiting_payment' ? (
@@ -721,7 +990,7 @@ export default function SchoolAdmin({
                 </p>
               ) : null}
 
-              {summary.manager && summary.renewalMode === 'automatic_card' && summary.status === 'active' ? (
+              {!summary.isInternalTest && summary.manager && summary.renewalMode === 'automatic_card' && summary.status === 'active' ? (
                 <div className={styles.planNote} style={{ marginTop: 14 }}>
                   <strong>{ui('Obnovení', 'Renewal')}</strong>
                   <p>
@@ -748,7 +1017,7 @@ export default function SchoolAdmin({
                 </div>
               ) : null}
 
-              {summary.manager && summary.renewalMode === 'manual_invoice'
+              {!summary.isInternalTest && summary.manager && summary.renewalMode === 'manual_invoice'
                 && ['active', 'past_due', 'expired'].includes(summary.status) ? (
                 <div className={styles.planNote} style={{ marginTop: 14 }}>
                   <strong>{ui('Obnovení na fakturu', 'Invoice renewal')}</strong>
@@ -794,7 +1063,152 @@ export default function SchoolAdmin({
                   'AI counters are shared across the whole active organization licence.',
                 )}
               </p>
+              {summary.isInternalTest ? (
+                <p className={styles.muted}>
+                  {ui(
+                    'Tvůj interní admin účet zůstává neomezený a tento školní AI pool nečerpá. Přizvané běžné účty Campus pool čerpají standardně.',
+                    'Your internal admin account remains unlimited and does not consume this school AI pool. Invited regular accounts use the Campus pool normally.',
+                  )}
+                </p>
+              ) : null}
             </section>
+
+            {summary.manager && summary.usageByMember.length ? (
+              <section className={styles.card + ' ' + styles.wide}>
+                <h2>{ui('Využití AI podle uživatelů', 'AI usage by user')}</h2>
+                <p className={styles.muted}>
+                  {ui(
+                    'Pouze agregované počty za aktuální měsíc. Obsah promptů ani lekcí se administrátorovi nezobrazuje.',
+                    'Aggregated counts for the current month only. Prompt and lesson content is never shown to administrators.',
+                  )}
+                </p>
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>E-mail</th>
+                        <th>{ui('AI lekce', 'AI lessons')}</th>
+                        <th>{ui('AI úpravy', 'AI edits')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.usageByMember.map((usage) => (
+                        <tr key={usage.userId}>
+                          <td>{usage.email ?? '—'}</td>
+                          <td>{usage.lessonUsed}</td>
+                          <td>{usage.revisionUsed}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
+
+            {summary.libraryEnabled ? (
+              <section className={styles.card + ' ' + styles.wide}>
+                <h2>{ui('Školní knihovna', 'School library')}</h2>
+                <p>
+                  {ui(
+                    'Publikovaná lekce se ukládá jako samostatný snapshot. Vaše osobní lekce zůstává vaše.',
+                    'A published lesson is stored as a separate snapshot. Your personal lesson remains yours.',
+                  )}
+                </p>
+
+                {summary.status === 'active' && summary.ownLessons.length ? (
+                  <div className={styles.form} style={{ marginTop: 14 }}>
+                    <div className={styles.field}>
+                      <label>{ui('Moje lekce', 'My lessons')}</label>
+                      <select
+                        value={libraryLessonId}
+                        onChange={(event) => setLibraryLessonId(event.target.value)}
+                      >
+                        <option value="">{ui('Vyberte lekci…', 'Choose a lesson…')}</option>
+                        {summary.ownLessons.map((lesson) => (
+                          <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.field}>
+                      <label>&nbsp;</label>
+                      <button
+                        type="button"
+                        className={styles.primary}
+                        disabled={busy || !libraryLessonId}
+                        onClick={publishLibraryLesson}
+                      >
+                        {ui('Publikovat do školy', 'Publish to school')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {summary.library.length ? (
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>{ui('Lekce', 'Lesson')}</th>
+                          <th>{ui('Publikoval', 'Published by')}</th>
+                          <th>{ui('Datum', 'Date')}</th>
+                          <th>{ui('Akce', 'Actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.library.map((entry) => {
+                          const publisher = summary.members.find(
+                            (member) => member.userId === entry.published_by,
+                          );
+                          const canRemove = summary.manager
+                            || entry.published_by === initialUser.id;
+                          return (
+                            <tr key={entry.id}>
+                              <td>{entry.title}</td>
+                              <td>{publisher?.email ?? '—'}</td>
+                              <td>{new Date(entry.created_at).toLocaleDateString(
+                                english ? 'en-GB' : 'cs-CZ',
+                              )}</td>
+                              <td>
+                                <div className={styles.rowActions}>
+                                  <button
+                                    type="button"
+                                    className={styles.secondary}
+                                    disabled={busy || summary.status !== 'active'}
+                                    onClick={() => importLibraryLesson(entry.id)}
+                                    title={summary.status === 'active'
+                                      ? undefined
+                                      : ui(
+                                        'Import je dostupný pouze s aktivní školní licencí.',
+                                        'Import is available only with an active school licence.',
+                                      )}
+                                  >
+                                    {ui('Vytvořit vlastní kopii', 'Create my copy')}
+                                  </button>
+                                  {canRemove ? (
+                                    <button
+                                      type="button"
+                                      className={styles.danger}
+                                      disabled={busy}
+                                      onClick={() => removeLibraryLesson(entry.id)}
+                                    >
+                                      {ui('Odebrat', 'Remove')}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className={styles.muted}>
+                    {ui('Školní knihovna je zatím prázdná.', 'The school library is empty.')}
+                  </p>
+                )}
+              </section>
+            ) : null}
 
             {summary.manager ? (
               <section className={styles.card + ' ' + styles.wide}>
@@ -827,6 +1241,35 @@ export default function SchoolAdmin({
                     </button>
                   </div>
                 </form>
+
+                <div className={styles.planNote} style={{ marginTop: 18 }}>
+                  <strong>{ui('Hromadně z CSV', 'Bulk CSV invite')}</strong>
+                  <p>
+                    {ui(
+                      'První sloupec: e-mail. Volitelný druhý sloupec: teacher/admin. Maximum 100 řádků.',
+                      'First column: email. Optional second column: teacher/admin. Maximum 100 rows.',
+                    )}
+                  </p>
+                  <div className={styles.rowActions}>
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      onChange={handleBulkInviteFile}
+                      disabled={busy}
+                    />
+                    <button
+                      type="button"
+                      className={styles.secondary}
+                      disabled={busy || bulkInviteEntries.length === 0}
+                      onClick={sendBulkInvites}
+                    >
+                      {ui(
+                        'Odeslat ' + bulkInviteEntries.length + ' pozvánek',
+                        'Send ' + bulkInviteEntries.length + ' invitations',
+                      )}
+                    </button>
+                  </div>
+                </div>
               </section>
             ) : null}
 
@@ -875,6 +1318,16 @@ export default function SchoolAdmin({
                                   >
                                     {ui('Odebrat', 'Remove')}
                                   </button>
+                                  {summary.role === 'owner' && !summary.isInternalTest ? (
+                                    <button
+                                      type="button"
+                                      className={styles.secondary}
+                                      disabled={busy}
+                                      onClick={() => transferOwner(member.userId, member.email)}
+                                    >
+                                      {ui('Převést vlastnictví', 'Transfer ownership')}
+                                    </button>
+                                  ) : null}
                                 </>
                               ) : null}
                             </div>
@@ -895,7 +1348,19 @@ export default function SchoolAdmin({
               ) : null}
             </section>
 
-            {summary.manager ? (
+            {summary.manager && summary.isInternalTest ? (
+              <section className={styles.card + ' ' + styles.wide}>
+                <h2>{ui('Testovací organizace', 'Test organization')}</h2>
+                <p>
+                  {ui(
+                    'Tato organizace je záměrně mimo objednávky, Stripe, faktury, expiraci a převod vlastnictví. Všechny funkční entitlementy odpovídají tarifu Campus.',
+                    'This organization is intentionally excluded from ordering, Stripe, invoices, expiry and ownership transfer. All functional entitlements match the Campus plan.',
+                  )}
+                </p>
+              </section>
+            ) : null}
+
+            {summary.manager && !summary.isInternalTest ? (
               <section className={styles.card + ' ' + styles.wide}>
                 <h2>{ui('Objednávky a fakturace', 'Orders and billing')}</h2>
                 {summary.orders.length === 0 ? (

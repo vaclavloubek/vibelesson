@@ -18,6 +18,9 @@ export async function POST() {
   if (!organization || !canManageOrganization(organization.role)) {
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
+  if (organization.isInternalTest) {
+    return NextResponse.json({ error: 'internal_test_organization_not_billable' }, { status: 409 });
+  }
 
   const admin = createAdminClient();
   const { data: organizationRow, error: organizationError } = await admin

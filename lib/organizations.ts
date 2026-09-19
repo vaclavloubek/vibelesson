@@ -26,6 +26,7 @@ export type CurrentOrganization = {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   renewalMode: 'automatic_card' | 'manual_invoice';
+  isInternalTest: boolean;
   role: OrganizationRole;
 };
 
@@ -45,7 +46,7 @@ export async function getCurrentOrganizationForUser(userId: string): Promise<Cur
   const { data: organization, error: organizationError } = await admin
     .from('organizations')
     .select(
-      'id, name, legal_name, registration_number, vat_id, billing_email, billing_country, billing_period, currency, plan_code, status, current_period_start, current_period_end, cancel_at_period_end, renewal_mode',
+      'id, name, legal_name, registration_number, vat_id, billing_email, billing_country, billing_period, currency, plan_code, status, current_period_start, current_period_end, cancel_at_period_end, renewal_mode, is_internal_test',
     )
     .eq('id', membership.organization_id)
     .maybeSingle();
@@ -69,6 +70,7 @@ export async function getCurrentOrganizationForUser(userId: string): Promise<Cur
     currentPeriodEnd: organization.current_period_end,
     cancelAtPeriodEnd: Boolean(organization.cancel_at_period_end),
     renewalMode: organization.renewal_mode as 'automatic_card' | 'manual_invoice',
+    isInternalTest: Boolean(organization.is_internal_test),
     role: membership.role as OrganizationRole,
   };
 }

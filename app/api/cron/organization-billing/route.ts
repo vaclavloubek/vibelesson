@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sendOrganizationRenewalReminderEmail } from '@/lib/organization-email';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -29,10 +30,97 @@ export async function GET(request: Request) {
     );
   }
 
+  const now = new Date();
+  const reminderEnd = new Date(now.getTime() + 61 * 24 * 60 * 60 * 1000);
+
+  const { data: reminderOrganizations, error: reminderLookupError } = await admin
+    .from('organizations')
+    .select('id, name, billing_email, billing_country, current_period_end')
+    .eq('status', 'active')
+    .eq('renewal_mode', 'manual_invoice')
+    .gt('current_period_end', now.toISOString())
+    .lte('current_period_end', reminderEnd.toISOString());
+
+  if (reminderLookupError) {
+    console.error('organization renewal reminder lookup failed', reminderLookupError.code);
+    return NextResponse.json(
+      { error: 'organization_renewal_reminder_lookup_failed' },
+      { status: 500 },
+    );
+  }
+
+  let remindersSent = 0;
+  let reminderFailures = 0;
+
+  for (const organization of reminderOrganizations ?? []) {
+    if (!organization.current_period_end) continue;
+    const periodEnd = new Date(organization.current_period_end);
+    const daysRemaining = Math.ceil(
+      (periodEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    const days = daysRemaining <= 7 ? 7 : daysRemaining <= 30 ? 30 : 60;
+    const notificationType = 'renewal_' + days;
+
+    const { data: reserved, error: reserveError } = await admin.rpc(
+      'mark_organization_notification_sent',
+      {
+        p_organization_id: organization.id,
+        p_notification_type: notificationType,
+        p_period_end: organization.current_period_end,
+        p_provider_message_id: null,
+      },
+    );
+
+    if (reserveError) {
+      reminderFailures += 1;
+      console.error('organization renewal reminder reservation failed', {
+        organizationId: organization.id,
+        code: reserveError.code,
+      });
+      continue;
+    }
+
+    if (!reserved) continue;
+
+    try {
+      const messageId = await sendOrganizationRenewalReminderEmail({
+        organizationId: organization.id,
+        organizationName: organization.name,
+        recipient: organization.billing_email,
+        periodEnd: organization.current_period_end,
+        days: days as 60 | 30 | 7,
+        locale: organization.billing_country === 'CZ' ? 'cs' : 'en',
+      });
+
+      await admin
+        .from('organization_billing_notifications')
+        .update({ provider_message_id: messageId })
+        .eq('organization_id', organization.id)
+        .eq('notification_type', notificationType)
+        .eq('period_end', organization.current_period_end);
+
+      remindersSent += 1;
+    } catch (error) {
+      reminderFailures += 1;
+      console.error('organization renewal reminder send failed', {
+        organizationId: organization.id,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      await admin
+        .from('organization_billing_notifications')
+        .delete()
+        .eq('organization_id', organization.id)
+        .eq('notification_type', notificationType)
+        .eq('period_end', organization.current_period_end);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     expired: expiredResult.data ?? 0,
     suspended: suspendedResult.data ?? 0,
+    remindersSent,
+    reminderFailures,
   }, {
     headers: { 'Cache-Control': 'no-store' },
   });
