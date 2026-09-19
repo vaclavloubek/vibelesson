@@ -66,6 +66,7 @@ requirePattern(publicPage, /referrer: 'no-referrer'/, 'share tokens must not lea
 requirePattern(publicPage, /<SharedLessonAuthControls initialOpen=\{signin\} token=\{token\}/, 'the shared page must preserve its token through signup.');
 requirePattern(lessonPreview, /mode: 'teacher' \| 'student' \| 'shared'/, 'lesson preview must have an explicit shared read-only mode.');
 requirePattern(shareButton, /Neuvidí výsledky studentů, kódy hodin ani historii AI úprav/, 'the share dialog must explain its privacy boundary.');
+requirePattern(shareButton, /createPortal\([\s\S]*document\.body/, 'the share dialog must render through a body portal so workspace stacking contexts cannot cover it.');
 requirePattern(authControls, /emailRedirectTo: signupRedirectUrl\(\)/, 'signup must accept the shared lesson return URL.');
 requirePattern(confirmPage, /name="next"/, 'the confirmation interstitial must preserve the return URL.');
 requirePattern(confirmRoute, /SHARED_LESSON_PATH[\s\S]*destination\.origin !== requestOrigin/, 'the confirmation endpoint must restrict return URLs to same-origin share pages.');
