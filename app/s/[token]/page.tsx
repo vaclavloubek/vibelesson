@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ signin?: string | string[] }>;
+  searchParams: Promise<{ signin?: string | string[]; import?: string | string[] }>;
 };
 
 const SHARE_TOKEN_PATTERN = /^[0-9a-f]{48}$/;
@@ -47,7 +47,10 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
   const parsed = LessonSchema.safeParse(data);
   if (!parsed.success) notFound();
 
+  const { data: authData } = await supabase.auth.getUser();
   const signin = query.signin === '1' || (Array.isArray(query.signin) && query.signin.includes('1'));
+  const importRequested = query.import === '1' || (Array.isArray(query.import) && query.import.includes('1'));
+  const autoImport = importRequested && Boolean(authData.user);
 
   return (
     <main className={`shell ${styles.shell}`}>
@@ -62,7 +65,12 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
         </nav>
         <div className="brand-side">
           <LocaleSwitcher />
-          <SharedLessonAuthControls initialOpen={signin} token={token} />
+          <SharedLessonAuthControls
+            initialOpen={signin}
+            token={token}
+            importRequested={importRequested}
+            continueImportAfterAuth={signin && importRequested}
+          />
           <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
         </div>
       </header>
@@ -81,7 +89,7 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
             'After saving, you can edit and run it. Your changes will not affect the author’s lesson.',
           )}</span>
         </div>
-        <ImportSharedLessonButton token={token} />
+        <ImportSharedLessonButton token={token} autoImport={autoImport} />
       </section>
 
       <section className={styles.previewWrap} aria-label={ui('Náhled sdílené lekce', 'Shared lesson preview')}>

@@ -1,17 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
 
-export default function ImportSharedLessonButton({ token }: { token: string }) {
+export default function ImportSharedLessonButton({ token, autoImport = false }: { token: string; autoImport?: boolean }) {
   const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const autoImportStartedRef = useRef(false);
 
   async function importLesson() {
     if (busy) return;
@@ -26,7 +27,7 @@ export default function ImportSharedLessonButton({ token }: { token: string }) {
       const data = await response.json() as { lessonId?: string; error?: string };
 
       if (response.status === 401) {
-        window.location.assign(`/s/${token}?signin=1`);
+        window.location.assign(`/s/${token}?signin=1&import=1`);
         return;
       }
 
@@ -34,12 +35,18 @@ export default function ImportSharedLessonButton({ token }: { token: string }) {
         throw new Error(localizedApiError(data.error, locale, 'Kopii lekce se nepodařilo uložit.', 'The lesson copy could not be saved.'));
       }
 
-      router.push(`/lessons/${data.lessonId}`);
+      router.replace(`/lessons/${data.lessonId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Kopii lekce se nepodařilo uložit.', 'The lesson copy could not be saved.'));
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!autoImport || autoImportStartedRef.current) return;
+    autoImportStartedRef.current = true;
+    void importLesson();
+  }, [autoImport]);
 
   return (
     <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
