@@ -268,7 +268,7 @@ export function createWorksheetPdfDefinition({
   }
 
   content.push({ text: ' ', margin: [0, 4, 0, 0] });
-  for (const { block, originalIndex } of blocks) content.push(activityNode(block, originalIndex, mode, space, english));
+  blocks.forEach(({ block }, worksheetIndex) => content.push(activityNode(block, worksheetIndex, mode, space, english)));
 
   return {
     pageSize: 'A4',
