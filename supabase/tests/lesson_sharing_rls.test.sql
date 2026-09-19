@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(19);
 
 insert into auth.users (id, email)
 values
@@ -141,6 +141,18 @@ select throws_ok(
   'anonymous visitors have no direct table access'
 );
 
+select results_eq(
+  $$select public.get_lesson_share('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') ->> 'title'$$,
+  $$values ('Shared test lesson'::text)$$,
+  'the capability token exposes only the active immutable snapshot'
+);
+
+select results_eq(
+  $$select public.get_lesson_share('not-a-share-token')$$,
+  $$values (null::jsonb)$$,
+  'invalid capability tokens reveal no lesson data'
+);
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
@@ -176,6 +188,12 @@ select throws_ok(
   'P0002',
   null,
   'a revoked share cannot be imported'
+);
+
+select is(
+  public.get_lesson_share('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+  null::jsonb,
+  'a revoked share is no longer visible through its capability token'
 );
 
 select * from finish();

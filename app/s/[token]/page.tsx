@@ -10,7 +10,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { LessonSchema } from '@/lib/schema';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import styles from './SharedLessonPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -36,20 +36,15 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
   const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('lesson_shares')
-    .select('snapshot')
-    .eq('token', token)
-    .eq('status', 'active')
-    .maybeSingle();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('get_lesson_share', { p_token: token });
 
   if (error) {
     console.error('load public lesson share failed', { code: error.code });
     notFound();
   }
 
-  const parsed = LessonSchema.safeParse(data?.snapshot);
+  const parsed = LessonSchema.safeParse(data);
   if (!parsed.success) notFound();
 
   const signin = query.signin === '1' || (Array.isArray(query.signin) && query.signin.includes('1'));

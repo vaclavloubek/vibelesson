@@ -149,6 +149,33 @@ before update of source_share_id, source_lesson_id on public.lessons
 for each row
 execute function private.enforce_lesson_share_provenance_immutability();
 
+create or replace function public.get_lesson_share(p_token text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_snapshot jsonb;
+begin
+  if p_token is null or p_token !~ '^[0-9a-f]{48}$' then
+    return null;
+  end if;
+
+  select s.snapshot
+  into v_snapshot
+  from public.lesson_shares s
+  where s.token = p_token
+    and s.status = 'active';
+
+  return v_snapshot;
+end;
+$$;
+
+revoke all on function public.get_lesson_share(text) from public;
+grant execute on function public.get_lesson_share(text) to anon, authenticated;
+
 create or replace function public.import_lesson_share(p_token text)
 returns uuid
 language plpgsql

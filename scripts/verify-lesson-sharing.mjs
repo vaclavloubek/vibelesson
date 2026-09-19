@@ -48,6 +48,8 @@ requirePattern(migration, /create policy lesson_share_owners_can_view[\s\S]*auth
 requirePattern(migration, /create policy lesson_owners_can_create_shares[\s\S]*l\.owner_id = \(select auth\.uid\(\)\)[\s\S]*l\.lesson = snapshot/, 'share creation must bind the owner and immutable lesson snapshot.');
 requirePattern(migration, /security definer[\s\S]*set search_path = ''[\s\S]*auth\.uid\(\)/, 'the import function must use a hardened definer boundary and authenticated identity.');
 requirePattern(migration, /revoke all on function public\.import_lesson_share\(text\) from public, anon/, 'anonymous callers must not import shared lessons.');
+requirePattern(migration, /create or replace function public\.get_lesson_share\(p_token text\)[\s\S]*security definer[\s\S]*set search_path = ''/, 'public share lookup must use a hardened narrow function.');
+requirePattern(migration, /revoke all on function public\.get_lesson_share\(text\) from public;[\s\S]*grant execute on function public\.get_lesson_share\(text\) to anon, authenticated/, 'only the public snapshot lookup may be called without an account.');
 requirePattern(migration, /create policy lesson_clients_cannot_forge_share_provenance[\s\S]*as restrictive[\s\S]*source_share_id is null[\s\S]*source_lesson_id is null/, 'authenticated clients must not forge import provenance.');
 requirePattern(migration, /create trigger enforce_lesson_share_provenance_immutability[\s\S]*before update of source_share_id, source_lesson_id/, 'import provenance must remain immutable after creation.');
 requirePattern(migration, /sessions_one_active_per_teacher_idx[\s\S]*where status in \('lobby', 'live'\)/, 'the database must enforce one active lesson per teacher.');
@@ -55,7 +57,7 @@ requirePattern(migration, /sessions_one_active_per_teacher_idx[\s\S]*where statu
 requirePattern(ownerRoute, /\.eq\('owner_id', userId\)/, 'share management must scope every share to the lesson owner.');
 requirePattern(ownerRoute, /LessonSchema\.parse\(lessonRow\.lesson\)/, 'public snapshots must be schema validated before storage.');
 requirePattern(importRoute, /supabase\.rpc\('import_lesson_share'/, 'imports must use the transactional database function.');
-requirePattern(publicPage, /\.select\('snapshot'\)/, 'the public page must request only the share snapshot.');
+requirePattern(publicPage, /supabase\.rpc\('get_lesson_share', \{ p_token: token \}\)/, 'the public page must request only the share snapshot through the narrow capability function.');
 requirePattern(publicPage, /mode="shared"/, 'the public page must use the read-only lesson preview.');
 requirePattern(publicPage, /robots: \{ index: false, follow: false \}/, 'capability links must not be indexed.');
 requirePattern(publicPage, /referrer: 'no-referrer'/, 'share tokens must not leak through browser referrers.');
