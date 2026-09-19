@@ -50,7 +50,7 @@ export default function StartSessionButton({ lessonId }: { lessonId: string }) {
           {ui('Otevřít rozběhnutou hodinu', 'Open the active lesson')}
         </button>
       ) : null}
-      <button type="button" className="primary" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
+      <button type="button" className="primary" data-tour="lesson-start" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
     </div>
   );
 }
