@@ -141,8 +141,8 @@ export default function WorksheetExportDialog({
               <>
                 <p id="worksheet-export-description" className={styles.lead}>
                   {english
-                    ? 'Choose the student version or the teacher key, select activities and open an A4 preview. From the print dialog you can print it or save it as a PDF.'
-                    : 'Zvolte studentskou verzi nebo klíč pro učitele, vyberte aktivity a otevřete A4 náhled. Z tiskového dialogu lze list vytisknout nebo uložit jako PDF.'}
+                    ? 'Choose the student version or the teacher key, select activities and open an A4 preview. Syllonaut then generates a real PDF directly for download or printing.'
+                    : 'Zvolte studentskou verzi nebo klíč pro učitele, vyberte aktivity a otevřete A4 náhled. Syllonaut pak přímo vygeneruje skutečný PDF soubor pro stažení nebo tisk.'}
                 </p>
 
                 <fieldset className={styles.fieldset}>
