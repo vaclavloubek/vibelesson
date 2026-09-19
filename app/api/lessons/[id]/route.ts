@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { LessonSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -123,29 +124,32 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
     if (readError || !current) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
 
-    const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_lesson_generation');
-    if (quotaError) throw quotaError;
+    const reusableLessons = await getLessonReuseEntitlement(supabase);
+    if (!reusableLessons) {
+      const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_lesson_generation');
+      if (quotaError) throw quotaError;
 
-    const quota = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as {
-      request_id?: string | null;
-      allowed?: boolean;
-      used?: number;
-      monthly_limit?: number | null;
-    } | null;
+      const quota = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as {
+        request_id?: string | null;
+        allowed?: boolean;
+        used?: number;
+        monthly_limit?: number | null;
+      } | null;
 
-    if (!quota?.allowed) {
-      return NextResponse.json({
-        error: `Měsíční limit ${quota?.monthly_limit ?? 5} nových lekcí je vyčerpaný. Duplikace se do tohoto limitu počítá.`,
-        quota: {
-          used: quota?.used ?? quota?.monthly_limit ?? 5,
-          monthlyLimit: quota?.monthly_limit ?? 5,
-          remaining: 0,
-        },
-      }, { status: 429 });
+      if (!quota?.allowed) {
+        return NextResponse.json({
+          error: `Měsíční limit ${quota?.monthly_limit ?? 5} nových lekcí je vyčerpaný. Duplikace se do tohoto limitu počítá.`,
+          quota: {
+            used: quota?.used ?? quota?.monthly_limit ?? 5,
+            monthlyLimit: quota?.monthly_limit ?? 5,
+            remaining: 0,
+          },
+        }, { status: 429 });
+      }
+
+      requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
+      if (!requestId) throw new Error('Duplicate quota reservation is missing request id.');
     }
-
-    requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
-    if (!requestId) throw new Error('Duplicate quota reservation is missing request id.');
 
     const lesson = LessonSchema.parse(current.lesson);
     const copyTitle = `${current.title} – kopie`.slice(0, 200);
@@ -165,13 +169,15 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
     if (insertError || !copy?.id) throw insertError ?? new Error('Duplicate returned no row.');
 
-    const { error: finishError } = await supabase.rpc('finish_generation_request', {
-      p_request_id: requestId,
-      p_status: 'succeeded',
-      p_cost_usd: 0,
-      p_lesson_id: copy.id,
-    });
-    if (finishError) console.error('finish duplicate quota request failed', finishError);
+    if (requestId) {
+      const { error: finishError } = await supabase.rpc('finish_generation_request', {
+        p_request_id: requestId,
+        p_status: 'succeeded',
+        p_cost_usd: 0,
+        p_lesson_id: copy.id,
+      });
+      if (finishError) console.error('finish duplicate quota request failed', finishError);
+    }
 
     return NextResponse.json({ lessonId: copy.id });
   } catch (error) {

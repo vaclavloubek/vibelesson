@@ -17,9 +17,13 @@ const sessionsRoute = read('app/api/sessions/route.ts');
 requireText(sessionsRoute, 'free_lesson_replay_locked', 'session API maps the database replay lock');
 
 const lessonRoute = read('app/api/lessons/[id]/route.ts');
-requireText(lessonRoute, "supabase.rpc('reserve_lesson_generation')", 'duplication reserves a lesson creation slot');
+requireText(lessonRoute, 'getLessonReuseEntitlement', 'duplication charges a creation slot only on Free');
+requireText(lessonRoute, "supabase.rpc('reserve_lesson_generation')", 'Free duplication reserves a lesson creation slot');
 requireText(lessonRoute, "p_status: 'succeeded'", 'successful duplication finishes its quota reservation');
 requireText(lessonRoute, "p_status: 'failed'", 'failed duplication releases its quota reservation');
+
+const shareImportRoute = read('app/api/lesson-shares/[token]/import/route.ts');
+requireText(shareImportRoute, 'free_lesson_quota_exhausted', 'shared lesson imports expose Free quota exhaustion');
 
 const lessonPage = read('app/lessons/[id]/page.tsx');
 requireText(lessonPage, "from('lesson_live_usage')", 'lesson detail reads live-use history');
@@ -49,6 +53,8 @@ for (const [needle, label] of [
   ['record_lesson_live_usage', 'first participant records usage'],
   ['enforce_free_lesson_reuse', 'database-enforced Free replay lock'],
   ['lesson_reuse_enabled', 'central reusable-lesson entitlement'],
+  ['enforce_free_lesson_creation_quota', 'Free lesson creation requires a quota slot'],
+  ["public.reserve_lesson_generation()", 'direct Free inserts consume the same quota'],
   ['insert into public.lesson_live_usage', 'historical live usage backfill'],
 ]) {
   requireText(migration.content, needle, label);

@@ -58,6 +58,12 @@ export async function POST(request: Request, { params }: RouteContext) {
     if (error.code === 'P0002') {
       return NextResponse.json({ error: 'Sdílená lekce nebyla nalezena.' }, { status: 404 });
     }
+    if (error.message?.includes('free_lesson_quota_exhausted')) {
+      return NextResponse.json({
+        error: 'Měsíční limit nových lekcí je vyčerpaný. Import sdílené lekce se ve Free tarifu počítá jako nová lekce.',
+        code: 'free_lesson_quota_exhausted',
+      }, { status: 429 });
+    }
     console.error('import lesson share failed', { code: error.code });
     return NextResponse.json({ error: 'Kopii lekce se nepodařilo uložit.' }, { status: 500 });
   }
