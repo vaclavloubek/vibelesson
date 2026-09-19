@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
@@ -7,8 +8,15 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 import GuideHelpButton from '@/components/GuideHelpButton';
 
-export default function StartSessionButton({ lessonId, userId }: { lessonId: string; userId: string }) {
-  const english = useUiLocale() === 'en';
+type Props = {
+  lessonId: string;
+  userId: string;
+  liveLocked?: boolean;
+};
+
+export default function StartSessionButton({ lessonId, userId, liveLocked = false }: Props) {
+  const locale = useUiLocale();
+  const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -16,7 +24,7 @@ export default function StartSessionButton({ lessonId, userId }: { lessonId: str
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   async function start() {
-    if (busy) return;
+    if (busy || liveLocked) return;
     setBusy(true);
     setError('');
     setActiveSessionId(null);
@@ -26,13 +34,19 @@ export default function StartSessionButton({ lessonId, userId }: { lessonId: str
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessonId }),
       });
-      const data = await response.json() as { sessionId?: string; activeSessionId?: string; error?: string };
+      const data = await response.json() as { sessionId?: string; activeSessionId?: string; error?: string; code?: string };
       if (!response.ok || !data.sessionId) {
         if (response.status === 409 && data.activeSessionId) {
           setActiveSessionId(data.activeSessionId);
           setError(ui('Na tomto účtu už běží jiná hodina.', 'Another live lesson is already running on this account.'));
           setBusy(false);
           return;
+        }
+        if (response.status === 403 && data.code === 'free_lesson_replay_locked') {
+          throw new Error(ui(
+            'Tuto lekci už jsi ve Free tarifu použil. Další živé použití odemkne placený tarif.',
+            'You have already used this lesson on the Free plan. A paid plan unlocks repeated live use.',
+          ));
         }
         throw new Error(english ? 'The lesson could not be started.' : (data.error || 'Hodinu se nepodařilo odstartovat.'));
       }
@@ -43,6 +57,25 @@ export default function StartSessionButton({ lessonId, userId }: { lessonId: str
       setError(err instanceof Error ? err.message : ui('Hodinu se nepodařilo odstartovat.', 'The lesson could not be started.'));
       setBusy(false);
     }
+  }
+
+  if (liveLocked) {
+    return (
+      <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 40, display: 'grid', justifyItems: 'end', gap: 8, maxWidth: 360 }}>
+        <div className="panel" style={{ padding: 16, boxShadow: '0 12px 30px rgba(24,24,23,.14)' }}>
+          <span className="eyebrow">{ui('Archivovaná lekce', 'Archived lesson')}</span>
+          <p style={{ margin: '6px 0 12px' }}>
+            {ui(
+              'Ve Free tarifu už proběhlo její první živé použití. Lekci můžeš dál libovolně upravovat ručně i pomocí AI v rámci svého měsíčního limitu.',
+              'Its first live use on the Free plan is complete. You can still edit the lesson freely, including with AI within your monthly allowance.',
+            )}
+          </p>
+          <Link href={`/${locale}/pricing`} className="primary button-link">
+            {ui('Odemknout opakované použití', 'Unlock repeated use')}
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
