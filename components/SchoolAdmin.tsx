@@ -89,11 +89,13 @@ export default function SchoolAdmin({
   locale,
   initialPlan,
   initialBilling,
+  billingEnvironment,
   initialUser,
 }: {
   locale: 'cs' | 'en';
   initialPlan: OrganizationPlanCode;
   initialBilling: OrganizationBillingPeriod;
+  billingEnvironment: 'sandbox' | 'live';
   initialUser: InitialUser | null;
 }) {
   const english = locale === 'en';
@@ -175,16 +177,27 @@ export default function SchoolAdmin({
         planCode,
         billingPeriod,
         paymentMethod,
+        environment: billingEnvironment,
       }),
     });
 
     const payload = await response.json().catch(() => ({})) as {
       error?: string;
+      orderCreated?: boolean;
       paymentUrl?: string | null;
     };
     setBusy(false);
 
     if (!response.ok) {
+      if (payload.orderCreated) {
+        setMessageKind('error');
+        setMessage(ui(
+          'Objednávka vznikla, ale platební krok se nepodařilo otevřít. Zkus jej spustit znovu níže.',
+          'The order was created, but the payment step could not be opened. Retry it below.',
+        ));
+        await load();
+        return;
+      }
       setMessageKind('error');
       setMessage(
         payload.error === 'active_organization_membership_exists'
@@ -211,6 +224,32 @@ export default function SchoolAdmin({
       'The order has been created. The school licence activates only after payment is confirmed.',
     ));
     await load();
+  }
+
+  async function retryPayment() {
+    setBusy(true);
+    setMessage('');
+    const response = await fetch('/api/organizations/payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ environment: billingEnvironment }),
+    });
+    const payload = await response.json().catch(() => ({})) as {
+      error?: string;
+      paymentUrl?: string;
+    };
+    setBusy(false);
+
+    if (!response.ok || !payload.paymentUrl) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Platební krok se nepodařilo znovu otevřít.',
+        'The payment step could not be reopened.',
+      ));
+      return;
+    }
+
+    window.location.assign(payload.paymentUrl);
   }
 
   async function invite(event: FormEvent) {
@@ -331,6 +370,7 @@ export default function SchoolAdmin({
         <section className={styles.hero}>
           <span className={styles.eyebrow}>
             {ui('Školní licence', 'School licence')}
+            {billingEnvironment === 'sandbox' ? ' · SANDBOX' : ''}
           </span>
           <h1>
             {summary
@@ -537,12 +577,24 @@ export default function SchoolAdmin({
               </p>
 
               {summary.status === 'awaiting_payment' ? (
-                <div className={styles.warning}>
-                  {ui(
-                    'Čekáme na platbu. Správu školy a pozvánky můžete připravit už teď, ale společný AI pool se nečerpá.',
-                    'Waiting for payment. You can prepare school administration and invitations now, but the shared AI pool is not available.',
-                  )}
-                </div>
+                <>
+                  <div className={styles.warning}>
+                    {ui(
+                      'Čekáme na platbu. Správu školy a pozvánky můžete připravit už teď, ale společný AI pool se nečerpá.',
+                      'Waiting for payment. You can prepare school administration and invitations now, but the shared AI pool is not available.',
+                    )}
+                  </div>
+                  {summary.manager ? (
+                    <button
+                      type="button"
+                      className={styles.primary}
+                      disabled={busy}
+                      onClick={retryPayment}
+                    >
+                      {ui('Pokračovat k platbě', 'Continue to payment')}
+                    </button>
+                  ) : null}
+                </>
               ) : null}
 
               {summary.status === 'past_due' || summary.status === 'suspended' ? (
