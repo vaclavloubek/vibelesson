@@ -366,6 +366,18 @@ Sandbox billing lifecycle je považovaný za **end-to-end ověřený** pro indiv
 
 **LIVE billing acceptance je dokončený a od 0.9.18 jsou individuální plány veřejně spuštěné.** Ověřena byla skutečná CZ platba 199 Kč přes standard Stripe, actual billing-country guard, live Customer/subscription provisioning, admin entitlement preservation, Customer Portal, ne-admin Free → Teacher → Free a cancellation webhook. Teacher dostal přesně 25 lekcí, 100 AI úprav a multilingual entitlement; AI grading a složky zůstaly vypnuté. Obě acceptance subscription byly zrušené a oba plné refundy 199 Kč Stripe evidoval jako `succeeded`. Veřejný Checkout je dostupný pouze pro Teacher / Teacher Pro; Team / School / Campus zůstávají deaktivované. Emergency rollback je možný serverovým `STRIPE_LIVE_BILLING_PUBLIC_ENABLED=false`.
 
+Produkční launch 0.9.18:
+
+- release commit na `main`: `43a64db02fd5be21313c1fc59ed7ed8c4c88fcea` — **Syllonaut 0.9.18 — launch public Teacher billing**;
+- před merge prošel Vercel Preview, `npm run check`, security headers i accessibility; následný production deployment byl zelený;
+- veřejný Ceník standardně používá LIVE billing flow, nikoli sandbox/acceptance režim;
+- Teacher a Teacher Pro mají aktivní LIVE CTA pro měsíční i roční variantu v CZK/EUR/USD podle regionální routing logiky;
+- nepřihlášený návštěvník je veden k přihlášení/registraci před nákupem; přihlášený běžný uživatel pokračuje do skutečného Stripe Checkout;
+- aktivní placený uživatel má na Ceníku přístup do Stripe Customer Portalu pro platební metodu, billing údaje, faktury a cancellation;
+- GA4 produkční funnel rozlišuje `pricing_live` / `stripe_live` od sandboxu a admin acceptance;
+- Team / School / Campus zůstávají pouze prezentační a nelze je přes LIVE Checkout koupit;
+- serverový launch gate zůstává zachovaný jako emergency rollback: explicitní `STRIPE_LIVE_BILLING_PUBLIC_ENABLED=false` veřejné LIVE nákupy vypne.
+
 ### AI grading entitlement
 
 Produktové pravidlo:
@@ -1069,7 +1081,7 @@ Zbývá do dalších verzí:
 12. Po výpadku spojení se zastaralá submit error hláška po potvrzené synchronizaci sama vyčistí; při nepotvrzeném submitu UI jasně říká, že koncept zůstal uložený a stačí znovu odevzdat.
 13. Hlavička **Moje lekce** zobrazuje vedle e-mailu vždy explicitní **Odhlásit / Sign out**; logout ukončí Supabase session, vyčistí live-resume recovery a provede hard navigation na lokalizovanou homepage.
 
-## 20. Významné operace 2026-09-17 až 2026-09-18
+## 20. Významné operace 2026-09-17 až 2026-09-19
 
 Bezpečnostní a produktové změny:
 
@@ -1097,7 +1109,7 @@ Bezpečnostní a produktové změny:
 - **0.9.15** — live Checkout verification hotfix: webhook lookup nepoužívá subscription filtr na Stripe list endpointu, ale stabilní Customer filtr + lokální párování subscription; krátký retry pokrývá nedeterministické pořadí Stripe eventů
 - **0.9.16** — growth funnel analytics: `checkout_complete` zůstává pouze signál návratu ze Stripe; nový Key Event `subscription_activated` se v LIVE prostředí odešle až po serverově potvrzeném Teacher/Teacher Pro v `profiles.active_plan_code`. Pricing krátce refreshuje stav, pokud webhook při návratu ještě dobíhá; Checkout Session ID se do GA4 neposílá a používá se jen lokálně pro deduplikaci. GA4 setup doplňuje dimenze `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`.
 - **0.9.17 / SEC-017** — serverový guard na `PUT /api/lessons/[id]`: Free účet nesmí přes replacement payload změnit `lesson.language`; guard používá autoritativní DB lekci + serverový profil a je krytý regresním testem `verify-lesson-replacement-entitlement.mjs`
-- **0.9.18** — veřejný LIVE launch individuálního billingu: Teacher a Teacher Pro mají aktivní CZK/EUR/USD monthly/annual Stripe Checkout, placení uživatelé mají Customer Portal a GA4 funnel používá produkční `pricing_live` / `stripe_live`; školní tarify zůstávají vypnuté a serverový emergency kill-switch zůstává zachovaný
+- **0.9.18** / `43a64db` — veřejný LIVE launch individuálního billingu: Teacher a Teacher Pro mají aktivní CZK/EUR/USD monthly/annual Stripe Checkout, placení uživatelé mají Customer Portal a GA4 funnel používá produkční `pricing_live` / `stripe_live`; školní tarify zůstávají vypnuté a serverový emergency kill-switch zůstává zachovaný; Preview, `npm run check`, security headers, accessibility i production deployment prošly zeleně
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
