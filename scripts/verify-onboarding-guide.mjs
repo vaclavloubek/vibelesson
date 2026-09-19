@@ -25,6 +25,7 @@ const css = read('app/globals.css');
 for (const target of [
   'lesson-create-form',
   'lesson-create-submit',
+  'lesson-review',
   'lesson-edit-whole',
   'lesson-edit-block',
   'lesson-edit-block-editor',
@@ -68,6 +69,14 @@ requireText(css, '.syllonaut-guide-back', 'back button styling');
 requireText(css, '.syllonaut-guide-help', 'contextual help styling');
 requireText(workspace, '<form data-tour="lesson-create-form"', 'first guide step must expose the complete lesson form');
 requireText(guide, "target: 'lesson-create-form'", 'first guide step must spotlight the complete lesson form');
+requireText(workspace, 'data-tour="lesson-review"', 'generated lesson review target');
+requireText(guide, "target: 'lesson-review'", 'review step before whole-lesson editing');
+requireText(guide, "button: { cs: 'Lekci jsem prošel', en: 'I reviewed the lesson' }", 'explicit review confirmation');
+requireText(guide, "button: { cs: 'Bez úpravy pokračovat', en: 'Continue without editing' }", 'optional whole-lesson edit skip');
+requireText(guide, "signal: 'lesson-revised'", 'whole-lesson edit still advances after successful revision');
+requireText(guide, "if (!userId || !state?.running || !step?.signal) return;", 'manual optional action can still listen for success signal');
+requireText(workspace, 'chapter="lesson" step={3} labelCs="Jak upravit celou lekci"', 'whole-edit contextual help step index');
+requireText(startSession, 'chapter="lesson" step={6} labelCs="Jak spustit hodinu"', 'start-session contextual help step index');
 requireText(lessonPage, 'userId={userId}', 'user-scoped lesson start guide state');
 
 console.log('onboarding guide regression checks passed');
