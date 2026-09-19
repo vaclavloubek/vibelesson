@@ -54,11 +54,13 @@ export async function POST(request: Request) {
 
   if (error) {
     const message = error.message ?? '';
-    const code = message.includes('seat_limit')
-      ? 'organization_seat_limit_reached'
-      : error.code === '23505'
-        ? 'invitation_already_pending'
-        : 'invitation_create_failed';
+    const code = message.includes('replacement_limit')
+      ? 'organization_replacement_limit_reached'
+      : message.includes('seat_limit')
+        ? 'organization_seat_limit_reached'
+        : error.code === '23505'
+          ? 'invitation_already_pending'
+          : 'invitation_create_failed';
     console.error('organization invitation create failed', { dbCode: error.code, message });
     return NextResponse.json(
       { error: code },
