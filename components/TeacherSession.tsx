@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { activityMode, bucketBlockCount, bucketDuration, bucketParticipantCount, trackEvent } from '@/lib/analytics';
 import {
@@ -11,6 +12,7 @@ import {
   type LiveControlAccess,
 } from '@/lib/live-control-client';
 import JoinQrCode from '@/components/JoinQrCode';
+import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
 import LiveBlock from '@/components/LiveBlock';
@@ -71,6 +73,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
   const [connectionMode, setConnectionMode] = useState<TeacherConnectionMode>('primary');
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const hasSessionRef = useRef(false);
   const sessionRef = useRef<TeacherSessionData | null>(null);
@@ -175,6 +178,17 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => { sessionRef.current = session; }, [session]);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    void supabase.auth.getUser().then(({ data }) => {
+      if (active) setAuthUser(data.user);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -455,7 +469,11 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       <header className="brand">
         <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
         <nav className="main-nav"><Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link></nav>
-        <div className="brand-side"><LocaleSwitcher /><p className="brand-tagline" role="status">{ui('Řídicí centrum', 'Control centre')} · {connectionMode === 'primary' ? ui('Primární spojení', 'Primary connection') : connectionMode === 'syncing' ? ui('Synchronizuji', 'Synchronizing') : ui('Záložní spojení', 'Backup connection')}</p></div>
+        <div className="brand-side">
+          <LocaleSwitcher />
+          <p className="brand-tagline" role="status">{ui('Řídicí centrum', 'Control centre')} · {connectionMode === 'primary' ? ui('Primární spojení', 'Primary connection') : connectionMode === 'syncing' ? ui('Synchronizuji', 'Synchronizing') : ui('Záložní spojení', 'Backup connection')}</p>
+          {authUser ? <PublicHeaderAccountMenu user={authUser} /> : null}
+        </div>
       </header>
 
       {error ? <div className="error" role="alert" style={{ marginBottom: 14 }}>{error}</div> : null}
