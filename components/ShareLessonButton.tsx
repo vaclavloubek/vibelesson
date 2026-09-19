@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
 import styles from './ShareLessonButton.module.css';
@@ -154,7 +155,7 @@ export default function ShareLessonButton({ lessonId }: { lessonId: string }) {
         {ui('Sdílet s kolegy', 'Share with colleagues')}
       </button>
 
-      {open ? (
+      {open && typeof document !== 'undefined' ? createPortal(
         <div className={styles.backdrop} onMouseDown={close}>
           <div
             ref={dialogRef}
@@ -211,7 +212,8 @@ export default function ShareLessonButton({ lessonId }: { lessonId: string }) {
               <button type="button" className="secondary" onClick={close} disabled={busy}>{ui('Hotovo', 'Done')}</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );
