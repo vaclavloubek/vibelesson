@@ -31,7 +31,7 @@ import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
 import { localizedApiError } from '@/lib/i18n';
 import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema';
-import { maybeStartFirstSyllonautGuide } from '@/lib/onboarding-guide';
+import { maybeStartFirstSyllonautGuide, signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
@@ -419,7 +419,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           lesson_language: data.lesson?.language ?? 'unknown',
         });
         setQuotaRefreshKey((value) => value + 1);
-        if (data.lessonId) router.replace(`/lessons/${data.lessonId}`);
+        if (data.lessonId) {
+          signalSyllonautGuideAction(operationOwnerId, 'lesson-created');
+          router.replace(`/lessons/${data.lessonId}`);
+        }
         return;
       }
 
@@ -469,6 +472,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         lesson_language: completedLesson.language ?? 'unknown',
       });
       setQuotaRefreshKey((value) => value + 1);
+      signalSyllonautGuideAction(operationOwnerId, 'lesson-created');
       router.replace(`/lessons/${resultLessonId}`);
     } catch (err) {
       trackEvent('lesson_generation_failed', {
