@@ -1076,6 +1076,7 @@ Stav k 2026-09-19:
 - aktivní jsou **4 Key Events**: `signup_completed`, `lesson_generation_completed`, `live_session_started`, `subscription_activated`;
 - `subscription_activated` je finální placená konverze a vzniká až po LIVE Checkout návratu a serverově potvrzeném Teacher / Teacher Pro plánu;
 - akviziční zdroj se má vyhodnocovat přes standardní GA4 campaign attribution / UTM, ne přes PII nebo vlastní uživatelské identifikátory;
+- v produkčním GA4 Web streamu bylo 2026-09-19 ručně vypnuto Enhanced Measurement → Page views → **Page changes based on browser history events**, aby 0.9.42 mohla bezpečně používat pouze sanitizované ruční pageviews;
 - strict opt-in zůstává zachovaný: GA4 reprezentuje consenting populaci, nikoli absolutní počet všech uživatelů.
 
 Bezprostřední growth krok:
