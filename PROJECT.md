@@ -334,7 +334,31 @@ Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
 - ostrý entitlement se počítá jen z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují;
 - admin zůstává vždy neomezený a ruční entitlement override se při změně tarifu zachovává.
 
-Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, přijímá pouze subscription lifecycle eventy, vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Teprve poté volá service-role-only atomické RPC. Production Vercel má od 2026-09-18 nastavené server-only `SUPABASE_SECRET_KEY` a `STRIPE_WEBHOOK_SECRET_TEST`; live Stripe webhook secret zatím záměrně není nastavený. Checkout zatím aktivovaný není.
+Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, u subscription lifecycle eventů vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Od 0.8.10 navíc idempotentně loguje `invoice.payment_failed` a `invoice.paid`; tyto payment eventy samy nemění entitlement. Od 0.8.11 ignoruje subscription lifecycle eventy ze Stripe `test_clock`, takže Billing Simulations nemohou přepsat skutečné sandbox mapování. Production Vercel má server-only `SUPABASE_SECRET_KEY` a `STRIPE_WEBHOOK_SECRET_TEST`; live Stripe webhook secret zatím záměrně není nastavený. Veřejné placené CTA jsou stále vypnuté.
+
+
+### Stripe sandbox — dokončený acceptance stav 2026-09-19
+
+Sandbox billing lifecycle je považovaný za **end-to-end ověřený** pro individuální Teacher / Teacher Pro:
+
+- český Checkout: **199 Kč / měsíc**, standardní Stripe, `managed_payments=false`, bez Stripe Tax odpovědnosti;
+- zahraniční eurozóna: **€7.99 / měsíc** + lokální DPH, Managed Payments; německý test reálně účtoval €9.51 při 19% DPH a Stripe byl daňový/merchant-of-record issuer;
+- Checkout používá fakturační zemi pro routing `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`;
+- první nákup vytvoří Stripe Customer, další Checkout Sessions stejného uživatele znovu používají uložené `customer` ID;
+- odhalený sandbox problém s duplicitními Customer objekty byl opraven v 0.8.07;
+- Stripe nepovoluje jednomu Customerovi současně aktivní subscriptions v různých měnách; změna země/měny proto musí být řízený migration flow, ne paralelní nový Checkout;
+- cancellation at period end i její odvolání prošly webhookem a DB;
+- Teacher ↔ Teacher Pro upgrade/downgrade prošel a následná nenulová proratační platba byla úspěšně vybrána;
+- Customer Portal je v sandboxu nakonfigurovaný pro platební metody, fakturační údaje, historii faktur a cancellation na konci období včetně důvodu; plan switching / quantity changes zůstávají vypnuté;
+- restricted sandbox key používá minimálně ověřená oprávnění `Checkout Sessions: Write`, `Customers: Read`, `Customer Portal: Write`;
+- Stripe event destination posílá subscription lifecycle + `invoice.payment_failed` + `invoice.paid`;
+- Billing Simulation ověřila skutečný renewal failure: karta `…0341` → subscription `past_due` + `invoice.payment_failed`;
+- následný retry na funkční kartě → invoice `paid`, subscription zpět `active`, `invoice.paid`;
+- simulation subscription se díky 0.8.11 nikdy nezapsala do `billing_subscriptions`; payment eventy zůstaly pouze jako auditní stopa;
+- sandbox cleanup dokončen: osiřelá CZK test subscription byla zrušena a Simulation ukončena; aktivní zůstává pouze referenční Teacher/EUR Managed Payments subscription;
+- sandbox subscription nikdy nemění produkční entitlementy v `profiles`.
+
+**Důležitá live podmínka:** před veřejným prodejem nesmí routing důvěřovat pouze předem zvolené zemi. Je nutné serverově ověřit skutečnou billing country vrácenou dokončeným Checkoutem a fail-closed řešit nesoulad se zvolenou větví/měnou/Merchant-of-Record režimem.
 
 ### AI grading entitlement
 
@@ -1076,7 +1100,7 @@ Další významné změny 2026-09-18:
 - **0.8.08** — admin sandbox Checkout diagnostika: Stripe API chyby se sanitizují na `type/code/message` a zobrazí pouze přihlášenému adminovi v testovacím dialogu; žádné API klíče ani secret hodnoty se nevrací.
 - **0.8.09** — admin-only Stripe Customer Portal: server-authenticated Portal Session, Customer ID pouze z `billing_customers`, sanitizované chyby, krátkodobý Stripe-hosted redirect a CTA v Ceníku. Portal se používá pro platební metody, faktury a cancellation; změnu tarifu v Portalu záměrně nezapínáme kvůli řízenému country/currency routingu.
 - **0.8.10** — payment recovery event log: webhook přijímá `invoice.payment_failed` a `invoice.paid`, validuje Stripe-signed Syllonaut metadata a idempotentně je ukládá do `billing_events`. Payment event neprovisionuje ani nedeprovisionuje přístup; entitlement zůstává subscription-authoritative.
-- **0.8.11** — simulation isolation: subscription eventy ze Stripe `test_clock` se explicitně ignorují, takže Simulations mohou generovat renewal/failure webhooky bez rizika `billing_customer_mismatch` nebo přepsání skutečné sandbox subscription.
+- **0.8.11** — simulation isolation: subscription eventy ze Stripe `test_clock` se explicitně ignorují, takže Simulations mohou generovat renewal/failure webhooky bez rizika `billing_customer_mismatch` nebo přepsání skutečné sandbox subscription. E2E simulace 2026-09-19 potvrdila `invoice.payment_failed → past_due → retry → invoice.paid → active` bez zápisu simulované subscription do `billing_subscriptions`.
 - **0.8.12** — live resume auth-boundary hardening: Teacher, Presenter i live-control capability mohou použít session-scoped recovery ticket pouze tehdy, když primární auth lookup skutečně selže; čisté odhlášení vždy skončí standardním přihlášením. End-session dál maže konkrétní resume ticket.
 - **0.8.13** — live navigation cache hardening: service worker odmítne cachovat redirectovanou odpověď nebo odpověď pro jinou cestu, takže auth incident nemůže pod URL živé hodiny uložit homepage či jiný nesouvisející 200 response.
 - **0.8.14** — Cloudflare control-plane hardening, fáze 1: Worker přijímá samostatnou `presenter` capability pouze pro read-only state/WebSocket, explicitně zakazuje Presenter zápis do `/events` a jeho `/health` nyní jednoznačně hlásí `workerVersion=0.8.14` + `protocolVersion=2`. Presenter UI se na novou roli přepne až po potvrzeném produkčním Worker deploymentu, aby nevzniklo nekompatibilní mezidobí.
@@ -1125,7 +1149,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-015 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. Stripe sandbox lifecycle je ve výrazně pokročilém stavu, ale ostrý prodej zůstává vypnutý. Aktuální produktová verze je 0.9; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.08; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 
@@ -1134,7 +1158,7 @@ Nejbližší priority v tomto pořadí:
 3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
 5. po releasu 0.9 udělat v pondělním acceptance testu zároveň krátkou kontrolu českého i anglického UI a multilingual lesson flow, ale neměnit locale architekturu před ostrou výukou;
-6. dokončit live Stripe onboarding/credentials/country verification a produkční billing acceptance; placená CTA zapnout až poté;
+6. přejít ze Stripe sandboxu do **live billing acceptance**: ověřit live onboarding/Managed Payments způsobilost, vytvořit live Products/Prices pro CZK/EUR/USD a monthly/annual Teacher + Teacher Pro, nakonfigurovat live Customer Portal, live webhook destination + signing secret, minimální live restricted key a Vercel secrets; doplnit serverovou validaci skutečné billing country z dokončeného Checkoutu; provést první skutečnou platbu a teprve po úspěšném E2E live testu zapnout placená CTA;
 7. nechat GA4 nasbírat reálná data a teprve z nich dokončit funnel reporting a key events/conversions; zkontrolovat i nové anonymní parametry `ui_locale` a `lesson_language`;
 8. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
 9. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
