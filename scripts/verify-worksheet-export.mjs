@@ -10,7 +10,7 @@ const toolbar=read('app/lessons/[id]/worksheet/WorksheetPrintToolbar.tsx');
 const pricing=read('components/PricingPage.tsx');
 const packageJson=read('package.json');
 expect(migration.includes("code in ('teacher_pro', 'admin')"),'Teacher Pro and admin must receive the worksheet entitlement.');
-expect(/worksheet_export_enabled\\s*=\\s*v_worksheet_export/.test(migration),'Plan recomputation must persist the worksheet entitlement.');
+expect(/worksheet_export_enabled\s*=\s*v_worksheet_export/.test(migration),'Plan recomputation must persist the worksheet entitlement.');
 expect(migration.includes('v_override.worksheet_export_enabled'),'Manual overrides must support worksheet export.');
 expect(entitlements.includes('worksheet_export_enabled')&&entitlements.includes('worksheetExportEnabled'),'Entitlements API must expose worksheet export.');
 expect(workspace.includes('WorksheetExportDialog')&&workspace.includes('worksheetExportEnabled'),'Lesson workspace must consume worksheet entitlement.');
