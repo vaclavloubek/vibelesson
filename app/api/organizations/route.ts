@@ -24,7 +24,12 @@ const InputSchema = z.object({
     line2: z.string().trim().max(160).optional().default(''),
     city: z.string().trim().max(120).optional().default(''),
     postalCode: z.string().trim().max(32).optional().default(''),
-  }).default({}),
+  }).default({
+    line1: '',
+    line2: '',
+    city: '',
+    postalCode: '',
+  }),
   planCode: z.string(),
   billingPeriod: z.enum(['monthly', 'annual']),
   paymentMethod: z.enum(['card', 'invoice']),
