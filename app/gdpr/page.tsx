@@ -56,6 +56,7 @@ export default async function GdprPage() {
         <nav className={landing.nav} aria-label={ui('Hlavní navigace', 'Main navigation')}>
           <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
           <Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>
+          {accountUser ? <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link> : null}
         </nav>
         <div className={landing.headerActions}>
           <LocaleSwitcher />
