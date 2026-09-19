@@ -15,10 +15,15 @@ export default function SharedLessonAuthControls({
   importRequested,
 }: Props) {
   const handleAuthChange = useCallback(() => {}, []);
+  const handleSignInSuccess = useCallback(() => {
+    if (!importRequested) return;
+    window.location.replace(`/s/${token}?import=1`);
+  }, [importRequested, token]);
 
   return (
     <AuthControls
       onAuthChange={handleAuthChange}
+      onSignInSuccess={handleSignInSuccess}
       initialOpen={initialOpen}
       initialMode="signin"
       signupRedirectPath={`/s/${token}${importRequested ? '?import=1' : ''}`}

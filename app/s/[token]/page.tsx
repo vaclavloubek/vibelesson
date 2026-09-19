@@ -47,8 +47,10 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
   const parsed = LessonSchema.safeParse(data);
   if (!parsed.success) notFound();
 
+  const { data: authData } = await supabase.auth.getUser();
   const signin = query.signin === '1' || (Array.isArray(query.signin) && query.signin.includes('1'));
   const importRequested = query.import === '1' || (Array.isArray(query.import) && query.import.includes('1'));
+  const serverAuthenticated = Boolean(authData.user);
 
   return (
     <main className={`shell ${styles.shell}`}>
@@ -86,7 +88,11 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
             'After saving, you can edit and run it. Your changes will not affect the author’s lesson.',
           )}</span>
         </div>
-        <ImportSharedLessonButton token={token} importRequested={importRequested} />
+        <ImportSharedLessonButton
+          token={token}
+          importRequested={importRequested}
+          serverAuthenticated={serverAuthenticated}
+        />
       </section>
 
       <section className={styles.previewWrap} aria-label={ui('Náhled sdílené lekce', 'Shared lesson preview')}>

@@ -39,6 +39,7 @@ declare global {
 
 type Props = {
   onAuthChange: (user: User | null) => void;
+  onSignInSuccess?: () => void;
   quotaRefreshKey?: number;
   initialOpen?: boolean;
   initialMode?: 'signin' | 'signup';
@@ -137,6 +138,7 @@ function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps)
 
 export default function AuthControls({
   onAuthChange,
+  onSignInSuccess,
   quotaRefreshKey = 0,
   initialOpen = false,
   initialMode = 'signin',
@@ -306,6 +308,7 @@ export default function AuthControls({
 
     if (!error) {
       trackEvent('login_completed');
+      onSignInSuccess?.();
       return;
     }
     if (error.code === 'email_not_confirmed') {
@@ -359,6 +362,7 @@ export default function AuthControls({
 
     if (data.session) {
       trackEvent('signup_completed');
+      onSignInSuccess?.();
       setMessage(english ? 'Your account has been created and you are signed in.' : 'Účet je vytvořený a jsi přihlášený.');
       return;
     }
