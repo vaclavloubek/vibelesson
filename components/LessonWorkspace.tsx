@@ -706,8 +706,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                 <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={0} labelCs="Jak vytvořit lekci" labelEn="How to create a lesson" />
               </div>
               {initialFolderId ? <p className="auth-hint">{ui('Nová lekce se po vytvoření uloží přímo do vybrané složky.', 'The new lesson will be saved directly into the selected folder.')}</p> : null}
-              <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
-                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea data-tour="lesson-create-brief" name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
+              <form data-tour="lesson-create-form" onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
+                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
                 <p className="auth-hint">
                   {multilingualLessonsEnabled ? (
                     <><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</>

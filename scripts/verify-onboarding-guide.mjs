@@ -23,7 +23,7 @@ const sessionPage = read('app/sessions/[id]/page.tsx');
 const css = read('app/globals.css');
 
 for (const target of [
-  'lesson-create-brief',
+  'lesson-create-form',
   'lesson-create-submit',
   'lesson-edit-whole',
   'lesson-edit-block',
@@ -66,6 +66,8 @@ requireText(css, '.syllonaut-guide-shade', 'guide overlay styling');
 requireText(css, '.syllonaut-guide-spotlight', 'guide spotlight styling');
 requireText(css, '.syllonaut-guide-back', 'back button styling');
 requireText(css, '.syllonaut-guide-help', 'contextual help styling');
+requireText(workspace, '<form data-tour="lesson-create-form"', 'first guide step must expose the complete lesson form');
+requireText(guide, "target: 'lesson-create-form'", 'first guide step must spotlight the complete lesson form');
 requireText(lessonPage, 'userId={userId}', 'user-scoped lesson start guide state');
 
 console.log('onboarding guide regression checks passed');

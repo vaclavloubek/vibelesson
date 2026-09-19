@@ -46,14 +46,14 @@ type TargetRect = {
 
 const lessonSteps: GuideStep[] = [
   {
-    target: 'lesson-create-brief',
-    title: { cs: 'Začněte tím nejdůležitějším', en: 'Start with what matters' },
+    target: 'lesson-create-form',
+    title: { cs: 'Nejdřív nastavte celou lekci', en: 'Set up the whole lesson first' },
     body: {
-      cs: 'Popište vlastními slovy, co mají studenti zažít a zvládnout. Klidně přidejte věk, délku hodiny, styl práce nebo zvláštní požadavky.',
-      en: 'Describe in your own words what students should experience and learn. Add age, lesson length, working style or any special requirements.',
+      cs: 'Vyplňte volný popis i parametry lekce: jazyk, cílovku, délku, velikost týmu a tón. Podklady můžete přidat volitelně. Vše v tomto zvýrazněném formuláři zůstává normálně použitelné.',
+      en: 'Fill in the lesson brief and settings: language, audience, duration, team size and tone. Source materials are optional. Everything in this highlighted form remains usable.',
     },
     advanceOn: 'manual',
-    button: { cs: 'Zadání mám', en: 'Brief ready' },
+    button: { cs: 'Zadání i parametry mám', en: 'Brief and settings ready' },
   },
   {
     target: 'lesson-create-submit',
