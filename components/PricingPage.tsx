@@ -62,6 +62,7 @@ const teacherPlansCs: Plan[] = [
     features: [
       '25 nových AI lekcí za měsíc',
       '100 AI úprav za měsíc',
+      'Lekce v libovolném jazyce',
       'Živé hodiny bez tarifního limitu',
       'Studenti se připojují bez plnohodnotného účtu',
       'Automatické bodování kvízů',
@@ -77,6 +78,7 @@ const teacherPlansCs: Plan[] = [
     features: [
       '60 nových AI lekcí za měsíc',
       '250 AI úprav za měsíc',
+      'Lekce v libovolném jazyce',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Živé hodiny bez tarifního limitu',
@@ -95,6 +97,7 @@ const schoolPlansCs: Plan[] = [
       'Až 10 učitelů',
       '200 nových AI lekcí za měsíc společně',
       '800 AI úprav za měsíc společně',
+      'Lekce v libovolném jazyce',
       'Živé hodiny bez tarifního limitu',
       'Sdílený měsíční AI limit pro celý tým',
     ],
@@ -108,6 +111,7 @@ const schoolPlansCs: Plan[] = [
       'Až 30 učitelů',
       '600 nových AI lekcí za měsíc společně',
       '2 400 AI úprav za měsíc společně',
+      'Lekce v libovolném jazyce',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Živé hodiny bez tarifního limitu',
@@ -124,6 +128,7 @@ const schoolPlansCs: Plan[] = [
       'Až 100 učitelů',
       '2 000 nových AI lekcí za měsíc společně',
       '8 000 AI úprav za měsíc společně',
+      'Lekce v libovolném jazyce',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Živé hodiny bez tarifního limitu',
@@ -149,6 +154,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     features: [
       '25 new AI lessons per month',
       '100 AI edits per month',
+      'Lessons in any language',
       'Live lessons with no plan-based limit',
       'Students join without a full account',
       'Automatic quiz scoring',
@@ -160,6 +166,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     features: [
       '60 new AI lessons per month',
       '250 AI edits per month',
+      'Lessons in any language',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Live lessons with no plan-based limit',
@@ -172,6 +179,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Up to 10 teachers',
       '200 new AI lessons per month shared',
       '800 AI edits per month shared',
+      'Lessons in any language',
       'Live lessons with no plan-based limit',
       'Shared monthly AI allowance for the whole team',
     ],
@@ -182,6 +190,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Up to 30 teachers',
       '600 new AI lessons per month shared',
       '2,400 AI edits per month shared',
+      'Lessons in any language',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Live lessons with no plan-based limit',
@@ -194,6 +203,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Up to 100 teachers',
       '2,000 new AI lessons per month shared',
       '8,000 AI edits per month shared',
+      'Lessons in any language',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Live lessons with no plan-based limit',
@@ -267,7 +277,13 @@ function PlanCard({
 
       <ul className={styles.features}>
         {plan.features.map((feature) => {
-          const premiumHook = feature.startsWith('AI hodnocení') || feature.startsWith('Složky a podsložky') || feature.startsWith('AI grading') || feature.startsWith('Folders and subfolders');
+          const multilingualTeacherHook = (plan.id === 'teacher' || plan.id === 'teacher-pro')
+            && (feature === 'Lekce v libovolném jazyce' || feature === 'Lessons in any language');
+          const premiumHook = multilingualTeacherHook
+            || feature.startsWith('AI hodnocení')
+            || feature.startsWith('Složky a podsložky')
+            || feature.startsWith('AI grading')
+            || feature.startsWith('Folders and subfolders');
           return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}</li>;
         })}
       </ul>
@@ -526,8 +542,8 @@ export default function PricingPage({
         <span className={styles.eyebrow}>{english ? 'Pricing' : 'Pricing · Ceník'}</span>
         <h1>{ui('Začněte zdarma. Přidejte výkon, až ho budete potřebovat.', 'Start free. Add more capacity when you need it.')}</h1>
         <p>{ui(
-          'Free stačí na vyzkoušení celého toku od přípravy po živou hodinu. Placené plány přidají větší AI kapacitu; Teacher Pro navíc automatické AI hodnocení a organizaci lekcí do složek.',
-          'Free is enough to try the full flow from lesson preparation to live teaching. Paid plans add more AI capacity; Teacher Pro also adds automatic AI grading and lesson folders.'
+          'Free stačí na vyzkoušení celého toku od přípravy po živou hodinu. Placené plány přidají větší AI kapacitu a lekce v libovolném jazyce; Teacher Pro navíc automatické AI hodnocení a organizaci lekcí do složek.',
+          'Free is enough to try the full flow from lesson preparation to live teaching. Paid plans add more AI capacity and lessons in any language; Teacher Pro also adds automatic AI grading and lesson folders.'
         )}</p>
       </section>
 
