@@ -7,6 +7,7 @@ import {
   readSyllonautGuideState,
   syllonautGuideStepKey,
   SYLLONAUT_GUIDE_ACTION_EVENT,
+  SYLLONAUT_LESSON_REVIEW_STEP,
   SYLLONAUT_GUIDE_EVENT,
   type SyllonautGuideAction,
   type SyllonautGuideChapter,
@@ -66,14 +67,25 @@ const lessonSteps: GuideStep[] = [
     signal: 'lesson-created',
   },
   {
-    target: 'lesson-edit-whole',
-    title: { cs: 'Celou lekci upravíte jedním pokynem', en: 'Edit the whole lesson with one instruction' },
+    target: 'lesson-review',
+    title: { cs: 'Nejdřív si lekci projděte', en: 'Review the lesson first' },
     body: {
-      cs: 'Napište například „zkrátit na 45 minut“, „více týmové práce“ nebo „udělat druhou polovinu náročnější“ a spusťte Upravit celou lekci. Další krok se otevře po dokončení změny.',
-      en: 'Try “shorten it to 45 minutes”, “add more teamwork” or “make the second half more challenging”, then run Edit whole lesson. The guide continues after the edit succeeds.',
+      cs: 'Projděte si vygenerovanou lekci a její aktivity. Klidně přepněte mezi učitelským a studentským náhledem. Teprve až budete vědět, co případně chcete změnit, pokračujte dál.',
+      en: 'Review the generated lesson and its activities. You can switch between teacher and student preview. Continue only after you know whether anything needs changing.',
     },
-    advanceOn: 'signal',
+    advanceOn: 'manual',
+    button: { cs: 'Lekci jsem prošel', en: 'I reviewed the lesson' },
+  },
+  {
+    target: 'lesson-edit-whole',
+    title: { cs: 'Chcete upravit celou lekci?', en: 'Want to edit the whole lesson?' },
+    body: {
+      cs: 'Pokud chcete něco změnit napříč celou lekcí, napište pokyn například „zkrátit na 45 minut“ nebo „více týmové práce“ a spusťte úpravu. Jestli je lekce v pořádku, můžete pokračovat bez změny.',
+      en: 'If you want to change the whole lesson, enter an instruction such as “shorten it to 45 minutes” or “add more teamwork” and run the edit. If the lesson already looks right, continue without changing it.',
+    },
+    advanceOn: 'manual',
     signal: 'lesson-revised',
+    button: { cs: 'Bez úpravy pokračovat', en: 'Continue without editing' },
   },
   {
     target: 'lesson-edit-block',
@@ -88,11 +100,12 @@ const lessonSteps: GuideStep[] = [
     target: 'lesson-edit-block-editor',
     title: { cs: 'Úprava jedné aktivity', en: 'Edit one activity' },
     body: {
-      cs: 'Napište přesně, co chcete změnit, a spusťte Upravit jen tuto aktivitu. Syllonaut změní pouze vybraný úkol; další krok se otevře po úspěšném uložení.',
-      en: 'Describe exactly what should change and run Edit this activity only. Syllonaut changes only the selected task; the guide continues after the edit is saved.',
+      cs: 'Pokud chcete něco změnit jen v této aktivitě, napište přesně co a spusťte Upravit jen tuto aktivitu. Jestli ji měnit nechcete, můžete pokračovat bez úpravy.',
+      en: 'If you want to change only this activity, describe exactly what should change and run Edit this activity only. If it does not need editing, you can continue without changing it.',
     },
-    advanceOn: 'signal',
+    advanceOn: 'manual',
     signal: 'activity-revised',
+    button: { cs: 'Pokračovat bez úpravy', en: 'Continue without editing' },
   },
   {
     target: 'lesson-start',
@@ -427,15 +440,30 @@ export default function SyllonautGuide({ userId }: Props) {
   }, [advance, rect, state?.running, state?.chapter, state?.step, step]);
 
   useEffect(() => {
-    if (!userId || !state?.running || !step || step.advanceOn !== 'signal' || !step.signal) return;
+    if (!userId || !state?.running) return;
     const onAction = (event: Event) => {
       const custom = event as CustomEvent<{ userId?: string; action?: SyllonautGuideAction }>;
-      if (custom.detail?.userId !== userId || custom.detail.action !== step.signal) return;
+      if (custom.detail?.userId !== userId || !custom.detail.action) return;
+
+      if (custom.detail.action === 'lesson-created' && state.chapter === 'lesson') {
+        const createdKey = syllonautGuideStepKey('lesson', 1);
+        const satisfiedSteps = state.satisfiedSteps.includes(createdKey)
+          ? state.satisfiedSteps
+          : [...state.satisfiedSteps, createdKey];
+        persist({
+          ...state,
+          step: SYLLONAUT_LESSON_REVIEW_STEP,
+          satisfiedSteps,
+        });
+        return;
+      }
+
+      if (!step?.signal || custom.detail.action !== step.signal) return;
       advance();
     };
     window.addEventListener(SYLLONAUT_GUIDE_ACTION_EVENT, onAction);
     return () => window.removeEventListener(SYLLONAUT_GUIDE_ACTION_EVENT, onAction);
-  }, [advance, state?.running, state?.chapter, state?.step, step, userId]);
+  }, [advance, persist, state, step, userId]);
 
   const blockerStyles = useMemo(() => {
     if (!rect) return null;
