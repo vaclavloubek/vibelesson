@@ -1,6 +1,7 @@
 'use client';
 
 export type SyllonautGuideChapter = 'lesson' | 'live' | 'evaluation';
+export type SyllonautGuideAction = 'lesson-created' | 'session-created' | 'teams-created' | 'live-started';
 
 export type SyllonautGuideState = {
   version: 1;
@@ -12,6 +13,7 @@ export type SyllonautGuideState = {
 };
 
 export const SYLLONAUT_GUIDE_EVENT = 'syllonaut:guide-state';
+export const SYLLONAUT_GUIDE_ACTION_EVENT = 'syllonaut:guide-action';
 const STORAGE_PREFIX = 'syllonaut_guide_v1:';
 
 export function syllonautGuideStorageKey(userId: string) {
@@ -58,6 +60,13 @@ export function writeSyllonautGuideState(userId: string, state: SyllonautGuideSt
 
   window.dispatchEvent(new CustomEvent(SYLLONAUT_GUIDE_EVENT, {
     detail: { userId, state },
+  }));
+}
+
+export function signalSyllonautGuideAction(userId: string, action: SyllonautGuideAction) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(SYLLONAUT_GUIDE_ACTION_EVENT, {
+    detail: { userId, action },
   }));
 }
 
