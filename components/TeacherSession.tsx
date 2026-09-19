@@ -18,11 +18,13 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import SyllonautMark from '@/components/SyllonautMark';
+import SyllonautGuide from '@/components/SyllonautGuide';
 import TeacherResponses from '@/components/TeacherResponses';
 import type { LiveTimerState, SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
 import type { Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
 import { localizedApiError } from '@/lib/i18n';
+import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
 type Participant = { id: string; displayName: string; joinedAt: string; teamId: string | null };
 type Team = { id: string; name: string; sortOrder: number };
@@ -403,6 +405,11 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         setConnectionMode('primary');
         await refresh();
       }
+
+      if (winner.source !== 'fallback-stale' && authUser) {
+        if (action === 'start') signalSyllonautGuideAction(authUser.id, 'live-started');
+        if (action === 'end') signalSyllonautGuideAction(authUser.id, 'live-ended');
+      }
     } catch {
       setError(ui('Spojení s primární i záložní live službou se přerušilo. Stav hodiny zůstal zachovaný; zkus akci za chvíli znovu.', 'The connection to both the primary and backup live services was interrupted. The lesson state is preserved; try the action again shortly.'));
     } finally {
@@ -423,6 +430,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
       await refresh();
+      if (authUser) signalSyllonautGuideAction(authUser.id, 'teams-created');
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
     } finally {
@@ -488,7 +496,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
       {session?.status === 'lobby' ? (
         <div style={{ display: 'grid', gap: 14 }}>
-          <section className="panel">
+          <section className="panel" data-tour="live-join">
             <span className="eyebrow">{ui('Startovní zóna', 'Starting area')}</span>
             <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
             <p className="muted-copy">{ui('Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.', 'Students can join even after the lesson starts. The code stops working only when the lesson ends.')}</p>
@@ -502,7 +510,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             </div>
             {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>{ui('Tato lekce obsahuje týmový úkol. Před startem vytvoř alespoň 2 týmy.', 'This lesson contains a team task. Create at least 2 teams before starting.')}</p> : null}
             <div className="actions">
-              <button className="primary" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
+              <button className="primary" data-tour="live-start" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
             </div>
           </section>
 
@@ -518,7 +526,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                       {ui('Počet týmů', 'Number of teams')}
                       <input type="number" min={2} max={12} value={teamCount} onChange={(event) => setTeamCount(Math.max(2, Math.min(12, Number(event.target.value) || 2)))} />
                     </label>
-                    <button className="primary" disabled={busy} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
+                    <button className="primary" data-tour="live-team-create" disabled={busy} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
                   </div>
                 </>
               ) : (
@@ -549,7 +557,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
       {session?.status === 'live' ? (
         <div style={{ display: 'grid', gap: 14 }}>
-          <section className="panel live-control-bar">
+          <section className="panel live-control-bar" data-tour="live-controls">
             <div className="live-control-layout">
               <div>
                 <span className="eyebrow"><span className="live-status-dot" aria-hidden="true" />{ui('Mise probíhá', 'Lesson in progress')}</span>
@@ -559,7 +567,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               <div className="live-control-actions">
                 <button className="secondary" disabled={busy || activeIndex <= 0} onClick={() => void act('previous')}>← {ui('Předchozí', 'Previous')}</button>
                 <button className="primary" disabled={busy || activeIndex >= session.lessonSnapshot.blocks.length - 1} onClick={() => void act('next')}>{ui('Další', 'Next')} →</button>
-                <button className="secondary live-end" disabled={busy} onClick={() => void act('end')}>{ui('Ukončit hodinu', 'End lesson')}</button>
+                <button className="secondary live-end" data-tour="live-end" disabled={busy} onClick={() => void act('end')}>{ui('Ukončit hodinu', 'End lesson')}</button>
               </div>
             </div>
             <div
@@ -648,13 +656,14 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       ) : null}
 
       {session?.status === 'ended' ? (
-        <section className="panel">
+        <section className="panel" data-tour="session-ended-summary">
           <span className="eyebrow">{ui('Mise dokončena', 'Lesson completed')}</span>
           <h1>{session.lessonSnapshot.title}</h1>
           <p className="muted-copy">{ui('Hodina je uzavřená. Připojilo se', 'The lesson is closed.')} {session.participants.length} {english ? 'students joined.' : 'studentů.'}</p>
           <div className="actions">{session.lessonId ? <Link href={`/lessons/${session.lessonId}`} className="primary button-link">{ui('Zpět k lekci', 'Back to lesson')}</Link> : null}<Link href="/lessons" className="secondary button-link">{ui('Moje lekce', 'My lessons')}</Link></div>
         </section>
       ) : null}
+      <SyllonautGuide userId={authUser?.id ?? null} />
     </main>
   );
 }

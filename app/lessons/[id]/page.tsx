@@ -31,7 +31,7 @@ export default async function LessonPage({ params }: Props) {
 
   return (
     <>
-      <StartSessionButton lessonId={row.id as string} />
+      <StartSessionButton lessonId={row.id as string} userId={userId} />
       <LessonWorkspace
         initialLesson={parsed.data}
         initialLessonId={row.id as string}

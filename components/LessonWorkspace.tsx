@@ -13,6 +13,7 @@ import LessonPreview from '@/components/LessonPreview';
 import ShareLessonButton from '@/components/ShareLessonButton';
 import SyllonautMark from '@/components/SyllonautMark';
 import WorksheetExportDialog from '@/components/WorksheetExportDialog';
+import SyllonautGuide from '@/components/SyllonautGuide';
 import { demoLesson, demoLessonEn } from '@/lib/demo';
 import {
   bucketBlockCount,
@@ -30,6 +31,7 @@ import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
 import { localizedApiError } from '@/lib/i18n';
 import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema';
+import { maybeStartFirstSyllonautGuide, signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
@@ -248,6 +250,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   }, [saveStatus]);
 
   function markLessonCreationStarted() {
+    if (!initialLessonId && authUser) maybeStartFirstSyllonautGuide(authUser.id);
     if (initialLessonId || lessonCreationTrackedRef.current) return;
     lessonCreationTrackedRef.current = true;
     trackEvent('lesson_creation_started');
@@ -416,7 +419,10 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           lesson_language: data.lesson?.language ?? 'unknown',
         });
         setQuotaRefreshKey((value) => value + 1);
-        if (data.lessonId) router.replace(`/lessons/${data.lessonId}`);
+        if (data.lessonId) {
+          signalSyllonautGuideAction(operationOwnerId, 'lesson-created');
+          router.replace(`/lessons/${data.lessonId}`);
+        }
         return;
       }
 
@@ -466,6 +472,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         lesson_language: completedLesson.language ?? 'unknown',
       });
       setQuotaRefreshKey((value) => value + 1);
+      signalSyllonautGuideAction(operationOwnerId, 'lesson-created');
       router.replace(`/lessons/${resultLessonId}`);
     } catch (err) {
       trackEvent('lesson_generation_failed', {
@@ -509,6 +516,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('whole_lesson');
       setQuotaRefreshKey((value) => value + 1);
       trackEvent('lesson_revision_completed', { revision_scope: 'whole_lesson' });
+      signalSyllonautGuideAction(operationOwnerId, 'lesson-revised');
     } catch (err) {
       trackEvent('lesson_revision_failed', { revision_scope: 'whole_lesson', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
@@ -543,6 +551,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('activity');
       setQuotaRefreshKey((value) => value + 1);
       trackEvent('lesson_revision_completed', { revision_scope: 'activity' });
+      signalSyllonautGuideAction(operationOwnerId, 'activity-revised');
     } catch (err) {
       trackEvent('lesson_revision_failed', { revision_scope: 'activity', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
@@ -694,7 +703,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               <h1>{ui('Co mají studenti dnes zažít?', 'What should students experience today?')}</h1>
               {initialFolderId ? <p className="auth-hint">{ui('Nová lekce se po vytvoření uloží přímo do vybrané složky.', 'The new lesson will be saved directly into the selected folder.')}</p> : null}
               <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
-                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
+                <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea data-tour="lesson-create-brief" name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
                 <p className="auth-hint">
                   {multilingualLessonsEnabled ? (
                     <><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</>
@@ -762,14 +771,14 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
                     <p className="muted-copy" style={{ marginTop: 8 }}>{ui('Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.', 'Original files stay on your device. Syllonaut extracts their text in the browser and sends only that text to the server; neither the files nor extracted content are stored permanently.')}</p>
                   </div>
                 </details>
-                <div className="actions"><button className="primary" disabled={busy}>{busy ? ui('Syllonaut připravuje lekci…', 'Syllonaut is preparing the lesson…') : ui('Vytvořit lekci', 'Create lesson')}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>{ui('Ukázková lekce', 'Example lesson')}</button></div>
+                <div className="actions"><button data-tour="lesson-create-submit" className="primary" disabled={busy}>{busy ? ui('Syllonaut připravuje lekci…', 'Syllonaut is preparing the lesson…') : ui('Vytvořit lekci', 'Create lesson')}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>{ui('Ukázková lekce', 'Example lesson')}</button></div>
                 {!authUser ? <p className="auth-hint">{ui('AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.', 'AI generation requires a free account. The example lesson is available without signing in.')}</p> : null}
               </form>
             </div>
           )}
 
           {lesson ? <>
-            <div className="panel vibe-editor">
+            <div className="panel vibe-editor" data-tour="lesson-edit-whole">
               <span className="eyebrow">{ui('AI úprava celé lekce', 'AI edit · whole lesson')}</span>
               <h2>{ui('Uprav celou lekci', 'Edit the whole lesson')}</h2>
               <form onSubmit={revise}>
@@ -791,7 +800,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               ) : null}
               <div className="quick-edits"><button type="button" onClick={() => setRevision(ui('Udělej lekci zábavnější, ale ne infantilní.', 'Make the lesson more engaging, but not childish.'))}>{ui('Vtipnější', 'More playful')}</button><button type="button" onClick={() => setRevision(ui('Přidej více týmové soutěže a jasné bodování.', 'Add more team competition and clear scoring.'))}>{ui('Více soutěže', 'More competition')}</button><button type="button" onClick={() => setRevision(ui('Omez výklad a přidej více práce studentů.', 'Reduce lecturing and add more student work.'))}>{ui('Méně výkladu', 'Less lecturing')}</button></div>
             </div>
-            <div className="panel block-editor" ref={blockEditorRef}>
+            <div className="panel block-editor" ref={blockEditorRef} data-tour="lesson-edit-block-editor">
               <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
               <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
               {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
@@ -814,6 +823,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
           {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={setSelectedBlockId} onEditBlock={editBlock} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
+      <SyllonautGuide userId={authUser?.id ?? null} />
     </main>
   );
 }

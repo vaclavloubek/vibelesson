@@ -189,7 +189,7 @@ export default function SessionReport({ sessionId }: { sessionId: string }) {
   if (!report) return null;
 
   return (
-    <div ref={rootRef} className="shell teacher-live-shell" style={{ paddingTop: 0 }}>
+    <div ref={rootRef} className="shell teacher-live-shell" data-tour="session-report" style={{ paddingTop: 0 }}>
       <div style={{ display: 'grid', gap: 14 }}>
         <section className="panel">
           <span className="eyebrow">{ui('Výsledky mise', 'Mission results')}</span>
