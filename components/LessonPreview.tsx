@@ -34,8 +34,8 @@ function shortLabel(type: LessonBlock['type'], english: boolean) {
   return (english ? en : cs)[type];
 }
 
-function Block({ block, index, teacherMode, selected, onSelect, startMinute, english, contentLanguage }: {
-  block: LessonBlock; index: number; teacherMode: boolean; selected: boolean; onSelect: () => void; startMinute?: number; english: boolean; contentLanguage?: string | null;
+function Block({ block, index, teacherMode, selected, recentlyChanged, onSelect, startMinute, english, contentLanguage }: {
+  block: LessonBlock; index: number; teacherMode: boolean; selected: boolean; recentlyChanged: boolean; onSelect: () => void; startMinute?: number; english: boolean; contentLanguage?: string | null;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string>('');
@@ -57,10 +57,11 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute, eng
   const ss = String(seconds % 60).padStart(2, '0');
 
   return (
-    <article className={`lesson-block lesson-block-type-${block.type} ${selected ? 'selected-block' : ''}`}>
+    <article className={`lesson-block lesson-block-type-${block.type}${recentlyChanged ? ' recently-changed-block' : ''}${selected ? ' selected-block' : ''}`}>
       {teacherMode ? <button type="button" className="edit-block" aria-pressed={selected} onClick={onSelect}>{selected ? (english ? 'Selected for editing' : 'Vybráno k úpravě') : (english ? 'Edit block' : 'Upravit blok')}</button> : null}
       <div className="block-head">
         <div style={{ display: 'grid', gap: 6 }}>
+          {teacherMode && recentlyChanged ? <span className="revision-change-badge">{english ? 'New / updated' : 'Nové / upravené'}</span> : null}
           <span className="eyebrow">{index + 1}. {label(block.type, english)}</span>
           <ActivityModeBadge type={block.type} />
           <h3 lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.title}</h3>
@@ -82,12 +83,13 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute, eng
   );
 }
 
-export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectBlock, onEditBlock }: { lesson: Lesson; mode: 'teacher' | 'student'; selectedBlockId: string | null; onSelectBlock: (id: string) => void; onEditBlock: (id: string) => void }) {
+export default function LessonPreview({ lesson, mode, selectedBlockId, recentlyChangedBlockIds, onSelectBlock, onEditBlock }: { lesson: Lesson; mode: 'teacher' | 'student'; selectedBlockId: string | null; recentlyChangedBlockIds: string[]; onSelectBlock: (id: string) => void; onEditBlock: (id: string) => void }) {
   const english = useUiLocale() === 'en';
   const [studentPreviewIndex, setStudentPreviewIndex] = useState(0);
   const sum = lesson.blocks.reduce((total, block) => total + block.durationMinutes, 0);
   const starts = useMemo(() => lesson.blocks.map((_, index) => lesson.blocks.slice(0, index).reduce((total, block) => total + block.durationMinutes, 0)), [lesson.blocks]);
   const accessibilityIssues = useMemo(() => getLessonAccessibilityAuthoringIssues(lesson), [lesson]);
+  const recentlyChangedBlocks = useMemo(() => new Set(recentlyChangedBlockIds), [recentlyChangedBlockIds]);
 
   useEffect(() => {
     setStudentPreviewIndex((current) => Math.min(current, Math.max(0, lesson.blocks.length - 1)));
@@ -123,7 +125,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
           >
             <div className="student-progress-fill" style={{ width: `${studentProgress}%` }} />
           </div>
-          {studentBlock ? <Block block={studentBlock} index={studentPreviewIndex} teacherMode={false} selected={false} onSelect={() => {}} english={english} contentLanguage={lesson.language} /> : null}
+          {studentBlock ? <Block block={studentBlock} index={studentPreviewIndex} teacherMode={false} selected={false} recentlyChanged={false} onSelect={() => {}} english={english} contentLanguage={lesson.language} /> : null}
           <div className="student-preview-nav">
             <button type="button" className="secondary" disabled={studentPreviewIndex === 0} onClick={() => setStudentPreviewIndex((index) => Math.max(0, index - 1))}>← {english ? 'Previous' : 'Předchozí'}</button>
             <button type="button" className="primary" disabled={studentPreviewIndex >= lesson.blocks.length - 1} onClick={() => setStudentPreviewIndex((index) => Math.min(lesson.blocks.length - 1, index + 1))}>{english ? 'Next' : 'Další'} →</button>
@@ -166,7 +168,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
           <button
             type="button"
             key={block.id}
-            className={`lesson-route-stop lesson-route-stop-${block.type}${selectedBlockId === block.id ? ' active' : ''}`}
+            className={`lesson-route-stop lesson-route-stop-${block.type}${recentlyChangedBlocks.has(block.id) ? ' recently-changed-route-stop' : ''}${selectedBlockId === block.id ? ' active' : ''}`}
             aria-pressed={selectedBlockId === block.id}
             onClick={() => onSelectBlock(block.id)}
             title={`${index + 1}. ${block.title} · ${block.durationMinutes} min`}
@@ -179,7 +181,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
       </div>
 
       <div className="objectives"><strong>{english ? 'After the lesson, students will be able to:' : 'Po lekci studenti zvládnou:'}</strong><ul>{lesson.learningObjectives.map((o) => <li key={o} lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{o}</li>)}</ul></div>
-      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} onSelect={() => onEditBlock(block.id)} startMinute={starts[index]} english={english} contentLanguage={lesson.language} />)}</div>
+      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} recentlyChanged={recentlyChangedBlocks.has(block.id)} onSelect={() => onEditBlock(block.id)} startMinute={starts[index]} english={english} contentLanguage={lesson.language} />)}</div>
     </div>
   );
 }
