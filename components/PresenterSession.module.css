@@ -31,7 +31,7 @@
 .qrWrap svg { display: block; width: 100%; height: auto; }
 .joinDetails { display: grid; align-content: center; gap: 9px; min-width: 0; width: 100%; }
 .detailLabel { color: rgba(247,248,255,.5); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
-.joinLink { min-width: 0; font-size: clamp(20px, 1.8vw, 32px); overflow-wrap: anywhere; }
+.joinLink { display: block; min-width: 0; max-width: 100%; font-size: clamp(18px, 1.45vw, 26px); line-height: 1.08; letter-spacing: -.02em; white-space: nowrap; }
 .joinCode { display: block; width: 100%; min-width: 0; max-width: 100%; margin: 2px 0 10px; font-size: clamp(44px, 4.2vw, 72px); line-height: .95; letter-spacing: clamp(.03em, .28vw, .055em); white-space: nowrap; }
 .joinCount { display: flex; align-items: baseline; gap: 9px; color: rgba(247,248,255,.58); }
 .joinCount strong { color: white; font-size: 30px; }
