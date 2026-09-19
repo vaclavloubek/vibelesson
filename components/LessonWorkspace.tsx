@@ -73,6 +73,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [materialMode, setMaterialMode] = useState<MaterialMode>('primary');
   const [gradingStrictness, setGradingStrictness] = useState<GradingStrictness>(initialLesson?.gradingStrictness ?? 'neutral');
   const [aiGradingEnabled, setAiGradingEnabled] = useState(false);
+  const [multilingualLessonsEnabled, setMultilingualLessonsEnabled] = useState(false);
+  const [entitlementsLoaded, setEntitlementsLoaded] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
   const [undoLesson, setUndoLesson] = useState<Lesson | null>(null);
@@ -96,20 +98,40 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     let cancelled = false;
     if (!authUser) {
       setAiGradingEnabled(false);
+      setMultilingualLessonsEnabled(false);
+      setEntitlementsLoaded(false);
       return;
     }
 
+    setEntitlementsLoaded(false);
     void fetch('/api/entitlements', { cache: 'no-store' })
       .then(async (response) => {
-        const data = await response.json() as { aiGradingEnabled?: boolean };
-        if (!cancelled) setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
+        const data = await response.json() as {
+          aiGradingEnabled?: boolean;
+          multilingualLessonsEnabled?: boolean;
+        };
+        if (!cancelled) {
+          setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
+          setMultilingualLessonsEnabled(response.ok && Boolean(data.multilingualLessonsEnabled));
+          setEntitlementsLoaded(true);
+        }
       })
       .catch(() => {
-        if (!cancelled) setAiGradingEnabled(false);
+        if (!cancelled) {
+          setAiGradingEnabled(false);
+          setMultilingualLessonsEnabled(false);
+          setEntitlementsLoaded(true);
+        }
       });
 
     return () => { cancelled = true; };
   }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser || !entitlementsLoaded || multilingualLessonsEnabled) return;
+    setLessonLanguage(locale);
+    setCustomLessonLanguage('');
+  }, [authUser, entitlementsLoaded, locale, multilingualLessonsEnabled]);
 
   useEffect(() => {
     if (!authUser) {
@@ -502,22 +524,39 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
               {initialFolderId ? <p className="auth-hint">{ui('Nová lekce se po vytvoření uloží přímo do vybrané složky.', 'The new lesson will be saved directly into the selected folder.')}</p> : null}
               <form onSubmit={generate} onFocusCapture={markLessonCreationStarted}>
                 <label>{ui('Volný popis hodiny', 'Lesson brief')}<textarea name="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={ui('Např. Chci 180 minut mediální gramotnosti pro prváky digitálního marketingu. Týmy po 3–4, hodně humoru, minimum výkladu…', 'E.g. I want 90 minutes of media literacy for first-year students. Teams of 3–4, practical work, minimal lecturing…')} /></label>
-                <p className="auth-hint"><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</p>
+                <p className="auth-hint">
+                  {multilingualLessonsEnabled ? (
+                    <><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</>
+                  ) : (
+                    <><strong>{ui('Ve Free tarifu se lekce vytvoří v jazyce rozhraní.', 'On Free, the lesson is created in the interface language.')}</strong> {ui('Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.', 'Automatic brief-language detection and additional languages are available on Teacher, Teacher Pro and school plans.')}</>
+                  )}
+                </p>
                 <div className="form-grid">
                   <label>{ui('Jazyk lekce', 'Lesson language')}
-                    <select value={lessonLanguage} onChange={(event) => setLessonLanguage(event.target.value)} className="materials-mode-select">
-                      <option value="auto">{ui('Automaticky podle zadání', 'Automatically from the brief')}</option>
-                      <option value="cs">Čeština</option>
-                      <option value="en">English</option>
-                      <option value="de">Deutsch</option>
-                      <option value="fr">Français</option>
-                      <option value="es">Español</option>
-                      <option value="pl">Polski</option>
-                      <option value="sk">Slovenčina</option>
-                      <option value="other">{ui('Jiný jazyk…', 'Other language…')}</option>
+                    <select
+                      value={multilingualLessonsEnabled ? lessonLanguage : locale}
+                      onChange={(event) => setLessonLanguage(event.target.value)}
+                      className="materials-mode-select"
+                      disabled={!authUser || !entitlementsLoaded || !multilingualLessonsEnabled}
+                    >
+                      {multilingualLessonsEnabled ? (
+                        <>
+                          <option value="auto">{ui('Automaticky podle zadání', 'Automatically from the brief')}</option>
+                          <option value="cs">Čeština</option>
+                          <option value="en">English</option>
+                          <option value="de">Deutsch</option>
+                          <option value="fr">Français</option>
+                          <option value="es">Español</option>
+                          <option value="pl">Polski</option>
+                          <option value="sk">Slovenčina</option>
+                          <option value="other">{ui('Jiný jazyk…', 'Other language…')}</option>
+                        </>
+                      ) : (
+                        <option value={locale}>{english ? 'English' : 'Čeština'} · Free</option>
+                      )}
                     </select>
                   </label>
-                  {lessonLanguage === 'other' ? <label>{ui('Jiný jazyk', 'Other language')}<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder={ui('např. Italiano, Українська, Português…', 'e.g. Italiano, Українська, Português…')} required /></label> : null}
+                  {multilingualLessonsEnabled && lessonLanguage === 'other' ? <label>{ui('Jiný jazyk', 'Other language')}<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder={ui('např. Italiano, Українська, Português…', 'e.g. Italiano, Українська, Português…')} required /></label> : null}
                   <label>{ui('Cílovka', 'Audience')}<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={ui('např. 1. ročník vysoké školy', 'e.g. first-year university students')} required /></label>
                   <label>{ui('Délka v minutách', 'Duration in minutes')}<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder={ui('např. 90', 'e.g. 90')} required /></label>
                   <label>{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label>
