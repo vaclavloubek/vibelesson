@@ -111,17 +111,17 @@ await expectHtml('/cs/gdpr', [
 await expectHtml('/new', [
   '<html lang="en"',
   'What should students experience today?',
-  'Write your brief in the language you want to use for the lesson.',
-  'Automatically from the brief',
-  'Other language',
+  'On Free, the lesson is created in the interface language.',
+  'Automatic brief-language detection and additional languages are available on Teacher, Teacher Pro and school plans.',
+  'English · Free',
 ], { cookie: 'syllonaut_locale=en' });
 
 await expectHtml('/new', [
   '<html lang="cs"',
   'Co mají studenti dnes zažít?',
-  'Pište v jazyce, ve kterém chcete vytvořit lekci.',
-  'Automaticky podle zadání',
-  'Jiný jazyk',
+  'Ve Free tarifu se lekce vytvoří v jazyce rozhraní.',
+  'Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.',
+  'Čeština · Free',
 ], { cookie: 'syllonaut_locale=cs' });
 
 await expectHtml('/join', [
