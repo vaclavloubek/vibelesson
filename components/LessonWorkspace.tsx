@@ -94,6 +94,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const lessonCreationTrackedRef = useRef(false);
   const blockRevisionTextareaRef = useRef<HTMLTextAreaElement>(null);
   const blockEditorRef = useRef<HTMLDivElement>(null);
+  const builderRef = useRef<HTMLElement>(null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
 
@@ -195,10 +196,24 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
     window.requestAnimationFrame(() => {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      blockEditorRef.current?.scrollIntoView({
-        behavior: reduceMotion ? 'auto' : 'smooth',
-        block: 'center',
-      });
+      const builder = builderRef.current;
+      const editor = blockEditorRef.current;
+
+      if (builder && editor && builder.scrollHeight > builder.clientHeight + 1) {
+        const builderRect = builder.getBoundingClientRect();
+        const editorRect = editor.getBoundingClientRect();
+        const targetTop = Math.max(0, builder.scrollTop + editorRect.top - builderRect.top - 12);
+        builder.scrollTo({
+          top: targetTop,
+          behavior: reduceMotion ? 'auto' : 'smooth',
+        });
+      } else {
+        editor?.scrollIntoView({
+          behavior: reduceMotion ? 'auto' : 'smooth',
+          block: 'center',
+        });
+      }
+
       window.requestAnimationFrame(() => {
         blockRevisionTextareaRef.current?.focus({ preventScroll: true });
       });
@@ -524,7 +539,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       ) : null}
 
       <div className="workspace">
-        <section className="builder" aria-busy={busy}>
+        <section className="builder" aria-busy={busy} ref={builderRef}>
           {lessonId && lesson ? (
             <div className="panel current-lesson-panel">
               <span className="eyebrow">{ui('Uložená lekce', 'Saved lesson')}</span>
