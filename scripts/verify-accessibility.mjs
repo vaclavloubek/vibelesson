@@ -92,6 +92,10 @@ requirePattern(teamTask, /Společná týmová odpověď/, 'team response field l
 requirePattern(teamTask, /aria-describedby=\{statusId\}/, 'team response field lost status description.');
 requirePattern(lessonWorkspace, /Pokyn pro úpravu celé lekce/, 'whole-lesson AI revision field lost its label.');
 requirePattern(lessonWorkspace, /Pokyn pro úpravu vybrané aktivity/, 'block AI revision field lost its label.');
+requirePattern(lessonWorkspace, /blockEditorRef\.current\?\.scrollIntoView/, 'Edit block must move the block editor into view.');
+requirePattern(lessonWorkspace, /blockRevisionTextareaRef\.current\?\.focus\(\{ preventScroll: true \}\)/, 'Edit block must move keyboard focus into the block revision field.');
+requirePattern(lessonWorkspace, /prefers-reduced-motion: reduce/, 'block-editor navigation must respect reduced-motion preferences.');
+requirePattern(lessonPreview, /onEditBlock\(block\.id\)/, 'the explicit Edit block control must use the focus-and-scroll editing action.');
 requirePattern(lessonWorkspace, /folderId:\s*initialFolderId/, 'folder-aware generation was lost while applying accessibility changes.');
 requirePattern(lessonPreview, /Kontrola přístupnosti obsahu/, 'ATAG authoring feedback is missing from teacher preview.');
 requirePattern(lessonPreview, /Jak opravit:/, 'ATAG repair guidance is missing from teacher preview.');
