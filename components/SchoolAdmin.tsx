@@ -540,7 +540,7 @@ export default function SchoolAdmin({
                   onChange={(event) => setPaymentMethod(event.target.value as 'invoice' | 'card')}
                 >
                   <option value="invoice">
-                    {ui('Faktura / bankovní převod', 'Invoice / bank transfer')}
+                    {ui('Faktura', 'Invoice')}
                   </option>
                   <option value="card">
                     {ui('Platební karta', 'Payment card')}
