@@ -121,6 +121,19 @@ const unrelated = normalizeStripeSubscriptionEvent(
 );
 assert(unrelated && billingLifecycleNotification(unrelated) === null, 'unrelated subscription update must not email');
 
+const canceledMetadataUpdate = normalizeStripeSubscriptionEvent(
+  subscriptionEvent({
+    id: 'evt_email_canceled_metadata',
+    status: 'canceled',
+    previousAttributes: { metadata: { changed: true } },
+  }),
+  billingRouteForCountry,
+);
+assert(
+  canceledMetadataUpdate && billingLifecycleNotification(canceledMetadataUpdate) === null,
+  'metadata-only update on an already canceled subscription must not send another ended email',
+);
+
 const cs = renderBillingLifecycleEmail({
   notification: 'subscription_activated',
   locale: 'cs',

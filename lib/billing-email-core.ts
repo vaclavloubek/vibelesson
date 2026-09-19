@@ -33,6 +33,7 @@ export function billingLifecycleNotification(
     || (
       sync.eventType === 'customer.subscription.updated'
       && sync.status === 'canceled'
+      && sync.previousStatus !== null
       && sync.previousStatus !== 'canceled'
     )
   ) {
