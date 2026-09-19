@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockIds, worksheetAnswerLineCount, worksheetBlockLabel } from '@/lib/worksheet';
 import WorksheetPrintToolbar from './WorksheetPrintToolbar';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
+import { requireTrustedDeviceForPaidIndividual } from '@/lib/trusted-device-access';
 import styles from './WorksheetPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +43,8 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
   if (!userId) redirect('/');
+  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (!deviceGate.allowed) redirect(`/${locale}/subscription`);
 
   const [lessonResult, profileResult] = await Promise.all([
     supabase.from('lessons').select('id, lesson').eq('id', id).eq('owner_id', userId).maybeSingle(),
