@@ -45,6 +45,7 @@ const AILessonBlockSchema = z.object({
 const AILessonSchema = z.object({
   title: z.string(),
   subtitle: z.string().nullable(),
+  subject: z.string().trim().min(1).max(80),
   audience: z.string(),
   totalMinutes: z.number().int(),
   groupSize: z.string(),
@@ -89,6 +90,8 @@ Pravidla:
 - Celkový součet durationMinutes má co nejpřesněji odpovídat požadované délce.
 - Jazyk celé lekce určuje konkrétní pokyn JAZYK LEKCE v uživatelském promptu. Jazyk podkladů sám o sobě nikdy nesmí jazyk lekce změnit.
 - Pole language vždy nastav na platný BCP-47 jazykový tag odpovídající skutečnému jazyku výsledné lekce (např. cs, en, de, fr, sk, pt-BR).
+- Pole subject vždy vyplň jako stručný název ŠIROKÉHO školního předmětu v jazyce lekce, ne jako téma konkrétní hodiny. Příklady: „Matematika“, „Český jazyk“, „Angličtina“, „Dějepis“, „Fyzika“, „Chemie“, „Biologie“, „Zeměpis“, „Informatika“. U skutečně mezioborové lekce použij obecné „Mezipředmětové“ nebo odpovídající výraz v jazyce lekce.
+- Pokud upravuješ existující lekci, zachovej subject, pokud se zásadně nezměnil obor celé lekce.
 - Pokud upravuješ existující lekci, řiď se konkrétní politikou jazyka revize předanou pro danou operaci.
 
 Pravidla přístupnosti vytvářeného obsahu (ATAG/WCAG by default):
@@ -232,6 +235,7 @@ function normalizeLesson(output: z.infer<typeof AILessonSchema>, gradingStrictne
   return LessonSchema.parse({
     title: output.title,
     subtitle: output.subtitle ?? undefined,
+    subject: output.subject.replace(/\s+/g, ' ').trim(),
     audience: output.audience,
     totalMinutes: blocks.reduce((sum, block) => sum + block.durationMinutes, 0),
     groupSize: output.groupSize,
