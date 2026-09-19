@@ -92,12 +92,12 @@ export default async function Image({ params }: Props) {
             {english ? 'AI navigator for interactive teaching' : 'AI navigátor pro interaktivní výuku'}
           </div>
           <div style={{ fontSize: 62, lineHeight: 1.04, fontWeight: 800, letterSpacing: -2.5, maxWidth: 720 }}>
-            {english ? 'From an idea to a live interactive lesson.' : 'Z nápadu do živé interaktivní hodiny.'}
+            {english ? 'From idea to live teaching. With AI.' : 'Od nápadu k odučené hodině. S AI.'}
           </div>
           <div style={{ marginTop: 28, fontSize: 25, lineHeight: 1.45, color: '#686B74', maxWidth: 670 }}>
             {english
-              ? 'Create a lesson, refine it in natural language and run it live with your students.'
-              : 'Připravte lekci, upravte ji přirozeným jazykem a rovnou ji veďte se studenty.'}
+              ? 'AI creates the lesson, you refine it in natural language and teach it live with your students.'
+              : 'AI připraví lekci, vy ji doladíte přirozeným jazykem a rovnou ji odučíte se studenty.'}
           </div>
         </div>
       </div>

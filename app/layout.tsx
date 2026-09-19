@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.syllonaut.com'),
   title: 'Syllonaut',
-  description: 'AI-powered interactive lesson creation and live teaching.',
+  description: 'From idea to live teaching with AI: create, refine and run interactive lessons in one workflow.',
   applicationName: 'Syllonaut',
 };
 

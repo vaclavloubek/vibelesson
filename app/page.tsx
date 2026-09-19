@@ -9,11 +9,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'en';
   const english = locale === 'en';
   const title = english
-    ? 'Syllonaut — AI navigator for interactive teaching'
-    : 'Syllonaut — AI navigátor pro interaktivní výuku';
+    ? 'Syllonaut — From idea to live teaching with AI'
+    : 'Syllonaut — Od nápadu k odučené hodině s AI';
   const description = english
-    ? 'Turn an idea into a live interactive lesson. Syllonaut helps teachers create, refine and run engaging lessons in real time.'
-    : 'Z nápadu do živé interaktivní hodiny. Syllonaut připraví, upraví a pomůže vést výuku se studenty v reálném čase.';
+    ? 'From idea to live teaching with AI. Syllonaut creates and refines interactive lessons and helps teachers run them with students in real time.'
+    : 'Od nápadu k odučené hodině s AI. Syllonaut připraví a upraví interaktivní lekci a pomůže ji rovnou vést se studenty.';
 
   return {
     title,
