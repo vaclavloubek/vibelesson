@@ -28,18 +28,24 @@ Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; ten
 
 ### Versionování produktu
 
-Od verze **0.7** se Syllonaut čísluje podle následujícího projektového pravidla:
+Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravidlo:
 
-- **0.7** je výchozí baseline zavedená 2026-09-18;
-- **větší funkční změna / nový významný produktový celek** posouvá verzi o jednu desetinu, např. `0.7 → 0.8`;
-- **menší samostatná funkční úprava** zvyšuje třetí část verze o jednu, zapisovanou dvěma číslicemi: `0.7.01`, `0.7.02` … `0.7.99`;
+- až do ostrého startu zůstává hlavní vývojová řada **0.9.x**; samotné `0.9` se už před ostrým startem nemění;
+- třetí číselná část je interní pořadí produkčních funkčních revizí a může mít libovolný počet číslic;
+- **menší funkční úprava** zvýší interní verzi o 1, např. `0.9.36 → 0.9.37`;
+- **větší funkční / produktová úprava** dostane nejbližší vyšší volnou desítkovou hranici, např. z `0.9.36` na `0.9.40`; pokud byla tato hranice mezitím dosažena drobnými interními revizemi, použije se další vyšší desítka;
+- číslo verze samo o sobě neurčuje závažnost změny; rozhodující je, zda byla konkrétní revize označena jako menší interní úprava, nebo jako větší veřejný release;
+- **dashboard uživateli zobrazuje pouze poslední větší veřejný release**. Menší interní revize mohou pokračovat, ale zobrazené číslo se kvůli nim nemění;
+- příklad: po veřejném releasu `0.9.40` mohou interně vzniknout `0.9.41`, `0.9.42` atd., zatímco dashboard stále ukazuje `0.9.40`; změní se až při další větší úpravě;
+- současná `0.9.19` je při zavedení tohoto pravidla výchozí veřejně viditelný baseline a zůstane na dashboardu, dokud nebude vydána další větší úprava;
 - číslo za druhou tečkou vždy představuje **jednu koherentní funkční změnu**, nikoli jeden commit nebo jeden změněný soubor;
-- při posunu o desetinu se patch část zahazuje/resetuje, např. `0.7.14 → 0.8`;
 - čistě dokumentační, testovací, CI, formátovací nebo interní refaktor bez změny produktového chování sám o sobě verzi neposouvá;
-- pracovní Preview větev verzi neposouvá; nová verze se stává platnou až po sloučení funkční změny do produkčního `main`;
-- pokud není změna zjevně „větší“, výchozí interpretace je **menší funkční úprava** a tedy zvýšení třetí části;
-- při každé budoucí produkční funkční změně se má automaticky aktualizovat tento `PROJECT.md`: aktuální verze + stručný changelog/stav relevantní funkce. Není potřeba čekat na zvláštní pokyn k verzování;
-- `PROJECT.md` se jinak stále mění pouze na výslovný pokyn uživatele; výjimkou je právě tato automatická aktualizace verze/stavu jako součást už schválené produkční funkční změny.
+- pracovní Preview větev verzi neposouvá; nová interní verze se stává platnou až po sloučení funkční změny do produkčního `main`;
+- při každé budoucí produkční funkční změně se má automaticky aktualizovat tento `PROJECT.md`: interní verze + stručný changelog/stav relevantní funkce;
+- při větší úpravě se současně aktualizuje i veřejně zobrazovaná verze na dashboardu; při menší úpravě se veřejně zobrazovaná verze nemění;
+- **verze `1.0.0` je vyhrazena výhradně pro ostrý start produktu**, tedy okamžik, kdy je Syllonaut považován za připravený pro běžný produkční provoz;
+- o připravenosti na `1.0.0` se má usilovat o shodu podle funkčnosti, stability, bezpečnosti, UX a provozní připravenosti; pokud shoda nevznikne, **konečné rozhodnutí o vydání `1.0.0` má vlastník projektu Václav Loubek**;
+- `PROJECT.md` se jinak stále mění pouze na výslovný pokyn uživatele; výjimkou je automatická aktualizace verze/stavu jako součást už schválené produkční funkční změny.
 
 ## 2. Stack a deployment
 
@@ -1189,7 +1195,7 @@ Další významné změny 2026-09-18:
 - **0.9.06** — oprava sticky-scroll problému z 0.9.05: levý authoring sloupec má na desktopu vlastní viewportový scroll a „Upravit blok“ posouvá přímo tento kontejner; mobil používá stránkový fallback.
 - **0.9.07** — zvýraznění výsledku AI revize: nové nebo upravené aktivity jsou do další úspěšné AI změny označené fialovým nádechem i textovým štítkem; změny se detekují porovnáním block JSON podle ID a stav přetrvá reload ve stejném tabu.
 - **0.9.08 / SEC-016** — account isolation hotfix: při logoutu nebo přepnutí identity se klientský lesson workspace synchronně vyčistí a provede hard navigation; recovery snapshot serverové lekce lze uložit jen pod původního ownera; pozdní async odpovědi pro jiný účet se zahodí; uložené lesson/block revize před AI ověřují ownership a používají DB-authoritativní lesson.
-- viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a zobrazuje aktuální produkční verzi.
+- viditelné číslo verze v učitelském dashboardu představuje pouze poslední větší veřejný release; menší interní revize se do dashboardu nepromítají. Současný veřejný baseline při zavedení pravidla je `0.9.19`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích; 0.9.05 zrychluje přechod z náhledu bloku přímo do jeho editoru; 0.9.06 opravuje sticky-scroll limit tohoto přechodu na desktopu; 0.9.07 zpřehledňuje výsledek AI revizí zvýrazněním změněných a nových aktivit; 0.9.08 je bezpečnostní hotfix SEC-016 pro striktní izolaci lesson state mezi účty a server-authoritative revize.**
 
@@ -1216,8 +1222,10 @@ Další významné změny 2026-09-18:
 - nevytvářet umělé placené AI cally jen kvůli testu, pokud lze bezpečnost ověřit strukturálně;
 - accessibility změny musí chránit jak samotné authoring UI, tak výsledný obsah lekcí;
 - automatický accessibility test není náhrada manuálního testu;
-- každá schválená produkční **funkční** změna musí automaticky dostat novou verzi podle pravidel v sekci „Versionování produktu“ a současně aktualizovat příslušný stav/changelog v `PROJECT.md`;
-- menší funkční změna standardně inkrementuje třetí část (`0.7.01`, `0.7.02` …), větší produktový/funkční celek desetinu (`0.8`, `0.9` …);
+- každá schválená produkční **funkční** změna musí automaticky dostat novou **interní** verzi podle pravidel v sekci „Versionování produktu“ a současně aktualizovat příslušný stav/changelog v `PROJECT.md`;
+- menší funkční změna inkrementuje interní třetí část o 1, ale **nemění verzi zobrazenou uživateli na dashboardu**;
+- větší produktový/funkční release dostane nejbližší vyšší volnou desítkovou hranici v řadě `0.9.x` a zároveň aktualizuje veřejně zobrazovanou verzi;
+- řada `0.9.x` zůstává až do ostrého startu; `1.0.0` je vyhrazeno pro produkt považovaný za připravený k ostrému provozu, přičemž při neshodě má konečné rozhodnutí vlastník projektu;
 - čistě interní/docs/test/CI změna bez změny chování verzi neposouvá;
 - `PROJECT.md` jinak měnit pouze na výslovný pokyn uživatele.
 
