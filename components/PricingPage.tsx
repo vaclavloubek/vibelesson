@@ -241,15 +241,17 @@ function PlanCard({
   plan,
   billing,
   currency,
-  canSandboxCheckout,
-  onSandboxCheckout,
+  checkoutEnabled,
+  checkoutLabel,
+  onCheckout,
   english,
 }: {
   plan: Plan;
   billing: Billing;
   currency: BillingCurrency;
-  canSandboxCheckout: boolean;
-  onSandboxCheckout: (plan: Plan) => void;
+  checkoutEnabled: boolean;
+  checkoutLabel: string;
+  onCheckout: (plan: Plan) => void;
   english: boolean;
 }) {
   const annual = billing === 'annual';
@@ -291,8 +293,8 @@ function PlanCard({
 
       {plan.free ? (
         <a className={styles.activeCta} href={english ? '/en/pricing?signup=1' : '/cs/pricing?signup=1'} onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>{english ? 'Create Free account' : 'Vytvořit Free účet'}</a>
-      ) : canSandboxCheckout && (plan.id === 'teacher' || plan.id === 'teacher-pro') ? (
-        <button type="button" className={styles.activeCta} onClick={() => onSandboxCheckout(plan)}>{english ? 'Test purchase' : 'Otestovat nákup'}</button>
+      ) : checkoutEnabled && (plan.id === 'teacher' || plan.id === 'teacher-pro') ? (
+        <button type="button" className={styles.activeCta} onClick={() => onCheckout(plan)}>{checkoutLabel}</button>
       ) : (
         <button type="button" className={styles.disabledCta} disabled>{english ? 'Coming soon' : 'Připravujeme'}</button>
       )}
@@ -305,6 +307,7 @@ export default function PricingPage({
   currency,
   initialCountry,
   sandboxCheckoutEnabled = false,
+  publicLiveBillingEnabled = false,
   billingTestEnvironment = 'sandbox',
   checkoutResult = null,
   checkoutSessionId = null,
@@ -314,6 +317,7 @@ export default function PricingPage({
   currency: BillingCurrency;
   initialCountry?: string | null;
   sandboxCheckoutEnabled?: boolean;
+  publicLiveBillingEnabled?: boolean;
   billingTestEnvironment?: 'sandbox' | 'live';
   checkoutResult?: 'success' | 'cancelled' | null;
   checkoutSessionId?: string | null;
@@ -322,8 +326,19 @@ export default function PricingPage({
   const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
-  const liveAcceptance = billingTestEnvironment === 'live';
-  const billingAnalyticsSource = liveAcceptance ? 'stripe_live_acceptance' : 'stripe_sandbox';
+  const liveCheckout = billingTestEnvironment === 'live';
+  const liveAcceptance = liveCheckout && sandboxCheckoutEnabled;
+  const publicPurchaseMode = publicLiveBillingEnabled && liveCheckout && !liveAcceptance;
+  const billingAnalyticsSource = liveAcceptance
+    ? 'stripe_live_acceptance'
+    : liveCheckout
+      ? 'stripe_live'
+      : 'stripe_sandbox';
+  const pricingAnalyticsSource = liveAcceptance
+    ? 'pricing_live_acceptance'
+    : liveCheckout
+      ? 'pricing_live'
+      : 'pricing_sandbox';
   const ui = (cs: string, en: string) => english ? en : cs;
   const [user, setUser] = useState<User | null>(null);
   const [audience, setAudience] = useState<Audience>('teachers');
@@ -379,7 +394,7 @@ export default function PricingPage({
   useEffect(() => {
     if (
       checkoutResult !== 'success'
-      || !liveAcceptance
+      || !liveCheckout
       || !checkoutSessionId
       || subscriptionActivationTrackedRef.current
     ) return;
@@ -417,7 +432,7 @@ export default function PricingPage({
     }, 750);
 
     return () => window.clearTimeout(timer);
-  }, [activePlanCode, checkoutResult, checkoutSessionId, liveAcceptance, router]);
+  }, [activePlanCode, checkoutResult, checkoutSessionId, liveCheckout, router]);
 
   useEffect(() => {
     if (!checkoutPlan) return;
@@ -453,13 +468,20 @@ export default function PricingPage({
 
   function openSandboxCheckout(plan: Plan) {
     if (plan.id !== 'teacher' && plan.id !== 'teacher-pro') return;
-    setCheckoutPlan(plan);
-    setCheckoutError('');
+
     trackEvent('plan_select', {
       plan: plan.id,
       billing_period: billing,
-      source: liveAcceptance ? 'pricing_live_acceptance' : 'pricing_sandbox',
+      source: pricingAnalyticsSource,
     });
+
+    if (publicPurchaseMode && !user) {
+      window.location.assign(`/${locale}/pricing?signup=1#${plan.id}`);
+      return;
+    }
+
+    setCheckoutPlan(plan);
+    setCheckoutError('');
   }
 
   async function startSandboxCheckout() {
@@ -507,16 +529,22 @@ export default function PricingPage({
         plan: planId,
         billing_period: billing,
         billing_country: checkoutCountry,
-        source: liveAcceptance ? 'pricing_live_acceptance' : 'pricing_sandbox',
+        source: pricingAnalyticsSource,
       });
       window.location.assign(payload.url);
     } catch (error) {
       console.error('billing checkout start failed', error);
       const message = error instanceof Error ? error.message : '';
       setCheckoutError(
-        message && message !== 'checkout_creation_failed'
-          ? `Stripe: ${message}`
-          : ui('Testovací Checkout se nepodařilo spustit. Zkontroluj serverové nastavení Stripe.', 'The test Checkout could not be started. Check the server-side Stripe configuration.'),
+        message === 'active_subscription_exists'
+          ? ui('Už máš aktivní předplatné. Spravovat ho můžeš přes zákaznický portál.', 'You already have an active subscription. You can manage it in the customer portal.')
+          : message === 'billing_currency_migration_required'
+            ? ui('Změna fakturační země nebo měny vyžaduje řízený převod předplatného. Kontaktuj podporu.', 'Changing billing country or currency requires a controlled subscription migration. Contact support.')
+            : message && message !== 'checkout_creation_failed'
+              ? `Stripe: ${message}`
+              : publicPurchaseMode
+                ? ui('Nákup se nepodařilo spustit. Zkus to prosím znovu.', 'The purchase could not be started. Please try again.')
+                : ui('Testovací Checkout se nepodařilo spustit. Zkontroluj serverové nastavení Stripe.', 'The test Checkout could not be started. Check the server-side Stripe configuration.'),
       );
       setCheckoutBusy(false);
     }
@@ -555,7 +583,7 @@ export default function PricingPage({
         );
       }
 
-      trackEvent('billing_portal_open', { source: liveAcceptance ? 'pricing_live_acceptance' : 'pricing_sandbox' });
+      trackEvent('billing_portal_open', { source: pricingAnalyticsSource });
       window.location.assign(payload.url);
     } catch (error) {
       console.error('billing portal start failed', error);
@@ -563,7 +591,9 @@ export default function PricingPage({
       setPortalError(
         message && message !== 'portal_creation_failed'
           ? `Stripe: ${message}`
-          : ui('Testovací zákaznický portál se nepodařilo otevřít.', 'The test customer portal could not be opened.'),
+          : publicPurchaseMode
+            ? ui('Zákaznický portál se nepodařilo otevřít. Zkus to prosím znovu.', 'The customer portal could not be opened. Please try again.')
+            : ui('Testovací zákaznický portál se nepodařilo otevřít.', 'The test customer portal could not be opened.'),
       );
       setPortalBusy(false);
     }
@@ -605,14 +635,37 @@ export default function PricingPage({
         )}</p>
       </section>
 
-      {checkoutResult && sandboxCheckoutEnabled ? (
+      {checkoutResult && (sandboxCheckoutEnabled || publicLiveBillingEnabled) ? (
         <div className={styles.checkoutNotice} role="status">
           {checkoutResult === 'success'
             ? (liveAcceptance
               ? ui('LIVE Checkout byl dokončen. Webhook nyní ověří skutečnou fakturační zemi a teprve potom může aktivovat tarif.', 'LIVE Checkout completed. The webhook will verify the actual billing country before it can activate the plan.')
-              : ui('Sandbox Checkout byl dokončen. Stav předplatného ověří webhook v databázi.', 'Sandbox Checkout completed. The webhook will verify the subscription state in the database.'))
-            : ui('Stripe Checkout byl zrušen. Nic se nezměnilo.', 'Stripe Checkout was cancelled. Nothing changed.')}
+              : publicPurchaseMode
+                ? (activePlanCode
+                  ? ui('Platba proběhla a placený tarif je aktivní.', 'Payment completed and your paid plan is active.')
+                  : ui('Platba proběhla. Aktivaci tarifu právě ověřujeme.', 'Payment completed. We are verifying your plan activation now.'))
+                : ui('Sandbox Checkout byl dokončen. Stav předplatného ověří webhook v databázi.', 'Sandbox Checkout completed. The webhook will verify the subscription state in the database.'))
+            : ui('Nákup byl zrušen. Nic se nezměnilo.', 'The purchase was cancelled. Nothing changed.')}
         </div>
+      ) : null}
+
+      {publicPurchaseMode && user && activePlanCode ? (
+        <section className={styles.sandboxTools} aria-label={ui('Správa předplatného', 'Subscription management')}>
+          <div>
+            <span className={styles.checkoutKicker}>{ui('Aktivní předplatné', 'Active subscription')}</span>
+            <strong>{activePlanCode === 'teacher-pro' ? 'Teacher Pro' : 'Teacher'}</strong>
+            <p>{ui('Platební metodu, fakturační údaje, historii faktur a zrušení předplatného spravuje Stripe Customer Portal.', 'Payment method, billing details, invoice history and cancellation are managed in Stripe Customer Portal.')}</p>
+          </div>
+          <button
+            type="button"
+            className={styles.dialogSecondary}
+            onClick={openSandboxPortal}
+            disabled={portalBusy}
+          >
+            {portalBusy ? ui('Otevírám portál…', 'Opening portal…') : ui('Spravovat předplatné', 'Manage subscription')}
+          </button>
+          {portalError ? <div className={styles.sandboxToolsError} role="alert">{portalError}</div> : null}
+        </section>
       ) : null}
 
       {sandboxCheckoutEnabled && user ? (
@@ -664,8 +717,16 @@ export default function PricingPage({
             plan={plan}
             billing={billing}
             currency={currency}
-            canSandboxCheckout={sandboxCheckoutEnabled && Boolean(user)}
-            onSandboxCheckout={openSandboxCheckout}
+            checkoutEnabled={
+              (sandboxCheckoutEnabled || publicPurchaseMode)
+              && (plan.id === 'teacher' || plan.id === 'teacher-pro')
+            }
+            checkoutLabel={
+              publicPurchaseMode
+                ? (user ? ui('Vybrat plán', 'Choose plan') : ui('Přihlásit se a koupit', 'Sign in to buy'))
+                : ui('Otestovat nákup', 'Test purchase')
+            }
+            onCheckout={openSandboxCheckout}
             english={english}
           />
         ))}
@@ -688,17 +749,34 @@ export default function PricingPage({
             aria-modal="true"
             aria-labelledby="billing-checkout-title"
           >
-            <span className={styles.checkoutKicker}>{liveAcceptance ? 'Stripe LIVE acceptance' : 'Stripe sandbox'}</span>
-            <h2 id="billing-checkout-title">{liveAcceptance ? ui('Ostrý test', 'Live test') : ui('Otestovat', 'Test')} {checkoutPlan.name}</h2>
+            <span className={styles.checkoutKicker}>{
+              liveAcceptance
+                ? 'Stripe LIVE acceptance'
+                : publicPurchaseMode
+                  ? ui('Bezpečná platba přes Stripe', 'Secure payment with Stripe')
+                  : 'Stripe sandbox'
+            }</span>
+            <h2 id="billing-checkout-title">{
+              liveAcceptance
+                ? ui('Ostrý test', 'Live test')
+                : publicPurchaseMode
+                  ? ui('Vybrat', 'Choose')
+                  : ui('Otestovat', 'Test')
+            } {checkoutPlan.name}</h2>
             <p>{liveAcceptance
               ? ui(
                 'Jde o skutečnou platbu. Vyber očekávanou fakturační zemi; po dokončení Stripe Checkout Syllonaut serverově ověří zemi, kterou Checkout skutečně vrátil, a při nesouladu tarif neaktivuje.',
                 'This is a real payment. Choose the expected billing country; after Stripe Checkout completes, Syllonaut will verify the country actually returned by Checkout and will not activate the plan if the route does not match.'
               )
-              : ui(
-                'Vyber fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby. Ve Stripe Checkout pak použij stejnou fakturační zemi.',
-                'Choose the billing country. Syllonaut will use it to select the currency and payment-processing route. Use the same billing country in Stripe Checkout.'
-              )}</p>
+              : publicPurchaseMode
+                ? ui(
+                  'Vyber fakturační zemi. Podle ní zvolíme měnu a způsob zpracování platby; samotná platba proběhne bezpečně ve Stripe Checkout.',
+                  'Choose your billing country. We will use it to select the currency and payment-processing route; payment itself is completed securely in Stripe Checkout.'
+                )
+                : ui(
+                  'Vyber fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby. Ve Stripe Checkout pak použij stejnou fakturační zemi.',
+                  'Choose the billing country. Syllonaut will use it to select the currency and payment-processing route. Use the same billing country in Stripe Checkout.'
+                )}</p>
 
             <label className={styles.checkoutField}>
               {ui('Fakturační země', 'Billing country')}
@@ -758,8 +836,8 @@ export default function PricingPage({
         </div>
         <div>
           <span className={styles.noteIndex}>02</span>
-          <strong>{ui('Placené plány zatím neaktivujeme.', 'Paid plans are not publicly active yet.')}</strong>
-          <p>{ui('Tlačítka jsou proto záměrně neaktivní. Free účet je dostupný už nyní a nevyžaduje platební kartu.', 'Paid-plan buttons are therefore intentionally disabled. The Free account is available now and does not require a payment card.')}</p>
+          <strong>{ui('Teacher a Teacher Pro jsou aktivní.', 'Teacher and Teacher Pro are live.')}</strong>
+          <p>{ui('Individuální předplatné lze koupit přímo přes Stripe. Školní tarify zatím zůstávají ve fázi přípravy.', 'Individual subscriptions can be purchased directly through Stripe. School plans are still being prepared.')}</p>
         </div>
         <div>
           <span className={styles.noteIndex}>03</span>

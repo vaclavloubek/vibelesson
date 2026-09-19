@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
+import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isSupportedCountryCode } from '@/lib/countries';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     return jsonError(500, 'profile_lookup_failed');
   }
   if (!livemode && profile?.role !== 'admin') return jsonError(403, 'sandbox_checkout_forbidden');
-  const publicLiveBillingEnabled = process.env.STRIPE_LIVE_BILLING_PUBLIC_ENABLED === 'true';
+  const publicLiveBillingEnabled = isPublicLiveBillingEnabled();
   if (livemode && !publicLiveBillingEnabled && profile?.role !== 'admin') return jsonError(403, 'live_checkout_acceptance_only');
 
   if (!isSupportedCountryCode(input.country)) return jsonError(400, 'unsupported_billing_country');

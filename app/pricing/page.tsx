@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import PricingPage from '@/components/PricingPage';
 import { resolvePricingCountry, resolvePricingCurrency } from '@/lib/billing-region';
+import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { createClient } from '@/lib/supabase/server';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 
@@ -11,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const english = locale === 'en';
   const title = english ? 'Pricing — Syllonaut' : 'Ceník — Syllonaut';
   const description = english
-    ? 'Syllonaut pricing for individual teachers and schools. Start free and compare upcoming paid plans.'
-    : 'Ceník Syllonautu pro jednotlivé učitele a školy. Začněte zdarma a porovnejte připravované placené plány.';
+    ? 'Syllonaut pricing for individual teachers and schools. Start free or subscribe to Teacher and Teacher Pro; school plans are coming later.'
+    : 'Ceník Syllonautu pro jednotlivé učitele a školy. Začněte zdarma nebo si předplaťte Teacher či Teacher Pro; školní plány se připravují.';
 
   return {
     title,
@@ -59,27 +60,26 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
   const signup = Array.isArray(params.signup) ? params.signup[0] : params.signup;
   const checkout = Array.isArray(params.checkout) ? params.checkout[0] : params.checkout;
   const billingEnvParam = Array.isArray(params.billing_env) ? params.billing_env[0] : params.billing_env;
+  const requestedBillingEnvironment = billingEnvParam === 'live' || billingEnvParam === 'sandbox'
+    ? billingEnvParam
+    : null;
   const sessionIdParam = Array.isArray(params.session_id) ? params.session_id[0] : params.session_id;
   const checkoutSessionId = typeof sessionIdParam === 'string' && /^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(sessionIdParam)
     ? sessionIdParam
     : null;
-  const billingTestEnvironment = billingEnvParam === 'live' ? 'live' : 'sandbox';
   const requestHeaders = await headers();
   const countryHeader = requestHeaders.get('x-vercel-ip-country');
   const acceptLanguage = requestHeaders.get('accept-language');
   const initialCountry = resolvePricingCountry(countryHeader, acceptLanguage);
   const currency = resolvePricingCurrency(countryHeader, acceptLanguage);
 
+  const liveSecretConfigured = /^(?:sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY_LIVE ?? '');
+  const publicLiveBillingEnabled = isPublicLiveBillingEnabled() && liveSecretConfigured;
+  let billingTestEnvironment: 'sandbox' | 'live' = publicLiveBillingEnabled ? 'live' : 'sandbox';
   let sandboxCheckoutEnabled = false;
   let activePlanCode: 'teacher' | 'teacher-pro' | null = null;
-  const requestedSecret = billingTestEnvironment === 'live'
-    ? process.env.STRIPE_SECRET_KEY_LIVE
-    : process.env.STRIPE_SECRET_KEY_TEST;
-  const requestedSecretConfigured = billingTestEnvironment === 'live'
-    ? /^(?:sk|rk)_live_/.test(requestedSecret ?? '')
-    : /^(?:sk|rk)_test_/.test(requestedSecret ?? '');
 
-  if (requestedSecretConfigured || checkout === 'success') {
+  if (publicLiveBillingEnabled || requestedBillingEnvironment || checkout === 'success') {
     const supabase = await createClient();
     const { data } = await supabase.auth.getClaims();
     const userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
@@ -90,7 +90,21 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
         .select('role, active_plan_code')
         .eq('id', userId)
         .maybeSingle();
-      sandboxCheckoutEnabled = requestedSecretConfigured && profile?.role === 'admin';
+
+      if (profile?.role === 'admin' && requestedBillingEnvironment) {
+        const requestedSecret = requestedBillingEnvironment === 'live'
+          ? process.env.STRIPE_SECRET_KEY_LIVE
+          : process.env.STRIPE_SECRET_KEY_TEST;
+        const requestedSecretConfigured = requestedBillingEnvironment === 'live'
+          ? /^(?:sk|rk)_live_/.test(requestedSecret ?? '')
+          : /^(?:sk|rk)_test_/.test(requestedSecret ?? '');
+
+        if (requestedSecretConfigured) {
+          billingTestEnvironment = requestedBillingEnvironment;
+          sandboxCheckoutEnabled = true;
+        }
+      }
+
       if (profile?.active_plan_code === 'teacher') activePlanCode = 'teacher';
       if (profile?.active_plan_code === 'teacher_pro') activePlanCode = 'teacher-pro';
     }
@@ -102,6 +116,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
       currency={currency}
       initialCountry={initialCountry}
       sandboxCheckoutEnabled={sandboxCheckoutEnabled}
+      publicLiveBillingEnabled={publicLiveBillingEnabled}
       billingTestEnvironment={billingTestEnvironment}
       checkoutResult={checkout === 'success' || checkout === 'cancelled' ? checkout : null}
       checkoutSessionId={checkoutSessionId}
