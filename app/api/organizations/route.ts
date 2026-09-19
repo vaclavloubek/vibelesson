@@ -143,6 +143,7 @@ export async function POST(request: Request) {
         paymentMethod: input.paymentMethod,
         externalCustomerId: null,
         externalCheckoutSessionId: null,
+        externalCheckoutUrl: null,
         externalInvoiceId: null,
         hostedInvoiceUrl: null,
       },
