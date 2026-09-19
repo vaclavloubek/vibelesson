@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 type RouteContext = {
   params: Promise<{ token: string }>;
@@ -46,6 +47,14 @@ export async function POST(request: Request, { params }: RouteContext) {
   const { supabase, userId } = await authenticatedRequestClient(request);
   if (!supabase || !userId) {
     return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  }
+
+  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (!deviceGate.allowed) {
+    return NextResponse.json({
+      error: trustedDeviceErrorMessage(deviceGate.code),
+      code: deviceGate.code,
+    }, { status: 403 });
   }
 
   const { token } = await params;
