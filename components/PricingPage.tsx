@@ -301,15 +301,16 @@ function PlanCard({
             && (feature === 'Lekce v libovolném jazyce' || feature === 'Lessons in any language');
           const worksheetHook = feature.startsWith('Pracovní listy')
             || feature.startsWith('Printable worksheets');
+          const unlimitedReuseHook = feature === 'Opakované používání lekcí bez omezení'
+            || feature === 'Unlimited repeated use of lessons';
           const premiumHook = multilingualTeacherHook
             || worksheetHook
+            || unlimitedReuseHook
             || feature.startsWith('AI hodnocení')
             || feature.startsWith('Složky a podsložky')
             || feature.startsWith('AI grading')
             || feature.startsWith('Folders and subfolders');
-          const unlimitedReuseHook = feature === 'Opakované používání lekcí bez omezení'
-            || feature === 'Unlimited repeated use of lessons';
-          return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{unlimitedReuseHook ? <strong>{feature}</strong> : feature}{worksheetHook ? <span className={styles.newFeatureBadge}>{english ? 'NEW' : 'NOVĚ'}</span> : null}</li>;
+          return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}{worksheetHook ? <span className={styles.newFeatureBadge}>{english ? 'NEW' : 'NOVĚ'}</span> : null}</li>;
         })}
       </ul>
 
