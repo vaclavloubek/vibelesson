@@ -305,16 +305,20 @@ export default function PricingPage({
   currency,
   initialCountry,
   sandboxCheckoutEnabled = false,
+  billingTestEnvironment = 'sandbox',
   checkoutResult = null,
 }: {
   startSignup?: boolean;
   currency: BillingCurrency;
   initialCountry?: string | null;
   sandboxCheckoutEnabled?: boolean;
+  billingTestEnvironment?: 'sandbox' | 'live';
   checkoutResult?: 'success' | 'cancelled' | null;
 }) {
   const locale = useUiLocale();
   const english = locale === 'en';
+  const liveAcceptance = billingTestEnvironment === 'live';
+  const billingAnalyticsSource = liveAcceptance ? 'stripe_live_acceptance' : 'stripe_sandbox';
   const ui = (cs: string, en: string) => english ? en : cs;
   const [user, setUser] = useState<User | null>(null);
   const [audience, setAudience] = useState<Audience>('teachers');
@@ -361,9 +365,9 @@ export default function PricingPage({
 
   useEffect(() => {
     if (checkoutResult === 'success') {
-      trackEvent('checkout_complete', { source: 'stripe_sandbox' });
+      trackEvent('checkout_complete', { source: billingAnalyticsSource });
     }
-  }, [checkoutResult]);
+  }, [billingAnalyticsSource, checkoutResult]);
 
   useEffect(() => {
     if (!checkoutPlan) return;
@@ -404,7 +408,7 @@ export default function PricingPage({
     trackEvent('plan_select', {
       plan: plan.id,
       billing_period: billing,
-      source: 'pricing_sandbox',
+      source: liveAcceptance ? 'pricing_live_acceptance' : 'pricing_sandbox',
     });
   }
 
@@ -424,6 +428,7 @@ export default function PricingPage({
           planId,
           billing,
           country: checkoutCountry,
+          environment: billingTestEnvironment,
         }),
       });
       const payload = await response.json() as {
@@ -452,11 +457,11 @@ export default function PricingPage({
         plan: planId,
         billing_period: billing,
         billing_country: checkoutCountry,
-        source: 'pricing_sandbox',
+        source: liveAcceptance ? 'pricing_live_acceptance' : 'pricing_sandbox',
       });
       window.location.assign(payload.url);
     } catch (error) {
-      console.error('sandbox checkout start failed', error);
+      console.error('billing checkout start failed', error);
       const message = error instanceof Error ? error.message : '';
       setCheckoutError(
         message && message !== 'checkout_creation_failed'
@@ -475,7 +480,9 @@ export default function PricingPage({
     try {
       const response = await fetch('/api/billing/stripe/portal', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
         cache: 'no-store',
+        body: JSON.stringify({ environment: billingTestEnvironment }),
       });
       const payload = await response.json() as {
         url?: string;
@@ -498,10 +505,10 @@ export default function PricingPage({
         );
       }
 
-      trackEvent('billing_portal_open', { source: 'pricing_sandbox' });
+      trackEvent('billing_portal_open', { source: liveAcceptance ? 'pricing_live_acceptance' : 'pricing_sandbox' });
       window.location.assign(payload.url);
     } catch (error) {
-      console.error('sandbox portal start failed', error);
+      console.error('billing portal start failed', error);
       const message = error instanceof Error ? error.message : '';
       setPortalError(
         message && message !== 'portal_creation_failed'
@@ -552,17 +559,21 @@ export default function PricingPage({
       {checkoutResult && sandboxCheckoutEnabled ? (
         <div className={styles.checkoutNotice} role="status">
           {checkoutResult === 'success'
-            ? ui('Sandbox Checkout byl dokončen. Stav předplatného ověří webhook v databázi.', 'Sandbox Checkout completed. The webhook will verify the subscription state in the database.')
-            : ui('Sandbox Checkout byl zrušen. Nic se nezměnilo.', 'Sandbox Checkout was cancelled. Nothing changed.')}
+            ? (liveAcceptance
+              ? ui('LIVE Checkout byl dokončen. Webhook nyní ověří skutečnou fakturační zemi a teprve potom může aktivovat tarif.', 'LIVE Checkout completed. The webhook will verify the actual billing country before it can activate the plan.')
+              : ui('Sandbox Checkout byl dokončen. Stav předplatného ověří webhook v databázi.', 'Sandbox Checkout completed. The webhook will verify the subscription state in the database.'))
+            : ui('Stripe Checkout byl zrušen. Nic se nezměnilo.', 'Stripe Checkout was cancelled. Nothing changed.')}
         </div>
       ) : null}
 
       {sandboxCheckoutEnabled && user ? (
-        <section className={styles.sandboxTools} aria-label={ui('Sandbox správa předplatného', 'Sandbox subscription management')}>
+        <section className={styles.sandboxTools} aria-label={liveAcceptance ? ui('LIVE acceptance předplatného', 'LIVE subscription acceptance') : ui('Sandbox správa předplatného', 'Sandbox subscription management')}>
           <div>
-            <span className={styles.checkoutKicker}>Stripe sandbox</span>
-            <strong>{ui('Správa testovacího předplatného', 'Manage test subscription')}</strong>
-            <p>{ui('Platební metodu, faktury a zrušení testujeme přes Stripe Customer Portal.', 'Payment method, invoices and cancellation are tested through Stripe Customer Portal.')}</p>
+            <span className={styles.checkoutKicker}>{liveAcceptance ? 'Stripe LIVE acceptance' : 'Stripe sandbox'}</span>
+            <strong>{liveAcceptance ? ui('Kontrolovaný ostrý test předplatného', 'Controlled live subscription test') : ui('Správa testovacího předplatného', 'Manage test subscription')}</strong>
+            <p>{liveAcceptance
+              ? ui('Tento režim vytváří skutečné platby. Je dostupný pouze adminovi během live acceptance.', 'This mode creates real payments. It is available only to the admin during live acceptance.')
+              : ui('Platební metodu, faktury a zrušení testujeme přes Stripe Customer Portal.', 'Payment method, invoices and cancellation are tested through Stripe Customer Portal.')}</p>
           </div>
           <button
             type="button"
@@ -626,14 +637,19 @@ export default function PricingPage({
             className={styles.checkoutDialog}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="sandbox-checkout-title"
+            aria-labelledby="billing-checkout-title"
           >
-            <span className={styles.checkoutKicker}>Stripe sandbox</span>
-            <h2 id="sandbox-checkout-title">{ui('Otestovat', 'Test')} {checkoutPlan.name}</h2>
-            <p>{ui(
-              'Vyber fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby. Ve Stripe Checkout pak použij stejnou fakturační zemi.',
-              'Choose the billing country. Syllonaut will use it to select the currency and payment-processing route. Use the same billing country in Stripe Checkout.'
-            )}</p>
+            <span className={styles.checkoutKicker}>{liveAcceptance ? 'Stripe LIVE acceptance' : 'Stripe sandbox'}</span>
+            <h2 id="billing-checkout-title">{liveAcceptance ? ui('Ostrý test', 'Live test') : ui('Otestovat', 'Test')} {checkoutPlan.name}</h2>
+            <p>{liveAcceptance
+              ? ui(
+                'Jde o skutečnou platbu. Vyber očekávanou fakturační zemi; po dokončení Stripe Checkout Syllonaut serverově ověří zemi, kterou Checkout skutečně vrátil, a při nesouladu tarif neaktivuje.',
+                'This is a real payment. Choose the expected billing country; after Stripe Checkout completes, Syllonaut will verify the country actually returned by Checkout and will not activate the plan if the route does not match.'
+              )
+              : ui(
+                'Vyber fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby. Ve Stripe Checkout pak použij stejnou fakturační zemi.',
+                'Choose the billing country. Syllonaut will use it to select the currency and payment-processing route. Use the same billing country in Stripe Checkout.'
+              )}</p>
 
             <label className={styles.checkoutField}>
               {ui('Fakturační země', 'Billing country')}

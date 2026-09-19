@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { billingRouteForCountry } from '@/lib/billing-region';
+import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeInvoiceEvent,
@@ -121,6 +122,40 @@ export async function POST(request: Request) {
     });
   }
 
+  let verifiedBillingCountry = sync.billingCountry;
+  if (sync.livemode) {
+    const liveSecretKey = process.env.STRIPE_SECRET_KEY_LIVE;
+    if (!isStripeLiveSecretKey(liveSecretKey)) {
+      console.error('live Stripe checkout verification is not configured', {
+        eventId: sync.eventId,
+        subscriptionId: sync.subscriptionId,
+      });
+      return jsonError(503, 'live_checkout_verification_not_configured');
+    }
+
+    try {
+      const verification = await verifyStripeCheckoutBillingCountry({
+        secretKey: liveSecretKey,
+        livemode: true,
+        subscriptionId: sync.subscriptionId,
+        customerId: sync.customerId,
+        userId: sync.userId,
+        declaredBillingCountry: sync.billingCountry,
+        expectedCurrency: sync.currency,
+        expectedManagedPayments: sync.merchantOfRecord,
+      }, billingRouteForCountry);
+      verifiedBillingCountry = verification.billingCountry;
+    } catch (error) {
+      console.warn('live Stripe billing-country verification rejected subscription event', {
+        eventId: sync.eventId,
+        eventType: sync.eventType,
+        subscriptionId: sync.subscriptionId,
+        code: error instanceof Error ? error.message : 'billing_country_verification_failed',
+      });
+      return jsonError(409, 'billing_country_verification_failed');
+    }
+  }
+
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc('sync_stripe_subscription_event', {
@@ -137,7 +172,7 @@ export async function POST(request: Request) {
       p_current_period_start: sync.currentPeriodStart,
       p_current_period_end: sync.currentPeriodEnd,
       p_canceled_at: sync.canceledAt,
-      p_billing_country: sync.billingCountry,
+      p_billing_country: verifiedBillingCountry,
     });
 
     if (error) {

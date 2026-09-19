@@ -61,6 +61,7 @@ const normalized = normalizeStripeSubscriptionEvent(verified, billingRouteForCou
 assert(normalized?.billingCountry === 'DE', 'DE billing country should survive normalization');
 assert(normalized?.merchantOfRecord === true, 'DE must require Managed Payments');
 assert(normalized?.priceId === 'price_regression001', 'price should normalize');
+assert(normalized?.currency === 'eur', 'subscription currency should normalize for live checkout-country verification');
 
 let wrongSecretRejected = false;
 try {

@@ -49,6 +49,7 @@ type PricingRouteProps = {
   searchParams: Promise<{
     signup?: string | string[];
     checkout?: string | string[];
+    billing_env?: string | string[];
   }>;
 };
 
@@ -56,6 +57,8 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
   const params = await searchParams;
   const signup = Array.isArray(params.signup) ? params.signup[0] : params.signup;
   const checkout = Array.isArray(params.checkout) ? params.checkout[0] : params.checkout;
+  const billingEnvParam = Array.isArray(params.billing_env) ? params.billing_env[0] : params.billing_env;
+  const billingTestEnvironment = billingEnvParam === 'live' ? 'live' : 'sandbox';
   const requestHeaders = await headers();
   const countryHeader = requestHeaders.get('x-vercel-ip-country');
   const acceptLanguage = requestHeaders.get('accept-language');
@@ -63,7 +66,14 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
   const currency = resolvePricingCurrency(countryHeader, acceptLanguage);
 
   let sandboxCheckoutEnabled = false;
-  if (/^(?:sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY_TEST ?? '')) {
+  const requestedSecret = billingTestEnvironment === 'live'
+    ? process.env.STRIPE_SECRET_KEY_LIVE
+    : process.env.STRIPE_SECRET_KEY_TEST;
+  const requestedSecretConfigured = billingTestEnvironment === 'live'
+    ? /^(?:sk|rk)_live_/.test(requestedSecret ?? '')
+    : /^(?:sk|rk)_test_/.test(requestedSecret ?? '');
+
+  if (requestedSecretConfigured) {
     const supabase = await createClient();
     const { data } = await supabase.auth.getClaims();
     const userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
@@ -84,6 +94,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
       currency={currency}
       initialCountry={initialCountry}
       sandboxCheckoutEnabled={sandboxCheckoutEnabled}
+      billingTestEnvironment={billingTestEnvironment}
       checkoutResult={checkout === 'success' || checkout === 'cancelled' ? checkout : null}
     />
   );
