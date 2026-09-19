@@ -83,9 +83,14 @@ export default function ImportSharedLessonButton({
       : '');
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token ?? null;
       const response = await fetch(`/api/lesson-shares/${token}/import`, {
         method: 'POST',
         cache: 'no-store',
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : undefined,
       });
       const data = await response.json() as { lessonId?: string; error?: string };
 
@@ -123,7 +128,7 @@ export default function ImportSharedLessonButton({
         ? err.message
         : (english ? 'The lesson copy could not be saved.' : 'Kopii lekce se nepodařilo uložit.'));
     }
-  }, [english, locale, router, token]);
+  }, [english, locale, router, supabase, token]);
 
   useEffect(() => {
     const shouldResume = importRequested || hasRecentImportIntent(token);
