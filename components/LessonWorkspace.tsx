@@ -31,6 +31,7 @@ import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema'
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
 const LEGACY_LAST_LESSON_KEY = 'edupilot_last_lesson_v1';
+const REVISION_HIGHLIGHT_KEY_PREFIX = 'syllonaut_revision_highlight_v1:';
 
 type LessonApiResponse = {
   lesson?: Lesson;
@@ -81,6 +82,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const [revision, setRevision] = useState('');
   const [blockRevision, setBlockRevision] = useState('');
   const [revisionLanguageNotice, setRevisionLanguageNotice] = useState<'whole_lesson' | 'activity' | null>(null);
+  const [recentlyChangedBlockIds, setRecentlyChangedBlockIds] = useState<string[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -172,6 +174,25 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   }, [authUser, initialLesson, initialLessonId]);
 
   useEffect(() => {
+    if (!lessonId) {
+      setRecentlyChangedBlockIds([]);
+      return;
+    }
+
+    try {
+      const raw = window.sessionStorage.getItem(`${REVISION_HIGHLIGHT_KEY_PREFIX}${lessonId}`);
+      if (!raw) {
+        setRecentlyChangedBlockIds([]);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      setRecentlyChangedBlockIds(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []);
+    } catch {
+      setRecentlyChangedBlockIds([]);
+    }
+  }, [lessonId]);
+
+  useEffect(() => {
     if (saveStatus !== 'saving') return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener('beforeunload', warn);
@@ -220,6 +241,29 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     });
   }
 
+  function changedBlockIds(before: Lesson, after: Lesson) {
+    const previous = new Map(before.blocks.map((block) => [block.id, block] as const));
+    return after.blocks
+      .filter((block) => {
+        const oldBlock = previous.get(block.id);
+        return !oldBlock || JSON.stringify(oldBlock) !== JSON.stringify(block);
+      })
+      .map((block) => block.id);
+  }
+
+  function rememberRevisionHighlights(nextLessonId: string | null, blockIds: string[]) {
+    setRecentlyChangedBlockIds(blockIds);
+    if (!nextLessonId) return;
+
+    try {
+      const key = `${REVISION_HIGHLIGHT_KEY_PREFIX}${nextLessonId}`;
+      if (blockIds.length) window.sessionStorage.setItem(key, JSON.stringify(blockIds));
+      else window.sessionStorage.removeItem(key);
+    } catch {
+      // Ephemeral highlighting must never block lesson editing.
+    }
+  }
+
   function rememberSavedLesson(nextLesson: Lesson, nextLessonId: string) {
     if (!authUser) return;
     const snapshot: RecoverySnapshot = { ownerId: authUser.id, lessonId: nextLessonId, lesson: nextLesson };
@@ -227,7 +271,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setRecovery(snapshot);
   }
 
-  function applyLessonResponse(data: LessonApiResponse) {
+  function applyLessonResponse(data: LessonApiResponse): Lesson {
     if (!data.lesson) throw new Error(localizedApiError(data.error, locale, 'Server nevrátil lekci.', 'The server did not return a lesson.'));
     const parsed = LessonSchema.parse(data.lesson);
     setLesson(parsed);
@@ -241,6 +285,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     } else {
       setSaveStatus('idle');
     }
+
+    return parsed;
   }
 
   async function generate(e: FormEvent<HTMLFormElement>) {
@@ -288,6 +334,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setBusy(true);
     setError('');
     setUndoLesson(null);
+    setRecentlyChangedBlockIds([]);
     setSelectedBlockId(null);
     setGenerationStartedAt(Date.now());
     setGenerationStage('requesting');
@@ -401,7 +448,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       });
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Úprava selhala.', 'The edit failed.'));
-      applyLessonResponse(data);
+      const revisedLesson = applyLessonResponse(data);
+      rememberRevisionHighlights(data.lessonId ?? lessonId, changedBlockIds(before, revisedLesson));
       setUndoLesson(data.lessonId ? before : null);
       setRevision('');
       if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('whole_lesson');
@@ -433,7 +481,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       });
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Úprava aktivity selhala.', 'The activity edit failed.'));
-      applyLessonResponse(data);
+      const revisedLesson = applyLessonResponse(data);
+      rememberRevisionHighlights(data.lessonId ?? lessonId, changedBlockIds(before, revisedLesson));
       setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
       if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('activity');
@@ -462,6 +511,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Předchozí verzi se nepodařilo obnovit.', 'The previous version could not be restored.'));
       applyLessonResponse(data);
+      rememberRevisionHighlights(lessonId, []);
       setUndoLesson(null);
     } catch (err) {
       setSaveStatus('saved');
@@ -477,6 +527,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setGradingStrictness(nextDemo.gradingStrictness ?? 'neutral');
     setLessonId(null);
     setUndoLesson(null);
+    setRecentlyChangedBlockIds([]);
     setSaveStatus('idle');
     setSelectedBlockId(null);
     setError('');
@@ -692,7 +743,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         </section>
 
         <section className="stage">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} onSelectBlock={setSelectedBlockId} onEditBlock={editBlock} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{undoLesson && lessonId ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={setSelectedBlockId} onEditBlock={editBlock} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
     </main>

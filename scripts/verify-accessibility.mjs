@@ -101,6 +101,9 @@ requirePattern(lessonPreview, /onEditBlock\(block\.id\)/, 'the explicit Edit blo
 requirePattern(lessonWorkspace, /folderId:\s*initialFolderId/, 'folder-aware generation was lost while applying accessibility changes.');
 requirePattern(lessonPreview, /Kontrola přístupnosti obsahu/, 'ATAG authoring feedback is missing from teacher preview.');
 requirePattern(lessonPreview, /Jak opravit:/, 'ATAG repair guidance is missing from teacher preview.');
+requirePattern(lessonPreview, /Nové \/ upravené.*New \/ updated|New \/ updated.*Nové \/ upravené/s, 'AI revision changes must have a text label and not rely on colour alone.');
+requirePattern(lessonWorkspace, /changedBlockIds\(before, revisedLesson\)/, 'successful AI revisions must compute changed blocks for teacher feedback.');
+requirePattern(lessonWorkspace, /sessionStorage\.setItem\(key, JSON\.stringify\(blockIds\)\)/, 'latest revision highlights must survive a same-tab reload until the next revision.');
 requirePattern(lessonLibrary, /aria-label=\{ui\('Složky lekcí', 'Lesson folders'\)\}/, 'folder navigation lost its localized accessible name.');
 requirePattern(lessonLibrary, /aria-pressed=\{scope === root\.id\}/, 'selected lesson-folder state is not exposed.');
 requirePattern(lessonLibrary, /aria-pressed=\{selectionMode\}/, 'lesson selection mode state is not exposed.');

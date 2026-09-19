@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.06 — opraven skutečný desktopový scroll flow editoru aktivit. Levý authoring sloupec má vlastní viewportový scroll; „Upravit blok“ posouvá tento sticky kontejner přímo na editor aktivity a fokusuje pole pro AI pokyn. Mobil zůstává na běžném stránkovém scrollu.
+Aktualizováno: 2026-09-19 pro verzi 0.9.07 — po každé úspěšné AI revizi teacher preview vizuálně označí nově přidané nebo změněné aktivity jemným fialovým nádechem a textovým štítkem „Nové / upravené“. Označení přetrvá do další úspěšné AI revize (včetně reloadu ve stejném tabu) a pak se nahradí novou sadou změn.
 
-**Aktuální produktová verze: 0.9.06** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.07** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -384,7 +384,8 @@ Lesson workspace má:
 - ochranu před zavřením při ukládání;
 - zobrazení kvóty;
 - Poslední výsledky / historické sessions;
-- na desktopu je levý authoring sloupec sticky, omezený výškou viewportu a má vlastní svislé scrollování; kliknutí na **Upravit blok** posune právě tento kontejner na editor vybrané aktivity a nastaví fokus do pole s pokynem pro AI úpravu; na mobilu se používá běžný stránkový scroll a celé chování respektuje `prefers-reduced-motion`.
+- na desktopu je levý authoring sloupec sticky, omezený výškou viewportu a má vlastní svislé scrollování; kliknutí na **Upravit blok** posune právě tento kontejner na editor vybrané aktivity a nastaví fokus do pole s pokynem pro AI úpravu; na mobilu se používá běžný stránkový scroll a celé chování respektuje `prefers-reduced-motion`;
+- po úspěšné AI revizi se v učitelském náhledu automaticky porovná stav bloků před/po změně a nově přidané nebo upravené aktivity dostanou fialový nádech + textový štítek **Nové / upravené**; poslední sada zvýraznění se drží v session storage do další úspěšné revize a při Undo se smaže.
 
 ### Prémiové složky a podsložky
 
@@ -1085,9 +1086,10 @@ Další významné změny 2026-09-18:
 - **0.9.04** — kontextová zpětná vazba po AI revizi ve Free: po úspěšné úpravě celé lekce nebo jedné aktivity UI vysvětlí, že hlavní jazyk zůstává uzamčený a případný požadavek na překlad/změnu hlavního jazyka se neprovedl; obsahové úpravy probíhají dál.
 - **0.9.05** — UX zrychlení editace aktivit: tlačítko „Upravit blok“ přesune uživatele přímo k editoru vybrané aktivity a zaměří textové pole pro pokyn; route/timeline výběr zůstává bez automatického skoku.
 - **0.9.06** — oprava sticky-scroll problému z 0.9.05: levý authoring sloupec má na desktopu vlastní viewportový scroll a „Upravit blok“ posouvá přímo tento kontejner; mobil používá stránkový fallback.
+- **0.9.07** — zvýraznění výsledku AI revize: nové nebo upravené aktivity jsou do další úspěšné AI změny označené fialovým nádechem i textovým štítkem; změny se detekují porovnáním block JSON podle ID a stav přetrvá reload ve stejném tabu.
 - viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a zobrazuje aktuální produkční verzi.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích; 0.9.05 zrychluje přechod z náhledu bloku přímo do jeho editoru; 0.9.06 opravuje sticky-scroll limit tohoto přechodu na desktopu.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích; 0.9.05 zrychluje přechod z náhledu bloku přímo do jeho editoru; 0.9.06 opravuje sticky-scroll limit tohoto přechodu na desktopu; 0.9.07 zpřehledňuje výsledek AI revizí zvýrazněním změněných a nových aktivit.**
 
 ## 21. Pravidla další práce
 
