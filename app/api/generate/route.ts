@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { GradingStrictnessSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import {
@@ -175,7 +176,8 @@ export async function POST(req: Request) {
             costUsd = generated.costUsd;
 
             send({ type: 'progress', stage: 'saving' });
-            const { data: savedLesson, error: saveError } = await supabase
+            const admin = createAdminClient();
+            const { data: savedLesson, error: saveError } = await admin
               .from('lessons')
               .insert({
                 owner_id: userId,

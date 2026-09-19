@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { LessonSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -126,7 +127,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
     const reusableLessons = await getLessonReuseEntitlement(supabase);
     if (!reusableLessons) {
-      const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_lesson_generation');
+      const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_lesson_import');
       if (quotaError) throw quotaError;
 
       const quota = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as {
@@ -138,10 +139,10 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
       if (!quota?.allowed) {
         return NextResponse.json({
-          error: `Měsíční limit ${quota?.monthly_limit ?? 5} nových lekcí je vyčerpaný. Duplikace se do tohoto limitu počítá.`,
+          error: `Měsíční limit ${quota?.monthly_limit ?? 3} importů nebo kopií je vyčerpaný. Další import nebo kopii můžeš vytvořit příští měsíc.`,
           quota: {
-            used: quota?.used ?? quota?.monthly_limit ?? 5,
-            monthlyLimit: quota?.monthly_limit ?? 5,
+            used: quota?.used ?? quota?.monthly_limit ?? 3,
+            monthlyLimit: quota?.monthly_limit ?? 3,
             remaining: 0,
           },
         }, { status: 429 });
@@ -155,7 +156,8 @@ export async function POST(_req: Request, { params }: RouteContext) {
     const copyTitle = `${current.title} – kopie`.slice(0, 200);
     const copiedLesson = LessonSchema.parse({ ...lesson, title: copyTitle });
 
-    const { data: copy, error: insertError } = await supabase
+    const admin = createAdminClient();
+    const { data: copy, error: insertError } = await admin
       .from('lessons')
       .insert({
         owner_id: userId,
@@ -163,6 +165,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
         source_prompt: current.source_prompt,
         lesson: copiedLesson,
         folder_id: current.folder_id,
+        source_lesson_id: id,
       })
       .select('id')
       .single();
