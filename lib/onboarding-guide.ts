@@ -156,6 +156,8 @@ function migrateV1State(raw: string): SyllonautGuideState | null {
     } else if (pathname === '/new') {
       step = 0;
     }
+  } else if (parsed.chapter === 'live') {
+    step = parsed.running && step < 4 ? 0 : remapV2LiveStep(step);
   }
 
   return {
