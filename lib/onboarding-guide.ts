@@ -15,6 +15,7 @@ export type SyllonautGuideState = {
 
 export const SYLLONAUT_GUIDE_EVENT = 'syllonaut:guide-state';
 export const SYLLONAUT_GUIDE_ACTION_EVENT = 'syllonaut:guide-action';
+export const SYLLONAUT_GUIDE_CHANNEL = 'syllonaut-guide-v1';
 export const SYLLONAUT_LESSON_REVIEW_STEP = 2;
 
 const STORAGE_PREFIX = 'syllonaut_guide_v3:';
@@ -202,12 +203,66 @@ export function readSyllonautGuideState(userId: string): SyllonautGuideState | n
   }
 }
 
+export function subscribeSyllonautGuideState(
+  userId: string,
+  listener: (state: SyllonautGuideState | null) => void,
+) {
+  if (typeof window === 'undefined') return () => {};
+
+  const storageKey = syllonautGuideStorageKey(userId);
+  const onGuideState = (event: Event) => {
+    const custom = event as CustomEvent<{ userId?: string; state?: SyllonautGuideState }>;
+    if (custom.detail?.userId !== userId) return;
+    listener(custom.detail.state ?? readSyllonautGuideState(userId));
+  };
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== storageKey) return;
+    listener(readSyllonautGuideState(userId));
+  };
+  const onChannel = (event: MessageEvent<{ userId?: string; state?: SyllonautGuideState }>) => {
+    if (event.data?.userId !== userId) return;
+    listener(event.data.state ?? readSyllonautGuideState(userId));
+  };
+
+  let channel: BroadcastChannel | null = null;
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      channel = new BroadcastChannel(SYLLONAUT_GUIDE_CHANNEL);
+      channel.addEventListener('message', onChannel);
+    }
+  } catch {
+    channel = null;
+  }
+
+  window.addEventListener(SYLLONAUT_GUIDE_EVENT, onGuideState);
+  window.addEventListener('storage', onStorage);
+
+  return () => {
+    window.removeEventListener(SYLLONAUT_GUIDE_EVENT, onGuideState);
+    window.removeEventListener('storage', onStorage);
+    if (channel) {
+      channel.removeEventListener('message', onChannel);
+      channel.close();
+    }
+  };
+}
+
 export function writeSyllonautGuideState(userId: string, state: SyllonautGuideState) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(syllonautGuideStorageKey(userId), JSON.stringify(state));
   } catch {
     // Onboarding state is helpful UX, never a prerequisite for using the product.
+  }
+
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel(SYLLONAUT_GUIDE_CHANNEL);
+      channel.postMessage({ userId, state });
+      channel.close();
+    }
+  } catch {
+    // localStorage/storage-event remains the cross-window fallback.
   }
 
   window.dispatchEvent(new CustomEvent(SYLLONAUT_GUIDE_EVENT, {

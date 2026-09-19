@@ -19,6 +19,9 @@ const quickAction = read('components/TeacherScoreboardQuickAction.tsx');
 const report = read('components/SessionReport.tsx');
 const accountMenu = read('components/PublicHeaderAccountMenu.tsx');
 const helpButton = read('components/GuideHelpButton.tsx');
+const presenterHandoff = read('components/PresenterGuideHandoff.tsx');
+const presenterMode = read('components/PresenterMode.tsx');
+const presenterPage = read('app/sessions/[id]/presenter/page.tsx');
 const sessionPage = read('app/sessions/[id]/page.tsx');
 const css = read('app/globals.css');
 
@@ -58,6 +61,16 @@ requireText(state, 'V2_LIVE_STEP_TO_V3 = [2, 3, 0, 1, 4, 5, 6]', 'live step orde
 requireText(state, 'step = SYLLONAUT_LESSON_REVIEW_STEP', 'legacy running lesson resumes at review step');
 requireText(state, 'satisfiedSteps', 'persisted satisfied guide steps');
 requireText(state, 'restartSyllonautGuideForCurrentContext', 'manual contextual restart');
+requireText(state, 'BroadcastChannel(SYLLONAUT_GUIDE_CHANNEL)', 'cross-window guide BroadcastChannel');
+requireText(state, "window.addEventListener('storage', onStorage)", 'cross-window guide storage fallback');
+requireText(state, 'subscribeSyllonautGuideState', 'shared guide-state subscription helper');
+requireText(guide, 'subscribeSyllonautGuideState(userId, setState)', 'teacher window listens for Presenter guide state');
+requireText(presenterHandoff, "state.chapter !== 'live' || state.step !== 1", 'Presenter handoff only appears on live step 2/7');
+requireText(presenterHandoff, 'step: 2', 'Presenter handoff advances shared guide to live step 3/7');
+requireText(presenterHandoff, 'Hotovo – pokračovat', 'Presenter handoff confirmation CTA');
+requireText(presenterMode, '<PresenterGuideHandoff userId={userId} />', 'Presenter renders handoff guide');
+requireText(presenterPage, '<PresenterMode sessionId={id} userId={resume.userId} />', 'resume Presenter gets teacher user scope');
+requireText(presenterPage, '<PresenterMode sessionId={id} userId={userId} />', 'authenticated Presenter gets teacher user scope');
 requireText(helpButton, 'startSyllonautGuide(userId, chapter, step)', 'contextual help launcher');
 for (const source of [workspace, startSession, teacher, quickAction, report]) {
   requireText(source, 'GuideHelpButton', 'contextual guide help placement');

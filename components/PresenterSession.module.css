@@ -36,6 +36,94 @@
 .joinCount { display: flex; align-items: baseline; gap: 9px; color: rgba(247,248,255,.58); }
 .joinCount strong { color: white; font-size: 30px; }
 
+.guideHandoffShade {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7, 9, 16, .78);
+  backdrop-filter: blur(5px);
+}
+.guideHandoffCard {
+  width: min(560px, calc(100vw - 32px));
+  padding: clamp(24px, 3vw, 36px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 26px;
+  background: #151824;
+  box-shadow: 0 28px 90px rgba(0,0,0,.42);
+}
+.guideHandoffHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+  color: rgba(247,248,255,.58);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.guideHandoffBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+}
+.guideHandoffBrand :global(.syllonaut-mark) {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+}
+.guideHandoffCard h1 {
+  margin: 0 0 14px;
+  font-size: clamp(30px, 3.2vw, 46px);
+  line-height: 1.02;
+  letter-spacing: -.04em;
+}
+.guideHandoffCard p {
+  margin: 0;
+  color: rgba(247,248,255,.72);
+  font-size: clamp(17px, 1.35vw, 21px);
+  line-height: 1.5;
+}
+.guideHandoffActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 28px;
+}
+.guideHandoffLater,
+.guideHandoffPrimary {
+  min-height: 44px;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 760;
+  cursor: pointer;
+}
+.guideHandoffLater {
+  border: 0;
+  padding: 8px 4px;
+  color: rgba(247,248,255,.6);
+  background: transparent;
+}
+.guideHandoffPrimary {
+  border: 0;
+  padding: 11px 18px;
+  color: white;
+  background: #5b57e8;
+}
+.guideHandoffLater:hover { color: white; }
+.guideHandoffPrimary:hover { filter: brightness(1.08); }
+.guideHandoffLater:focus-visible,
+.guideHandoffPrimary:focus-visible {
+  outline: 3px solid rgba(139,135,255,.48);
+  outline-offset: 3px;
+}
+
 .liveStage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
 .lessonTopline { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
 .progress { margin: 0; font-size: clamp(18px, 1.6vw, 25px); font-weight: 720; }
@@ -63,6 +151,10 @@
 @media (max-width: 900px) {
   .lobby { grid-template-columns: 1fr; }
   .optionGrid { grid-template-columns: 1fr; }
+  .guideHandoffHead { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .guideHandoffActions { align-items: stretch; flex-direction: column-reverse; }
+  .guideHandoffPrimary { width: 100%; }
+  .guideHandoffLater { align-self: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
