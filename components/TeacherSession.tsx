@@ -24,6 +24,7 @@ import type { LiveTimerState, SessionAction, SessionStatus, StudentAnswer } from
 import type { Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
 import { localizedApiError } from '@/lib/i18n';
+import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
 type Participant = { id: string; displayName: string; joinedAt: string; teamId: string | null };
 type Team = { id: string; name: string; sortOrder: number };
@@ -404,6 +405,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         setConnectionMode('primary');
         await refresh();
       }
+
+      if (action === 'start' && winner.source !== 'fallback-stale' && authUser) {
+        signalSyllonautGuideAction(authUser.id, 'live-started');
+      }
     } catch {
       setError(ui('Spojení s primární i záložní live službou se přerušilo. Stav hodiny zůstal zachovaný; zkus akci za chvíli znovu.', 'The connection to both the primary and backup live services was interrupted. The lesson state is preserved; try the action again shortly.'));
     } finally {
@@ -424,6 +429,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
       await refresh();
+      if (authUser) signalSyllonautGuideAction(authUser.id, 'teams-created');
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
     } finally {
