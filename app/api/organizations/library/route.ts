@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: lesson, error: lessonError } = await admin
     .from('lessons')
-    .select('id, title, lesson')
+    .select('id, title, lesson, organization_origin_id')
     .eq('id', input.lessonId)
     .eq('owner_id', userId)
     .maybeSingle();
@@ -52,6 +52,12 @@ export async function POST(request: Request) {
   }
   if (!lesson) {
     return NextResponse.json({ error: 'lesson_not_found' }, { status: 404 });
+  }
+  if (
+    lesson.organization_origin_id
+    && lesson.organization_origin_id !== organization.id
+  ) {
+    return NextResponse.json({ error: 'organization_origin_mismatch' }, { status: 409 });
   }
 
   let snapshot;
