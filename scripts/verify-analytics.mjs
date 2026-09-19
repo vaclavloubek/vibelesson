@@ -27,6 +27,7 @@ const analytics = await source('lib/analytics.ts');
 const cookieConsent = await source('components/CookieConsent.tsx');
 const pricingPage = await source('components/PricingPage.tsx');
 const pricingRoute = await source('app/pricing/page.tsx');
+const sharedLessonImport = await source('components/ImportSharedLessonButton.tsx');
 const ga4Setup = await source('scripts/setup-ga4.mjs');
 
 requirePattern(analytics, /export function trackEvent</, 'central trackEvent helper is missing.');
@@ -44,6 +45,13 @@ requirePattern(pricingPage, /checkoutResult !== 'success'[\s\S]*!liveCheckout[\s
 requirePattern(pricingPage, /trackEvent\('subscription_activated',[\s\S]*plan:\s*activePlanCode[\s\S]*source:\s*'stripe_live'/, 'subscription activation must be emitted only after the paid plan is active.');
 requirePattern(ga4Setup, /'subscription_activated'/, 'GA4 setup must mark subscription activation as a Key Event.');
 requirePattern(ga4Setup, /\['Plan', 'plan'/, 'GA4 setup must register the paid plan dimension.');
+requirePattern(analytics, /shared_lesson_import_started:\s*undefined;/, 'shared lesson import start event is missing.');
+requirePattern(analytics, /shared_lesson_imported:\s*undefined;/, 'shared lesson import success event is missing.');
+requirePattern(analytics, /shared_lesson_import_started:\s*\[\]/, 'shared lesson import start must not send custom identifiers.');
+requirePattern(analytics, /shared_lesson_imported:\s*\[\]/, 'shared lesson import success must not send custom identifiers.');
+requirePattern(sharedLessonImport, /trackEvent\('shared_lesson_import_started'\)/, 'shared lesson import CTA must emit an import-start event.');
+requirePattern(sharedLessonImport, /trackEvent\('shared_lesson_imported'\)/, 'successful shared lesson import must emit an import-success event.');
+forbidPattern(sharedLessonImport, /trackEvent\('shared_lesson_imported'\s*,/, 'shared lesson import analytics must not send lesson/share identifiers.');
 requirePattern(analytics, /catch \{[\s\S]*Analytics is observational only/, 'analytics failures must never break product flows.');
 
 const allowlistMatch = analytics.match(/const EVENT_PARAMETER_KEYS[\s\S]*?= \{([\s\S]*?)\n\};/);
@@ -79,6 +87,15 @@ for (const key of forbiddenKeys) {
 }
 
 requirePattern(cookieConsent, /!consent\?\.analytics/, 'GA loader must remain consent-gated.');
+requirePattern(cookieConsent, /send_page_view:\s*false/, 'automatic config pageviews must stay disabled; Syllonaut sends sanitized manual pageviews.');
+requirePattern(cookieConsent, /trackPageView\(\)/, 'CookieConsent must send the sanitized manual pageview.');
+forbidPattern(cookieConsent, /send_page_view:\s*true/, 'automatic config pageviews can leak dynamic route identifiers.');
+requirePattern(analytics, /sanitizeAnalyticsPathname/, 'dynamic route sanitizer is missing.');
+requirePattern(analytics, /UUID_PATH_SEGMENT/, 'UUID path segments must be sanitized before analytics.');
+requirePattern(analytics, /TOKEN_PATH_SEGMENT/, 'token-like path segments must be sanitized before analytics.');
+requirePattern(analytics, /JOIN_CODE_PATH_SEGMENT/, 'join codes must be sanitized before analytics.');
+requirePattern(analytics, /page_location:\s*analyticsPageLocation\(\)/, 'custom events must override page_location with a sanitized URL.');
+requirePattern(analytics, /window\.gtag\('event', 'page_view'/, 'manual page_view emission is missing.');
 requirePattern(cookieConsent, /ad_storage:\s*'denied'/, 'ad_storage must remain denied.');
 requirePattern(cookieConsent, /ad_user_data:\s*'denied'/, 'ad_user_data must remain denied.');
 requirePattern(cookieConsent, /ad_personalization:\s*'denied'/, 'ad_personalization must remain denied.');
@@ -86,8 +103,7 @@ requirePattern(cookieConsent, /allow_google_signals:\s*false/, 'Google Signals m
 requirePattern(cookieConsent, /allow_ad_personalization_signals:\s*false/, 'ad personalization signals must remain disabled.');
 requirePattern(cookieConsent, /dataLayer\?\.push\(arguments\)/, 'gtag must queue canonical arguments objects so gtag.js processes commands.');
 forbidPattern(cookieConsent, /dataLayer\?\.push\(args\)/, 'gtag must not queue rest-parameter arrays; gtag.js expects the canonical arguments object.');
-forbidPattern(cookieConsent, /gtag\?\.\('event',\s*'page_view'/, 'CookieConsent must not manually track SPA route changes when Enhanced Measurement is authoritative.');
-forbidPattern(cookieConsent, /page_path:\s*pathname/, 'manual route page_view tracking can duplicate Enhanced Measurement.');
+forbidPattern(cookieConsent, /LESSON_SHARE_PATH/, 'share pages should use sanitized manual analytics rather than route-wide GA blocking.');
 
 const files = [
   ...(await collectSourceFiles('app')),
