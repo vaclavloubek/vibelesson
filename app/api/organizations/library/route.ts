@@ -68,9 +68,10 @@ export async function POST(request: Request) {
       source_lesson_id: lesson.id,
       published_by: userId,
       title: lesson.title,
+      subject: snapshot.subject?.replace(/\s+/g, ' ').trim() || null,
       snapshot,
     })
-    .select('id, title, published_by, created_at')
+    .select('id, title, subject, published_by, created_at')
     .single();
 
   if (error?.code === '23505') {
