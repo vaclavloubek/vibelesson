@@ -47,10 +47,8 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
   const parsed = LessonSchema.safeParse(data);
   if (!parsed.success) notFound();
 
-  const { data: authData } = await supabase.auth.getUser();
   const signin = query.signin === '1' || (Array.isArray(query.signin) && query.signin.includes('1'));
   const importRequested = query.import === '1' || (Array.isArray(query.import) && query.import.includes('1'));
-  const autoImport = importRequested && Boolean(authData.user);
 
   return (
     <main className={`shell ${styles.shell}`}>
@@ -69,7 +67,6 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
             initialOpen={signin}
             token={token}
             importRequested={importRequested}
-            continueImportAfterAuth={signin && importRequested}
           />
           <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
         </div>
@@ -89,7 +86,7 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
             'After saving, you can edit and run it. Your changes will not affect the author’s lesson.',
           )}</span>
         </div>
-        <ImportSharedLessonButton token={token} autoImport={autoImport} />
+        <ImportSharedLessonButton token={token} importRequested={importRequested} />
       </section>
 
       <section className={styles.previewWrap} aria-label={ui('Náhled sdílené lekce', 'Shared lesson preview')}>
