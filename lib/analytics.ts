@@ -55,16 +55,16 @@ type AnalyticsEventParameters = {
   plan_select: {
     plan: 'teacher' | 'teacher-pro';
     billing_period: 'monthly' | 'annual';
-    source: 'pricing_sandbox';
+    source: 'pricing_sandbox' | 'pricing_live_acceptance';
   };
   checkout_start: {
     plan: 'teacher' | 'teacher-pro';
     billing_period: 'monthly' | 'annual';
     billing_country: string;
-    source: 'pricing_sandbox';
+    source: 'pricing_sandbox' | 'pricing_live_acceptance';
   };
-  checkout_complete: { source: 'stripe_sandbox' };
-  billing_portal_open: { source: 'pricing_sandbox' };
+  checkout_complete: { source: 'stripe_sandbox' | 'stripe_live_acceptance' };
+  billing_portal_open: { source: 'pricing_sandbox' | 'pricing_live_acceptance' };
 
   signup_started: undefined;
   signup_completed: undefined;

@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
-import { createStripeSandboxPortalSession, StripePortalApiError } from '../lib/stripe-portal.ts';
+import {
+  createStripePortalSession,
+  createStripeSandboxPortalSession,
+  StripePortalApiError,
+} from '../lib/stripe-portal.ts';
 
+assert.equal(typeof createStripePortalSession, 'function');
 assert.equal(typeof createStripeSandboxPortalSession, 'function');
 assert.equal(new StripePortalApiError('invalid_request_error', 'code', 'message').stripeCode, 'code');
 

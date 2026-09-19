@@ -50,6 +50,7 @@ export type StripeSubscriptionSync = {
   customerId: string;
   subscriptionId: string;
   priceId: string;
+  currency: 'czk' | 'eur' | 'usd';
   merchantOfRecord: boolean;
   status: string;
   cancelAtPeriodEnd: boolean;
@@ -286,6 +287,7 @@ export function normalizeStripeSubscriptionEvent(
     customerId,
     subscriptionId,
     priceId,
+    currency: currency as 'czk' | 'eur' | 'usd',
     merchantOfRecord,
     status,
     cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
