@@ -27,6 +27,9 @@ const [
   portalRoute,
   pricing,
   email,
+  catalog,
+  checkoutRoute,
+  webhookRoute,
   version,
 ] = await Promise.all([
   source('components/PublicHeaderAccountMenu.tsx'),
@@ -38,6 +41,9 @@ const [
   source('app/api/billing/stripe/portal/route.ts'),
   source('components/PricingPage.tsx'),
   source('lib/billing-email-core.ts'),
+  source('lib/individual-billing-catalog.ts'),
+  source('app/api/billing/stripe/checkout/route.ts'),
+  source('app/api/billing/stripe/webhook/route.ts'),
   source('lib/version.ts'),
 ]);
 
@@ -59,10 +65,18 @@ requireText(stripeManagement, "params.set('end_behavior', 'release')", 'future s
 requireText(stripeManagement, "/release'", 'scheduled changes must be reversible without canceling the subscription.');
 requireText(stripeManagement, 'syllonaut_managed_change', 'schedule replacement must be limited to Syllonaut-managed schedules.');
 
-requireText(state, "retrieveStripePrice", 'displayed management prices must come from the live Stripe catalog.');
+if (state.includes('retrieveStripePrice')) throw new Error('subscription management regression: page rendering must not require Stripe Prices permission.');
+requireText(state, "['trialing', 'active', 'past_due'].includes(subscription.status ?? '')", 'canceled or otherwise inactive Stripe subscriptions must render as no active paid plan.');
+requireText(state, 'individualMinorUnitPrice', 'displayed individual prices must use the central Syllonaut billing catalog.');
+requireText(catalog, 'monthly: { czk: 199, eur: 7.99, usd: 8.99 }', 'Teacher pricing must stay in the central catalog.');
+requireText(catalog, 'monthly: { czk: 329, eur: 13.99, usd: 14.99 }', 'Teacher Pro pricing must stay in the central catalog.');
+requireText(pricing, "pricingPagePrice('teacher')", 'Pricing must consume the same central individual billing catalog.');
+requireText(pricing, "pricingPagePrice('teacher_pro')", 'Teacher Pro Pricing must consume the same central individual billing catalog.');
+requireText(checkoutRoute, 'retrieveStripeSubscription', 'checkout must verify a DB-active subscription against canonical Stripe state before blocking repurchase.');
+requireText(webhookRoute, 'canonicalStripeSubscriptionState', 'LIVE subscription webhooks must reconcile against current Stripe subscription state before DB sync.');
 requireText(portalRoute, "returnPath: z.enum(['pricing', 'subscription'])", 'Stripe Portal must support returning to subscription management.');
 requireText(pricing, '/subscription', 'paid Pricing management CTA must route through Syllonaut management.');
 requireText(email, 'const subscriptionUrl =', 'lifecycle emails must link active subscription management to the dedicated page.');
-requireText(version, "APP_VERSION = '0.9.20'", 'internal 0.9.21 must not change the dashboard-visible 0.9.20 release.');
+requireText(version, "APP_VERSION = '0.9.20'", 'internal 0.9.22 hotfix must not change the dashboard-visible 0.9.20 release.');
 
 console.log('Subscription management checks passed.');
