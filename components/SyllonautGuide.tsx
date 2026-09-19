@@ -172,8 +172,8 @@ const liveSteps: GuideStep[] = [
       cs: 'Až skutečně skončíte, použijte Ukončit hodinu. Po potvrzení se uzamkne studentský vstup a Syllonaut připraví vyhodnocení.',
       en: 'When the lesson is truly over, use End lesson. After confirmation, student access closes and Syllonaut prepares the evaluation.',
     },
-    advanceOn: 'manual',
-    button: { cs: 'Rozumím', en: 'Got it' },
+    advanceOn: 'signal',
+    signal: 'live-ended',
   },
 ];
 
