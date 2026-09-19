@@ -501,7 +501,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <span className="eyebrow">{ui('Startovní zóna', 'Starting area')}</span>
             <div className="guide-heading-row">
               <h1 style={{ marginBottom: 8 }} lang={session.lessonSnapshot.language} dir={session.lessonSnapshot.language ? 'auto' : undefined}>{session.lessonSnapshot.title}</h1>
-              <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={0} labelCs="Jak připravit start hodiny" labelEn="How to prepare the lesson start" />
+              <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={2} labelCs="Jak se připojují studenti" labelEn="How students join" />
             </div>
             <p className="muted-copy">{ui('Studenti se mohou připojit i po startu hodiny. Kód přestane fungovat až po jejím ukončení.', 'Students can join even after the lesson starts. The code stops working only when the lesson ends.')}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
@@ -525,7 +525,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                 <>
                   <div className="guide-heading-row">
                     <h2>{ui('Vytvořit týmy', 'Create teams')}</h2>
-                    <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={1} labelCs="Jak vytvořit týmy" labelEn="How to create teams" />
+                    <GuideHelpButton userId={authUser?.id ?? null} chapter="live" step={3} labelCs="Jak vytvořit týmy" labelEn="How to create teams" />
                   </div>
                   <p className="muted-copy">{ui('Studenti si ve startovní zóně sami vyberou tým. Po odstartování se jejich volba zamkne.', 'Students choose their own team in the lobby. Their choice is locked when the lesson starts.')}</p>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 14, flexWrap: 'wrap' }}>
