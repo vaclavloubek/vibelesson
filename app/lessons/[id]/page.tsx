@@ -35,6 +35,7 @@ export default async function LessonPage({ params }: Props) {
       <LessonWorkspace
         initialLesson={parsed.data}
         initialLessonId={row.id as string}
+        initialOwnerId={userId}
         initialPrompt={(row.source_prompt as string | null) ?? null}
       />
     </>
