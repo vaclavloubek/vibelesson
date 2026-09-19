@@ -590,8 +590,9 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
   async function changeGradingStrictness(next: GradingStrictness) {
     setGradingStrictness(next);
-    if (!lesson || !lessonId || busy) return;
+    if (!lesson || !lessonId || busy || !authUser) return;
 
+    const operationOwnerId = authUser.id;
     const previous = lesson;
     const nextLesson: Lesson = { ...lesson, gradingStrictness: next };
     setLesson(nextLesson);
@@ -607,12 +608,14 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       const data = await response.json() as LessonApiResponse;
       if (!response.ok || !data.lesson) throw new Error(localizedApiError(data.error, locale, 'Nastavení hodnocení se nepodařilo uložit.', 'The grading setting could not be saved.'));
 
+      if (authUserIdRef.current !== operationOwnerId) return;
       const parsed = LessonSchema.parse(data.lesson);
       setLesson(parsed);
       setGradingStrictness(parsed.gradingStrictness ?? 'neutral');
       setSaveStatus('saved');
-      rememberSavedLesson(parsed, lessonId);
+      rememberSavedLesson(parsed, lessonId, operationOwnerId);
     } catch (err) {
+      if (authUserIdRef.current !== operationOwnerId) return;
       setLesson(previous);
       setGradingStrictness(previous.gradingStrictness ?? 'neutral');
       setSaveStatus('saved');
