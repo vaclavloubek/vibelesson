@@ -23,25 +23,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          last_code=""
-          for attempt in {1..12}; do
-            set +e
-            code="$(curl -sS --connect-timeout 5 --max-time 10 -o /tmp/root.html -w '%{http_code}' "$BASE/" 2>/tmp/curl.err)"
-            curl_status=$?
-            set -e
-            last_code="$code"
-            if [[ "$code" =~ ^(200|307|308)$ ]]; then
-              echo "Preview reachable: HTTP $code"
-              exit 0
-            fi
-            if [ "$attempt" -eq 1 ]; then
-              echo "PREVIEW_HTTP=$code"
-              echo "CURL_EXIT=$curl_status"
-              sed -E 's#https?://[^ ]+#<preview-url>#g' /tmp/curl.err || true
-            fi
-            sleep 5
-          done
-          echo "Preview did not become reachable; last HTTP code: $last_code"
+          set +e
+          code="$(curl -sS --connect-timeout 5 --max-time 10 -D /tmp/preview.headers -o /tmp/root.html -w '%{http_code}' "$BASE/" 2>/tmp/curl.err)"
+          curl_status=$?
+          set -e
+          echo "PREVIEW_HTTP=$code"
+          echo "CURL_EXIT=$curl_status"
+          if [ -s /tmp/curl.err ]; then
+            sed -E 's#https?://[^ ]+#<preview-url>#g' /tmp/curl.err
+          fi
+          location="$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/^location:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' /tmp/preview.headers || true)"
+          if [ -n "$location" ]; then
+            node -e 'try { const u=new URL(process.argv[1]); console.log("REDIRECT_HOST="+u.host); console.log("REDIRECT_PATH="+u.pathname); } catch { console.log("REDIRECT_PRESENT=1"); }' "$location"
+          fi
+          if [[ "$code" =~ ^(200|307|308)$ ]]; then
+            echo "Preview reachable without authentication."
+            exit 0
+          fi
+          echo "Preview requires redirect/protection; runtime QA cannot proceed anonymously."
           exit 1
 
       - name: Verify Czech and English pricing
