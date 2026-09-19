@@ -74,7 +74,7 @@ if (!splitQuotaMigration) {
 }
 
 for (const [needle, label] of [
-  ["monthly_import_limit = 3", 'Free plan stores a three-import monthly limit'],
+  ["when code = 'free' then 3", 'Free plan stores a three-import monthly limit'],
   ["action = 'import_lesson'", 'import/copy usage is tracked separately from AI generations'],
   ['free_lesson_import_quota_exhausted', 'shared imports enforce the import/copy quota'],
 ]) {
