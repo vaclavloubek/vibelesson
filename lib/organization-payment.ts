@@ -38,6 +38,7 @@ type OrganizationPaymentInput = {
     paymentMethod: 'card' | 'invoice';
     externalCustomerId: string | null;
     externalCheckoutSessionId: string | null;
+    externalCheckoutUrl: string | null;
     externalInvoiceId: string | null;
     hostedInvoiceUrl: string | null;
   };
@@ -88,8 +89,14 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
   }
 
   if (input.order.paymentMethod === 'card') {
+    if (input.order.externalCheckoutSessionId && input.order.externalCheckoutUrl) {
+      return {
+        paymentUrl: input.order.externalCheckoutUrl,
+        paymentKind: 'checkout' as const,
+      };
+    }
     if (input.order.externalCheckoutSessionId) {
-      throw new Error('organization_checkout_already_created');
+      throw new Error('organization_checkout_resume_url_missing');
     }
 
     const route = billingRouteForCountry(input.organization.billingCountry);
@@ -110,6 +117,7 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
       .from('organization_orders')
       .update({
         external_checkout_session_id: checkout.sessionId,
+        external_checkout_url: checkout.url,
         updated_at: new Date().toISOString(),
       })
       .eq('id', input.order.id)
