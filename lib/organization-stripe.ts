@@ -270,6 +270,20 @@ export async function createOrganizationInvoice(input: {
     throw new OrganizationStripeError('stripe_invoice_item_response_invalid');
   }
 
+  const finalizePayload = await stripePost<StripeInvoicePayload>(
+    input.secretKey,
+    '/v1/invoices/' + encodeURIComponent(invoice.id) + '/finalize',
+    new URLSearchParams(),
+    'syllonaut_org_invoice_finalize_' + input.orderId,
+  );
+
+  if (
+    finalizePayload.id !== invoice.id
+    || !finalizePayload.hosted_invoice_url?.startsWith('https://invoice.stripe.com/')
+  ) {
+    throw new OrganizationStripeError('stripe_invoice_finalize_response_invalid');
+  }
+
   const sendPayload = await stripePost<StripeInvoicePayload>(
     input.secretKey,
     '/v1/invoices/' + encodeURIComponent(invoice.id) + '/send',
