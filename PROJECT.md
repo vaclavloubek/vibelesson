@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.03 — Free uživatel je po vytvoření/otevření uložené lekce viditelně upozorněn, že nové lekce se tvoří v jazyce rozhraní a AI úpravy nemohou změnit hlavní jazyk. Panel odkazuje na Ceník; serverové entitlementy zůstávají beze změny.
+Aktualizováno: 2026-09-19 pro verzi 0.9.04 — Free uživatel dostává po každé úspěšné AI revizi kontextové vysvětlení, že hlavní jazyk lekce/aktivity je uzamčený a případný požadavek na překlad nebo změnu hlavního jazyka se neprovedl. Součástí je odkaz na Ceník.
 
-**Aktuální produktová verze: 0.9.03** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.04** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -367,7 +367,8 @@ Fail-closed ochrana je v submit/queue, background processoru, `/grade` endpointu
 - AI vrstva při Free revizi přidává závaznou systémovou jazykovou politiku; požadavky na změnu hlavního jazyka ignoruje, ale cizojazyčný obsah jako učivo ponechává možný;
 - revize celé lekce navíc fail-closed kontroluje, že se při language locku nezmění uložený BCP-47 `language` tag;
 - manual entitlement override podporuje `multilingual_lessons_enabled`;
-- Free uživatel u uložené lekce vidí výrazný informační panel s vysvětlením jazykového omezení a odkazem na Ceník; panel zároveň výslovně potvrzuje, že cizojazyčné slovní zásoby, dialogy a překladové úlohy jako obsah zůstávají povolené.
+- Free uživatel u uložené lekce vidí výrazný informační panel s vysvětlením jazykového omezení a odkazem na Ceník; panel zároveň výslovně potvrzuje, že cizojazyčné slovní zásoby, dialogy a překladové úlohy jako obsah zůstávají povolené;
+- po úspěšné AI revizi celé lekce i jednotlivé aktivity Free uživatel dostane kontextovou stavovou zprávu, že hlavní jazyk zůstává uzamčený a případná překladová/jazyková část pokynu nebyla provedena.
 
 ## 8. Lesson workspace a knihovna
 
@@ -1080,9 +1081,10 @@ Další významné změny 2026-09-18:
 - **0.9.01** — multilingual generation jako placený entitlement: Free generuje pouze v aktivním UI locale; Teacher/Teacher Pro a produktově všechny školní plány mají „Lekce v libovolném jazyce“. Serverové vynucení brání obcházení přes prompt/API; Pricing benefit zvýrazňuje u obou placených individuálních tarifů.
 - **0.9.02** — uzavření revizního bypassu: Free už nemůže změnit hlavní jazyk přes AI úpravu celé lekce ani jednotlivého bloku; entitlement se kontroluje serverově a jazykový lock je autoritativní systémová instrukce modelu. Cizojazyčné učivo zůstává povolené.
 - **0.9.03** — UX doplnění k Free jazykovému omezení: po vytvoření/otevření uložené lekce se zobrazuje výrazné vysvětlení, že nové lekce používají jazyk rozhraní a AI úpravy nemohou změnit hlavní jazyk; součástí je CTA na Ceník.
+- **0.9.04** — kontextová zpětná vazba po AI revizi ve Free: po úspěšné úpravě celé lekce nebo jedné aktivity UI vysvětlí, že hlavní jazyk zůstává uzamčený a případný požadavek na překlad/změnu hlavního jazyka se neprovedl; obsahové úpravy probíhají dál.
 - viditelné číslo verze v učitelském dashboardu používá centrální `APP_VERSION` a zobrazuje aktuální produkční verzi.
 
-**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace.**
+**Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích.**
 
 ## 21. Pravidla další práce
 
