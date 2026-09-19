@@ -39,7 +39,7 @@ declare global {
 
 type Props = {
   onAuthChange: (user: User | null) => void;
-  onSignInSuccess?: () => void;
+  onSignInSuccess?: (accessToken: string | null) => Promise<void> | void;
   quotaRefreshKey?: number;
   initialOpen?: boolean;
   initialMode?: 'signin' | 'signup';
@@ -298,19 +298,21 @@ export default function AuthControls({
     const token = captchaToken;
     setBusy(true);
     setMessage('');
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
       options: { captchaToken: token },
     });
-    setBusy(false);
     resetCaptcha();
 
     if (!error) {
       trackEvent('login_completed');
-      onSignInSuccess?.();
+      await onSignInSuccess?.(data.session?.access_token ?? null);
+      setBusy(false);
       return;
     }
+
+    setBusy(false);
     if (error.code === 'email_not_confirmed') {
       setMessage(english ? 'Confirm your email first using the link we sent when you registered.' : 'Nejdřív potvrď e-mail odkazem, který jsme poslali při registraci.');
       return;
@@ -362,7 +364,7 @@ export default function AuthControls({
 
     if (data.session) {
       trackEvent('signup_completed');
-      onSignInSuccess?.();
+      await onSignInSuccess?.(data.session.access_token);
       setMessage(english ? 'Your account has been created and you are signed in.' : 'Účet je vytvořený a jsi přihlášený.');
       return;
     }
