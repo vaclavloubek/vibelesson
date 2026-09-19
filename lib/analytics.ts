@@ -194,6 +194,64 @@ declare global {
   }
 }
 
+const UUID_PATH_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TOKEN_PATH_SEGMENT = /^[0-9a-f]{32,}$/i;
+const JOIN_CODE_PATH_SEGMENT = /^[A-HJ-NP-Z2-9]{7}$/;
+const SAFE_CAMPAIGN_VALUE = /^[A-Za-z0-9._~-]{1,100}$/;
+const CAMPAIGN_QUERY_KEYS = [
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'utm_term',
+  'utm_id',
+] as const;
+
+export function sanitizeAnalyticsPathname(pathname: string): string {
+  const segments = pathname.split('/');
+  const sanitized = segments.map((segment, index) => {
+    if (!segment) return segment;
+    if (UUID_PATH_SEGMENT.test(segment)) return ':id';
+    if (TOKEN_PATH_SEGMENT.test(segment)) return ':token';
+    if (segments[index - 1] === 'join' && JOIN_CODE_PATH_SEGMENT.test(segment)) return ':code';
+    return segment;
+  });
+  return sanitized.join('/') || '/';
+}
+
+function safeCampaignSearch(search: string): string {
+  const input = new URLSearchParams(search);
+  const output = new URLSearchParams();
+
+  for (const key of CAMPAIGN_QUERY_KEYS) {
+    const value = input.get(key);
+    if (value && SAFE_CAMPAIGN_VALUE.test(value)) output.set(key, value);
+  }
+
+  const serialized = output.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+export function analyticsPageLocation(): string {
+  if (typeof window === 'undefined') return '';
+  const path = sanitizeAnalyticsPathname(window.location.pathname);
+  return `${window.location.origin}${path}${safeCampaignSearch(window.location.search)}`;
+}
+
+function analyticsPageReferrer(): string | undefined {
+  if (typeof document === 'undefined' || !document.referrer) return undefined;
+
+  try {
+    const referrer = new URL(document.referrer);
+    if (typeof window !== 'undefined' && referrer.origin === window.location.origin) {
+      return `${referrer.origin}${sanitizeAnalyticsPathname(referrer.pathname)}`;
+    }
+    return `${referrer.protocol}//${referrer.host}/`;
+  } catch {
+    return undefined;
+  }
+}
+
 export function gaDisableKey(measurementId = GA_MEASUREMENT_ID) {
   return `ga-disable-${measurementId}`;
 }
@@ -243,15 +301,45 @@ export function trackEvent<N extends AnalyticsEventName>(name: N, ...args: Event
     }
 
     const uiLocale = document.documentElement.lang === 'en' ? 'en' : 'cs';
+    const pageLocation = analyticsPageLocation();
+    const pagePath = sanitizeAnalyticsPathname(window.location.pathname);
+    const pageReferrer = analyticsPageReferrer();
 
     window.gtag('event', name, {
       ...safeParameters,
       ui_locale: uiLocale,
+      page_location: pageLocation,
+      page_title: pagePath,
+      ...(pageReferrer ? { page_referrer: pageReferrer } : {}),
       ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
     });
     return true;
   } catch {
     // Analytics is observational only and must never affect the product flow.
+    return false;
+  }
+}
+
+export function trackPageView(): boolean {
+  try {
+    if (!GA_MEASUREMENT_ID || typeof window === 'undefined') return false;
+    if (!analyticsConsentGranted() || !window.gtag) return false;
+
+    const runtime = window as unknown as Record<string, unknown>;
+    if (runtime[gaDisableKey()] === true) return false;
+
+    const pagePath = sanitizeAnalyticsPathname(window.location.pathname);
+    const pageReferrer = analyticsPageReferrer();
+
+    window.gtag('event', 'page_view', {
+      page_location: analyticsPageLocation(),
+      page_title: pagePath,
+      ...(pageReferrer ? { page_referrer: pageReferrer } : {}),
+      ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
+    });
+    return true;
+  } catch {
+    // Analytics is observational only and must never affect product navigation.
     return false;
   }
 }
