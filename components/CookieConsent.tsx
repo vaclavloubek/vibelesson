@@ -9,7 +9,9 @@ import {
   ANALYTICS_CONSENT_VERSION,
   GA_DEBUG_MODE,
   GA_MEASUREMENT_ID,
+  analyticsPageLocation,
   gaDisableKey,
+  trackPageView,
 } from '@/lib/analytics';
 
 const CONSENT_COOKIE = ANALYTICS_CONSENT_COOKIE;
@@ -17,7 +19,6 @@ const CONSENT_VERSION = ANALYTICS_CONSENT_VERSION;
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 const GA_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 395;
 const OPEN_SETTINGS_EVENT = 'syllonaut:open-cookie-settings';
-const LESSON_SHARE_PATH = /^\/s\/[0-9a-f]{48}(?:\/|$)/;
 const WORKSHEET_PATH = /^\/lessons\/[^/]+\/worksheet(?:\/|$)/;
 
 type Consent = {
@@ -95,7 +96,7 @@ export default function CookieConsent() {
   const english = useUiLocale() === 'en';
   const pathname = usePathname();
   const worksheetRoute = WORKSHEET_PATH.test(pathname);
-  const analyticsBlocked = LESSON_SHARE_PATH.test(pathname) || worksheetRoute;
+  const analyticsBlocked = worksheetRoute;
   const [consent, setConsent] = useState<Consent | null>(null);
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -103,6 +104,7 @@ export default function CookieConsent() {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const gaConfiguredRef = useRef(false);
+  const lastPageViewRef = useRef('');
 
   useEffect(() => {
     const stored = readConsent();
@@ -161,6 +163,7 @@ export default function CookieConsent() {
     if (analyticsBlocked || !consent?.analytics) {
       runtime[gaDisableKey(GA_MEASUREMENT_ID)] = true;
       gaConfiguredRef.current = false;
+      lastPageViewRef.current = '';
       if (analyticsBlocked) return;
       window.gtag?.('consent', 'update', {
         analytics_storage: 'denied',
@@ -182,7 +185,7 @@ export default function CookieConsent() {
 
     if (!gaConfiguredRef.current) {
       window.gtag?.('config', GA_MEASUREMENT_ID, {
-        send_page_view: true,
+        send_page_view: false,
         allow_google_signals: false,
         allow_ad_personalization_signals: false,
         cookie_expires: GA_COOKIE_MAX_AGE_SECONDS,
@@ -190,7 +193,12 @@ export default function CookieConsent() {
       });
       gaConfiguredRef.current = true;
     }
-  }, [analyticsBlocked, consent, ready]);
+
+    const pageViewKey = analyticsPageLocation();
+    if (pageViewKey && lastPageViewRef.current !== pageViewKey && trackPageView()) {
+      lastPageViewRef.current = pageViewKey;
+    }
+  }, [analyticsBlocked, consent, pathname, ready]);
 
   function save(analytics: boolean) {
     const next = writeConsent(analytics);
