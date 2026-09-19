@@ -516,6 +516,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('whole_lesson');
       setQuotaRefreshKey((value) => value + 1);
       trackEvent('lesson_revision_completed', { revision_scope: 'whole_lesson' });
+      signalSyllonautGuideAction(operationOwnerId, 'lesson-revised');
     } catch (err) {
       trackEvent('lesson_revision_failed', { revision_scope: 'whole_lesson', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
@@ -550,6 +551,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (entitlementsLoaded && !multilingualLessonsEnabled) setRevisionLanguageNotice('activity');
       setQuotaRefreshKey((value) => value + 1);
       trackEvent('lesson_revision_completed', { revision_scope: 'activity' });
+      signalSyllonautGuideAction(operationOwnerId, 'activity-revised');
     } catch (err) {
       trackEvent('lesson_revision_failed', { revision_scope: 'activity', error_code: revisionErrorCode(err) });
       if (lessonId) setSaveStatus('saved');
