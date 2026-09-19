@@ -43,11 +43,19 @@ Chyby se mapují pouze na nízkokardinalitní `failure_stage` a `error_code`.
 
 ## 3. Page views a SPA navigace
 
-Syllonaut používá GA4 Enhanced Measurement jako jediný zdroj SPA `page_view`.
+Syllonaut používá **ručně odesílané, sanitizované `page_view` eventy**. Důvodem jsou dynamické routy obsahující lesson/session UUID, join kódy a přenositelné share capability tokeny; skutečná hodnota těchto identifikátorů nesmí odejít do GA4.
 
-Po souhlasu se `gtag('config', ...)` provede pouze jednou. Aplikace neposílá vlastní `page_view` při změně `pathname`. Tím se předchází dvojím page views při kombinaci s automatickým měřením změn browser history v GA4.
+Po analytickém souhlasu se Google tag nakonfiguruje s `send_page_view: false`. `CookieConsent` pak při skutečné změně route zavolá centrální `trackPageView()`, který:
+- UUID segmenty nahradí `:id`;
+- dlouhé hex capability segmenty nahradí `:token`;
+- join kód v `/join/<code>` nahradí `:code`;
+- jako `page_title` posílá pouze sanitizovanou route, nikoli lesson title;
+- z query stringu zachová pouze validní krátké hodnoty `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` a `utm_id`;
+- stejný sanitizovaný `page_location` přidává i ke custom eventům.
 
-V produkčním Web streamu musí zůstat Enhanced Measurement → Page views → **Page changes based on browser history events** zapnuté.
+**Povinné GA4 Admin nastavení:** v produkčním Web streamu musí být Enhanced Measurement → Page views → **Page changes based on browser history events vypnuté**. Google uvádí, že history-based pageviews mohou vznikat i při `send_page_view: false`; bez tohoto administrativního nastavení by mohly vzniknout duplicity a nesanitizované dynamické URL.
+
+Worksheet route zůstává z analytiky úplně vyřazená. Share route `/s/<token>` už není potřeba blokovat celá, protože page location i custom events používají sanitizovanou `/s/:token` reprezentaci.
 
 ## 4. Prostředí
 
@@ -176,7 +184,7 @@ Vlastní tvorba:
 Ukázková / sdílená lekce:
 `page_view (/s/...) → shared_lesson_import_started → signup_completed nebo login_completed (pokud je potřeba) → shared_lesson_imported → live_session_started`
 
-Zdroj kampaně se bere ze standardní GA4 acquisition atribuce (UTM / source / medium), nikoli z vlastních identifikátorů v event payloadu. Share token ani lesson ID se do GA4 neposílají.
+Zdroj kampaně se bere ze standardní GA4 acquisition atribuce přes bezpečný UTM allowlist, nikoli z vlastních identifikátorů v event payloadu. Share token ani lesson/session ID se do GA4 neposílají. Pro první growth experiment používat pouze krátké ASCII UTM hodnoty bez osobních údajů.
 
 Poznámka: strict opt-in znamená, že uživatelé bez analytického souhlasu nejsou v GA4 funnelu vůbec. GA4 funnel proto měří chování consenting populace, nikoli absolutní počet všech uživatelů.
 
