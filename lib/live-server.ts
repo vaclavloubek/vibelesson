@@ -1,12 +1,13 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 const JOIN_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 export function generateJoinCode() {
-  const bytes = randomBytes(7);
   let code = '';
-  for (const byte of bytes) code += JOIN_ALPHABET[byte & 31];
+  for (let index = 0; index < 7; index += 1) {
+    code += JOIN_ALPHABET[randomInt(JOIN_ALPHABET.length)];
+  }
   return code;
 }
 
