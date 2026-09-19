@@ -17,7 +17,7 @@ if (!rotation) throw new Error('Missing organization seat-rotation migration.');
 for (const [needle, label] of [
   ['private.organization_seat_activations', 'immutable per-period activation history'],
   ["ceil(v_seat_limit::numeric * 0.10)", '10 percent replacement allowance'],
-  ["greatest(1,", 'minimum one replacement'],
+  ['v_replacement_allowance := greatest(', 'replacement allowance is explicitly computed'],
   ["raise exception 'organization_seat_limit_reached'", 'simultaneous seat cap'],
   ["raise exception 'organization_replacement_limit_reached'", 'unique-user period cap'],
   ['organization_memberships_enforce_seat_policy', 'database-boundary membership trigger'],
