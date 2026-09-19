@@ -468,13 +468,20 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     <main className="shell teacher-live-shell" aria-busy={busy}>
       <header className="brand">
         <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">LIVE</span></div>
-        <nav className="main-nav"><Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link></nav>
+        <nav className="main-nav" aria-label={ui('Hlavní navigace', 'Main navigation')}>
+          <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
+          <Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>
+          <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link>
+        </nav>
         <div className="brand-side">
           <LocaleSwitcher />
-          <p className="brand-tagline" role="status">{ui('Řídicí centrum', 'Control centre')} · {connectionMode === 'primary' ? ui('Primární spojení', 'Primary connection') : connectionMode === 'syncing' ? ui('Synchronizuji', 'Synchronizing') : ui('Záložní spojení', 'Backup connection')}</p>
           {authUser ? <PublicHeaderAccountMenu user={authUser} /> : null}
         </div>
       </header>
+      <div className="live-connection-summary" role="status">
+        <strong>{ui('Řídicí centrum', 'Control centre')}</strong>
+        <span>{connectionMode === 'primary' ? ui('Primární spojení', 'Primary connection') : connectionMode === 'syncing' ? ui('Synchronizuji', 'Synchronizing') : ui('Záložní spojení', 'Backup connection')}</span>
+      </div>
 
       {error ? <div className="error" role="alert" style={{ marginBottom: 14 }}>{error}</div> : null}
       {!session ? <div className="panel" role="status"><p className="muted-copy">{ui('Načítám řídicí centrum…', 'Loading control centre…')}</p></div> : null}
