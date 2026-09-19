@@ -131,8 +131,8 @@ const liveSteps: GuideStep[] = [
     target: 'live-presenter',
     title: { cs: 'Teď otevřete prezentační režim', en: 'Now open Presenter mode' },
     body: {
-      cs: 'Klikněte sem. Syllonaut otevře nové okno určené studentům; vaše učitelské ovládání zůstane v tomto okně.',
-      en: 'Click here. Syllonaut opens a new window for students while teacher controls stay in this window.',
+      cs: 'Klikněte sem. Otevře se nové okno pro studenty — přetáhněte ho na projektor nebo druhý displej. Učitelské ovládání zůstává v tomto okně, ke kterému se pak vraťte.',
+      en: 'Click here. A new student window opens — move it to the projector or second display. Teacher controls stay in this window, which you can then return to.',
     },
     advanceOn: 'click',
   },
