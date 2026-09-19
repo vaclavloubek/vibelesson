@@ -63,6 +63,9 @@ requirePattern(migration, /sessions_one_active_per_teacher_idx[\s\S]*where statu
 requirePattern(ownerRoute, /\.eq\('owner_id', userId\)/, 'share management must scope every share to the lesson owner.');
 requirePattern(ownerRoute, /LessonSchema\.parse\(lessonRow\.lesson\)/, 'public snapshots must be schema validated before storage.');
 requirePattern(importRoute, /supabase\.rpc\('import_lesson_share'/, 'imports must use the transactional database function.');
+requirePattern(importRoute, /Authorization: `Bearer \\${accessToken}`/, 'bearer-authenticated imports must forward the verified user JWT into the Supabase client context.');
+requirePattern(importRoute, /supabase\.auth\.getUser\(accessToken\)/, 'bearer tokens must be verified by Supabase before import.');
+requirePattern(importRoute, /if \(authorization\)[\s\S]*return \{ supabase, userId: data\.user\.id \}/, 'explicit bearer auth must resolve a concrete authenticated user.');
 requirePattern(publicPage, /supabase\.rpc\('get_lesson_share', \{ p_token: token \}\)/, 'the public page must request only the share snapshot through the narrow capability function.');
 requirePattern(publicPage, /mode="shared"/, 'the public page must use the read-only lesson preview.');
 requirePattern(publicPage, /robots: \{ index: false, follow: false \}/, 'capability links must not be indexed.');
@@ -76,12 +79,16 @@ requirePattern(lessonPreview, /mode: 'teacher' \| 'student' \| 'shared'/, 'lesso
 requirePattern(shareButton, /Neuvidí výsledky studentů, kódy hodin ani historii AI úprav/, 'the share dialog must explain its privacy boundary.');
 requirePattern(shareButton, /createPortal\([\s\S]*document\.body/, 'the share dialog must render through a body portal so workspace stacking contexts cannot cover it.');
 requirePattern(authControls, /emailRedirectTo: signupRedirectUrl\(\)/, 'signup must accept the shared lesson return URL.');
-requirePattern(authControls, /onSignInSuccess\?\.\(\)/, 'AuthControls must expose a callback after successful password sign-in.');
+requirePattern(authControls, /onSignInSuccess\?\.\(data\.session\?\.access_token \?\? null\)/, 'AuthControls must pass the fresh access token after successful password sign-in.');
 requirePattern(sharedAuthControls, /onSignInSuccess=\{handleSignInSuccess\}/, 'shared lesson auth must hook explicit successful sign-in completion.');
+requirePattern(sharedAuthControls, /headers: \{ Authorization: `Bearer \\${accessToken}` \}/, 'shared lesson sign-in must import with the fresh JWT instead of waiting for cookie propagation.');
+requirePattern(sharedAuthControls, /response\.ok[\s\S]*window\.location\.replace\(`\/lessons\/\\${data\.lessonId}`\)/, 'successful post-login import must open the saved copy immediately.');
 requirePattern(sharedAuthControls, /<Link href="\/lessons">\{english \? 'My lessons' : 'Moje lekce'\}<\/Link>/, 'signed-in shared pages must show a direct My lessons link.');
 requirePattern(sharedAuthControls, /window\.location\.replace\(`\/s\/\$\{token\}\?import=1`\)/, 'successful sign-in must force a fresh server-authenticated share request.');
 requirePattern(sharedAuthControls, /signupRedirectPath=\{`\/s\/\$\{token\}\$\{importRequested \? '\?import=1' : ''\}`\}/, 'signup confirmation must preserve shared lesson import intent.');
 requirePattern(importButton, /\?signin=1&import=1/, 'unauthenticated import must preserve intent through sign-in.');
+requirePattern(importButton, /supabase\.auth\.getSession\(\)[\s\S]*session\?\.access_token/, 'manual shared imports must use the current browser session JWT when available.');
+requirePattern(importButton, /headers: accessToken[\s\S]*Authorization: `Bearer \\${accessToken}`/, 'manual shared imports must send the browser JWT to the import API.');
 requirePattern(importButton, /IMPORT_INTENT_STORAGE_KEY = 'syllonaut_pending_share_import_v1'/, 'shared import intent must be persisted per browser tab.');
 requirePattern(importButton, /IMPORT_INTENT_TTL_MS = 5 \* 60 \* 1000/, 'shared import intent must expire quickly.');
 requirePattern(importButton, /window\.sessionStorage\.setItem[\s\S]*rememberImportIntent/, 'explicit save-copy intent must be stored before authentication.');
