@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
@@ -55,11 +55,12 @@ type SaveStatus = 'idle' | 'saving' | 'saved';
 type Props = {
   initialLesson?: Lesson | null;
   initialLessonId?: string | null;
+  initialOwnerId?: string | null;
   initialPrompt?: string | null;
   initialFolderId?: string | null;
 };
 
-export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialPrompt = null, initialFolderId = null }: Props) {
+export default function LessonWorkspace({ initialLesson = null, initialLessonId = null, initialOwnerId = null, initialPrompt = null, initialFolderId = null }: Props) {
   const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
@@ -97,8 +98,47 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   const blockRevisionTextareaRef = useRef<HTMLTextAreaElement>(null);
   const blockEditorRef = useRef<HTMLDivElement>(null);
   const builderRef = useRef<HTMLElement>(null);
+  const authUserIdRef = useRef<string | null>(null);
+  const lessonOwnerIdRef = useRef<string | null>(initialLesson ? initialOwnerId : null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
+
+  const handleAuthChange = useCallback((nextUser: User | null) => {
+    const nextUserId = nextUser?.id ?? null;
+    authUserIdRef.current = nextUserId;
+    setAuthUser(nextUser);
+
+    const currentLessonOwnerId = lessonOwnerIdRef.current;
+    if (!currentLessonOwnerId || currentLessonOwnerId === nextUserId) return;
+
+    lessonOwnerIdRef.current = null;
+    setLesson(null);
+    setLessonId(null);
+    setUndoLesson(null);
+    setRecovery(null);
+    setRevision('');
+    setBlockRevision('');
+    setRevisionLanguageNotice(null);
+    setRecentlyChangedBlockIds([]);
+    setSelectedBlockId(null);
+    setSaveStatus('idle');
+    setGenerationStage(null);
+    setGenerationStartedAt(null);
+    setBusy(false);
+
+    try {
+      window.localStorage.removeItem(LAST_LESSON_KEY);
+      window.localStorage.removeItem(LEGACY_LAST_LESSON_KEY);
+      for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+        const key = window.sessionStorage.key(index);
+        if (key?.startsWith(REVISION_HIGHLIGHT_KEY_PREFIX)) window.sessionStorage.removeItem(key);
+      }
+    } catch {
+      // A privacy boundary must not depend on browser storage being available.
+    }
+
+    window.location.replace(nextUserId ? '/lessons' : '/');
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,11 +207,12 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser || !initialLesson || !initialLessonId) return;
-    const snapshot: RecoverySnapshot = { ownerId: authUser.id, lessonId: initialLessonId, lesson: initialLesson };
+    if (!authUser || !initialLesson || !initialLessonId || !initialOwnerId) return;
+    if (authUser.id !== initialOwnerId) return;
+    const snapshot: RecoverySnapshot = { ownerId: initialOwnerId, lessonId: initialLessonId, lesson: initialLesson };
     window.localStorage.setItem(LAST_LESSON_KEY, JSON.stringify(snapshot));
     setRecovery(snapshot);
-  }, [authUser, initialLesson, initialLessonId]);
+  }, [authUser, initialLesson, initialLessonId, initialOwnerId]);
 
   useEffect(() => {
     if (!lessonId) {
@@ -264,16 +305,20 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     }
   }
 
-  function rememberSavedLesson(nextLesson: Lesson, nextLessonId: string) {
-    if (!authUser) return;
-    const snapshot: RecoverySnapshot = { ownerId: authUser.id, lessonId: nextLessonId, lesson: nextLesson };
+  function rememberSavedLesson(nextLesson: Lesson, nextLessonId: string, ownerId: string) {
+    const snapshot: RecoverySnapshot = { ownerId, lessonId: nextLessonId, lesson: nextLesson };
     window.localStorage.setItem(LAST_LESSON_KEY, JSON.stringify(snapshot));
     setRecovery(snapshot);
   }
 
-  function applyLessonResponse(data: LessonApiResponse): Lesson {
+  function applyLessonResponse(data: LessonApiResponse, expectedOwnerId: string): Lesson {
+    if (authUserIdRef.current !== expectedOwnerId) {
+      throw new Error(ui('Účet se během operace změnil. Výsledek nebyl načten.', 'The account changed during the operation. The result was discarded.'));
+    }
     if (!data.lesson) throw new Error(localizedApiError(data.error, locale, 'Server nevrátil lekci.', 'The server did not return a lesson.'));
     const parsed = LessonSchema.parse(data.lesson);
+    const nextOwnerId = data.lessonId ? expectedOwnerId : null;
+    lessonOwnerIdRef.current = nextOwnerId;
     setLesson(parsed);
     setGradingStrictness(parsed.gradingStrictness ?? 'neutral');
     setLessonId(data.lessonId ?? null);
@@ -281,7 +326,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
 
     if (data.lessonId) {
       setSaveStatus('saved');
-      rememberSavedLesson(parsed, data.lessonId);
+      rememberSavedLesson(parsed, data.lessonId, expectedOwnerId);
     } else {
       setSaveStatus('idle');
     }
@@ -292,6 +337,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   async function generate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!requireAuth()) return;
+    const operationOwnerId = authUser!.id;
 
     const formData = new FormData(e.currentTarget);
     const files = formData.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
@@ -355,7 +401,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
         const data = await res.json() as LessonApiResponse;
         if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Generování selhalo.', 'Lesson generation failed.'));
         failureStage = 'result';
-        applyLessonResponse(data);
+        applyLessonResponse(data, operationOwnerId);
         trackEvent('lesson_generation_completed', {
           has_materials: hasMaterials,
           block_count_bucket: bucketBlockCount(data.lesson?.blocks.length ?? 0),
@@ -405,7 +451,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       if (!completedLesson || !resultLessonId) throw new Error(ui('Generování skončilo bez hotové lekce.', 'Generation ended without a completed lesson.'));
 
       failureStage = 'result';
-      applyLessonResponse({ lesson: completedLesson, lessonId: resultLessonId });
+      applyLessonResponse({ lesson: completedLesson, lessonId: resultLessonId }, operationOwnerId);
       trackEvent('lesson_generation_completed', {
         has_materials: hasMaterials,
         block_count_bucket: bucketBlockCount(completedLesson.blocks.length),
@@ -434,6 +480,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   async function revise(e: FormEvent) {
     e.preventDefault();
     if (!lesson || !requireAuth()) return;
+    const operationOwnerId = authUser!.id;
     const before = lesson;
     trackEvent('lesson_revision_started', { revision_scope: 'whole_lesson' });
     setBusy(true);
@@ -448,7 +495,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       });
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Úprava selhala.', 'The edit failed.'));
-      const revisedLesson = applyLessonResponse(data);
+      const revisedLesson = applyLessonResponse(data, operationOwnerId);
       rememberRevisionHighlights(data.lessonId ?? lessonId, changedBlockIds(before, revisedLesson));
       setUndoLesson(data.lessonId ? before : null);
       setRevision('');
@@ -467,6 +514,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   async function reviseSelectedBlock(e: FormEvent) {
     e.preventDefault();
     if (!lesson || !selectedBlock || !requireAuth()) return;
+    const operationOwnerId = authUser!.id;
     const before = lesson;
     trackEvent('lesson_revision_started', { revision_scope: 'activity' });
     setBusy(true);
@@ -481,7 +529,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       });
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Úprava aktivity selhala.', 'The activity edit failed.'));
-      const revisedLesson = applyLessonResponse(data);
+      const revisedLesson = applyLessonResponse(data, operationOwnerId);
       rememberRevisionHighlights(data.lessonId ?? lessonId, changedBlockIds(before, revisedLesson));
       setUndoLesson(data.lessonId ? before : null);
       setBlockRevision('');
@@ -498,7 +546,8 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
   }
 
   async function undoLastChange() {
-    if (!lessonId || !undoLesson || busy) return;
+    if (!lessonId || !undoLesson || busy || !authUser) return;
+    const operationOwnerId = authUser.id;
     setBusy(true);
     setError('');
     setSaveStatus('saving');
@@ -510,7 +559,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       });
       const data = await res.json() as LessonApiResponse;
       if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Předchozí verzi se nepodařilo obnovit.', 'The previous version could not be restored.'));
-      applyLessonResponse(data);
+      applyLessonResponse(data, operationOwnerId);
       rememberRevisionHighlights(lessonId, []);
       setUndoLesson(null);
     } catch (err) {
@@ -526,6 +575,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     setLesson(nextDemo);
     setGradingStrictness(nextDemo.gradingStrictness ?? 'neutral');
     setLessonId(null);
+    lessonOwnerIdRef.current = null;
     setUndoLesson(null);
     setRecentlyChangedBlockIds([]);
     setSaveStatus('idle');
@@ -579,7 +629,7 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
       <header className="brand">
         <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
         <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link></nav>
-        <div className="brand-side"><LocaleSwitcher /><p className="brand-tagline">{ui('AI navigátor pro interaktivní výuku.', 'AI navigator for interactive teaching.')}</p><AuthControls onAuthChange={setAuthUser} quotaRefreshKey={quotaRefreshKey} /></div>
+        <div className="brand-side"><LocaleSwitcher /><p className="brand-tagline">{ui('AI navigátor pro interaktivní výuku.', 'AI navigator for interactive teaching.')}</p><AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} /></div>
       </header>
 
       {authUser && recovery && (!lessonId || recovery.lessonId !== lessonId) ? (
