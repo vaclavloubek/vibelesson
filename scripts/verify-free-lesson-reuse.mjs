@@ -81,6 +81,26 @@ for (const [needle, label] of [
   requireText(splitQuotaMigration.content, needle, label);
 }
 
+const familyMigration = fs.readdirSync(migrationDir)
+  .filter((name) => name.endsWith('.sql'))
+  .map((name) => ({ name, content: read(path.join('supabase/migrations', name)) }))
+  .find(({ content }) => content.includes('create table if not exists public.lesson_reuse_usage'));
+
+if (!familyMigration) {
+  throw new Error('Missing migration for logical lesson reuse families.');
+}
+
+for (const [needle, label] of [
+  ['reuse_family_id uuid', 'lessons have a stable reuse family id'],
+  ['assign_lesson_reuse_family', 'database propagates reuse family through copies/imports'],
+  ['create table if not exists public.lesson_reuse_usage', 'canonical family live-use ledger exists'],
+  ['primary key (owner_id, reuse_family_id)', 'live-use is unique per user and lesson family'],
+  ['project_used_family_to_new_lesson', 'copies of used families are immediately archived in the compatibility UI'],
+  ['u.reuse_family_id = v_family_id', 'Free replay lock checks the lesson family rather than only lesson_id'],
+]) {
+  requireText(familyMigration.content, needle, label);
+}
+
 const lockdownMigration = fs.readdirSync(migrationDir)
   .filter((name) => name.endsWith('.sql'))
   .map((name) => ({ name, content: read(path.join('supabase/migrations', name)) }))
@@ -90,4 +110,4 @@ if (!lockdownMigration) {
   throw new Error('Missing migration that closes direct authenticated lesson inserts.');
 }
 
-console.log(`Free lesson reuse safeguards verified via ${migration.name}, ${splitQuotaMigration.name} and ${lockdownMigration.name}.`);
+console.log(`Free lesson reuse safeguards verified via ${migration.name}, ${splitQuotaMigration.name}, ${familyMigration.name} and ${lockdownMigration.name}.`);
