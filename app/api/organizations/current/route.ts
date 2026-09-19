@@ -38,6 +38,12 @@ export async function GET() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
+  const lifecycleResult = await admin
+    .from('organizations')
+    .select('renewal_mode, cancel_at_period_end, past_due_at')
+    .eq('id', organization.id)
+    .maybeSingle();
+
   const membersResult = await admin
     .from('organization_memberships')
     .select('user_id, role, joined_at')
@@ -65,13 +71,21 @@ export async function GET() {
   const ordersResult = manager
     ? await admin
       .from('organization_orders')
-      .select('id, status, payment_method, amount_minor, currency, billing_period, created_at, paid_at')
+      .select('id, status, payment_method, amount_minor, currency, billing_period, created_at, paid_at, hosted_invoice_url, invoice_pdf_url, external_subscription_id, livemode')
       .eq('organization_id', organization.id)
       .order('created_at', { ascending: false })
     : { data: [], error: null };
 
-  if (membersResult.error || invitesResult.error || requestsResult.error || ordersResult.error) {
+  if (
+    lifecycleResult.error
+    || !lifecycleResult.data
+    || membersResult.error
+    || invitesResult.error
+    || requestsResult.error
+    || ordersResult.error
+  ) {
     console.error('organization summary lookup failed', {
+      lifecycle: lifecycleResult.error?.code,
       members: membersResult.error?.code,
       invites: invitesResult.error?.code,
       requests: requestsResult.error?.code,
@@ -111,6 +125,9 @@ export async function GET() {
       ...organization,
       plan,
       manager,
+      renewalMode: lifecycleResult.data.renewal_mode,
+      cancelAtPeriodEnd: lifecycleResult.data.cancel_at_period_end,
+      pastDueAt: lifecycleResult.data.past_due_at,
       seats: {
         active: memberRows.length,
         pending: (invitesResult.data ?? []).length,
