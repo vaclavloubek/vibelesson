@@ -406,8 +406,9 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         await refresh();
       }
 
-      if (action === 'start' && winner.source !== 'fallback-stale' && authUser) {
-        signalSyllonautGuideAction(authUser.id, 'live-started');
+      if (winner.source !== 'fallback-stale' && authUser) {
+        if (action === 'start') signalSyllonautGuideAction(authUser.id, 'live-started');
+        if (action === 'end') signalSyllonautGuideAction(authUser.id, 'live-ended');
       }
     } catch {
       setError(ui('Spojení s primární i záložní live službou se přerušilo. Stav hodiny zůstal zachovaný; zkus akci za chvíli znovu.', 'The connection to both the primary and backup live services was interrupted. The lesson state is preserved; try the action again shortly.'));
