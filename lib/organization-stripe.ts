@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { BillingCurrency } from '@/lib/billing-region';
 import type {
   OrganizationBillingPeriod,
@@ -132,6 +131,8 @@ export async function createOrganizationCardCheckout(input: {
   params.set('customer', input.customerId);
   params.set('client_reference_id', input.orderId);
   params.set('billing_address_collection', 'required');
+  params.set('customer_update[address]', 'auto');
+  params.set('customer_update[name]', 'auto');
   params.set('line_items[0][price_data][currency]', input.currency);
   params.set('line_items[0][price_data][unit_amount]', String(input.amountMinor));
   params.set(
@@ -273,7 +274,7 @@ export async function createOrganizationInvoice(input: {
     input.secretKey,
     '/v1/invoices/' + encodeURIComponent(invoice.id) + '/send',
     new URLSearchParams(),
-    'syllonaut_org_invoice_send_' + input.orderId + '_' + randomUUID(),
+    'syllonaut_org_invoice_send_' + input.orderId,
   );
 
   if (
