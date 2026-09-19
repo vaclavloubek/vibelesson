@@ -140,7 +140,8 @@ export default function AuthControls({
   initialOpen = false,
   initialMode = 'signin',
 }: Props) {
-  const english = useUiLocale() === 'en';
+  const locale = useUiLocale();
+  const english = locale === 'en';
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
@@ -335,6 +336,7 @@ export default function AuthControls({
         captchaToken: token,
         data: {
           marketing_email_consent: marketingConsent,
+          ui_locale: locale,
         },
       },
     });

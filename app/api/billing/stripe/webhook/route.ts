@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  billingLifecycleNotification,
+  deliverBillingLifecycleEmail,
+  BillingEmailDeliveryError,
+} from '@/lib/billing-email';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import {
@@ -183,6 +188,27 @@ export async function POST(request: Request) {
         code: error.code,
       });
       return jsonError(500, 'subscription_sync_failed');
+    }
+
+    const lifecycleNotification = billingLifecycleNotification(sync);
+    if (lifecycleNotification) {
+      try {
+        await deliverBillingLifecycleEmail(
+          { ...sync, billingCountry: verifiedBillingCountry },
+          lifecycleNotification,
+        );
+      } catch (emailError) {
+        const code = emailError instanceof BillingEmailDeliveryError
+          ? emailError.code
+          : 'billing_email_unknown_error';
+        console.error('billing lifecycle email delivery failed', {
+          eventId: sync.eventId,
+          eventType: sync.eventType,
+          notification: lifecycleNotification,
+          code,
+        });
+        return jsonError(503, 'billing_email_delivery_failed');
+      }
     }
 
     return NextResponse.json({ received: true, result: data }, {
