@@ -82,7 +82,7 @@ function Block({ block, index, teacherMode, selected, onSelect, startMinute, eng
   );
 }
 
-export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectBlock }: { lesson: Lesson; mode: 'teacher' | 'student'; selectedBlockId: string | null; onSelectBlock: (id: string) => void }) {
+export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectBlock, onEditBlock }: { lesson: Lesson; mode: 'teacher' | 'student'; selectedBlockId: string | null; onSelectBlock: (id: string) => void; onEditBlock: (id: string) => void }) {
   const english = useUiLocale() === 'en';
   const [studentPreviewIndex, setStudentPreviewIndex] = useState(0);
   const sum = lesson.blocks.reduce((total, block) => total + block.durationMinutes, 0);
@@ -179,7 +179,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId, onSelectB
       </div>
 
       <div className="objectives"><strong>{english ? 'After the lesson, students will be able to:' : 'Po lekci studenti zvládnou:'}</strong><ul>{lesson.learningObjectives.map((o) => <li key={o} lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{o}</li>)}</ul></div>
-      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} onSelect={() => onSelectBlock(block.id)} startMinute={starts[index]} english={english} contentLanguage={lesson.language} />)}</div>
+      <div className="lesson-list">{lesson.blocks.map((block, index) => <Block key={block.id} block={block} index={index} teacherMode selected={selectedBlockId === block.id} onSelect={() => onEditBlock(block.id)} startMinute={starts[index]} english={english} contentLanguage={lesson.language} />)}</div>
     </div>
   );
 }
