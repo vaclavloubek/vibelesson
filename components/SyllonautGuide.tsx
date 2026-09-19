@@ -7,6 +7,7 @@ import {
   readSyllonautGuideState,
   syllonautGuideStepKey,
   SYLLONAUT_GUIDE_ACTION_EVENT,
+  SYLLONAUT_LESSON_REVIEW_STEP,
   SYLLONAUT_GUIDE_EVENT,
   type SyllonautGuideAction,
   type SyllonautGuideChapter,
@@ -438,15 +439,30 @@ export default function SyllonautGuide({ userId }: Props) {
   }, [advance, rect, state?.running, state?.chapter, state?.step, step]);
 
   useEffect(() => {
-    if (!userId || !state?.running || !step?.signal) return;
+    if (!userId || !state?.running) return;
     const onAction = (event: Event) => {
       const custom = event as CustomEvent<{ userId?: string; action?: SyllonautGuideAction }>;
-      if (custom.detail?.userId !== userId || custom.detail.action !== step.signal) return;
+      if (custom.detail?.userId !== userId || !custom.detail.action) return;
+
+      if (custom.detail.action === 'lesson-created' && state.chapter === 'lesson') {
+        const createdKey = syllonautGuideStepKey('lesson', 1);
+        const satisfiedSteps = state.satisfiedSteps.includes(createdKey)
+          ? state.satisfiedSteps
+          : [...state.satisfiedSteps, createdKey];
+        persist({
+          ...state,
+          step: SYLLONAUT_LESSON_REVIEW_STEP,
+          satisfiedSteps,
+        });
+        return;
+      }
+
+      if (!step?.signal || custom.detail.action !== step.signal) return;
       advance();
     };
     window.addEventListener(SYLLONAUT_GUIDE_ACTION_EVENT, onAction);
     return () => window.removeEventListener(SYLLONAUT_GUIDE_ACTION_EVENT, onAction);
-  }, [advance, state?.running, state?.chapter, state?.step, step, userId]);
+  }, [advance, persist, state, step, userId]);
 
   const blockerStyles = useMemo(() => {
     if (!rect) return null;
