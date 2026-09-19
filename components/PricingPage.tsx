@@ -80,6 +80,7 @@ const teacherPlansCs: Plan[] = [
       '60 nových AI lekcí za měsíc',
       '250 AI úprav za měsíc',
       'Lekce v libovolném jazyce',
+      'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Živé hodiny bez tarifního limitu',
@@ -113,6 +114,7 @@ const schoolPlansCs: Plan[] = [
       '600 nových AI lekcí za měsíc společně',
       '2 400 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
+      'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Živé hodiny bez tarifního limitu',
@@ -130,6 +132,7 @@ const schoolPlansCs: Plan[] = [
       '2 000 nových AI lekcí za měsíc společně',
       '8 000 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
+      'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Živé hodiny bez tarifního limitu',
@@ -168,6 +171,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       '60 new AI lessons per month',
       '250 AI edits per month',
       'Lessons in any language',
+      'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Live lessons with no plan-based limit',
@@ -192,6 +196,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       '600 new AI lessons per month shared',
       '2,400 AI edits per month shared',
       'Lessons in any language',
+      'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Live lessons with no plan-based limit',
@@ -205,6 +210,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       '2,000 new AI lessons per month shared',
       '8,000 AI edits per month shared',
       'Lessons in any language',
+      'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Live lessons with no plan-based limit',
@@ -282,12 +288,15 @@ function PlanCard({
         {plan.features.map((feature) => {
           const multilingualTeacherHook = (plan.id === 'teacher' || plan.id === 'teacher-pro')
             && (feature === 'Lekce v libovolném jazyce' || feature === 'Lessons in any language');
+          const worksheetHook = feature.startsWith('Pracovní listy')
+            || feature.startsWith('Printable worksheets');
           const premiumHook = multilingualTeacherHook
+            || worksheetHook
             || feature.startsWith('AI hodnocení')
             || feature.startsWith('Složky a podsložky')
             || feature.startsWith('AI grading')
             || feature.startsWith('Folders and subfolders');
-          return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}</li>;
+          return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}{worksheetHook ? <span className={styles.newFeatureBadge}>{english ? 'NEW' : 'NOVĚ'}</span> : null}</li>;
         })}
       </ul>
 
