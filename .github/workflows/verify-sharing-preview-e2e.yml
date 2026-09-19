@@ -31,6 +31,11 @@ jobs:
               cat /tmp/sharing-e2e.json
               exit 1
             fi
+            if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+              echo "Preview request blocked by deployment protection (HTTP $code)."
+              cat /tmp/sharing-e2e.headers
+              exit 1
+            fi
             sleep 10
           done
           echo "Preview E2E endpoint did not become available."
