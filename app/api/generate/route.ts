@@ -4,6 +4,7 @@ import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { GradingStrictnessSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import {
   MATERIAL_MAX_FILES,
   MATERIAL_MAX_TEXT_PER_FILE,
@@ -60,18 +61,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Popiš hodinu nebo nahraj alespoň jeden podklad.' }, { status: 400 });
     }
 
-    if (input.gradingStrictness !== 'neutral') {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, ai_grading_enabled')
-        .eq('id', userId)
-        .maybeSingle();
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, ai_grading_enabled, multilingual_lessons_enabled')
+      .eq('id', userId)
+      .maybeSingle();
 
-      if (profileError) throw profileError;
-      const aiGradingEnabled = Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled));
-      if (!aiGradingEnabled) {
-        return NextResponse.json({ error: 'Nastavení přísnosti AI hodnocení není pro tento tarif dostupné.' }, { status: 403 });
-      }
+    if (profileError) throw profileError;
+
+    const isAdmin = profile?.role === 'admin';
+    const aiGradingEnabled = Boolean(profile && (isAdmin || profile.ai_grading_enabled));
+    const multilingualLessonsEnabled = Boolean(profile && (isAdmin || profile.multilingual_lessons_enabled));
+    const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? input.uiLocale;
+
+    if (!multilingualLessonsEnabled
+      && input.lessonLanguage !== 'auto'
+      && input.lessonLanguage !== requestLocale) {
+      return NextResponse.json({
+        error: 'Lekce v jiném jazyce jsou dostupné v placených tarifech.',
+      }, { status: 403 });
+    }
+
+    const effectiveLessonLanguage = multilingualLessonsEnabled
+      ? input.lessonLanguage
+      : requestLocale;
+
+    if (input.gradingStrictness !== 'neutral' && !aiGradingEnabled) {
+      return NextResponse.json({ error: 'Nastavení přísnosti AI hodnocení není pro tento tarif dostupné.' }, { status: 403 });
     }
 
     const totalMaterialText = input.materials.reduce((sum, material) => sum + material.text.length, 0);
@@ -149,8 +165,8 @@ export async function POST(req: Request) {
               duration: input.duration,
               groupSize: input.groupSize,
               tone: input.tone,
-              lessonLanguage: input.lessonLanguage,
-              uiLocale: input.uiLocale,
+              lessonLanguage: effectiveLessonLanguage,
+              uiLocale: requestLocale,
               gradingStrictness: input.gradingStrictness,
               materialText,
               materialMode: input.materialMode as MaterialMode,
