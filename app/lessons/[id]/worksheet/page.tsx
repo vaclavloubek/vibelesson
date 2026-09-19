@@ -74,10 +74,10 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
         {!teacherMode ? <div className={styles.identityRow}><span><b>{english ? 'Name' : 'Jméno'}</b></span><span><b>{english ? 'Class / group' : 'Třída / skupina'}</b></span><span><b>{english ? 'Date' : 'Datum'}</b></span></div>
           : <div className={styles.teacherBanner}>{english ? 'Teacher version with answers, notes and scoring where available.' : 'Učitelská verze obsahuje řešení, poznámky a bodování tam, kde jsou v lekci k dispozici.'}</div>}
       </header>
-      {blocks.length > 0 ? <div className={styles.activities}>{blocks.map(({ block, originalIndex }) => {
+      {blocks.length > 0 ? <div className={styles.activities}>{blocks.map(({ block }, worksheetIndex) => {
         const answerType = block.type === 'open_text' || block.type === 'exit_ticket' || block.type === 'team_task';
         return <section className={styles.activity} key={block.id}>
-          <div className={styles.activityHeader}><span className={styles.activityNumber}>{originalIndex + 1}</span><div><span className={styles.activityType}>{worksheetBlockLabel(block.type, english)}</span><h2>{block.title}</h2></div>{typeof block.points === 'number' ? <span className={styles.points}>Max. {block.points} b.</span> : null}</div>
+          <div className={styles.activityHeader}><span className={styles.activityNumber}>{worksheetIndex + 1}</span><div><span className={styles.activityType}>{worksheetBlockLabel(block.type, english)}</span><h2>{block.title}</h2></div>{typeof block.points === 'number' ? <span className={styles.points}>Max. {block.points} b.</span> : null}</div>
           <FormattedInstructions text={block.instructions} className={styles.instructions} lang={lesson.language} />
           <WorksheetTable block={block} />
           {block.type === 'ranking' && block.items?.length ? <div className={styles.rankingList}>{block.items.map((item) => <div className={styles.rankingRow} key={item}><span className={styles.rankBox} aria-hidden="true" /><span>{item}</span></div>)}</div>
