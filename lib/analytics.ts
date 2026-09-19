@@ -103,6 +103,8 @@ type AnalyticsEventParameters = {
   lesson_revision_failed: { revision_scope: RevisionScope; error_code: RevisionErrorCode };
 
   lesson_duplicated: undefined;
+  shared_lesson_import_started: undefined;
+  shared_lesson_imported: undefined;
   folder_created: undefined;
   lesson_moved_to_folder: undefined;
   bulk_lessons_moved: { item_count_bucket: ItemCountBucket };
@@ -164,6 +166,8 @@ const EVENT_PARAMETER_KEYS: { [K in AnalyticsEventName]: readonly (keyof NonNull
   lesson_revision_failed: ['revision_scope', 'error_code'],
 
   lesson_duplicated: [],
+  shared_lesson_import_started: [],
+  shared_lesson_imported: [],
   folder_created: [],
   lesson_moved_to_folder: [],
   bulk_lessons_moved: ['item_count_bucket'],
