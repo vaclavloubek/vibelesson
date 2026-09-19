@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
 import PasswordField from '@/components/PasswordField';
+import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
@@ -407,24 +408,13 @@ export default function AuthControls({
   }
 
   if (user) {
-    const lessonText = quota?.lesson_unlimited
-      ? (english ? 'lessons unlimited' : 'lekce neomezeně')
-      : quota && quota.lesson_limit !== null
-        ? (english ? `lessons ${quota.lesson_remaining ?? 0}/${quota.lesson_limit}` : `lekce ${quota.lesson_remaining ?? 0}/${quota.lesson_limit}`)
-        : (english ? 'lessons loading' : 'lekce načítám');
-
-    const revisionText = quota?.revision_unlimited
-      ? (english ? 'edits unlimited' : 'úpravy neomezeně')
-      : quota && quota.revision_limit !== null
-        ? (english ? `edits ${quota.revision_remaining ?? 0}/${quota.revision_limit}` : `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`)
-        : (english ? 'edits loading' : 'úpravy načítám');
-
     return (
-      <div className="auth-signed-in">
-        <span title={user.email ?? ''}>{user.email}</span>
-        <span className="auth-quota">AI: {lessonText} · {revisionText}</span>
-        <button type="button" className="auth-link" onClick={signOut} disabled={busy}>{english ? 'Sign out' : 'Odhlásit'}</button>
-      </div>
+      <PublicHeaderAccountMenu
+        user={user}
+        quota={quota}
+        quotaRefreshKey={quotaRefreshKey}
+        onSignOut={signOut}
+      />
     );
   }
 

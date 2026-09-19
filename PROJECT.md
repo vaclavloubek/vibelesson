@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.13 — live Stripe billing je připravený pro kontrolovaný admin acceptance: live Teacher/Teacher Pro katalog, Customer Portal a webhook jsou oddělené od sandboxu; live subscription se provisionuje pouze po serverovém ověření skutečné billing country z dokončeného Stripe Checkout Session.
+Aktualizováno: 2026-09-19 pro verzi 0.9.14 — sjednocená hlavička učitelských částí používá stejnou navigační logiku a kompaktní profilový dropdown na veřejném webu, dashboardu, editoru lekcí, GDPR stránce a v Teacher Live; e-mail, AI kvóta a bezpečné odhlášení už nezabírají samostatné místo v hlavní liště.
 
-**Aktuální produktová verze: 0.9.13** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.14** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -147,12 +147,14 @@ Regresní ochrana je v `scripts/verify-i18n.mjs`, `scripts/verify-analytics.mjs`
 
 ### Header / responzivní navigace
 
-Landing i Pricing používají sdílenou responzivní navigaci:
+Veřejné i učitelské obrazovky používají od 0.9.14 stejnou navigační logiku:
 
-- desktop drží standardní navigaci + CTA;
+- desktop drží hlavní navigaci **Jak to funguje / Ceník / Moje lekce** a na běžných učitelských obrazovkách primární CTA **Připravit hodinu**;
 - po přihlášení se e-mail, AI kvóta a logout přesouvají do kompaktního profilového dropdownu; v hlavní liště zůstává jen trigger účtu;
-- dropdown obsahuje Moje lekce, Předplatné a bezpečné Odhlásit, zavírá se kliknutím mimo i klávesou Escape; na úzkém mobilním headeru se trigger zmenší na iniciálu;
-- pod cca 1040 px se zobrazí hamburger menu;
+- profilový dropdown je společný pro Landing, Pricing, GDPR, dashboard, lesson workspace a Teacher Live; obsahuje Moje lekce, Předplatné a bezpečné Odhlásit;
+- dropdown se zavírá kliknutím mimo i klávesou Escape; na úzkém mobilním headeru se trigger zmenší na iniciálu;
+- Teacher Live záměrně nemá CTA pro zahájení nové lekce, aby během živé hodiny nesoutěžilo s řídicími akcemi; stav spojení je přesunut pod čistou hlavičku do samostatného statusu;
+- pod cca 1040 px se na veřejných stránkách zobrazí hamburger menu;
 - na telefonu je v menu i `Připravit hodinu`, pokud se desktop CTA skryje;
 - menu má `aria-expanded`, unikátní `aria-controls`, Escape zavření a návrat fokusu na spouštěč;
 - Pricing header CTA je chráněné proti zalomení na dva řádky.
@@ -1070,6 +1072,7 @@ Bezpečnostní a produktové změny:
 - **0.9.11** — čistší přihlášená veřejná hlavička: e-mail, AI kvóta a logout jsou přesunuté z hlavní lišty do kompaktního profilového dropdownu; hlavní CTA zůstává jediným výrazným prvkem a nový regresní check hlídá dostupnost kvóty, odhlášení i responzivního triggeru
 - **0.9.12** — hotfix PDF podkladů: worker `pdf-parse` je self-hostovaný jako build-time asset z vlastní domény místo externího jsDelivr URL, takže funguje pod stávající CSP bez jejího oslabení; přidán `verify-pdf-worker.mjs`
 - **0.9.13** — live Stripe acceptance foundation: live Teacher/Teacher Pro katalog + DB mappings, live Portal/webhook isolation, admin-only live Checkout/Portal gate a fail-closed ověření skutečné billing country z dokončeného Checkout Session před entitlement provisioningem
+- **0.9.14** — sjednocení hlaviček napříč učitelskými obrazovkami: dashboard, lesson workspace, GDPR a Teacher Live používají stejnou hlavní navigaci a společný profilový dropdown; dashboard přesunul primární vytvoření lekce do header CTA a Teacher Live oddělil stav spojení od navigace
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1159,7 +1162,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.13; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.14; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 

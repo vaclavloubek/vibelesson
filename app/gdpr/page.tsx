@@ -3,10 +3,12 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
+import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import MarketingEmailPreferences from '@/components/MarketingEmailPreferences';
 import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from './GdprPage.module.css';
 
@@ -36,6 +38,16 @@ export default async function GdprPage() {
   const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
+  const accountUser = userId ? {
+    id: userId,
+    email: typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : undefined,
+    user_metadata: claimsData?.claims?.user_metadata && typeof claimsData.claims.user_metadata === 'object'
+      ? claimsData.claims.user_metadata as Record<string, unknown>
+      : {},
+  } : null;
 
   return (
     <main className={landing.page}>
@@ -44,11 +56,13 @@ export default async function GdprPage() {
         <nav className={landing.nav} aria-label={ui('Hlavní navigace', 'Main navigation')}>
           <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
           <Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>
+          {accountUser ? <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link> : null}
         </nav>
         <div className={landing.headerActions}>
           <LocaleSwitcher />
+          {accountUser ? <PublicHeaderAccountMenu user={accountUser} /> : null}
           <Link href="/new" className={landing.headerCta} style={{ whiteSpace: 'nowrap' }}>{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
-          <HeaderMobileNav signedIn={false} current="home" />
+          <HeaderMobileNav signedIn={Boolean(accountUser)} current="home" />
         </div>
       </header>
 

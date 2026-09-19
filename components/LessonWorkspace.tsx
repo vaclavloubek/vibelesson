@@ -631,8 +631,16 @@ export default function LessonWorkspace({ initialLesson = null, initialLessonId 
     <main className="shell">
       <header className="brand">
         <div className="brand-identity"><Link href={`/${locale}`} className="brand-home"><SyllonautMark /><strong>Syllonaut</strong></Link><span className="beta">BETA</span></div>
-        <nav className="main-nav"><Link href="/new">{ui('Nová lekce', 'New lesson')}</Link><Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link></nav>
-        <div className="brand-side"><LocaleSwitcher /><p className="brand-tagline">{ui('AI navigátor pro interaktivní výuku.', 'AI navigator for interactive teaching.')}</p><AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} /></div>
+        <nav className="main-nav" aria-label={ui('Hlavní navigace', 'Main navigation')}>
+          <Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link>
+          <Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>
+          <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link>
+        </nav>
+        <div className="brand-side">
+          <LocaleSwitcher />
+          <AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} />
+          <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
+        </div>
       </header>
 
       {authUser && recovery && (!lessonId || recovery.lessonId !== lessonId) ? (
