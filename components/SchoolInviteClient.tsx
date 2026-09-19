@@ -59,7 +59,7 @@ export default function SchoolInviteClient({
             : ui('Pozvánku se nepodařilo přijmout.', 'The invitation could not be accepted.'),
       );
     })();
-  }, [initialUser, state, token, english]);
+  }, [initialUser, state, token, english, router]);
 
   return (
     <main className={styles.page}>
