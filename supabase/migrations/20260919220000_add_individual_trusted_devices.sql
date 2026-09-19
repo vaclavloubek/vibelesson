@@ -78,6 +78,7 @@ as $function$
 declare
   v_required boolean;
   v_existing private.user_trusted_devices%rowtype;
+  v_existing_found boolean := false;
   v_active_count integer := 0;
   v_new_30d integer := 0;
 begin
@@ -139,6 +140,7 @@ begin
   where d.user_id = p_user_id
     and d.token_hash = p_token_hash
   for update;
+  v_existing_found := found;
 
   select count(*)::integer
   into v_active_count
@@ -152,7 +154,7 @@ begin
   where d.user_id = p_user_id
     and d.first_trusted_at >= now() - interval '30 days';
 
-  if found and v_existing.revoked_at is null then
+  if v_existing_found and v_existing.revoked_at is null then
     update private.user_trusted_devices
     set last_seen_at = now()
     where id = v_existing.id;
@@ -182,7 +184,7 @@ begin
   end if;
 
   -- Reactivating the exact same random device token is not a new device.
-  if found then
+  if v_existing_found then
     update private.user_trusted_devices
     set revoked_at = null,
         last_seen_at = now()
