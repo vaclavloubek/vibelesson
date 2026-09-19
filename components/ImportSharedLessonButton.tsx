@@ -9,9 +9,11 @@ import { createClient } from '@/lib/supabase/client';
 export default function ImportSharedLessonButton({
   token,
   importRequested = false,
+  serverAuthenticated = false,
 }: {
   token: string;
   importRequested?: boolean;
+  serverAuthenticated?: boolean;
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -84,6 +86,13 @@ export default function ImportSharedLessonButton({
       }, 0);
     }
 
+    if (serverAuthenticated) {
+      resumeImport();
+      return () => {
+        mounted = false;
+      };
+    }
+
     void supabase.auth.getUser().then(({ data }) => {
       if (data.user) resumeImport();
     });
@@ -96,7 +105,7 @@ export default function ImportSharedLessonButton({
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [importLesson, importRequested, supabase]);
+  }, [importLesson, importRequested, serverAuthenticated, supabase]);
 
   return (
     <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
