@@ -53,6 +53,7 @@ type Summary = {
   library: Array<{
     id: string;
     title: string;
+    subject: string | null;
     published_by: string | null;
     created_at: string;
   }>;
@@ -167,6 +168,7 @@ export default function SchoolAdmin({
     role: 'teacher' | 'admin';
   }>>([]);
   const [libraryLessonId, setLibraryLessonId] = useState('');
+  const [librarySubjectFilter, setLibrarySubjectFilter] = useState('__all__');
 
   const load = useCallback(async () => {
     if (!initialUser) {
@@ -198,6 +200,42 @@ export default function SchoolAdmin({
     () => '/school?plan=' + planCode + '&billing=' + billingPeriod,
     [billingPeriod, planCode],
   );
+
+  const librarySubjects = useMemo(() => {
+    const subjects = (summary?.library ?? [])
+      .map((entry) => entry.subject?.replace(/\s+/g, ' ').trim() ?? '')
+      .filter((subject): subject is string => subject.length > 0);
+    return Array.from(new Set(subjects)).sort((left, right) => left.localeCompare(right, locale));
+  }, [locale, summary]);
+
+  const hasUnclassifiedLibraryLessons = useMemo(
+    () => (summary?.library ?? []).some((entry) => !entry.subject?.trim()),
+    [summary],
+  );
+
+  const filteredLibrary = useMemo(() => {
+    const entries = summary?.library ?? [];
+    if (librarySubjectFilter === '__all__') return entries;
+    if (librarySubjectFilter === '__unclassified__') {
+      return entries.filter((entry) => !entry.subject?.trim());
+    }
+    return entries.filter((entry) => entry.subject?.trim() === librarySubjectFilter);
+  }, [librarySubjectFilter, summary]);
+
+  useEffect(() => {
+    if (!summary || librarySubjectFilter === '__all__') return;
+    if (
+      librarySubjectFilter === '__unclassified__'
+        ? hasUnclassifiedLibraryLessons
+        : librarySubjects.includes(librarySubjectFilter)
+    ) return;
+    setLibrarySubjectFilter('__all__');
+  }, [
+    hasUnclassifiedLibraryLessons,
+    librarySubjectFilter,
+    librarySubjects,
+    summary,
+  ]);
 
   async function downloadQuote() {
     if (!name.trim()) {
