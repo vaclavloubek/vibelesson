@@ -51,6 +51,11 @@ comment on column public.lessons.reuse_family_id is
 alter table public.lesson_shares
   add column if not exists reuse_family_id uuid;
 
+-- Revoked shares are intentionally immutable. Temporarily remove the old trigger
+-- only inside this migration so the new system lineage column can be backfilled;
+-- the stricter trigger is recreated below before the transaction commits.
+drop trigger if exists enforce_lesson_share_immutability on public.lesson_shares;
+
 update public.lesson_shares s
 set reuse_family_id = l.reuse_family_id
 from public.lessons l
@@ -128,6 +133,12 @@ end;
 $$;
 
 revoke all on function private.enforce_lesson_share_immutability() from public, anon, authenticated;
+
+drop trigger if exists enforce_lesson_share_immutability on public.lesson_shares;
+create trigger enforce_lesson_share_immutability
+before update on public.lesson_shares
+for each row
+execute function private.enforce_lesson_share_immutability();
 
 -- Persist lineage on school-library snapshots too. Historical orphaned library
 -- entries get a fresh stable family because their deleted source can no longer be recovered.
