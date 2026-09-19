@@ -1,8 +1,8 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 pro verzi 0.9.11 — veřejná hlavička po přihlášení používá kompaktní profilové menu místo samostatného e-mailu, AI kvóty a odhlášení. Hlavní lišta tak drží jen navigaci, jazyk, účet a primární CTA; detail účtu, AI kvóta, Moje lekce, Předplatné a Odhlásit jsou v dropdownu.
+Aktualizováno: 2026-09-19 pro verzi 0.9.12 — opraveno načítání PDF podkladů v prohlížeči. PDF worker se při dev/build kroku kopíruje z připnuté závislosti pdf-parse do same-origin veřejného assetu, takže není blokován bezpečnostní CSP a aplikace už není pro extrakci PDF závislá na externí CDN.
 
-**Aktuální produktová verze: 0.9.11** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+**Aktuální produktová verze: 0.9.12** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 Produkční release 0.8:
 
@@ -250,7 +250,8 @@ Implementováno/ověřeno:
 - originál ani extrahovaný text se trvale neukládá;
 - bez OCR pro naskenované PDF;
 - režimy `primary`, `strict`, `inspiration`;
-- prompt injection uvnitř dokumentu se ignoruje jako nedůvěryhodný obsah.
+- prompt injection uvnitř dokumentu se ignoruje jako nedůvěryhodný obsah;
+- PDF text extraction používá self-hosted worker `/pdf.worker.min.mjs`, který se automaticky připraví z nainstalované verze `pdf-parse` před lokálním dev serverem i produkčním buildem; CSP zůstává přísná (`worker-src 'self' blob:`) a není potřeba povolit externí CDN.
 
 SEC-012 je uzavřený: DOCX/PPTX ZIP preflight omezuje počet položek a relevantních XML částí, odmítá ZIP64/multi-disk a streamovaně hlídá dekomprimovaná data.
 
@@ -1067,6 +1068,7 @@ Bezpečnostní a produktové změny:
 - **0.9.09** — konzistentní bezpečný logout na stránce Moje lekce pro všechny tarify; e-mail se zkracuje samostatně, takže tlačítko Odhlásit zůstává vždy viditelné
 - **0.9.10** — jednoznačné číslování při AI revizi celé lekce: číselné odkazy učitele se mapují podle viditelného pořadí všech bloků, ne podle sémantického typu „úkolu“; přidán regresní check `verify-revision-references.mjs`
 - **0.9.11** — čistší přihlášená veřejná hlavička: e-mail, AI kvóta a logout jsou přesunuté z hlavní lišty do kompaktního profilového dropdownu; hlavní CTA zůstává jediným výrazným prvkem a nový regresní check hlídá dostupnost kvóty, odhlášení i responzivního triggeru
+- **0.9.12** — hotfix PDF podkladů: worker `pdf-parse` je self-hostovaný jako build-time asset z vlastní domény místo externího jsDelivr URL, takže funguje pod stávající CSP bez jejího oslabení; přidán `verify-pdf-worker.mjs`
 - `24e8b1c` — premium lesson folders
 - `e0a02bd` — veřejný Pricing / Ceník
 - `d2f8b98` — intuitivnější folder move UX: dialog, lesson menu, bulk, drag-and-drop, create-folder-from-move
@@ -1156,7 +1158,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.11; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in. **Stripe sandbox lifecycle je dokončený a E2E ověřený včetně Customer Portalu, cancellation/undo, upgrade/downgrade, následné platby, renewal failure a recovery.** Ostrý prodej zůstává vypnutý, dokud nebude stejný acceptance zopakován v live Stripe prostředí a nebude dokončena kontrola skutečné billing country. Aktuální produktová verze je 0.9.12; uvnitř ní zůstává zachovaný live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2.
 
 Nejbližší priority v tomto pořadí:
 
