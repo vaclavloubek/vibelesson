@@ -4,9 +4,11 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
+import { trackEvent } from '@/lib/analytics';
 import { createClient } from '@/lib/supabase/client';
 
 const IMPORT_INTENT_STORAGE_KEY = 'syllonaut_pending_share_import_v1';
+const IMPORT_ANALYTICS_STORAGE_PREFIX = 'syllonaut_shared_lesson_imported_v1:';
 const IMPORT_INTENT_TTL_MS = 5 * 60 * 1000;
 
 type StoredImportIntent = {
@@ -31,6 +33,24 @@ function clearImportIntent(token: string) {
     if (parsed.token === token) window.sessionStorage.removeItem(IMPORT_INTENT_STORAGE_KEY);
   } catch {
     window.sessionStorage.removeItem(IMPORT_INTENT_STORAGE_KEY);
+  }
+}
+
+function markSuccessfulImportAnalytics(token: string) {
+  const storageKey = IMPORT_ANALYTICS_STORAGE_PREFIX + token;
+  try {
+    if (window.sessionStorage.getItem(storageKey) === '1') return;
+  } catch {
+    // Analytics deduplication is best-effort and must never affect lesson import.
+  }
+
+  const sent = trackEvent('shared_lesson_imported');
+  if (!sent) return;
+
+  try {
+    window.sessionStorage.setItem(storageKey, '1');
+  } catch {
+    // The event was sent; blocked storage only disables browser-side deduplication.
   }
 }
 
@@ -73,7 +93,10 @@ export default function ImportSharedLessonButton({
   const importLesson = useCallback(async (resumeAfterAuth = false) => {
     if (importInFlightRef.current) return;
 
-    if (!resumeAfterAuth) rememberImportIntent(token);
+    if (!resumeAfterAuth) {
+      rememberImportIntent(token);
+      trackEvent('shared_lesson_import_started');
+    }
 
     importInFlightRef.current = true;
     setBusy(true);
@@ -118,6 +141,7 @@ export default function ImportSharedLessonButton({
       }
 
       clearImportIntent(token);
+      markSuccessfulImportAnalytics(token);
       setStatus('');
       router.replace(`/lessons/${data.lessonId}`);
     } catch (err) {
