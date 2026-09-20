@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import SchoolAdmin from '@/components/SchoolAdmin';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -55,10 +56,9 @@ export default async function SchoolPage({
     appRole = profile?.role ?? null;
   }
 
-  const schoolBillingAvailable =
-    process.env.STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED === 'true'
-    || (appRole === 'admin' && billingEnvironment === 'sandbox')
-    || appRole === 'admin';
+  const schoolBillingAvailable = billingEnvironment === 'live'
+    ? isPublicSchoolBillingEnabled() || appRole === 'admin'
+    : appRole === 'admin';
 
   return (
     <SchoolAdmin
