@@ -89,6 +89,7 @@ const copy = {
     kitEyebrow: 'Stavebnice aktivit',
     kitTitle: 'AI vybírá formu. Vy určujete, co má výuka přinést.',
     activities: ['Hlasování', 'Kvíz', 'Týmový úkol', 'Řazení', 'Otevřená odpověď', 'Odhalení', 'Timer'],
+    wordCloud: ['Syllonaut', 'AI', 'interaktivní výuka', 'živá hodina', 'úspora času', 'zapojení', 'spolupráce', 'příprava', 'AI úpravy', 'studenti', 'učitel', 'zpětná vazba', 'reflexe', 'mobily', 'hodnocení'],
     ownCue: 'Připravit vlastní hodinu',
     finalTitle: 'Připravte si další hodinu s AI. A rovnou ji odučte.',
     finalBody: 'Začněte popisem toho, co mají studenti zažít. Syllonaut připraví zbytek trasy.',
@@ -156,6 +157,7 @@ const copy = {
     kitEyebrow: 'Activity toolkit',
     kitTitle: 'AI chooses the format. You decide what the learning should achieve.',
     activities: ['Poll', 'Quiz', 'Team task', 'Ranking', 'Open response', 'Reveal', 'Timer'],
+    wordCloud: ['Syllonaut', 'AI', 'interactive teaching', 'live lesson', 'time saved', 'engagement', 'collaboration', 'preparation', 'AI refinement', 'students', 'teacher', 'feedback', 'reflection', 'student phones', 'assessment'],
     ownCue: 'Prepare your own lesson',
     finalTitle: 'Prepare your next lesson with AI. Then teach it live.',
     finalBody: 'Start by describing what students should experience. Syllonaut prepares the rest of the route.',
@@ -290,6 +292,15 @@ export default function LandingPage() {
       </section>
 
       <section className={`${styles.activities} ${polish.guidedSection}`} id="aktivity">
+        <div className={styles.wordCloud} aria-hidden="true">
+          <div className={styles.wordCloudOrbit} />
+          <div className={`${styles.wordCloudOrbit} ${styles.wordCloudOrbitInner}`} />
+          <i className={`${styles.wordCloudStar} ${styles.wordCloudStarOne}`} />
+          <i className={`${styles.wordCloudStar} ${styles.wordCloudStarTwo}`} />
+          <i className={`${styles.wordCloudStar} ${styles.wordCloudStarThree}`} />
+          <i className={`${styles.wordCloudStar} ${styles.wordCloudStarFour}`} />
+          {t.wordCloud.map((word) => <span className={styles.wordCloudWord} key={word}>{word}</span>)}
+        </div>
         <div>
           <span className={styles.eyebrow}>{t.kitEyebrow}</span>
           <h2>{t.kitTitle}</h2>
