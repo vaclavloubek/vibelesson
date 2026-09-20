@@ -97,8 +97,9 @@ const schoolPlansCs: Plan[] = [
     id: 'team',
     name: 'Team',
     description: 'Pro menší kabinet, metodický tým nebo skupinu učitelů.',
-    price: { monthlyCzk: 1290, annualCzk: 12900, monthlyEur: 54.99, annualEur: 549.9, monthlyUsd: 59.99, annualUsd: 599 },
+    price: { monthlyCzk: 890, annualCzk: 8900, monthlyEur: 37.99, annualEur: 379.9, monthlyUsd: 39.99, annualUsd: 399 },
     features: [
+      'Celý tok: AI příprava → živá hodina → vyhodnocení',
       'Až 10 učitelů',
       'Samostatný účet pro každého učitele',
       '200 nových AI lekcí za měsíc společně',
@@ -112,8 +113,9 @@ const schoolPlansCs: Plan[] = [
     id: 'school',
     name: 'School',
     description: 'Pro školu, která chce Syllonaut zpřístupnit širšímu pedagogickému týmu.',
-    price: { monthlyCzk: 3190, annualCzk: 31900, monthlyEur: 139.99, annualEur: 1399.9, monthlyUsd: 149.99, annualUsd: 1499 },
+    price: { monthlyCzk: 2390, annualCzk: 23900, monthlyEur: 99.99, annualEur: 999.9, monthlyUsd: 109.99, annualUsd: 1099 },
     features: [
+      'Celý tok: AI příprava → živá hodina → vyhodnocení',
       'Až 30 učitelů',
       'Samostatný účet pro každého učitele',
       '600 nových AI lekcí za měsíc společně',
@@ -133,8 +135,9 @@ const schoolPlansCs: Plan[] = [
     id: 'campus',
     name: 'Campus',
     description: 'Pro velkou školu, síť pracovišť nebo instituci s více týmy.',
-    price: { monthlyCzk: 8490, annualCzk: 84900, monthlyEur: 369.99, annualEur: 3699.9, monthlyUsd: 399.99, annualUsd: 3999 },
+    price: { monthlyCzk: 5990, annualCzk: 59900, monthlyEur: 249.99, annualEur: 2499.9, monthlyUsd: 269.99, annualUsd: 2699 },
     features: [
+      'Celý tok: AI příprava → živá hodina → vyhodnocení',
       'Až 100 učitelů',
       'Samostatný účet pro každého učitele',
       '2 000 nových AI lekcí za měsíc společně',
@@ -193,6 +196,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   team: {
     description: 'For a small department, subject team or group of teachers.',
     features: [
+      'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 10 teachers',
       'A separate account for every teacher',
       '200 new AI lessons per month shared',
@@ -205,6 +209,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   school: {
     description: 'For a school that wants to make Syllonaut available to a broader teaching team.',
     features: [
+      'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 30 teachers',
       'A separate account for every teacher',
       '600 new AI lessons per month shared',
@@ -222,6 +227,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   campus: {
     description: 'For a large school, multi-site organisation or institution with several teams.',
     features: [
+      'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 100 teachers',
       'A separate account for every teacher',
       '2,000 new AI lessons per month shared',
@@ -661,11 +667,25 @@ export default function PricingPage({
 
       <section className={styles.hero}>
         <span className={styles.eyebrow}>{english ? 'Pricing' : 'Pricing · Ceník'}</span>
-        <h1>{ui('Začněte zdarma. Přidejte výkon, až ho budete potřebovat.', 'Start free. Add more capacity when you need it.')}</h1>
+        <h1>{ui('Od nápadu až po odučenou hodinu. V jednom tarifu.', 'From idea to a lesson taught live. In one plan.')}</h1>
         <p>{ui(
-          'Free stačí na vyzkoušení celého toku od přípravy po první živé použití každé lekce. Placené plány odemknou opakované používání lekcí bez omezení, větší AI kapacitu a lekce v libovolném jazyce; Teacher Pro navíc automatické AI hodnocení a organizaci lekcí do složek.',
-          'Free is enough to try the full flow from preparation through the first live use of each lesson. Paid plans unlock unlimited repeated use of lessons, more AI capacity and lessons in any language; Teacher Pro also adds automatic AI grading and lesson folders.'
+          'AI lekci připraví a upraví. Vy ji spustíte, studenti se připojí, Syllonaut sbírá odpovědi a pomůže s vyhodnocením. Free ukáže celý tok; placené tarify přidávají vyšší AI kapacitu, opakované používání a pokročilé nástroje.',
+          'AI prepares and refines the lesson. You launch it, students join, Syllonaut collects responses and helps with evaluation. Free shows the full workflow; paid plans add more AI capacity, repeated use and advanced tools.'
         )}</p>
+      </section>
+
+      <section className={styles.valueFlow} aria-label={ui('Celý proces v Syllonautu', 'The full Syllonaut workflow')}>
+        {[
+          [ui('01 · Zadání', '01 · Brief'), ui('Řeknete, co chcete učit.', 'Tell us what you want to teach.')],
+          [ui('02 · AI příprava', '02 · AI preparation'), ui('Vznikne celá interaktivní lekce.', 'A complete interactive lesson is created.')],
+          [ui('03 · Živá hodina', '03 · Live lesson'), ui('Studenti se připojí a vy řídíte průběh.', 'Students join and you lead the session.')],
+          [ui('04 · Vyhodnocení', '04 · Evaluation'), ui('Odpovědi a výsledky zůstávají na jednom místě.', 'Responses and results stay in one place.')],
+        ].map(([title, body]) => (
+          <div key={title}>
+            <span>{title}</span>
+            <strong>{body}</strong>
+          </div>
+        ))}
       </section>
 
       {checkoutResult && (sandboxCheckoutEnabled || publicLiveBillingEnabled) ? (
