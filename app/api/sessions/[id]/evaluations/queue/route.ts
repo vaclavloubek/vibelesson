@@ -6,6 +6,7 @@ import { GradingCriterionSchema, LessonSchema } from '@/lib/schema';
 type RouteContext = { params: Promise<{ id: string }> };
 
 const EvaluationStatusSchema = z.enum(['pending', 'grading', 'graded', 'needs_review', 'failed']);
+const AIUseSuspicionSchema = z.enum(['none', 'low', 'high']);
 const CriterionScoreSchema = z.object({
   criterionId: z.string().min(1),
   points: z.number().int().min(0).max(20),
@@ -25,6 +26,8 @@ const EvaluationRowSchema = z.object({
   teacher_score: z.number().int().min(0).max(20).nullable(),
   rationale: z.string().max(2000).nullable(),
   confidence: z.number().min(0).max(1).nullable(),
+  ai_use_suspicion: AIUseSuspicionSchema,
+  ai_use_signals: z.array(z.string().trim().min(1).max(240)).max(3),
   rubric: z.array(GradingCriterionSchema).min(1).max(6),
   criterion_scores: z.array(CriterionScoreSchema).max(6),
   teacher_confirmed: z.boolean(),
@@ -75,7 +78,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const [evaluationsResult, participantsResult, teamsResult, responsesResult, teamResponsesResult] = await Promise.all([
     supabase
       .from('response_evaluations')
-      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, grader_version, created_at')
+      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, ai_use_suspicion, ai_use_signals, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, grader_version, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true }),
     supabase.from('participants').select('id, display_name').eq('session_id', sessionId),
@@ -149,6 +152,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
       teacherScore: parsed.data.teacher_score,
       rationale: parsed.data.rationale,
       confidence: parsed.data.confidence,
+      aiUseSuspicion: parsed.data.ai_use_suspicion,
+      aiUseSignals: parsed.data.ai_use_signals,
       rubric: parsed.data.rubric,
       criterionScores: parsed.data.criterion_scores,
       teacherConfirmed: parsed.data.teacher_confirmed,
