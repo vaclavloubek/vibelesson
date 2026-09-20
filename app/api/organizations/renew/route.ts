@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
+import { issueOrganizationBankInvoice } from '@/lib/organization-bank-invoice';
 import { organizationMinorUnitPrice } from '@/lib/organization-billing-catalog';
-import { startOrganizationPayment } from '@/lib/organization-payment';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -25,14 +25,13 @@ export async function POST() {
   }
 
   const admin = createAdminClient();
-  const [orgResult, previousOrderResult, profileResult] = await Promise.all([
-    admin.from('organizations').select('billing_address').eq('id', organization.id).maybeSingle(),
+  const [previousOrderResult, profileResult] = await Promise.all([
     admin.from('organization_orders').select('livemode').eq('organization_id', organization.id)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     admin.from('profiles').select('role').eq('id', userId).maybeSingle(),
   ]);
 
-  if (orgResult.error || previousOrderResult.error) {
+  if (previousOrderResult.error) {
     return NextResponse.json({ error: 'organization_billing_lookup_failed' }, { status: 500 });
   }
 
@@ -63,51 +62,33 @@ export async function POST() {
       : message.includes('pending_order')
         ? 'organization_pending_order_exists'
         : 'organization_renewal_failed';
-    return NextResponse.json({ error: code }, { status: code === 'organization_renewal_failed' ? 500 : 409 });
+    return NextResponse.json(
+      { error: code },
+      { status: code === 'organization_renewal_failed' ? 500 : 409 },
+    );
   }
 
-  await admin.from('organization_orders').update({ livemode }).eq('id', orderId);
+  const { error: environmentError } = await admin
+    .from('organization_orders')
+    .update({ livemode, updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .eq('organization_id', organization.id);
+
+  if (environmentError) {
+    return NextResponse.json({ error: 'organization_renewal_link_failed' }, { status: 500 });
+  }
 
   try {
-    const payment = await startOrganizationPayment({
-      environment: livemode ? 'live' : 'sandbox',
-      organization: {
-        id: organization.id,
-        name: organization.name,
-        legalName: organization.legalName,
-        registrationNumber: organization.registrationNumber,
-        vatId: organization.vatId,
-        billingEmail: organization.billingEmail,
-        billingCountry: organization.billingCountry,
-        billingAddress: (orgResult.data?.billing_address ?? {}) as {
-          line1?: string;
-          line2?: string;
-          city?: string;
-          postalCode?: string;
-        },
-        planCode: organization.planCode,
-      },
-      order: {
-        id: String(orderId),
-        billingPeriod: organization.billingPeriod,
-        currency: organization.currency,
-        amountMinor,
-        paymentMethod: 'invoice',
-        externalCustomerId: null,
-        externalCheckoutSessionId: null,
-        externalCheckoutUrl: null,
-        externalInvoiceId: null,
-        hostedInvoiceUrl: null,
-      },
-    });
-
+    const invoice = await issueOrganizationBankInvoice(String(orderId));
     return NextResponse.json({
       renewed: false,
       orderId,
-      paymentUrl: payment.paymentUrl,
+      paymentUrl: invoice.invoiceUrl,
+      invoiceNumber: invoice.invoiceNumber,
+      variableSymbol: invoice.variableSymbol,
     }, { status: 201 });
   } catch (error) {
-    console.error('organization renewal payment start failed', {
+    console.error('organization renewal bank invoice start failed', {
       organizationId: organization.id,
       orderId,
       error: error instanceof Error ? error.message : 'unknown',
