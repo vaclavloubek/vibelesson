@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { currentTrustedDeviceHash, requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { currentTrustedDeviceHash, requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { generateJoinCode, generateRealtimeKey } from '@/lib/live-server';
 import { LessonSchema } from '@/lib/schema';
 import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-server';
@@ -36,9 +36,9 @@ export async function POST(req: Request) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
-    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code }, { status: 403 });
   }
 
   try {
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
 
       if (insertError?.message?.includes('trusted_device_required')) {
         return NextResponse.json({
-          error: trustedDeviceErrorMessage('trusted_device_required'),
+          error: trustedDeviceErrorMessage(deviceGate),
           code: 'trusted_device_required',
         }, { status: 403 });
       }
