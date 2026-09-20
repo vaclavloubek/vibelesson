@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { emitFirstLessonCreatedIfNeeded } from '@/lib/marketing-lifecycle';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
@@ -101,6 +102,12 @@ export async function POST(request: Request, { params }: RouteContext) {
     console.error('import lesson share returned an invalid lesson id');
     return NextResponse.json({ error: 'Kopii lekce se nepodařilo uložit.' }, { status: 500 });
   }
+
+  after(async () => {
+    await Promise.allSettled([
+      emitFirstLessonCreatedIfNeeded(userId),
+    ]);
+  });
 
   return NextResponse.json({ lessonId: data });
 }
