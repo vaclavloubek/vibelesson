@@ -446,7 +446,7 @@ export default function LessonWorkspace({
     const effectiveGroupSize = collaborationMode === 'individual' ? ui('Jednotlivci', 'Individuals') : groupSize.trim();
 
     if (!collaborationMode) {
-      setError(ui('Vyber, jestli budou studenti pracovat jednotlivě, nebo v týmech.', 'Choose whether students will work individually or in teams.'));
+      setError(ui('Vyber, zda má lekce obsahovat týmové aktivity.', 'Choose whether the lesson should include team activities.'));
       return;
     }
     if (!prompt.trim() && files.length === 0) {
@@ -866,11 +866,11 @@ export default function LessonWorkspace({
                   {multilingualLessonsEnabled && lessonLanguage === 'other' ? <label>{ui('Jiný jazyk', 'Other language')}<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder={ui('např. Italiano, Українська, Português…', 'e.g. Italiano, Українська, Português…')} required /></label> : null}
                   <label>{ui('Cílovka', 'Audience')}<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={ui('např. 1. ročník vysoké školy', 'e.g. first-year university students')} required /></label>
                   <label>{ui('Délka v minutách', 'Duration in minutes')}<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder={ui('např. 90', 'e.g. 90')} required /></label>
-                  <label>{ui('Režim práce', 'Work mode')}
+                  <label>{ui('Má lekce obsahovat týmové aktivity?', 'Should the lesson include team activities?')}
                     <select value={collaborationMode} onChange={(event) => setCollaborationMode(event.target.value as CollaborationMode)} className="materials-mode-select" required>
-                      <option value="" disabled>{ui('Vyber režim…', 'Choose mode…')}</option>
-                      <option value="individual">{ui('Jednotlivci', 'Individuals')}</option>
-                      <option value="teams">{ui('Týmy', 'Teams')}</option>
+                      <option value="" disabled>{ui('Vyber možnost…', 'Choose an option…')}</option>
+                      <option value="individual">{ui('Ne, pouze individuální', 'No, individual only')}</option>
+                      <option value="teams">{ui('Ano, kombinovat individuální a týmové', 'Yes, combine individual and team activities')}</option>
                     </select>
                   </label>
                   {collaborationMode === 'teams' ? <label>{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label> : null}

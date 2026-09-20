@@ -143,7 +143,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId = null, re
         <span className="eyebrow">{english ? 'Teacher preview' : 'Učitelský náhled'}</span>
         <h2 lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.title}</h2>
         {lesson.subtitle ? <p lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.subtitle}</p> : null}
-        <div className="meta"><span>{lesson.audience}</span><span>{collaborationMode === 'individual' ? (english ? 'Individuals' : 'Jednotlivci') : (english ? `Teams · ${lesson.groupSize}` : `Týmy · ${lesson.groupSize}`)}</span><span>{sum} min</span><span>{lesson.blocks.length} {english ? 'activities' : 'aktivit'}</span></div>
+        <div className="meta"><span>{lesson.audience}</span><span>{collaborationMode === 'individual' ? (english ? 'Individual activities only' : 'Pouze individuální aktivity') : (english ? `Individual + team activities · teams of ${lesson.groupSize}` : `Individuální + týmové aktivity · týmy po ${lesson.groupSize}`)}</span><span>{sum} min</span><span>{lesson.blocks.length} {english ? 'activities' : 'aktivit'}</span></div>
       </div>
 
       <details className="reveal" style={{ marginTop: 14 }} open={accessibilityIssues.length > 0}>

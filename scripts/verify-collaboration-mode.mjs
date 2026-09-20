@@ -21,6 +21,9 @@ requireText(schema, "CollaborationModeSchema = z.enum(['individual', 'teams'])",
 requireText(schema, 'resolveLessonCollaborationMode', 'legacy lesson compatibility resolver is missing.');
 
 requireText(workspace, "value={collaborationMode}", 'lesson builder does not expose the explicit work mode.');
+requireText(workspace, "Má lekce obsahovat týmové aktivity?", 'lesson builder copy must describe team activities rather than an all-or-nothing team mode.');
+requireText(workspace, "Ne, pouze individuální", 'individual-only option copy is missing.');
+requireText(workspace, "Ano, kombinovat individuální a týmové", 'mixed individual-and-team option copy is missing.');
 requireText(workspace, '<option value="individual">', 'individual mode option is missing.');
 requireText(workspace, '<option value="teams">', 'team mode option is missing.');
 requireText(workspace, 'collaborationMode, tone', 'generation request does not send collaboration mode.');

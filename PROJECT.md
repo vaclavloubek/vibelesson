@@ -1,8 +1,18 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.68** sjednocuje zobrazování přepočtu ročních cen na měsíc v Ceníku: u individuálních i školních tarifů se měsíční ekvivalent ve všech měnách zaokrouhluje nejvýše na dvě desetinná místa. Oprava je v `main` přes PR **#231** / commit `a7503aca`; veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.69** zpřesňuje UX volby individuální/týmové práce při tvorbě lekce: místo matoucího „Režim práce: Jednotlivci / Týmy“ se učitel ptá, zda má lekce obsahovat týmové aktivity, s volbami **„Ne, pouze individuální“** a **„Ano, kombinovat individuální a týmové“**. Stejná terminologie je použita i v náhledu lekce; logika `collaborationMode` a serverové invarianty se nemění. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Srozumitelnější volba týmových aktivit 0.9.69 — 2026-09-20
+
+- formulář už nepoužívá označení **„Režim práce: Jednotlivci / Týmy“**, které mohlo naznačovat, že týmová volba znamená výhradně týmové úkoly;
+- nová otázka zní **„Má lekce obsahovat týmové aktivity?“**;
+- volby jsou **„Ne, pouze individuální“** a **„Ano, kombinovat individuální a týmové“**;
+- anglická varianta používá **“Should the lesson include team activities?”**, **“No, individual only”** a **“Yes, combine individual and team activities”**;
+- náhled lekce stejnou logiku komunikuje jako **„Pouze individuální aktivity“** nebo **„Individuální + týmové aktivity“**;
+- jde pouze o UX/copy změnu; datový model, AI pravidla, live týmový workflow a serverové guardy 0.9.64 zůstávají beze změny;
+- regresní kontrola `verify-collaboration-mode.mjs` novou formulaci chrání.
 
 ### Zaokrouhlení měsíčního ekvivalentu ročních cen 0.9.68 — 2026-09-20
 
