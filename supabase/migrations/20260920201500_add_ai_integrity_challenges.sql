@@ -65,7 +65,18 @@ begin
     );
 
   get diagnostics v_count = row_count;
-  return v_count > 0;
+  if v_count > 0 then return true; end if;
+
+  -- Team responses intentionally have no individual challenge recipient.
+  return exists (
+    select 1
+    from public.response_evaluations e
+    join public.sessions s on s.id = e.session_id
+    where e.id = p_evaluation_id
+      and e.status = 'grading'
+      and e.participant_id is null
+      and s.teacher_id = v_user_id
+  );
 end;
 $function$;
 
@@ -113,7 +124,15 @@ begin
     and e.participant_id is not null;
 
   get diagnostics v_count = row_count;
-  return v_count > 0;
+  if v_count > 0 then return true; end if;
+
+  -- Team responses intentionally have no individual challenge recipient.
+  return exists (
+    select 1 from public.response_evaluations e
+    where e.id = v_evaluation_id
+      and e.status = 'grading'
+      and e.participant_id is null
+  );
 end;
 $function$;
 
