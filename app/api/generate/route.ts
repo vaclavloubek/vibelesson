@@ -146,6 +146,12 @@ export async function POST(req: Request) {
       p_user_id: userId,
       p_device_token_hash: deviceHash,
     });
+    if (reserveError?.message?.includes(AI_BILLING_PAYMENT_REQUIRED_CODE)) {
+      return NextResponse.json({
+        error: aiBillingPausedMessage(requestLocale),
+        code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+      }, { status: 402 });
+    }
     if (reserveError) throw reserveError;
 
     const reservation = (Array.isArray(data) ? data[0] : data) as ReservationRow | null;
