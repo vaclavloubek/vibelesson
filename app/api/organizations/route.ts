@@ -9,8 +9,24 @@ import {
   type OrganizationBillingPeriod,
 } from '@/lib/organization-billing-catalog';
 import { startOrganizationPayment } from '@/lib/organization-payment';
+import { OrganizationStripeError } from '@/lib/organization-stripe';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
+
+function paymentDiagnostic(error: unknown) {
+  if (error instanceof OrganizationStripeError) {
+    return {
+      code: error.code,
+      stripeType: error.stripeType ?? null,
+      stripeCode: error.stripeCode ?? null,
+    };
+  }
+
+  const code = error instanceof Error && /^[a-z0-9_]+$/.test(error.message)
+    ? error.message
+    : 'unknown_error';
+  return { code, stripeType: null, stripeCode: null };
+}
 
 const InputSchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -180,10 +196,20 @@ export async function POST(request: Request) {
       paymentKind: payment.paymentKind,
     }, { status: 201 });
   } catch (paymentError) {
+    const diagnostic = input.environment === 'sandbox' && profile?.role === 'admin'
+      ? paymentDiagnostic(paymentError)
+      : null;
+
     console.error('organization payment startup failed', {
       organizationId,
       orderId,
       error: paymentError instanceof Error ? paymentError.message : 'unknown',
+      stripeType: paymentError instanceof OrganizationStripeError
+        ? paymentError.stripeType
+        : null,
+      stripeCode: paymentError instanceof OrganizationStripeError
+        ? paymentError.stripeCode
+        : null,
     });
 
     return NextResponse.json({
@@ -191,6 +217,7 @@ export async function POST(request: Request) {
       orderCreated: true,
       organizationId,
       orderId,
+      ...(diagnostic ? { diagnostic } : {}),
     }, { status: 502 });
   }
 }

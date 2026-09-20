@@ -1,10 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { startOrganizationPayment } from '@/lib/organization-payment';
+import { OrganizationStripeError } from '@/lib/organization-stripe';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+
+function paymentDiagnostic(error: unknown) {
+  if (error instanceof OrganizationStripeError) {
+    return {
+      code: error.code,
+      stripeType: error.stripeType ?? null,
+      stripeCode: error.stripeCode ?? null,
+    };
+  }
+
+  const code = error instanceof Error && /^[a-z0-9_]+$/.test(error.message)
+    ? error.message
+    : 'unknown_error';
+  return { code, stripeType: null, stripeCode: null };
+}
 
 export async function POST() {
   const { userId } = await getAuthenticatedUserId();
@@ -93,10 +109,19 @@ export async function POST() {
 
     return NextResponse.json(payment);
   } catch (error) {
+    const diagnostic = !livemode && profile?.role === 'admin'
+      ? paymentDiagnostic(error)
+      : null;
+
     console.error('organization payment retry failed', {
       organizationId: organization.id,
       error: error instanceof Error ? error.message : 'unknown',
+      stripeType: error instanceof OrganizationStripeError ? error.stripeType : null,
+      stripeCode: error instanceof OrganizationStripeError ? error.stripeCode : null,
     });
-    return NextResponse.json({ error: 'organization_payment_start_failed' }, { status: 502 });
+    return NextResponse.json({
+      error: 'organization_payment_start_failed',
+      ...(diagnostic ? { diagnostic } : {}),
+    }, { status: 502 });
   }
 }

@@ -16,6 +16,12 @@ import styles from './SchoolAdmin.module.css';
 
 type InitialUser = { id: string; email: string | null };
 
+type SandboxPaymentDiagnostic = {
+  code: string;
+  stripeType: string | null;
+  stripeCode: string | null;
+};
+
 type Summary = {
   id: string;
   name: string;
@@ -105,6 +111,22 @@ function money(amountMinor: number, currency: string, locale: 'cs' | 'en') {
     style: 'currency',
     currency: currency.toUpperCase(),
   }).format(amountMinor / 100);
+}
+
+function sandboxPaymentDiagnosticSuffix(
+  diagnostic: SandboxPaymentDiagnostic | undefined,
+  english: boolean,
+) {
+  if (!diagnostic) return '';
+  const parts = [
+    diagnostic.code,
+    diagnostic.stripeType,
+    diagnostic.stripeCode,
+  ].filter((value): value is string => Boolean(value));
+
+  return (english ? ' Sandbox diagnostic: ' : ' Sandbox diagnostika: ')
+    + parts.join(' · ')
+    + '.';
 }
 
 function statusLabel(
@@ -489,16 +511,19 @@ export default function SchoolAdmin({
       error?: string;
       orderCreated?: boolean;
       paymentUrl?: string | null;
+      diagnostic?: SandboxPaymentDiagnostic;
     };
     setBusy(false);
 
     if (!response.ok) {
       if (payload.orderCreated) {
         setMessageKind('error');
-        setMessage(ui(
-          'Objednávka vznikla, ale platební krok se nepodařilo otevřít. Zkus jej spustit znovu níže.',
-          'The order was created, but the payment step could not be opened. Retry it below.',
-        ));
+        setMessage(
+          ui(
+            'Objednávka vznikla, ale platební krok se nepodařilo otevřít. Zkus jej spustit znovu níže.',
+            'The order was created, but the payment step could not be opened. Retry it below.',
+          ) + sandboxPaymentDiagnosticSuffix(payload.diagnostic, english),
+        );
         await load();
         return;
       }
@@ -541,15 +566,18 @@ export default function SchoolAdmin({
     const payload = await response.json().catch(() => ({})) as {
       error?: string;
       paymentUrl?: string;
+      diagnostic?: SandboxPaymentDiagnostic;
     };
     setBusy(false);
 
     if (!response.ok || !payload.paymentUrl) {
       setMessageKind('error');
-      setMessage(ui(
-        'Platební krok se nepodařilo znovu otevřít.',
-        'The payment step could not be reopened.',
-      ));
+      setMessage(
+        ui(
+          'Platební krok se nepodařilo znovu otevřít.',
+          'The payment step could not be reopened.',
+        ) + sandboxPaymentDiagnosticSuffix(payload.diagnostic, english),
+      );
       return;
     }
 
