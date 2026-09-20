@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
 import { restartSyllonautGuideForCurrentContext } from '@/lib/onboarding-guide';
+import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 
 export type HeaderAccountUser = Pick<User, 'id' | 'email' | 'user_metadata'>;
 
@@ -250,6 +251,16 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
             {hasOrganization ? (
               <Link role="menuitem" href="/school" className="auth-account-item" onClick={() => setOpen(false)}>
                 {english ? 'My school' : 'Moje škola'}
+              </Link>
+            ) : null}
+            {user.id === SUPERADMIN_USER_ID ? (
+              <Link
+                role="menuitem"
+                href="/admin/school-invoices"
+                className="auth-account-item"
+                onClick={() => setOpen(false)}
+              >
+                {english ? 'Superadmin invoices' : 'Superadmin faktury'}
               </Link>
             ) : null}
             <button
