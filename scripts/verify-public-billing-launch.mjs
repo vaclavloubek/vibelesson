@@ -27,10 +27,11 @@ const [pricing, pricingPage, checkout, portal] = await Promise.all([
   source('app/api/billing/stripe/portal/route.ts'),
 ]);
 requireText(pricingPage, "publicLiveBillingEnabled ? 'live' : 'sandbox'", 'public Pricing must default to LIVE when launch prerequisites are present.');
-requireText(pricing, "plan.id === 'teacher' || plan.id === 'teacher-pro'", 'only Teacher and Teacher Pro may receive public purchase buttons.');
+requireText(pricing, "plan.id === 'teacher' || plan.id === 'teacher-pro'", 'individual Stripe Checkout buttons must remain scoped to Teacher and Teacher Pro.');
 requireText(pricing, 'Přihlásit se a koupit', 'signed-out paid CTA must lead into authentication.');
-requireText(pricing, 'Teacher a Teacher Pro jsou aktivní.', 'individual paid plans must be marked live.');
-requireText(pricing, 'Školní tarify zatím zůstávají ve fázi přípravy.', 'school plans must remain unlaunched.');
+requireText(pricing, 'Individuální i školní tarify jsou aktivní.', 'individual and school paid plans must be marked live.');
+requireText(pricing, '`/school?plan=${plan.id}&billing=${billing}`', 'school plan CTAs must route into the launched school billing flow.');
+requireText(pricing, 'Školní správa je součástí licence.', 'school administration must be described as launched.');
 requireText(checkout, 'isPublicLiveBillingEnabled()', 'Checkout API must enforce the shared public launch gate.');
 requireText(portal, 'isPublicLiveBillingEnabled()', 'Customer Portal API must enforce the shared public launch gate.');
 console.log('Public LIVE billing launch checks passed.');
