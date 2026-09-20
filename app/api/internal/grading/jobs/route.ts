@@ -103,6 +103,16 @@ export async function POST(req: Request) {
       strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
+    const { data: integrityRecorded, error: integrityError } = await supabase.rpc('record_grading_job_integrity', {
+      p_token: token,
+      p_ai_suspicion: result.integrity.suspicion,
+      p_ai_suspicion_reasons: result.integrity.reasons,
+      p_integrity_challenge_question: result.integrity.challengeQuestion,
+    });
+
+    if (integrityError) throw integrityError;
+    if (!integrityRecorded) throw new Error('AI integrity result lost its grading capability.');
+
     const { data: finished, error: finishError } = await supabase.rpc('finish_grading_job', {
       p_token: token,
       p_ai_score: result.score,
@@ -122,6 +132,7 @@ export async function POST(req: Request) {
     console.info('server grading job completed', {
       evaluationId,
       status: result.needsReview ? 'needs_review' : 'graded',
+      aiSuspicion: result.integrity.suspicion,
     });
     return NextResponse.json({
       ok: true,
