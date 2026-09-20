@@ -279,7 +279,17 @@ language plpgsql
 set search_path = ''
 as $function$
 begin
-  if new.ai_suspicion = 'high' and new.status = 'graded' then
+  if new.status = 'failed' then
+    new.ai_suspicion := 'none';
+    new.ai_suspicion_reasons := '[]'::jsonb;
+    new.integrity_challenge_question := null;
+    new.integrity_challenge_answer := null;
+    new.integrity_challenge_status := 'not_required';
+    new.integrity_challenge_created_at := null;
+    new.integrity_challenge_presented_at := null;
+    new.integrity_challenge_expires_at := null;
+    new.integrity_challenge_submitted_at := null;
+  elsif new.ai_suspicion = 'high' and new.status = 'graded' then
     new.status := 'needs_review';
   end if;
   return new;
