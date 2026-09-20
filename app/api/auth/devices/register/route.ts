@@ -20,7 +20,7 @@ export async function POST() {
     const status = gate.code === 'trusted_device_rotation_limit_reached' ? 429 : 409;
     return NextResponse.json({
       ...gate,
-      error: trustedDeviceErrorMessage(gate.code),
+      error: trustedDeviceErrorMessage(gate),
     }, { status });
   } catch (error) {
     console.error('trusted device registration failed', error);
