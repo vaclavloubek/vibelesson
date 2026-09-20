@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockIds } from '@/lib/worksheet';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createWorksheetPdfBuffer } from '@/lib/worksheet-pdf';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,9 +25,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
   if (!userId) return Response.json({ error: 'unauthorized' }, { status: 401 });
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
-    return Response.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+    return Response.json({ error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code }, { status: 403 });
   }
 
   const [lessonResult, profileResult] = await Promise.all([
