@@ -7,6 +7,8 @@ import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 // Full-lesson revisions can be almost as expensive as initial generation.
 export const maxDuration = 300;
@@ -26,6 +28,24 @@ export async function POST(req: Request) {
   const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
   if (!deviceGate.allowed) {
     return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
+
+  const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  let aiBillingPaused: boolean;
+  try {
+    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+  } catch {
+    return NextResponse.json({
+      error: requestLocale === 'en'
+        ? 'The payment status could not be verified. Try again in a moment.'
+        : 'Stav platby se nepodařilo ověřit. Zkus to za chvíli znovu.',
+    }, { status: 503 });
+  }
+  if (aiBillingPaused) {
+    return NextResponse.json({
+      error: aiBillingPausedMessage(requestLocale),
+      code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+    }, { status: 402 });
   }
 
   let requestId: string | null = null;
