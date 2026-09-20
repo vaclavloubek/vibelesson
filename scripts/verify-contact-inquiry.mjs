@@ -40,7 +40,7 @@ requirePattern(route, /createHmac\('sha256'/, 'privacy-preserving HMAC client ha
 requirePattern(route, /schema\('private'\)\.from\('contact_form_rate_limits'\)/, 'persistent rate-limit reservation must use the private schema.');
 requirePattern(route, /reservationError\?\.code === '23505'/, 'atomic unique-conflict rate limiting is missing.');
 requirePattern(route, /reply_to: email/, 'inquiry email must remain directly replyable.');
-requirePattern(route, /to: \['vaclav@syllonaut\.com'\]/, 'inquiry must be delivered to the Syllonaut business inbox.');
+requirePattern(route, /to: \['vaclav@syllonaut\.com', 'vaclav\.loubek@gmail\.com'\]/, 'inquiry must be delivered to both configured inboxes.');
 requirePattern(route, /escapeHtml\(message\)/, 'message HTML escaping is missing.');
 requirePattern(route, /30 \* 24 \* 60 \* 60 \* 1_000/, 'rate-limit history retention must remain bounded to 30 days.');
 forbidPattern(route, /client_ip|ip_address|raw_ip/, 'raw IP addresses must not be stored.');
