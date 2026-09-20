@@ -23,6 +23,10 @@ requirePattern(landing, /<LandingContactForm\s*\/>/, 'landing page must render t
 requirePattern(landing, /SectionCue href="#kontakt"/, 'the final landing CTA must keep the guided down-arrow into the inquiry section.');
 requirePattern(form, /id="kontakt"/, 'inquiry section anchor is missing.');
 requirePattern(form, /Zůstala vám otázka mimo radar\?/, 'approved light space-tone heading is missing.');
+requirePattern(form, /Is there still a question beyond the radar\?/, 'English space-tone heading is missing.');
+requirePattern(form, /Send the signal/, 'English inquiry CTA is missing.');
+requirePattern(form, /Signal received\. We will reply to the email you provided\./, 'English success feedback is missing.');
+requirePattern(form, /Several signals arrived in quick succession\. Please try again in a few minutes\./, 'English rate-limit feedback is missing.');
 requirePattern(form, /type="email"/, 'email input is missing.');
 requirePattern(form, /<textarea[\s\S]*name="message"/, 'question textarea is missing.');
 requirePattern(form, /name="company"/, 'honeypot field is missing.');
@@ -37,12 +41,12 @@ requirePattern(route, /Buffer\.byteLength\(rawBody, 'utf8'\)/, 'actual request b
 requirePattern(route, /input\.company\.trim\(\)/, 'server-side honeypot handling is missing.');
 requirePattern(route, /MIN_FILL_TIME_MS = 3_000/, 'minimum fill-time spam guard is missing.');
 requirePattern(route, /createHmac\('sha256'/, 'privacy-preserving HMAC client hashing is missing.');
-requirePattern(route, /schema\('private'\)\.from\('contact_form_rate_limits'\)/, 'persistent rate-limit reservation must use the private schema.');
-requirePattern(route, /reservationError\?\.code === '23505'/, 'atomic unique-conflict rate limiting is missing.');
+requirePattern(route, /reserve_contact_form_rate_limit_server/, 'persistent rate-limit reservation must use the server-only RPC boundary.');
+requirePattern(route, /typeof reservationId !== 'string' \|\| !reservationId/, 'rate-limit rejection on duplicate reservation is missing.');
 requirePattern(route, /reply_to: email/, 'inquiry email must remain directly replyable.');
 requirePattern(route, /to: \['vaclav@syllonaut\.com', 'vaclav\.loubek@gmail\.com'\]/, 'inquiry must be delivered to both configured inboxes.');
 requirePattern(route, /escapeHtml\(message\)/, 'message HTML escaping is missing.');
-requirePattern(route, /30 \* 24 \* 60 \* 60 \* 1_000/, 'rate-limit history retention must remain bounded to 30 days.');
+requirePattern(route, /release_contact_form_rate_limit_server/, 'failed delivery must release the rate-limit reservation.');
 forbidPattern(route, /client_ip|ip_address|raw_ip/, 'raw IP addresses must not be stored.');
 
 requirePattern(gdpr, /Kontaktní formulář:/, 'GDPR page must disclose contact-form data.');
@@ -65,5 +69,15 @@ requirePattern(migration, /revoke all on table private\.contact_form_rate_limits
 requirePattern(migration, /contact_form_rate_limits_client_window_uidx/i, 'per-client atomic rate-limit uniqueness is missing.');
 requirePattern(migration, /contact_form_rate_limits_email_window_uidx/i, 'per-email atomic rate-limit uniqueness is missing.');
 requirePattern(cleanup, /drop table if exists public\.contact_form_rate_limits/i, 'superseded public rate-limit table must be removed.');
+
+const rpcMigration = migrationFiles.find((file) => file.endsWith('_add_contact_form_rate_limit_server_rpcs.sql'));
+if (!rpcMigration) throw new Error('Contact inquiry regression: server-only rate-limit RPC migration is missing.');
+const rpc = await source(`supabase/migrations/${rpcMigration}`);
+requirePattern(rpc, /create or replace function public\.reserve_contact_form_rate_limit_server/i, 'rate-limit reserve RPC is missing.');
+requirePattern(rpc, /delete from private\.contact_form_rate_limits[\s\S]*interval '30 days'/i, 'rate-limit history retention must remain bounded to 30 days.');
+requirePattern(rpc, /when unique_violation then[\s\S]*return null/i, 'atomic duplicate rate-limit rejection is missing.');
+requirePattern(rpc, /create or replace function public\.release_contact_form_rate_limit_server/i, 'rate-limit release RPC is missing.');
+requirePattern(rpc, /revoke all on function public\.reserve_contact_form_rate_limit_server\(text, text, bigint\)[\s\S]*from public, anon, authenticated/i, 'reserve RPC must not be callable by browser roles.');
+requirePattern(rpc, /grant execute on function public\.reserve_contact_form_rate_limit_server\(text, text, bigint\)[\s\S]*to service_role/i, 'reserve RPC must be service-role only.');
 
 console.log('Contact inquiry checks passed.');
