@@ -159,7 +159,7 @@ export async function createOrganizationCardCheckout(input: {
     input.secretKey,
     '/v1/checkout/sessions',
     params,
-    'syllonaut_org_checkout_' + input.orderId,
+    'syllonaut_org_checkout_v2_' + input.orderId,
   );
 
   const expectedPrefix = input.livemode ? 'cs_live_' : 'cs_test_';
