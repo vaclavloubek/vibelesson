@@ -1,8 +1,18 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. **Dodatečně je k 2026-09-20 produkčně nasazená behaviorální CZ/EN akviziční lifecycle sekvence, spam-protected poptávkový formulář na landing page a locale-preserving EN akviziční vstupy; tyto již nasazené growth změny se zde pouze dokumentují, takže samotná tato dokumentační aktualizace verzi neposouvá.** Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30. Ve stejné dokumentační synchronizaci je doplněn skutečný produkční stav školního workflow V1/V1.1: uzavřené membership/library/limit scénáře, bankovní faktury s QR, superadmin potvrzení úhrady, audit, lokalizace faktur a přesný seznam zbývajícího acceptance/cleanup; tato dokumentační aktualizace sama o sobě interní verzi neposouvá.
+Aktualizováno: 2026-09-20 — interní verze **0.9.64** zavádí explicitní režim práce lekce **Jednotlivci / Týmy**. Režim je nově strukturované metadata lekce, serverově validovaný vstup AI generování a závazná invarianta pro následné AI revize i live UI. Individuální lekce nesmí obsahovat `team_task`; týmová lekce musí obsahovat alespoň jeden `team_task` a před startem live hodiny vyžaduje vytvoření nejméně dvou týmů. Starší lekce zůstávají kompatibilní: režim se u nich odvodí z existujících bloků. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Explicitní režim práce lekce 0.9.64 — 2026-09-20
+
+- tvorba nové lekce má explicitní volbu **Jednotlivci / Týmy**; velikost týmu se zadává pouze v týmovém režimu;
+- `collaborationMode` se ukládá do Lesson JSON a API `/api/generate` jej validuje serverově;
+- individuální generování i AI revize failují uzavřeně, pokud by vznikl `team_task`; po prvním porušení se AI jednou automaticky opraví;
+- týmový režim vyžaduje alespoň jeden `team_task`, aby volba nebyla pouze kosmetická;
+- live teacher UI se řídí explicitním režimem: u jednotlivců se týmový panel nevykreslí, u týmů nelze hodinu spustit bez alespoň dvou vytvořených týmů;
+- starší lekce bez `collaborationMode` používají kompatibilní fallback: `team_task` => týmy, jinak jednotlivci;
+- regresní kontrakt: `scripts/verify-collaboration-mode.mjs`.
 
 Produkční release 0.8:
 
