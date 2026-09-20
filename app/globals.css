@@ -207,6 +207,7 @@ textarea:focus, input:focus {
 }
 textarea { min-height: 130px; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.team-size-field { order: 1; }
 .materials-disclosure {
   margin-top: 16px;
   overflow: hidden;
@@ -1143,6 +1144,7 @@ body:has(.teacher-live-shell) {
 @media (max-width: 560px) {
   .shell { padding: 12px; }
   .form-grid { grid-template-columns: 1fr; }
+  .team-size-field { order: 0; }
   .preview { padding: 15px; }
   .panel { padding: 17px; }
   .preview-header h2 { font-size: 26px; }
