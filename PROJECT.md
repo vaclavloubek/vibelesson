@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. **Dodatečně je k 2026-09-20 produkčně nasazená behaviorální CZ/EN akviziční lifecycle sekvence, spam-protected poptávkový formulář na landing page a locale-preserving EN akviziční vstupy; tyto již nasazené growth změny se zde pouze dokumentují, takže samotná tato dokumentační aktualizace verzi neposouvá.** Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30. Ve stejné dokumentační synchronizaci je doplněn skutečný produkční stav školního workflow V1/V1.1: uzavřené membership/library/limit scénáře, bankovní faktury s QR, superadmin potvrzení úhrady, audit, lokalizace faktur a přesný seznam zbývajícího acceptance/cleanup; tato dokumentační aktualizace sama o sobě interní verzi neposouvá.
+Aktualizováno: 2026-09-20 — interní verze **0.9.64** zavádí explicitní režim práce lekce **Jednotlivci / Týmy**. Nové lekce ukládají `workMode`; individuální režim serverově zakazuje `team_task`, týmový režim vyžaduje alespoň jeden týmový úkol. Stejný invariant platí při celé AI revizi i revizi jednotlivého bloku, takže AI nemůže později režim práce změnit. Starší lekce bez `workMode` zůstávají zpětně kompatibilní. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -436,6 +436,17 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - serverové `reserve_lesson_generation_server`, `reserve_revision_operation_server` i `get_ai_quota` používají jediný private helper `individual_ai_quota_window`;
 - nepoužívané authenticated compatibility wrappery `reserve_lesson_generation()` a `reserve_revision_operation(text)` jsou odebrané klientské cestě; nákladová AI reservation je pouze service-role server-authoritative;
 - regresní kontrakt: `scripts/verify-billing-anchored-ai-quotas.mjs`.
+
+### Explicitní režim práce lekce 0.9.64 — 2026-09-20
+
+- tvorba nové lekce má explicitní volbu **Jednotlivci / Týmy**; pole velikosti týmu se zobrazuje a vyžaduje pouze v týmovém režimu;
+- nové lesson JSON ukládá volitelné `workMode: individual | teams`; volitelnost je záměrná kvůli kompatibilitě starších uložených lekcí;
+- `LessonSchema` vynucuje invariant: `individual` nesmí obsahovat `team_task`, zatímco `teams` musí obsahovat alespoň jeden `team_task`;
+- AI generování dostává závaznou režimovou instrukci, nesouladný první výstup se jednou opravně přegeneruje a druhé porušení failuje uzavřeně před uložením;
+- stejná ochrana platí pro revizi celé lekce; individuální lekce nemůže revizí získat týmový blok a týmová lekce nemůže přijít o všechny týmové bloky;
+- revize jednoho bloku zná režim celé lekce; u týmové lekce je poslední zbývající `team_task` chráněn proti změně na jiný typ;
+- live UI nadále zobrazuje panel **Vytvořit týmy** pouze tehdy, když snapshot skutečně obsahuje `team_task`; u individuální lekce se tedy týmové ovládání vůbec nevykreslí;
+- regresní kontrakt: `scripts/verify-lesson-work-mode.mjs`, spuštěný v hlavním `npm run check`.
 
 ### AI quota completion boundary 0.9.63 — 2026-09-20
 
