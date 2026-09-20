@@ -23,6 +23,7 @@ const requiredFiles = [
   'app/api/cron/organization-billing/route.ts',
   'supabase/migrations/20260919172000_add_school_renewal_lifecycle.sql',
   'supabase/migrations/20260919173000_harden_school_overdue_and_admin_quota.sql',
+  'supabase/migrations/20260920064000_protect_school_owner_invites.sql',
 ];
 
 for (const path of requiredFiles) {
@@ -134,6 +135,44 @@ for (const needle of [
   if (!schoolAdmin.includes(needle)) {
     throw new Error('School invitation admin UX contract missing: ' + needle);
   }
+}
+
+const ownerGuardMigration = fs.readFileSync(
+  'supabase/migrations/20260920064000_protect_school_owner_invites.sql',
+  'utf8',
+);
+for (const needle of [
+  'organization_member_already_active',
+  'organization_memberships_protect_designated_owner',
+  'owner_role_locked',
+  'owner_cannot_be_removed',
+  'for update',
+  'owner_user_id = p_new_owner',
+  'from public, anon, authenticated',
+]) {
+  if (!ownerGuardMigration.includes(needle)) {
+    throw new Error('School owner integrity contract missing: ' + needle);
+  }
+}
+
+const acceptInviteRoute = fs.readFileSync(
+  'app/api/organizations/invitations/accept/route.ts',
+  'utf8',
+);
+if (!acceptInviteRoute.includes('organization_member_already_active')) {
+  throw new Error('School invite acceptance must expose active-member conflicts.');
+}
+
+const bulkInviteRoute = fs.readFileSync(
+  'app/api/organizations/invitations/bulk/route.ts',
+  'utf8',
+);
+if (!bulkInviteRoute.includes('member_already_active')) {
+  throw new Error('Bulk school invitations must skip active members explicitly.');
+}
+
+if (!schoolAdmin.includes('organization_member_already_active')) {
+  throw new Error('School admin must explain active-member invitation conflicts.');
 }
 
 const currentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');

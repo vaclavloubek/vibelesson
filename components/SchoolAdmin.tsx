@@ -578,12 +578,17 @@ export default function SchoolAdmin({
     if (!response.ok) {
       setMessageKind('error');
       setMessage(
-        payload.error === 'organization_replacement_limit_reached'
+        payload.error === 'organization_member_already_active'
           ? ui(
-            'V tomto fakturačním období už byla využita povolená kapacita výměn členů. Dalšího nového člověka lze přidat až v dalším období.',
-            'The member replacement allowance for this billing period has been used. Another new person can be added in the next period.',
+            'Tento e-mail už patří aktivnímu členovi školy. Jeho roli změňte přímo v přehledu uživatelů.',
+            'This email already belongs to an active school member. Change the role directly in the user list.',
           )
-          : payload.error === 'organization_seat_limit_reached'
+          : payload.error === 'organization_replacement_limit_reached'
+            ? ui(
+              'V tomto fakturačním období už byla využita povolená kapacita výměn členů. Dalšího nového člověka lze přidat až v dalším období.',
+              'The member replacement allowance for this billing period has been used. Another new person can be added in the next period.',
+            )
+            : payload.error === 'organization_seat_limit_reached'
             ? ui(
               'Všechna aktivní místa jsou obsazená nebo rezervovaná čekajícími pozvánkami.',
               'All active seats are occupied or reserved by pending invitations.',
@@ -691,30 +696,43 @@ export default function SchoolAdmin({
 
     const invitedCount = payload.invited?.length ?? 0;
     const failedCount = payload.failed?.length ?? 0;
+    const activeMemberHit = payload.failed?.some(
+      (item) => item.error === 'member_already_active',
+    ) ?? false;
+    const replacementLimitHit = payload.failed?.some(
+      (item) => item.error === 'replacement_limit_reached',
+    ) ?? false;
 
     if (!response.ok && invitedCount === 0) {
       setMessageKind('error');
-      setMessage(ui(
-        'Hromadné pozvánky se nepodařilo odeslat.',
-        'Bulk invitations could not be sent.',
-      ));
+      setMessage(activeMemberHit
+        ? ui(
+          'Některé adresy už patří aktivním členům školy. Jejich role změňte přímo v přehledu uživatelů.',
+          'Some addresses already belong to active school members. Change their roles directly in the user list.',
+        )
+        : ui(
+          'Hromadné pozvánky se nepodařilo odeslat.',
+          'Bulk invitations could not be sent.',
+        ));
       return;
     }
 
     setBulkInviteEntries([]);
-    const replacementLimitHit = payload.failed?.some(
-      (item) => item.error === 'replacement_limit_reached',
-    ) ?? false;
     setMessageKind(failedCount ? 'error' : 'info');
     setMessage(replacementLimitHit
       ? ui(
         'Část pozvánek byla odeslána, ale další nové osoby už překročily povolenou kapacitu výměn pro toto fakturační období.',
         'Some invitations were sent, but additional new people would exceed the replacement allowance for this billing period.',
       )
-      : ui(
-        'Odesláno: ' + invitedCount + (failedCount ? ', neodesláno: ' + failedCount : '') + '.',
-        'Sent: ' + invitedCount + (failedCount ? ', failed: ' + failedCount : '') + '.',
-      ));
+      : activeMemberHit
+        ? ui(
+          'Nové pozvánky byly odeslány, ale adresy aktivních členů byly přeskočené. Jejich role změňte v přehledu uživatelů.',
+          'New invitations were sent, but active member addresses were skipped. Change their roles in the user list.',
+        )
+        : ui(
+          'Odesláno: ' + invitedCount + (failedCount ? ', neodesláno: ' + failedCount : '') + '.',
+          'Sent: ' + invitedCount + (failedCount ? ', failed: ' + failedCount : '') + '.',
+        ));
     await load();
   }
 
