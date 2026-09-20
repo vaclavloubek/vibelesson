@@ -118,6 +118,9 @@ const invoiceEvent = {
       id: 'in_regression001',
       object: 'invoice',
       test_clock: null,
+      amount_paid: 0,
+      currency: 'czk',
+      billing_reason: 'subscription_cycle',
       status_transitions: { paid_at: null },
       parent: {
         type: 'subscription_details',
@@ -158,9 +161,13 @@ assert(normalizedInvoice?.testClock === false, 'ordinary sandbox invoice should 
 const paidInvoice = structuredClone(invoiceEvent);
 paidInvoice.id = 'evt_invoice_paid001';
 paidInvoice.type = 'invoice.paid';
+paidInvoice.data.object.amount_paid = 19900;
 paidInvoice.data.object.status_transitions.paid_at = now - 5;
 const normalizedPaidInvoice = normalizeStripeInvoiceEvent(paidInvoice);
 assert(normalizedPaidInvoice?.paidAt === new Date((now - 5) * 1000).toISOString(), 'paid invoice must retain its paid timestamp');
+assert(normalizedPaidInvoice?.amountPaid === 19900, 'paid invoice must retain amount_paid');
+assert(normalizedPaidInvoice?.currency === 'czk', 'paid invoice must retain currency');
+assert(normalizedPaidInvoice?.billingReason === 'subscription_cycle', 'paid invoice must retain billing_reason');
 
 const testClockInvoice = structuredClone(paidInvoice);
 testClockInvoice.data.object.test_clock = 'clock_regression001';

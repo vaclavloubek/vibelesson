@@ -17,7 +17,7 @@ for (const [needle, label] of [
   ['private.individual_billing_disputes', 'private dispute ledger'],
   ['individual_ai_billing_pause_reason', 'central pause reason'],
   ["then 'dispute'", 'open dispute pause reason'],
-  ["release_reason = 'subsequent_payment'", 'lost dispute unlock after later payment'],
+  ['try_release_individual_ai_billing_losses', 'lost dispute unlock is amount-qualified'],
   ["^d[pu]_[A-Za-z0-9_]+$", 'both Stripe dispute ID prefixes are accepted'],
   ['sync_stripe_dispute_event', 'service-only dispute event sync'],
   ["p_status in ('won', 'warning_closed')", 'won dispute automatic unlock'],
@@ -35,8 +35,8 @@ for (const needle of [
 
 const webhookRoute = read('app/api/billing/stripe/webhook/route.ts');
 for (const needle of [
-  'listStripePaidInvoicePaymentIntents',
-  "sync_stripe_invoice_payment_event",
+  'listStripePaidInvoicePayments',
+  "sync_stripe_invoice_payment_event_v2",
   "sync_stripe_dispute_event",
   "stripe_dispute_payment_mapping_missing",
 ]) requireText(webhookRoute, needle, 'Stripe webhook route: ' + needle);
@@ -47,7 +47,7 @@ requireText(billing, "'dispute'", 'dispute is a recognized pause reason');
 
 const banner = read('components/AiPaymentPauseBanner.tsx');
 requireText(banner, "reason === 'dispute'", 'user-facing dispute warning');
-requireText(banner, 'další potvrzené platbě', 'lost dispute recovery is explained');
+requireText(banner, 'pokryjí ztracenou částku', 'lost dispute recovery amount is explained');
 
 const subscription = read('components/SubscriptionManagement.tsx');
 requireText(subscription, "aiBillingPauseReason === 'dispute'", 'subscription page explains dispute state');

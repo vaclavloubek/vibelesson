@@ -293,13 +293,13 @@ export default function LessonWorkspace({
     if (!aiBillingPaused) return true;
     setError(aiBillingPauseReason === 'dispute'
       ? ui(
-          'AI funkce jsou dočasně pozastavené kvůli reklamaci platby. Uložené lekce a živá výuka dál fungují; AI se odemkne po příznivém vyřešení sporu, případně po další potvrzené platbě.',
-          'AI features are temporarily paused because a subscription payment is disputed. Saved lessons and live teaching still work; AI unlocks when the dispute resolves in Syllonaut’s favour, or after the next confirmed payment if the dispute is lost.',
+          'AI funkce jsou dočasně pozastavené kvůli reklamaci platby. Uložené lekce a živá výuka dál fungují; AI se odemkne po příznivém vyřešení sporu, případně až když pozdější potvrzené platby předplatného pokryjí ztracenou částku.',
+          'AI features are temporarily paused because a subscription payment is disputed. Saved lessons and live teaching still work; AI unlocks when the dispute resolves in Syllonaut’s favour, or once later confirmed subscription payments cover the lost amount if the dispute is lost.',
         )
       : aiBillingPauseReason === 'refund'
         ? ui(
-            'AI funkce jsou dočasně pozastavené, protože platba za aktuální předplatné byla plně vrácena. Po další potvrzené platbě předplatného se automaticky odemknou.',
-            'AI features are temporarily paused because the current subscription payment was fully refunded. They unlock automatically after the next confirmed subscription payment.',
+            'AI funkce jsou dočasně pozastavené, protože platba za aktuální předplatné byla plně vrácena. Automaticky se odemknou, až pozdější potvrzené platby předplatného pokryjí vrácenou částku.',
+            'AI features are temporarily paused because the current subscription payment was fully refunded. They unlock automatically once later confirmed subscription payments cover the refunded amount.',
           )
         : ui(
             'AI funkce jsou dočasně pozastavené kvůli platbě předplatného. Po potvrzení platby Stripe se automaticky odemknou.',

@@ -17,7 +17,7 @@ for (const [needle, label] of [
   ["then 'refund'", 'full refund pause reason'],
   ['sync_stripe_refund_state', 'service-only canonical refund state sync'],
   ['p_fully_refunded is distinct from (p_amount_refunded >= p_amount_total)', 'full refund is amount-authoritative'],
-  ["release_reason = 'subsequent_payment'", 'later subscription payment unlocks full refund'],
+  ['try_release_individual_ai_billing_losses', 'full refund unlock is amount-qualified'],
   ["'refund_reversed'", 'failed/reversed refund can release the lock'],
 ]) requireText(migrations, needle, label);
 
@@ -50,7 +50,7 @@ requireText(billing, 'fully refunded', 'server error message explains full refun
 
 const banner = read('components/AiPaymentPauseBanner.tsx');
 requireText(banner, "reason === 'refund'", 'user-facing refund warning');
-requireText(banner, 'další potvrzené platbě', 'refund recovery is explained');
+requireText(banner, 'pokryjí vrácenou částku', 'refund recovery amount is explained');
 
 const subscription = read('components/SubscriptionManagement.tsx');
 requireText(subscription, "aiBillingPauseReason === 'refund'", 'subscription management explains refund state');

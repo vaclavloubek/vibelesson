@@ -62,6 +62,9 @@ export type StripeInvoiceEventSync = {
   subscriptionId: string;
   invoiceId: string;
   paidAt: string | null;
+  amountPaid: number;
+  currency: 'czk' | 'eur' | 'usd';
+  billingReason: string;
   testClock: boolean;
 };
 
@@ -400,6 +403,23 @@ export function normalizeStripeInvoiceEvent(
     return null;
   }
 
+  const amountPaid = invoice.amount_paid;
+  if (typeof amountPaid !== 'number' || !Number.isSafeInteger(amountPaid) || amountPaid < 0) {
+    throw new Error('stripe_invoice_amount_paid_invalid');
+  }
+
+  const currency = typeof invoice.currency === 'string' ? invoice.currency.toLowerCase() : '';
+  if (!['czk', 'eur', 'usd'].includes(currency)) {
+    throw new Error('stripe_invoice_currency_invalid');
+  }
+
+  const billingReason = typeof invoice.billing_reason === 'string'
+    ? invoice.billing_reason.trim().toLowerCase()
+    : '';
+  if (!/^[a-z0-9_]{1,64}$/.test(billingReason)) {
+    throw new Error('stripe_invoice_billing_reason_invalid');
+  }
+
   const testClock = (
     event.livemode === false
     && typeof invoice.test_clock === 'string'
@@ -426,6 +446,9 @@ export function normalizeStripeInvoiceEvent(
     subscriptionId,
     invoiceId,
     paidAt,
+    amountPaid,
+    currency: currency as 'czk' | 'eur' | 'usd',
+    billingReason,
     testClock,
   };
 }

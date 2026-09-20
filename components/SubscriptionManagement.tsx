@@ -132,6 +132,12 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
         if (known === 'subscription_payment_issue' || known === 'subscription_pending_update_exists') {
           throw new Error(ui('Nejdřív je potřeba dořešit rozpracovanou nebo neúspěšnou platbu ve Stripe.', 'First resolve the pending or failed payment in Stripe.'));
         }
+        if (known === 'billing_recovery_required_before_plan_change') {
+          throw new Error(ui(
+            'Tarif teď nelze změnit, protože účet má neuhrazený refund nebo chargeback. Nejdřív musí potvrzené platby pokrýt vrácenou nebo ztracenou částku.',
+            'You cannot change plans while the account has an unrecovered refund or chargeback. Confirmed payments must first cover the refunded or lost amount.',
+          ));
+        }
         if (known === 'subscription_schedule_conflict') {
           throw new Error(ui('Předplatné má naplánovanou změnu, kterou nelze bezpečně upravit samoobslužně. Kontaktuj podporu.', 'The subscription has a scheduled change that cannot be safely modified here. Contact support.'));
         }
@@ -227,16 +233,16 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
         <div className={styles.warning} role="status">
           <strong>{ui('AI funkce jsou dočasně pozastavené kvůli reklamaci platby.', 'AI features are temporarily paused because of a payment dispute.')}</strong>
           <p>{ui(
-            'Platba za předplatné je reklamovaná u banky nebo platební sítě. Uložené lekce a živá výuka dál fungují. Pokud Stripe potvrdí vrácení prostředků Syllonautu, AI se automaticky odemkne; pokud spor skončí vrácením platby držiteli karty, AI se odemkne po další potvrzené platbě. Stripe Portal výše můžeš dál použít pro kartu, faktury a správu předplatného, samotný spor se ale řeší přes banku nebo karetní síť.',
-            'A subscription payment is being disputed through the bank or card network. Saved lessons and live teaching still work. If Stripe confirms the funds were returned to Syllonaut, AI unlocks automatically; if the dispute returns the payment to the cardholder, AI unlocks after the next confirmed payment. You can still use the Stripe Portal above for your card, invoices and subscription management, but the dispute itself is handled through the bank or card network.',
+            'Platba za předplatné je reklamovaná u banky nebo platební sítě. Uložené lekce a živá výuka dál fungují. Pokud Stripe potvrdí vrácení prostředků Syllonautu, AI se automaticky odemkne; pokud spor skončí vrácením platby držiteli karty, AI se odemkne až tehdy, když pozdější potvrzené platby předplatného pokryjí ztracenou částku. Stripe Portal výše můžeš dál použít pro kartu, faktury a správu předplatného, samotný spor se ale řeší přes banku nebo karetní síť.',
+            'A subscription payment is being disputed through the bank or card network. Saved lessons and live teaching still work. If Stripe confirms the funds were returned to Syllonaut, AI unlocks automatically; if the dispute returns the payment to the cardholder, AI unlocks once later confirmed subscription payments cover the lost amount. You can still use the Stripe Portal above for your card, invoices and subscription management, but the dispute itself is handled through the bank or card network.',
           )}</p>
         </div>
       ) : active.aiBillingPauseReason === 'refund' ? (
         <div className={styles.warning} role="status">
           <strong>{ui('AI funkce jsou dočasně pozastavené, protože platba byla vrácena.', 'AI features are temporarily paused because the payment was refunded.')}</strong>
           <p>{ui(
-            'Platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka dál fungují. AI generování, AI úpravy a AI hodnocení se automaticky odemknou po další potvrzené platbě předplatného.',
-            'The current subscription payment was fully refunded. Saved lessons and live teaching still work. AI generation, AI edits and AI grading unlock automatically after the next confirmed subscription payment.',
+            'Platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka dál fungují. AI generování, AI úpravy a AI hodnocení se automaticky odemknou, až pozdější potvrzené platby předplatného pokryjí vrácenou částku.',
+            'The current subscription payment was fully refunded. Saved lessons and live teaching still work. AI generation, AI edits and AI grading unlock automatically once later confirmed subscription payments cover the refunded amount.',
           )}</p>
         </div>
       ) : active.paymentIssue ? (
