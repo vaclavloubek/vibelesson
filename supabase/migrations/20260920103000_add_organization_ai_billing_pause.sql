@@ -685,8 +685,16 @@ begin
         then least(v_existing.full_refunded_at,p_event_at)
       else p_event_at
     end;
-    v_released_at:=null;
-    v_release_reason:=null;
+    if found and v_existing.full_refund and v_existing.released_at is not null then
+      -- A recovered full refund is idempotent. Repeated refund.updated /
+      -- charge.refunded events for the same still-full-refunded charge must not
+      -- reopen the loss after later subscription payments already recovered it.
+      v_released_at:=v_existing.released_at;
+      v_release_reason:=v_existing.release_reason;
+    else
+      v_released_at:=null;
+      v_release_reason:=null;
+    end if;
   else
     v_full_refunded_at:=case when found then v_existing.full_refunded_at else null end;
     if found and v_existing.full_refund and v_existing.released_at is null then
