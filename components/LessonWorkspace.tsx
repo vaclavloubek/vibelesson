@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
 import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
@@ -92,6 +93,7 @@ export default function LessonWorkspace({
   const [aiGradingEnabled, setAiGradingEnabled] = useState(false);
   const [multilingualLessonsEnabled, setMultilingualLessonsEnabled] = useState(false);
   const [worksheetExportEnabled, setWorksheetExportEnabled] = useState(false);
+  const [aiBillingPaused, setAiBillingPaused] = useState(false);
   const [entitlementsLoaded, setEntitlementsLoaded] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
@@ -162,6 +164,7 @@ export default function LessonWorkspace({
       setAiGradingEnabled(false);
       setMultilingualLessonsEnabled(false);
       setWorksheetExportEnabled(false);
+      setAiBillingPaused(false);
       setEntitlementsLoaded(false);
       return;
     }
@@ -173,11 +176,13 @@ export default function LessonWorkspace({
           aiGradingEnabled?: boolean;
           multilingualLessonsEnabled?: boolean;
           worksheetExportEnabled?: boolean;
+          aiBillingPaused?: boolean;
         };
         if (!cancelled) {
           setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
           setMultilingualLessonsEnabled(response.ok && Boolean(data.multilingualLessonsEnabled));
           setWorksheetExportEnabled(response.ok && Boolean(data.worksheetExportEnabled));
+          setAiBillingPaused(response.ok && Boolean(data.aiBillingPaused));
           setEntitlementsLoaded(true);
         }
       })
@@ -186,6 +191,7 @@ export default function LessonWorkspace({
           setAiGradingEnabled(false);
           setMultilingualLessonsEnabled(false);
           setWorksheetExportEnabled(false);
+          setAiBillingPaused(false);
           setEntitlementsLoaded(true);
         }
       });
@@ -273,6 +279,16 @@ export default function LessonWorkspace({
     return false;
   }
 
+  function requireAiAccess() {
+    if (!requireAuth()) return false;
+    if (!aiBillingPaused) return true;
+    setError(ui(
+      'AI funkce jsou dočasně pozastavené kvůli platbě předplatného. Po potvrzení platby Stripe se automaticky odemknou.',
+      'AI features are temporarily paused because of the subscription payment. They unlock automatically as soon as Stripe confirms the payment.',
+    ));
+    return false;
+  }
+
   function editBlock(blockId: string) {
     setSelectedBlockId(blockId);
     setRevisionLanguageNotice(null);
@@ -357,7 +373,7 @@ export default function LessonWorkspace({
 
   async function generate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!requireAuth()) return;
+    if (!requireAiAccess()) return;
     const operationOwnerId = authUser!.id;
 
     const formData = new FormData(e.currentTarget);
@@ -504,7 +520,7 @@ export default function LessonWorkspace({
 
   async function revise(e: FormEvent) {
     e.preventDefault();
-    if (!lesson || !requireAuth()) return;
+    if (!lesson || !requireAiAccess()) return;
     const operationOwnerId = authUser!.id;
     const before = lesson;
     trackEvent('lesson_revision_started', { revision_scope: 'whole_lesson' });
@@ -539,7 +555,7 @@ export default function LessonWorkspace({
 
   async function reviseSelectedBlock(e: FormEvent) {
     e.preventDefault();
-    if (!lesson || !selectedBlock || !requireAuth()) return;
+    if (!lesson || !selectedBlock || !requireAiAccess()) return;
     const operationOwnerId = authUser!.id;
     const before = lesson;
     trackEvent('lesson_revision_started', { revision_scope: 'activity' });
@@ -669,6 +685,8 @@ export default function LessonWorkspace({
           <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
         </div>
       </header>
+
+      {aiBillingPaused ? <AiPaymentPauseBanner /> : null}
 
       {authUser && recovery && (!lessonId || recovery.lessonId !== lessonId) ? (
         <div className="recovery-banner">
@@ -802,7 +820,7 @@ export default function LessonWorkspace({
                     <p className="muted-copy" style={{ marginTop: 8 }}>{ui('Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.', 'Original files stay on your device. Syllonaut extracts their text in the browser and sends only that text to the server; neither the files nor extracted content are stored permanently.')}</p>
                   </div>
                 </details>
-                <div className="actions"><button data-tour="lesson-create-submit" className="primary" disabled={busy}>{busy ? ui('Syllonaut připravuje lekci…', 'Syllonaut is preparing the lesson…') : ui('Vytvořit lekci', 'Create lesson')}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>{ui('Ukázková lekce', 'Example lesson')}</button></div>
+                <div className="actions"><button data-tour="lesson-create-submit" className="primary" disabled={busy || aiBillingPaused}>{busy ? ui('Syllonaut připravuje lekci…', 'Syllonaut is preparing the lesson…') : ui('Vytvořit lekci', 'Create lesson')}</button><button type="button" className="secondary" disabled={busy} onClick={loadDemo}>{ui('Ukázková lekce', 'Example lesson')}</button></div>
                 {!authUser ? <p className="auth-hint">{ui('AI generování vyžaduje bezplatný účet. Ukázková lekce je dostupná bez přihlášení.', 'AI generation requires a free account. The example lesson is available without signing in.')}</p> : null}
               </form>
             </div>
@@ -829,7 +847,7 @@ export default function LessonWorkspace({
                   {ui('Pokyn pro úpravu celé lekce', 'Instruction for the whole-lesson edit')}
                   <textarea value={revision} onChange={(e) => setRevision(e.target.value)} placeholder={ui('Udělej druhé cvičení absurdnější. Zkrať úvod. Přidej soutěž mezi týmy…', 'Make the second activity more playful. Shorten the intro. Add a competition between teams…')} required />
                 </label>
-                <button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit celou lekci', 'Edit whole lesson')}</button>
+                <button className="primary" disabled={busy || aiBillingPaused}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit celou lekci', 'Edit whole lesson')}</button>
               </form>
               {revisionLanguageNotice === 'whole_lesson' ? (
                 <div className="revision-plan-notice" role="status" aria-live="polite">
@@ -849,7 +867,7 @@ export default function LessonWorkspace({
                 <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
                 <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={selectedBlock ? 5 : 4} labelCs="Jak upravit jednu aktivitu" labelEn="How to edit one activity" />
               </div>
-              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
+              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy || aiBillingPaused}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
               {revisionLanguageNotice === 'activity' ? (
                 <div className="revision-plan-notice" role="status" aria-live="polite">
                   <strong>{ui('Aktivita byla upravena v rámci Free tarifu.', 'The activity was edited within the Free plan.')}</strong>
