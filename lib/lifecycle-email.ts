@@ -64,16 +64,17 @@ async function lifecycleContext(userId: string) {
     throw new Error('lifecycle_organization_lookup_failed');
   }
 
-  const organizationActive = organization
-    && !['expired', 'cancelled'].includes(organization.status);
+  const activeOrganizationPlan = organization
+    && !['expired', 'cancelled'].includes(organization.status)
+      ? organization.planCode
+      : null;
 
   const plan = profile?.role === 'admin'
     ? 'admin'
-    : organizationActive
-      ? organization.planCode
-      : typeof profile?.active_plan_code === 'string' && profile.active_plan_code
+    : activeOrganizationPlan
+      ?? (typeof profile?.active_plan_code === 'string' && profile.active_plan_code
         ? profile.active_plan_code
-        : 'free';
+        : 'free');
 
   const metadataLocale = normalizeUiLocale(authUser.user?.user_metadata?.ui_locale);
   const locale: UiLocale = normalizeUiLocale(profile?.ui_locale) ?? metadataLocale ?? 'cs';
