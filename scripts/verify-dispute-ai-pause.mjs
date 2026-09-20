@@ -35,7 +35,7 @@ for (const needle of [
 
 const webhookRoute = read('app/api/billing/stripe/webhook/route.ts');
 for (const needle of [
-  'listStripePaidInvoicePaymentIntents',
+  'listStripePaidInvoicePayments',
   "sync_stripe_invoice_payment_event_v2",
   "sync_stripe_dispute_event",
   "stripe_dispute_payment_mapping_missing",
