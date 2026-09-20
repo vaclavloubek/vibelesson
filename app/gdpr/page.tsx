@@ -93,6 +93,7 @@ export default async function GdprPage() {
             <li><strong>{ui('Bezpečnost a provoz:', 'Security and operations:')}</strong> {ui('technické údaje nutné pro přihlášení, ochranu proti zneužití, diagnostiku chyb a zabezpečení.', 'technical data needed for sign-in, abuse prevention, error diagnostics and security.')}</li>
             <li><strong>{ui('Kontaktní dotazy:', 'Contact enquiries:')}</strong> {ui('e-mailová adresa a text zprávy, které odešlete přes kontaktní formulář. Pro ochranu formuláře ukládáme nejvýše 30 dnů pouze pseudonymní HMAC otisky klienta a e-mailu, nikoli samotnou IP adresu.', 'email address and message text submitted through the contact form. To protect the form, we retain only pseudonymous HMAC hashes of the client and email for up to 30 days, not the raw IP address.')}</li>
             <li><strong>{ui('Marketingový e-mailový souhlas:', 'Marketing email consent:')}</strong> {ui('zda jste se přihlásili k novinkám, případovým studiím a nabídkám, datum souhlasu a verze textu.', 'whether you opted in to news, case studies and offers, the consent date and the version of the consent text.')}</li>
+            <li><strong>{ui('Kontaktní formulář:', 'Contact form:')}</strong> {ui('e-mailová adresa a text dotazu, který nám odešlete. Pro ochranu formuláře ukládáme po omezenou dobu pouze pseudonymizované hashe technických identifikátorů pro rate-limit, nikoli jejich čitelnou podobu.', 'the email address and message you submit. To protect the form, we temporarily retain only pseudonymised hashes of technical identifiers for rate limiting, not their readable form.')}</li>
             <li><strong>{ui('Analytika:', 'Analytics:')}</strong> {ui('až po souhlasu mohou být pomocí Google Analytics 4 zpracovávány údaje o návštěvě a používání webu v rozsahu konkrétního nastavení GA4.', 'only after consent, Google Analytics 4 may process website visit and usage data within the configured GA4 scope.')}</li>
           </ul>
         </section>
@@ -106,6 +107,7 @@ export default async function GdprPage() {
             <tr><td>{ui('Plnění zákonných povinností', 'Compliance with legal obligations')}</td><td>{ui('Právní povinnost (čl. 6 odst. 1 písm. c GDPR)', 'Legal obligation (Art. 6(1)(c) GDPR)')}</td></tr>
             <tr><td>{ui('Analytika webu pomocí GA4', 'Website analytics using GA4')}</td><td>{ui('Souhlas (čl. 6 odst. 1 písm. a GDPR); bez souhlasu se GA4 nenačte', 'Consent (Art. 6(1)(a) GDPR); GA4 does not load without consent')}</td></tr>
             <tr><td>{ui('Novinky, případové studie a akční nabídky e-mailem', 'News, case studies and promotional offers by email')}</td><td>{ui('Dobrovolný souhlas; registrace není tímto souhlasem podmíněna', 'Voluntary consent; registration is not conditional on this consent')}</td></tr>
+            <tr><td>{ui('Vyřízení dotazu odeslaného kontaktním formulářem', 'Handling an enquiry submitted through the contact form')}</td><td>{ui('Kroky na žádost uživatele před uzavřením smlouvy, pokud se dotaz týká nákupu či spolupráce, jinak oprávněný zájem na odpovědi na přijatý dotaz', 'Steps taken at the user’s request before entering into a contract where the enquiry concerns purchase or cooperation; otherwise legitimate interest in responding to an incoming enquiry')}</td></tr>
           </tbody></table></div>
         </section>
 
@@ -149,7 +151,7 @@ export default async function GdprPage() {
             <li><strong>Supabase</strong> — {ui('autentizace a databázová infrastruktura.', 'authentication and database infrastructure.')}</li>
             <li><strong>Vercel</strong> — {ui('hosting aplikace a AI Gateway.', 'application hosting and AI Gateway.')}</li>
             <li><strong>Cloudflare</strong> — Turnstile {ui('pro ochranu formulářů.', 'for form protection.')}</li>
-            <li><strong>Resend</strong> — {ui('transakční e-maily a do budoucna marketingové rozesílky podle uděleného souhlasu.', 'transactional emails and, in future, marketing mailings based on granted consent.')}</li>
+            <li><strong>Resend</strong> — {ui('transakční e-maily, marketingové rozesílky podle uděleného souhlasu a doručení zpráv z kontaktního formuláře.', 'transactional emails, marketing mailings based on granted consent and delivery of contact-form enquiries.')}</li>
             <li><strong>{ui('Poskytovatelé AI modelů', 'AI model providers')}</strong> — {ui('jen v rozsahu potřebném pro konkrétní AI operaci.', 'only to the extent needed for the specific AI operation.')}</li>
             <li><strong>Google</strong> — Google Analytics 4, {ui('až po aktivaci a pouze po souhlasu s analytikou.', 'once activated and only after analytics consent.')}</li>
           </ul>
@@ -166,6 +168,7 @@ export default async function GdprPage() {
             <li>{ui('Volbu cookies uchováváme nejvýše 180 dnů.', 'Cookie choices are retained for no more than 180 days.')}</li>
             <li>{ui('Kontaktní dotazy uchováváme po dobu nezbytnou k jejich vyřízení a případné navazující komunikaci. Pseudonymní záznamy používané pouze pro rate-limit formuláře se průběžně mažou po 30 dnech.', 'Contact enquiries are retained for as long as needed to handle them and any related follow-up communication. Pseudonymous records used only for form rate limiting are continuously deleted after 30 days.')}</li>
             <li>{ui('Záznam o marketingovém souhlasu můžeme po odvolání v omezeném rozsahu uchovat, pokud je to nutné k doložení respektování vaší volby a zákonných povinností.', 'After withdrawal, a limited record of marketing consent may be retained where necessary to demonstrate that your choice and legal obligations were respected.')}</li>
+            <li>{ui('Obsah dotazu z kontaktního formuláře uchováváme po dobu nutnou k vyřízení a případné navazující komunikaci; pokud nevznikne smluvní vztah ani jiný důvod k delšímu uchování, zprávu standardně nepotřebujeme déle než 12 měsíců. Pseudonymizované záznamy rate-limitu se průběžně mažou po 30 dnech.', 'Contact-form messages are retained for the time needed to respond and handle related follow-up; if no contractual relationship or other reason for longer retention arises, we generally do not need the message for more than 12 months. Pseudonymised rate-limit records are continuously deleted after 30 days.')}</li>
           </ul>
         </section>
 
