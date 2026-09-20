@@ -1,7 +1,6 @@
 import { billingRouteForCountry } from '@/lib/billing-region';
 import {
   createOrganizationCardCheckout,
-  createOrganizationInvoice,
   createOrganizationStripeCustomer,
 } from '@/lib/organization-stripe';
 import type {
@@ -18,8 +17,6 @@ type OrganizationPaymentInput = {
     id: string;
     name: string;
     legalName: string | null;
-    registrationNumber: string | null;
-    vatId: string | null;
     billingEmail: string;
     billingCountry: string;
     billingAddress: {
@@ -39,12 +36,14 @@ type OrganizationPaymentInput = {
     externalCustomerId: string | null;
     externalCheckoutSessionId: string | null;
     externalCheckoutUrl: string | null;
-    externalInvoiceId: string | null;
-    hostedInvoiceUrl: string | null;
   };
 };
 
 export async function startOrganizationPayment(input: OrganizationPaymentInput) {
+  if (input.order.paymentMethod !== 'card') {
+    throw new Error('organization_bank_invoice_required');
+  }
+
   const livemode = input.environment === 'live';
   const secretKey = livemode
     ? process.env.STRIPE_SECRET_KEY_LIVE
@@ -88,57 +87,18 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
     if (error) throw new Error('organization_customer_link_failed');
   }
 
-  if (input.order.paymentMethod === 'card') {
-    if (input.order.externalCheckoutSessionId && input.order.externalCheckoutUrl) {
-      return {
-        paymentUrl: input.order.externalCheckoutUrl,
-        paymentKind: 'checkout' as const,
-      };
-    }
-    if (input.order.externalCheckoutSessionId) {
-      throw new Error('organization_checkout_resume_url_missing');
-    }
-
-    const route = billingRouteForCountry(input.organization.billingCountry);
-    const checkout = await createOrganizationCardCheckout({
-      secretKey,
-      livemode,
-      customerId,
-      organizationId: input.organization.id,
-      orderId: input.order.id,
-      planCode: input.organization.planCode,
-      billingPeriod: input.order.billingPeriod,
-      currency: input.order.currency,
-      amountMinor: input.order.amountMinor,
-      managedPayments: route.managedPayments,
-    });
-
-    const { error } = await admin
-      .from('organization_orders')
-      .update({
-        external_checkout_session_id: checkout.sessionId,
-        external_checkout_url: checkout.url,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', input.order.id)
-      .eq('organization_id', input.organization.id);
-
-    if (error) throw new Error('organization_checkout_link_failed');
-
+  if (input.order.externalCheckoutSessionId && input.order.externalCheckoutUrl) {
     return {
-      paymentUrl: checkout.url,
+      paymentUrl: input.order.externalCheckoutUrl,
       paymentKind: 'checkout' as const,
     };
   }
-
-  if (input.order.hostedInvoiceUrl) {
-    return {
-      paymentUrl: input.order.hostedInvoiceUrl,
-      paymentKind: 'invoice' as const,
-    };
+  if (input.order.externalCheckoutSessionId) {
+    throw new Error('organization_checkout_resume_url_missing');
   }
 
-  const invoice = await createOrganizationInvoice({
+  const route = billingRouteForCountry(input.organization.billingCountry);
+  const checkout = await createOrganizationCardCheckout({
     secretKey,
     livemode,
     customerId,
@@ -148,26 +108,23 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
     billingPeriod: input.order.billingPeriod,
     currency: input.order.currency,
     amountMinor: input.order.amountMinor,
-    registrationNumber: input.organization.registrationNumber,
-    vatId: input.organization.vatId,
-    billingCountry: input.organization.billingCountry,
+    managedPayments: route.managedPayments,
   });
 
   const { error } = await admin
     .from('organization_orders')
     .update({
-      external_invoice_id: invoice.invoiceId,
-      hosted_invoice_url: invoice.hostedInvoiceUrl,
-      invoice_pdf_url: invoice.invoicePdfUrl,
+      external_checkout_session_id: checkout.sessionId,
+      external_checkout_url: checkout.url,
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.order.id)
     .eq('organization_id', input.organization.id);
 
-  if (error) throw new Error('organization_invoice_link_failed');
+  if (error) throw new Error('organization_checkout_link_failed');
 
   return {
-    paymentUrl: invoice.hostedInvoiceUrl,
-    paymentKind: 'invoice' as const,
+    paymentUrl: checkout.url,
+    paymentKind: 'checkout' as const,
   };
 }
