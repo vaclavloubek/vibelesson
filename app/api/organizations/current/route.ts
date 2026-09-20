@@ -92,7 +92,7 @@ export async function GET() {
   const ordersResult = manager
     ? await admin
       .from('organization_orders')
-      .select('id, status, payment_method, amount_minor, currency, billing_period, created_at, paid_at, hosted_invoice_url, invoice_pdf_url, external_subscription_id, livemode')
+      .select('id, status, payment_method, amount_minor, currency, billing_period, created_at, paid_at, hosted_invoice_url, invoice_pdf_url, external_subscription_id, livemode, invoice_number, invoice_issued_at, invoice_due_date, payment_confirmation_source, bank_transaction_reference')
       .eq('organization_id', organization.id)
       .order('created_at', { ascending: false })
     : { data: [], error: null };
