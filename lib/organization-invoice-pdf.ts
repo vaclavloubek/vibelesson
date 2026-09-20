@@ -43,8 +43,13 @@ function customerLines(invoice: OrganizationBankInvoiceData) {
   return values.filter(Boolean).map(String);
 }
 
-function sellerLines(invoice: OrganizationBankInvoiceData) {
+function sellerLines(
+  invoice: OrganizationBankInvoiceData,
+  locale: 'cs' | 'en',
+) {
   const seller = invoice.snapshot.seller;
+  const vatPayer = seller.vatPayer ?? Boolean(seller.vatId);
+
   return [
     seller.name,
     seller.addressLine1,
@@ -53,6 +58,11 @@ function sellerLines(invoice: OrganizationBankInvoiceData) {
     seller.country,
     'IČO: ' + seller.registrationNumber,
     seller.vatId ? 'DIČ / VAT ID: ' + seller.vatId : null,
+    !vatPayer
+      ? (locale === 'en'
+        ? 'Supplier is not registered for VAT.'
+        : 'Dodavatel není plátcem DPH.')
+      : null,
   ].filter(Boolean).map(String);
 }
 
@@ -138,7 +148,7 @@ export function createOrganizationInvoicePdfDefinition(
           width: '*',
           stack: [
             { text: english ? 'Supplier' : 'Dodavatel', fontSize: 8, bold: true, color: MUTED },
-            ...sellerLines(invoice).map((line, index) => ({
+            ...sellerLines(invoice, locale).map((line, index) => ({
               text: line,
               fontSize: index === 0 ? 10 : 9,
               bold: index === 0,

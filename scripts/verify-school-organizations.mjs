@@ -342,6 +342,7 @@ const bankInvoice = fs.readFileSync('lib/organization-bank-invoice.ts', 'utf8');
 for (const needle of [
   'SYLLONAUT_INVOICE_BANK_IBAN',
   'SYLLONAUT_INVOICE_BANK_ACCOUNT',
+  'SYLLONAUT_INVOICE_SELLER_VAT_PAYER',
   "SPD*1.0",
   "'X-VS:'",
   'invoice_snapshot',
@@ -356,9 +357,24 @@ for (const needle of [
   'qr: invoice.spayd',
   "eccLevel: 'M'",
   'TESTOVACÍ DOKLAD',
+  'Dodavatel není plátcem DPH.',
 ]) {
   if (!invoicePdf.includes(needle)) {
     throw new Error('Bank invoice PDF QR contract missing: ' + needle);
+  }
+}
+
+const electronicInvoice = fs.readFileSync(
+  'app/school/invoices/[orderId]/page.tsx',
+  'utf8',
+);
+for (const needle of [
+  'Dodavatel není plátcem DPH.',
+  'Supplier is not registered for VAT.',
+  'seller.vatPayer',
+]) {
+  if (!electronicInvoice.includes(needle)) {
+    throw new Error('Electronic invoice VAT-status contract missing: ' + needle);
   }
 }
 
