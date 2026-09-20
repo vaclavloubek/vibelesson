@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { billingRouteForCountry } from '../lib/billing-region.ts';
 import {
+  normalizeStripeDisputeEvent,
   normalizeStripeInvoiceEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
@@ -110,10 +111,13 @@ const invoiceEvent = {
   id: 'evt_invoice001',
   type: 'invoice.payment_failed',
   livemode: false,
+  created: now,
   data: {
     object: {
       id: 'in_regression001',
       object: 'invoice',
+      test_clock: null,
+      status_transitions: { paid_at: null },
       parent: {
         type: 'subscription_details',
         subscription_details: {
@@ -146,6 +150,50 @@ assert(
 const normalizedInvoice = normalizeStripeInvoiceEvent(invoiceEvent);
 assert(normalizedInvoice?.eventType === 'invoice.payment_failed', 'payment failure should normalize');
 assert(normalizedInvoice?.subscriptionId === 'sub_regression001', 'invoice should retain subscription ID');
+assert(normalizedInvoice?.invoiceId === 'in_regression001', 'invoice ID should normalize');
+assert(normalizedInvoice?.paidAt === null, 'failed invoice should not create a payment mapping timestamp');
+assert(normalizedInvoice?.testClock === false, 'ordinary sandbox invoice should not look like a test-clock copy');
+
+const paidInvoice = structuredClone(invoiceEvent);
+paidInvoice.id = 'evt_invoice_paid001';
+paidInvoice.type = 'invoice.paid';
+paidInvoice.data.object.status_transitions.paid_at = now - 5;
+const normalizedPaidInvoice = normalizeStripeInvoiceEvent(paidInvoice);
+assert(normalizedPaidInvoice?.paidAt === new Date((now - 5) * 1000).toISOString(), 'paid invoice must retain its paid timestamp');
+
+const testClockInvoice = structuredClone(paidInvoice);
+testClockInvoice.data.object.test_clock = 'clock_regression001';
+assert(normalizeStripeInvoiceEvent(testClockInvoice)?.testClock === true, 'sandbox test-clock invoices must be detectable');
+
+const disputeEvent = {
+  id: 'evt_dispute001',
+  type: 'charge.dispute.created',
+  livemode: false,
+  created: now,
+  data: {
+    object: {
+      id: 'dp_regression001',
+      object: 'dispute',
+      payment_intent: 'pi_regression001',
+      status: 'needs_response',
+    },
+  },
+};
+const normalizedDispute = normalizeStripeDisputeEvent(disputeEvent);
+assert(normalizedDispute?.disputeId === 'dp_regression001', 'dispute ID should normalize');
+assert(normalizedDispute?.paymentIntentId === 'pi_regression001', 'dispute must retain the payment intent');
+assert(normalizedDispute?.status === 'needs_response', 'dispute status should normalize');
+assert(normalizedDispute?.eventAt === new Date(now * 1000).toISOString(), 'dispute event timestamp should normalize');
+
+const wonDispute = structuredClone(disputeEvent);
+wonDispute.id = 'evt_dispute_closed001';
+wonDispute.type = 'charge.dispute.closed';
+wonDispute.data.object.status = 'won';
+assert(normalizeStripeDisputeEvent(wonDispute)?.status === 'won', 'won dispute should normalize');
+
+const unrelatedDispute = structuredClone(disputeEvent);
+unrelatedDispute.type = 'charge.succeeded';
+assert(normalizeStripeDisputeEvent(unrelatedDispute) === null, 'unsupported charge event should be ignored');
 
 const unrelatedInvoice = structuredClone(invoiceEvent);
 unrelatedInvoice.data.object.parent = { type: 'quote_details' };

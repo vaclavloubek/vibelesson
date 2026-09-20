@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
+import { getIndividualAiBillingPauseReason } from '@/lib/individual-ai-billing';
 
 export async function GET() {
   const { supabase, userId } = await getAuthenticatedUserId();
@@ -23,9 +23,9 @@ export async function GET() {
     return NextResponse.json({ error: 'Oprávnění se nepodařilo načíst.' }, { status: 500 });
   }
 
-  let aiBillingPaused = false;
+  let aiBillingPauseReason: 'past_due' | 'dispute' | null = null;
   try {
-    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+    aiBillingPauseReason = await getIndividualAiBillingPauseReason(userId);
   } catch {
     // Enforcement is also applied at the DB cost boundary; UI state should not
     // turn a transient status lookup into a broader entitlement outage.
@@ -35,6 +35,7 @@ export async function GET() {
     aiGradingEnabled: Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled)),
     multilingualLessonsEnabled: Boolean(profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled)),
     worksheetExportEnabled: Boolean(profile && (profile.role === 'admin' || profile.worksheet_export_enabled)),
-    aiBillingPaused,
+    aiBillingPaused: aiBillingPauseReason !== null,
+    aiBillingPauseReason,
   });
 }

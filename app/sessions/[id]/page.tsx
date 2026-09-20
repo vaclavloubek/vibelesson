@@ -9,7 +9,7 @@ import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import { readLiveResume } from '@/lib/live-resume';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
-import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
+import { getIndividualAiBillingPauseReason } from '@/lib/individual-ai-billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,23 +58,27 @@ async function loadOwnedSession(supabase: SupabaseServerClient, id: string, user
   throw lastError ?? new Error('Teacher session lookup failed.');
 }
 
-async function loadAiBillingPaused(userId: string | null) {
-  if (!userId) return false;
+async function loadAiBillingPauseReason(userId: string | null) {
+  if (!userId) return null;
   try {
-    return await isIndividualAiBillingPaused(userId);
+    return await getIndividualAiBillingPauseReason(userId);
   } catch (error) {
     console.error('load live AI billing pause state failed', {
       userId,
       error: error instanceof Error ? error.message : 'unknown',
     });
-    return false;
+    return null;
   }
 }
 
-function teacherSurface(id: string, userId: string | null, aiBillingPaused: boolean) {
+function teacherSurface(
+  id: string,
+  userId: string | null,
+  aiBillingPauseReason: 'past_due' | 'dispute' | null,
+) {
   return (
     <>
-      {aiBillingPaused ? <AiPaymentPauseBanner /> : null}
+      {aiBillingPauseReason ? <AiPaymentPauseBanner reason={aiBillingPauseReason} /> : null}
       <EvaluationBackgroundPump sessionId={id} />
       <TeacherSession sessionId={id} />
       <TeacherScoreboardQuickAction sessionId={id} userId={userId} />
@@ -106,7 +110,7 @@ export default async function TeacherSessionPage({ params }: Props) {
       authError: true,
     });
     const resumedUserId = resume?.userId ?? null;
-    return teacherSurface(id, resumedUserId, await loadAiBillingPaused(resumedUserId));
+    return teacherSurface(id, resumedUserId, await loadAiBillingPauseReason(resumedUserId));
   }
 
   let session: { id: string } | null = null;
@@ -115,10 +119,10 @@ export default async function TeacherSessionPage({ params }: Props) {
   } catch (error) {
     if (resume?.userId !== userId) throw error;
     console.warn('teacher live ownership lookup degraded; using resume ticket', { sessionId: id });
-    return teacherSurface(id, userId, await loadAiBillingPaused(userId));
+    return teacherSurface(id, userId, await loadAiBillingPauseReason(userId));
   }
 
   if (!session) notFound();
-  return teacherSurface(id, userId, await loadAiBillingPaused(userId));
+  return teacherSurface(id, userId, await loadAiBillingPauseReason(userId));
 }
 

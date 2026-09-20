@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.55** uzavírá první produkční implementační a acceptance kolo školního workflow: organizační role a pozvánky, společný AI pool, školní knihovna, rotace členů, podmíněné zobrazení `Moje škola` a serverově autoritativní ochrana proti zastaralému privilegovanému UI při změně přihlášené identity. Předchozí 0.9.54 přidala ekonomický fail-closed režim pro individuální `past_due`. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.56** rozšiřuje individuální billing abuse hardening o chargeback/dispute ochranu: otevřený spor o předplatitelskou platbu dočasně zastaví nové AI náklady, aniž by zablokoval uložené lekce nebo živou výuku; příznivě vyřešený spor AI automaticky odemkne a prohraný spor ji drží pozastavenou do další potvrzené platby. Předchozí 0.9.55 uzavřela první školní workflow acceptance kolo a 0.9.54 zavedla stejný AI-only režim pro `past_due`. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -343,6 +343,18 @@ Individuální plány:
 
 U placených individuálních plánů jsou live hodiny a opakované používání již vytvořených lekcí bez tarifního limitu; AI kvóta se čerpá pouze při nové AI tvorbě a AI úpravách. Free může každou lesson family živě použít jednou. Studenti se připojují bez plnohodnotného účtu.
 
+### Individuální dispute / chargeback AI pause 0.9.56 — 2026-09-20
+
+- otevření Stripe dispute nad platbou individuálního Teacher / Teacher Pro dočasně zastaví **pouze nové variabilní AI náklady**: generování, AI revize a AI grading; uložené lekce, živá výuka, Presenter a ostatní nenákladové funkce zůstávají dostupné;
+- AI lock se opírá o serverově ověřené Stripe webhooky a private DB ledger, nikoli o klientský stav; dispute se váže na subscription přes PaymentIntent mapu vytvořenou z potvrzených `invoice.paid` eventů a Stripe Invoice Payments API;
+- `charge.dispute.created` a `charge.dispute.funds_withdrawn` AI pozastaví; `charge.dispute.closed` ve stavu `won` / `warning_closed` a `charge.dispute.funds_reinstated` ji automaticky odemknou;
+- prohraný spor (`lost`) zůstává uzamčený, dokud Syllonaut neobdrží **další potvrzenou subscription platbu** po uzavření sporu; tím nelze spotřebovat AI, chargebacknout platbu a dál pokračovat na stále aktivní subscription;
+- interní admin a uživatel krytý aktivním organizačním členstvím jsou z individuálního dispute locku vyjmutí;
+- UI rozlišuje běžný `past_due` od reklamované platby a vysvětluje, že hotové lekce/live zůstávají funkční a za jakých podmínek se AI znovu odemkne;
+- existující LIVE invoice platby byly jednorázově backfillnuté do payment mapy, aby ochrana pokrývala i již proběhlé individuální nákupy před nasazením;
+- LIVE Stripe webhook musí po produkčním deployi explicitně odebírat `charge.dispute.created`, `charge.dispute.closed`, `charge.dispute.funds_withdrawn` a `charge.dispute.funds_reinstated`;
+- regresní kontrakt: `scripts/verify-dispute-ai-pause.mjs` + rozšířený `scripts/verify-stripe-webhook.mjs`.
+
 ### Individuální `past_due` AI pause 0.9.54 — 2026-09-20
 
 - stav Stripe `past_due` u individuálního Teacher / Teacher Pro **neshazuje účet na Free** a neblokuje uložené lekce, živou výuku, Presenter ani ostatní nenákladové placené funkce;
@@ -392,7 +404,7 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení; od 0.9.53 jsou vytvoření nové live session a ruční AI regrade navíc DB/server write-boundary chráněné a staré přímé authenticated cesty jsou uzamčené;
 - **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
-- **Individual payment failure** — `past_due` zachovává uložené placené funkce a live teaching, ale zastavuje nové AI generování/revize/grading; po potvrzení platby se AI bez ručního zásahu znovu odemkne;
+- **Individual payment failure / chargeback** — `past_due` i otevřený payment dispute zachovávají uložené placené funkce a live teaching, ale zastavují nové AI generování/revize/grading. `past_due` se odemkne po potvrzení platby; vyhraný dispute po potvrzení výsledku/funds reinstated; prohraný dispute až po další potvrzené platbě;
 - **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
 
 Pravidla dalšího anti-abuse kola:

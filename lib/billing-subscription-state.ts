@@ -9,6 +9,7 @@ import {
 } from '@/lib/stripe-subscription-management';
 import { individualMinorUnitPrice } from '@/lib/individual-billing-catalog';
 import { publicPlanId, type BillingPeriod, type IndividualPlanCode } from '@/lib/subscription-change-policy';
+import { getIndividualAiBillingPauseReason, type AiBillingPauseReason } from '@/lib/individual-ai-billing';
 
 export type SubscriptionPriceOption = {
   planId: 'teacher' | 'teacher-pro';
@@ -37,6 +38,7 @@ export type LiveSubscriptionManagementState =
       currentPeriodEnd: string;
       billingCountry: string | null;
       paymentIssue: boolean;
+      aiBillingPauseReason: AiBillingPauseReason | null;
       pendingUpdate: boolean;
       scheduledChange: {
         planId: 'teacher' | 'teacher-pro';
@@ -161,6 +163,7 @@ export async function getLiveSubscriptionManagementState(userId: string): Promis
   }
 
   const billingCountry = subscription.metadata?.syllonaut_billing_country?.toUpperCase() ?? null;
+  const aiBillingPauseReason = await getIndividualAiBillingPauseReason(userId);
 
   return {
     kind: 'active',
@@ -173,6 +176,7 @@ export async function getLiveSubscriptionManagementState(userId: string): Promis
     currentPeriodEnd: new Date(currentPeriodEnd * 1000).toISOString(),
     billingCountry: billingCountry && /^[A-Z]{2}$/.test(billingCountry) ? billingCountry : null,
     paymentIssue: subscription.status === 'past_due',
+    aiBillingPauseReason,
     pendingUpdate: Boolean(subscription.pending_update),
     scheduledChange,
     prices,
