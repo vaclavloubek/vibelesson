@@ -169,6 +169,13 @@ export async function POST(req: Request, { params }: RouteContext) {
       strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
+    const { data: challengeRecorded, error: challengeError } = await supabase.rpc('record_response_evaluation_integrity_challenge', {
+      p_evaluation_id: evaluationId,
+      p_question: result.integrityChallengeQuestion,
+    });
+    if (challengeError) throw challengeError;
+    if (!challengeRecorded) throw new Error('Integrity challenge could not be attached to the evaluation.');
+
     const { data: finished, error: finishError } = await supabase.rpc('finish_response_evaluation_v2', {
       p_evaluation_id: evaluationId,
       p_ai_score: result.score,
@@ -195,6 +202,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       criterionScores: result.criterionScores,
       aiUseSuspicion: result.aiUseSuspicion,
       aiUseSignals: result.aiUseSignals,
+      integrityChallengeCreated: result.integrityChallengeQuestion !== null,
       costUsd: result.costUsd,
     });
   } catch (error) {
