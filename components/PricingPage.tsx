@@ -15,6 +15,7 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { TERMS_VERSION } from '@/lib/legal';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -431,6 +432,8 @@ export default function PricingPage({
   });
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutTermsAccepted, setCheckoutTermsAccepted] = useState(false);
+  const [checkoutImmediateAccess, setCheckoutImmediateAccess] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalError, setPortalError] = useState('');
   const checkoutDialogRef = useRef<HTMLDivElement | null>(null);
@@ -558,6 +561,8 @@ export default function PricingPage({
       return;
     }
 
+    setCheckoutTermsAccepted(false);
+    setCheckoutImmediateAccess(false);
     setCheckoutPlan(plan);
     setCheckoutError('');
   }
@@ -565,6 +570,10 @@ export default function PricingPage({
   async function startSandboxCheckout() {
     if (!checkoutPlan || checkoutBusy) return;
     if (checkoutPlan.id !== 'teacher' && checkoutPlan.id !== 'teacher-pro') return;
+    if (liveCheckout && (!checkoutTermsAccepted || !checkoutImmediateAccess)) {
+      setCheckoutError(ui('Před pokračováním potvrď obchodní podmínky a žádost o okamžité zpřístupnění.', 'Before continuing, accept the Terms and request immediate access.'));
+      return;
+    }
     const planId = checkoutPlan.id;
     setCheckoutBusy(true);
     setCheckoutError('');
@@ -579,6 +588,9 @@ export default function PricingPage({
           billing,
           country: checkoutCountry,
           environment: billingTestEnvironment,
+          termsAccepted: checkoutTermsAccepted,
+          termsVersion: TERMS_VERSION,
+          immediateAccessRequested: checkoutImmediateAccess,
         }),
       });
       const payload = await response.json() as {
@@ -898,6 +910,19 @@ export default function PricingPage({
               <strong>{checkoutRoute.managedPayments ? 'Managed Payments' : ui('Standardní Stripe', 'Standard Stripe')}</strong>
             </div>
 
+            {liveCheckout ? (
+              <div className={styles.checkoutConsents}>
+                <label>
+                  <input type="checkbox" checked={checkoutTermsAccepted} onChange={(event) => { setCheckoutTermsAccepted(event.target.checked); setCheckoutError(''); }} />
+                  <span>{ui('Souhlasím s ', 'I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('Obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a beru na vědomí, že kartové předplatné se automaticky obnovuje do jeho zrušení.', ' and acknowledge that the card subscription renews automatically until cancelled.')}</span>
+                </label>
+                <label>
+                  <input type="checkbox" checked={checkoutImmediateAccess} onChange={(event) => { setCheckoutImmediateAccess(event.target.checked); setCheckoutError(''); }} />
+                  <span>{ui('Výslovně žádám o zpřístupnění placených digitálních funkcí ihned po potvrzení platby, tedy před uplynutím 14 dnů, a pokud jsem spotřebitel, beru na vědomí zákonné důsledky pro právo na odstoupení.', 'I expressly request access to the paid digital features immediately after payment confirmation, before the 14-day period expires, and, if I am a consumer, acknowledge the statutory consequences for the right of withdrawal.')}</span>
+                </label>
+              </div>
+            ) : null}
+
             {checkoutError ? <div className={styles.checkoutError} role="alert">{checkoutError}</div> : null}
 
             <div className={styles.checkoutActions}>
@@ -916,7 +941,7 @@ export default function PricingPage({
                 type="button"
                 className={styles.activeCta}
                 onClick={startSandboxCheckout}
-                disabled={checkoutBusy}
+                disabled={checkoutBusy || (liveCheckout && (!checkoutTermsAccepted || !checkoutImmediateAccess))}
               >
                 {checkoutBusy ? ui('Otevírám Stripe…', 'Opening Stripe…') : ui('Pokračovat do Stripe', 'Continue to Stripe')}
               </button>

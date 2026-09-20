@@ -40,6 +40,11 @@
 .table th,.table td { text-align:left; padding:12px 8px; border-bottom:1px solid var(--line,#e2e1dc); vertical-align:middle; }
 .table th { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted,#686b74); }
 .rowActions { display:flex; gap:8px; flex-wrap:wrap; }
+.legalConsents { display:grid; gap:10px; margin:4px 0 15px; padding:14px 16px; border:1px solid var(--line,#e2e1dc); border-radius:14px; background:#fbfaf7; }
+.legalConsents label { display:grid; grid-template-columns:18px 1fr; gap:9px; align-items:start; color:var(--muted,#686b74); font-size:12px; line-height:1.45; cursor:pointer; }
+.legalConsents input { width:18px; height:18px; margin:1px 0 0; accent-color:#5b57e8; }
+.legalConsents a { color:#514dcc; text-underline-offset:2px; }
+.legalConsents p { margin:0; font-size:11px; line-height:1.45; }
 .muted { color:var(--muted,#686b74); font-size:13px; }
 .back { color:inherit; text-decoration:none; font-weight:700; }
 .planNote { padding:14px 16px; border:1px solid var(--line,#e2e1dc); border-radius:14px; background:#fbfaf7; }

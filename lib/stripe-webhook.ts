@@ -110,6 +110,9 @@ export type StripeSubscriptionSync = {
   billingCountry: string;
   previousStatus: string | null;
   previousCancelAtPeriodEnd: boolean | null;
+  termsVersion: string | null;
+  termsAcceptedAt: string | null;
+  immediateAccessRequested: boolean;
 };
 
 function splitSecrets(value: string | undefined) {
@@ -343,6 +346,14 @@ export function normalizeStripeSubscriptionEvent(
   const previousCancelAtPeriodEnd = previousAttributes && typeof previousAttributes.cancel_at_period_end === 'boolean'
     ? previousAttributes.cancel_at_period_end
     : null;
+  const termsVersion = typeof metadata.syllonaut_terms_version === 'string'
+    ? metadata.syllonaut_terms_version.trim().slice(0, 32)
+    : null;
+  const termsAcceptedAt = typeof metadata.syllonaut_terms_accepted_at === 'string'
+    && !Number.isNaN(Date.parse(metadata.syllonaut_terms_accepted_at))
+    ? metadata.syllonaut_terms_accepted_at
+    : null;
+  const immediateAccessRequested = metadata.syllonaut_immediate_access_requested === 'true';
 
   return {
     eventId: event.id,
@@ -362,6 +373,9 @@ export function normalizeStripeSubscriptionEvent(
     billingCountry,
     previousStatus,
     previousCancelAtPeriodEnd,
+    termsVersion,
+    termsAcceptedAt,
+    immediateAccessRequested,
   };
 }
 

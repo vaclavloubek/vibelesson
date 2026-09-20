@@ -7,6 +7,7 @@ import { isSupportedCountryCode } from '@/lib/countries';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { TERMS_VERSION } from '@/lib/legal';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,9 @@ const InputSchema = z.object({
   billing: z.enum(['monthly', 'annual']),
   country: z.string().trim().length(2).transform((value) => value.toUpperCase()),
   environment: z.enum(['sandbox', 'live']).default('sandbox'),
+  termsAccepted: z.boolean().optional().default(false),
+  termsVersion: z.string().trim().max(32).optional().default(''),
+  immediateAccessRequested: z.boolean().optional().default(false),
 });
 
 function jsonError(status: number, error: string, diagnostics?: { stripeType?: string | null; stripeCode?: string | null; stripeMessage?: string | null }) {
@@ -28,6 +32,9 @@ export async function POST(request: Request) {
   catch { return jsonError(400, 'invalid_checkout_request'); }
 
   const livemode = input.environment === 'live';
+  if (livemode && (!input.termsAccepted || input.termsVersion !== TERMS_VERSION || !input.immediateAccessRequested)) {
+    return jsonError(400, 'legal_acceptance_required');
+  }
   const secretKey = livemode ? process.env.STRIPE_SECRET_KEY_LIVE : process.env.STRIPE_SECRET_KEY_TEST;
   if (livemode) {
     if (!isStripeLiveSecretKey(secretKey)) return jsonError(503, 'live_checkout_not_configured');
@@ -117,6 +124,9 @@ export async function POST(request: Request) {
       managedPayments: route.managedPayments,
       planCode,
       billingPeriod: input.billing,
+      termsVersion: livemode ? TERMS_VERSION : null,
+      termsAcceptedAt: livemode ? new Date().toISOString() : null,
+      immediateAccessRequested: livemode ? true : null,
     });
     return NextResponse.json({ url: session.url, environment: input.environment, currency: route.currency, managedPayments: route.managedPayments }, {
       status: 200, headers: { 'Cache-Control': 'no-store' },

@@ -576,9 +576,13 @@ details { margin-top: 12px; color: var(--muted); }
 .auth-link { background: transparent; color: var(--accent); padding: 4px 0; font-size: 12px; text-decoration: none; }
 .auth-signup { margin-top: 10px; }
 .auth-message { margin-top: 10px; border-radius: 10px; background: #f7f6f2; padding: 9px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.auth-legal-consent,
 .auth-marketing-consent { display: grid; grid-template-columns: 18px 1fr; gap: 9px; align-items: start; }
+.auth-legal-consent input,
 .auth-marketing-consent input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
+.auth-legal-consent label,
 .auth-marketing-consent label { display: block; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.45; }
+.auth-legal-consent a,
 .auth-marketing-consent a { color: var(--accent); text-underline-offset: 2px; }
 .auth-signed-in { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .auth-signed-in > span { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }

@@ -35,6 +35,9 @@ function subscriptionEvent({
         metadata: {
           syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000',
           syllonaut_billing_country: 'CZ',
+          syllonaut_terms_version: '1.0',
+          syllonaut_terms_accepted_at: '2026-09-20T19:30:00.000Z',
+          syllonaut_immediate_access_requested: 'true',
         },
         managed_payments: { enabled: false },
         status,
@@ -143,6 +146,20 @@ const cs = renderBillingLifecycleEmail({
 assert(cs.subject.includes('Teacher je aktivní'), 'Czech activation subject must be localized');
 assert(cs.html.includes('#5b57e8'), 'email HTML must use the Syllonaut accent');
 assert(cs.html.includes('Nejde o marketingové sdělení'), 'transactional nature must be explicit');
+const csLegal = renderBillingLifecycleEmail({
+  notification: 'subscription_activated',
+  locale: 'cs',
+  planCode: 'teacher',
+  currentPeriodEnd: '2026-10-19T12:00:00.000Z',
+  legalAcceptance: {
+    termsVersion: activated.termsVersion ?? '',
+    termsAcceptedAt: activated.termsAcceptedAt ?? '',
+    immediateAccessRequested: activated.immediateAccessRequested,
+  },
+});
+assert(csLegal.text.includes('Obchodní podmínky verze 1.0'), 'activation email must confirm the accepted Terms version');
+assert(csLegal.text.includes('okamžité zpřístupnění'), 'activation email must confirm the immediate-access request');
+assert(csLegal.text.includes('10 nových AI lekcí a 20 AI úprav'), 'activation email must use current Teacher allowances');
 
 const en = renderBillingLifecycleEmail({
   notification: 'cancellation_scheduled',

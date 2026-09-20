@@ -507,6 +507,35 @@
   text-align: right;
 }
 
+.checkoutConsents {
+  margin-top: 16px;
+  display: grid;
+  gap: 11px;
+}
+
+.checkoutConsents label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 9px;
+  align-items: start;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.checkoutConsents input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+
+.checkoutConsents a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
 .checkoutError {
   margin-top: 14px;
   padding: 10px 12px;

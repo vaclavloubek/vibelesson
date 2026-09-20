@@ -180,6 +180,13 @@ export async function deliverBillingLifecycleEmail(
     locale,
     planCode: subscription.plan_code,
     currentPeriodEnd: subscription.current_period_end ?? sync.currentPeriodEnd,
+    legalAcceptance: sync.termsVersion && sync.termsAcceptedAt
+      ? {
+          termsVersion: sync.termsVersion,
+          termsAcceptedAt: sync.termsAcceptedAt,
+          immediateAccessRequested: sync.immediateAccessRequested,
+        }
+      : null,
   });
 
   let resendEmailId: string;
