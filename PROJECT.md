@@ -42,6 +42,17 @@ Hlavní doména: `syllonaut.com`.
 
 Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; tento dokument nesmí nahrazovat kontrolu aktuálního `main`.
 
+### Přepočet školních tarifů a komunikace hodnoty — 2026-09-20
+
+Školní ceny byly po konkurenčním benchmarku přepočítány tak, aby lépe odpovídaly českému trhu a současně zachovaly ekonomiku sdílených AI limitů:
+
+- **Team:** 890 Kč/měsíc nebo 8 900 Kč/rok, až 10 učitelů, 200 AI lekcí + 800 AI úprav měsíčně společně;
+- **School:** 2 390 Kč/měsíc nebo 23 900 Kč/rok, až 30 učitelů, 600 AI lekcí + 2 400 AI úprav měsíčně společně;
+- **Campus:** 5 990 Kč/měsíc nebo 59 900 Kč/rok, až 100 učitelů, 2 000 AI lekcí + 8 000 AI úprav měsíčně společně.
+
+Roční cena nadále odpovídá zhruba 10 měsíčním platbám (2 měsíce zdarma). Hlavním prodejním argumentem školních tarifů není počet samotných AI generování, ale celý workflow **zadání → AI příprava → AI úpravy → živá hodina → sběr odpovědí → vyhodnocení**. Pricing stránka proto nově tento proces vizuálně ukazuje ve čtyřech krocích a používá benefitový headline **„Od nápadu až po odučenou hodinu. V jednom tarifu.“**
+
+
 ### Versionování produktu
 
 Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravidlo:
