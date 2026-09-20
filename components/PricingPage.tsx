@@ -96,7 +96,7 @@ const schoolPlansCs: Plan[] = [
   {
     id: 'team',
     name: 'Team',
-    description: 'Pro menší kabinet, metodický tým nebo skupinu učitelů.',
+    description: 'Pro menší tým, který chce připravovat, učit i vyhodnocovat v jednom nástroji.'
     price: { monthlyCzk: 890, annualCzk: 8900, monthlyEur: 37.99, annualEur: 379.9, monthlyUsd: 39.99, annualUsd: 399 },
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
@@ -112,7 +112,7 @@ const schoolPlansCs: Plan[] = [
   {
     id: 'school',
     name: 'School',
-    description: 'Pro školu, která chce Syllonaut zpřístupnit širšímu pedagogickému týmu.',
+    description: 'Pro školu, která chce sjednotit AI přípravu, živou výuku a vyhodnocení napříč sborem.'
     price: { monthlyCzk: 2390, annualCzk: 23900, monthlyEur: 99.99, annualEur: 999.9, monthlyUsd: 109.99, annualUsd: 1099 },
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
@@ -134,7 +134,7 @@ const schoolPlansCs: Plan[] = [
   {
     id: 'campus',
     name: 'Campus',
-    description: 'Pro velkou školu, síť pracovišť nebo instituci s více týmy.',
+    description: 'Pro velkou školu nebo instituci, která chce jeden společný workflow pro více týmů a pracovišť.'
     price: { monthlyCzk: 5990, annualCzk: 59900, monthlyEur: 249.99, annualEur: 2499.9, monthlyUsd: 269.99, annualUsd: 2699 },
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
@@ -194,7 +194,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     ],
   },
   team: {
-    description: 'For a small department, subject team or group of teachers.',
+    description: 'For a small team that wants to prepare, teach and evaluate in one tool.'
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 10 teachers',
@@ -207,7 +207,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     ],
   },
   school: {
-    description: 'For a school that wants to make Syllonaut available to a broader teaching team.',
+    description: 'For schools that want one workflow for AI preparation, live teaching and evaluation across staff.'
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 30 teachers',
@@ -225,7 +225,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     ],
   },
   campus: {
-    description: 'For a large school, multi-site organisation or institution with several teams.',
+    description: 'For large schools or institutions that want one shared workflow across teams and sites.'
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 100 teachers',
@@ -318,6 +318,8 @@ function PlanCard({
           const unlimitedReuseHook = feature === 'Opakované používání lekcí bez omezení'
             || feature === 'Unlimited repeated use of lessons';
           const premiumHook = multilingualTeacherHook
+            || feature.startsWith('Celý tok')
+            || feature.startsWith('Full workflow')
             || worksheetHook
             || unlimitedReuseHook
             || feature.startsWith('AI hodnocení')
