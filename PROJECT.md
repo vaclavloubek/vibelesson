@@ -400,6 +400,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - po produkčním cutoveru `create_live_session_server` a `requeue_response_evaluation_server` používají DB validator `private.trusted_device_hash_valid`, takže school device policy není jen UI/Next.js ochrana;
 - private ledger ani service RPC nejsou dostupné `authenticated` klientovi; device token je stále pouze náhodný 256bit HttpOnly token a v DB se ukládá jen SHA-256 hash;
 - regresní kontrakt: `scripts/verify-organization-member-devices.mjs` + aktualizovaný `scripts/verify-trusted-devices.mjs`.
+- během rollout kontroly byla nalezena paralelní, do `main` nesloučená 5/8 implementace (`organization_user_trusted_devices`); měla 0 řádků a slabší reset, který mohl známý revokovaný token znovu aktivovat. PR #185 byl uzavřen jako superseded a prázdná paralelní DB vrstva se odstraňuje guardovanou cleanup migrací. **Autoritativní politika 0.9.59 je 5 aktivních / 10 nových za 30 dní + hardened reset.**
 
 ### Trusted-device write-boundary hardening 0.9.53 — 2026-09-20
 
