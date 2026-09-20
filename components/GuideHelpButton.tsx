@@ -9,9 +9,10 @@ type Props = {
   step: number;
   labelCs: string;
   labelEn: string;
+  className?: string;
 };
 
-export default function GuideHelpButton({ userId, chapter, step, labelCs, labelEn }: Props) {
+export default function GuideHelpButton({ userId, chapter, step, labelCs, labelEn, className }: Props) {
   const english = useUiLocale() === 'en';
   if (!userId) return null;
 
@@ -20,7 +21,7 @@ export default function GuideHelpButton({ userId, chapter, step, labelCs, labelE
   return (
     <button
       type="button"
-      className="syllonaut-guide-help"
+      className={['syllonaut-guide-help', className].filter(Boolean).join(' ')}
       onClick={() => startSyllonautGuide(userId, chapter, step)}
       aria-label={label}
       title={label}

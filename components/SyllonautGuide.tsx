@@ -164,8 +164,8 @@ const liveSteps: GuideStep[] = [
     target: 'live-start',
     title: { cs: 'Odstartujte hodinu', en: 'Start the lesson' },
     body: {
-      cs: 'Až máte prezentační okno připravené a případné týmy vytvořené, spusťte hodinu. Není nutné čekat na všechny studenty — připojit se mohou i později.',
-      en: 'When the Presenter window is ready and any teams are set up, start the lesson. You do not need to wait for every student — they can still join later.',
+      cs: 'Až jsou studenti připojení a případné týmy vytvořené, spusťte hodinu. Není nutné čekat na všechny studenty — připojit se mohou i později.',
+      en: 'When students are connected and any teams are set up, start the lesson. You do not need to wait for every student — they can still join later.',
     },
     advanceOn: 'signal',
     signal: 'live-started',
@@ -222,6 +222,7 @@ const stepsByChapter: Record<SyllonautGuideChapter, GuideStep[]> = {
 };
 
 const chapterOrder: SyllonautGuideChapter[] = ['lesson', 'live', 'evaluation'];
+const PHONE_PRESENTER_MEDIA = '(max-width: 680px) and (hover: none), (max-height: 500px) and (hover: none)';
 
 function padRect(rect: DOMRect, padding = 8): TargetRect {
   const top = Math.max(8, rect.top - padding);
@@ -268,6 +269,9 @@ export default function SyllonautGuide({ userId }: Props) {
   const english = locale === 'en';
   const [state, setState] = useState<SyllonautGuideState | null>(null);
   const [rect, setRect] = useState<TargetRect | null>(null);
+  const [phonePresenterHidden, setPhonePresenterHidden] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(PHONE_PRESENTER_MEDIA).matches,
+  );
   const targetRef = useRef<HTMLElement | null>(null);
   const optionalTimerRef = useRef<number | null>(null);
   const scrolledStepRef = useRef<string>('');
@@ -324,13 +328,14 @@ export default function SyllonautGuide({ userId }: Props) {
     const currentSteps = stepsByChapter[state.chapter];
 
     for (let previousStep = state.step - 1; previousStep >= 0; previousStep -= 1) {
+      if (state.chapter === 'live' && phonePresenterHidden && previousStep < 2) continue;
       const previous = currentSteps[previousStep];
       if (!previous) continue;
       if (typeof document !== 'undefined' && !document.querySelector(`[data-tour="${previous.target}"]`)) continue;
       persist({ ...state, step: previousStep });
       return;
     }
-  }, [persist, state, userId]);
+  }, [persist, phonePresenterHidden, state, userId]);
 
   const dismiss = useCallback(() => {
     if (!state || !userId) return;
@@ -346,6 +351,19 @@ export default function SyllonautGuide({ userId }: Props) {
     setState(readSyllonautGuideState(userId));
     return subscribeSyllonautGuideState(userId, setState);
   }, [userId]);
+
+  useEffect(() => {
+    const media = window.matchMedia(PHONE_PRESENTER_MEDIA);
+    const update = () => setPhonePresenterHidden(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (!phonePresenterHidden || !state?.running || state.chapter !== 'live' || state.step >= 2 || !userId) return;
+    persist({ ...state, step: 2 });
+  }, [persist, phonePresenterHidden, state, userId]);
 
   useEffect(() => {
     if (!state?.running || !step) {
@@ -469,6 +487,7 @@ export default function SyllonautGuide({ userId }: Props) {
   }, [rect]);
 
   if (!userId || !state?.running || !step || !rect || !blockerStyles) return null;
+  if (phonePresenterHidden && state.chapter === 'live' && state.step < 2) return null;
 
   const chapterNumber = chapterOrder.indexOf(state.chapter) + 1;
   const title = english ? step.title.en : step.title.cs;
@@ -476,7 +495,14 @@ export default function SyllonautGuide({ userId }: Props) {
   const button = step.button ? (english ? step.button.en : step.button.cs) : (english ? 'Continue' : 'Pokračovat');
   const currentStepKey = syllonautGuideStepKey(state.chapter, state.step);
   const stepSatisfied = state.satisfiedSteps.includes(currentStepKey);
-  const canGoBack = state.step > 0;
+  const canGoBack = state.step > 0
+    && !(phonePresenterHidden && state.chapter === 'live' && state.step <= 2);
+  const displayedStepNumber = state.chapter === 'live' && phonePresenterHidden
+    ? Math.max(1, state.step - 1)
+    : state.step + 1;
+  const displayedStepCount = state.chapter === 'live' && phonePresenterHidden
+    ? Math.max(1, steps.length - 2)
+    : steps.length;
   const primaryLabel = stepSatisfied ? (english ? 'Next' : 'Další') : button;
 
   return (
@@ -505,7 +531,7 @@ export default function SyllonautGuide({ userId }: Props) {
         </div>
         <div className="syllonaut-guide-progress">
           <span>{english ? `Chapter ${chapterNumber} of 3` : `Kapitola ${chapterNumber} ze 3`}</span>
-          <span>{state.step + 1} / {steps.length}</span>
+          <span>{displayedStepNumber} / {displayedStepCount}</span>
         </div>
         <h2>{title}</h2>
         <p>{body}</p>

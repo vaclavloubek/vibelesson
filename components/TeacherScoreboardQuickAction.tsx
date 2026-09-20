@@ -113,9 +113,9 @@ export default function TeacherScoreboardQuickAction({ sessionId, userId }: { se
 
   return createPortal(
     <>
-      <GuideHelpButton userId={userId} chapter="live" step={0} labelCs="Jak promítat studentům" labelEn="How to present to students" />
+      <GuideHelpButton userId={userId} chapter="live" step={0} labelCs="Jak promítat studentům" labelEn="How to present to students" className="phone-hide-presenter" />
       <a
-        className="secondary button-link"
+        className="secondary button-link phone-hide-presenter"
         data-tour="live-presenter"
         href={`/sessions/${sessionId}/presenter`}
         target="_blank"
