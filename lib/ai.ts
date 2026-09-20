@@ -254,9 +254,9 @@ function normalizeLesson(
   });
 }
 
-function workModeCompatible(lesson: Lesson, workMode?: LessonWorkMode) {
+function workModeCompatible(value: { blocks: Array<{ type: string }> }, workMode?: LessonWorkMode) {
   if (!workMode) return true;
-  const hasTeamTask = lesson.blocks.some((block) => block.type === 'team_task');
+  const hasTeamTask = value.blocks.some((block) => block.type === 'team_task');
   return workMode === 'individual' ? !hasTeamTask : hasTeamTask;
 }
 
@@ -408,25 +408,24 @@ export async function createLesson(
   }
 
   const firstResult = await generateAttempt();
-  let lesson = normalizeLesson(firstResult.output, input.gradingStrictness ?? 'neutral', {
-    workMode: input.workMode,
-    groupSize: effectiveGroupSize,
-  });
+  let output = firstResult.output;
   let costUsd = getGatewayCost(firstResult.providerMetadata);
 
-  if (!workModeCompatible(lesson, input.workMode)) {
+  if (!workModeCompatible(output, input.workMode)) {
     const retryResult = await generateAttempt(`\n\nOPRAVA REŽIMU PRÁCE — ZÁVAZNÉ:
 Předchozí návrh porušil zvolený režim práce. Vrať celý návrh znovu a bez výjimky dodrž pravidla REŽIM PRÁCE výše.`);
-    lesson = normalizeLesson(retryResult.output, input.gradingStrictness ?? 'neutral', {
-      workMode: input.workMode,
-      groupSize: effectiveGroupSize,
-    });
+    output = retryResult.output;
     costUsd = combineCosts(costUsd, getGatewayCost(retryResult.providerMetadata));
   }
 
-  if (!workModeCompatible(lesson, input.workMode)) {
+  if (!workModeCompatible(output, input.workMode)) {
     throw new Error('Generated lesson violates the selected work mode.');
   }
+
+  const lesson = normalizeLesson(output, input.gradingStrictness ?? 'neutral', {
+    workMode: input.workMode,
+    groupSize: effectiveGroupSize,
+  });
 
   onProgress?.('validating');
   return { lesson, costUsd };
@@ -453,24 +452,23 @@ export async function reviseLesson(lesson: Lesson, instruction: string, options:
   }
 
   const firstResult = await generateRevision();
-  let revised = normalizeLesson(firstResult.output, lesson.gradingStrictness ?? 'neutral', {
-    workMode: lesson.workMode,
-    groupSize: lesson.workMode === 'individual' ? '1' : undefined,
-  });
+  let output = firstResult.output;
   let costUsd = getGatewayCost(firstResult.providerMetadata);
 
-  if (!workModeCompatible(revised, lesson.workMode)) {
+  if (!workModeCompatible(output, lesson.workMode)) {
     const retryResult = await generateRevision(`\n\nOPRAVA REŽIMU PRÁCE — ZÁVAZNÉ: Předchozí návrh změnil nebo porušil režim práce. Zachovej explicitní režim existující lekce přesně.`);
-    revised = normalizeLesson(retryResult.output, lesson.gradingStrictness ?? 'neutral', {
-      workMode: lesson.workMode,
-      groupSize: lesson.workMode === 'individual' ? '1' : undefined,
-    });
+    output = retryResult.output;
     costUsd = combineCosts(costUsd, getGatewayCost(retryResult.providerMetadata));
   }
 
-  if (!workModeCompatible(revised, lesson.workMode)) {
+  if (!workModeCompatible(output, lesson.workMode)) {
     throw new Error('Revision violates the lesson work mode.');
   }
+
+  const revised = normalizeLesson(output, lesson.gradingStrictness ?? 'neutral', {
+    workMode: lesson.workMode,
+    groupSize: lesson.workMode === 'individual' ? '1' : undefined,
+  });
   if (languageLocked && lesson.language && revised.language !== lesson.language) {
     throw new Error('Revision changed a locked lesson language.');
   }
@@ -540,6 +538,10 @@ Předchozí návrh změnil časovou dotaci, ale faktický studentský úkol zůs
     if (durationChangeNeedsSubstantiveRetry(block, revisedBlock, instruction)) {
       throw new Error('Block duration changed substantially without a corresponding substantive activity change.');
     }
+  }
+
+  if (violatesWorkMode(revisedBlock)) {
+    throw new Error('Block revision violates the lesson work mode.');
   }
 
   return { block: revisedBlock, costUsd };
