@@ -14,6 +14,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
+import IntegrityChallenge from '@/components/IntegrityChallenge';
 import StudentRevealedResults from '@/components/StudentRevealedResults';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
@@ -288,6 +289,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       ) : null}
 
       {state?.status === 'live' ? (
+        <><IntegrityChallenge sessionId={sessionId} />
         <div style={{ display: 'grid', gap: 12 }}>
           <section className="panel student-session-head">
             <div className="student-session-kicker">
@@ -385,7 +387,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               )}
             </>
           ) : <div className="error" role="status">{ui('Čekám na aktivní blok…', 'Waiting for the active block…')}</div>}
-        </div>
+        </div></>
       ) : null}
 
       {state?.status === 'ended' ? (
