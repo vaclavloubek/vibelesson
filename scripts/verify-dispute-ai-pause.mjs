@@ -18,6 +18,7 @@ for (const [needle, label] of [
   ['individual_ai_billing_pause_reason', 'central pause reason'],
   ["then 'dispute'", 'open dispute pause reason'],
   ["release_reason = 'subsequent_payment'", 'lost dispute unlock after later payment'],
+  ["^d[pu]_[A-Za-z0-9_]+$", 'both Stripe dispute ID prefixes are accepted'],
   ['sync_stripe_dispute_event', 'service-only dispute event sync'],
   ["p_status in ('won', 'warning_closed')", 'won dispute automatic unlock'],
   ["charge.dispute.funds_reinstated", 'late win/funds reinstatement unlock'],
