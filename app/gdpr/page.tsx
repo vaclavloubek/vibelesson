@@ -79,7 +79,7 @@ export default async function GdprPage() {
 
         <section>
           <h2>{ui('1. Správce osobních údajů', '1. Data controller')}</h2>
-          <p><strong>Václav Loubek</strong><br />Slepá 868<br />289 23 Milovice<br />{ui('Česká republika', 'Czech Republic')}</p>
+          <p><strong>Václav Loubek</strong><br />IČO: 88878431<br />Slepá 868<br />289 24 Milovice – Mladá<br />{ui('Česká republika', 'Czech Republic')}</p>
           <p>{ui('Správce provozuje službu Syllonaut na doméně', 'The controller operates Syllonaut at')} <strong>syllonaut.com</strong>. {ui('Pro dotazy k ochraně soukromí nás můžete kontaktovat na', 'For privacy-related questions, contact')} <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a>.</p>
         </section>
 
@@ -140,7 +140,7 @@ export default async function GdprPage() {
         <section>
           <h2>{ui('7. Studenti a školní použití', '7. Students and school use')}</h2>
           <p>{ui('Student pro připojení k živé lekci nepotřebuje plnohodnotný účet. Zadává zobrazované jméno a během výuky může odesílat odpovědi. Učitel by měl požadovat jen takové označení studenta, které je pro konkrétní hodinu potřebné.', 'A student does not need a full account to join a live lesson. They enter a display name and may submit responses during the lesson. Teachers should request only the student identifier needed for the specific lesson.')}</p>
-          <p>{ui('U budoucích školních účtů může být správcem osobních údajů škola a Syllonaut jejím zpracovatelem. Konkrétní role a smluvní podmínky budou před komerčním školním nasazením upraveny samostatně.', 'For future school accounts, the school may act as data controller and Syllonaut as its processor. Specific roles and contractual terms will be addressed separately before commercial school deployment.')}</p>
+          <p>{ui('U školních účtů může být v závislosti na konkrétním zpracování správcem osobních údajů škola a Syllonaut jejím zpracovatelem. Příslušné role a povinnosti mohou být upraveny samostatnou smlouvou o zpracování osobních údajů.', 'For school accounts, the school may, depending on the specific processing, act as data controller and Syllonaut as its processor. The relevant roles and obligations may be covered by a separate data-processing agreement.')}</p>
         </section>
 
         <section>
