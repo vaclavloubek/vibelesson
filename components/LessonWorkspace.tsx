@@ -873,7 +873,7 @@ export default function LessonWorkspace({
                       <option value="teams">{ui('Ano, kombinovat individuální a týmové', 'Yes, combine individual and team activities')}</option>
                     </select>
                   </label>
-                  {collaborationMode === 'teams' ? <label>{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label> : null}
+                  {collaborationMode === 'teams' ? <label className="team-size-field">{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label> : null}
                   <label>{ui('Tón', 'Tone')}<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder={ui('např. živý, praktický a lehce vtipný', 'e.g. lively, practical and lightly humorous')} required /></label>
                 </div>
                 {aiGradingEnabled ? (
