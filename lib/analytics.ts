@@ -69,6 +69,7 @@ type AnalyticsEventParameters = {
     source: 'stripe_live';
   };
   billing_portal_open: { source: 'pricing_sandbox' | 'pricing_live_acceptance' | 'pricing_live' };
+  contact_inquiry_submit: { result: 'success' | 'error' | 'rate_limited' };
 
   signup_started: undefined;
   signup_completed: undefined;
@@ -150,6 +151,7 @@ const EVENT_PARAMETER_KEYS: { [K in AnalyticsEventName]: readonly (keyof NonNull
   checkout_complete: ['source'],
   subscription_activated: ['plan', 'source'],
   billing_portal_open: ['source'],
+  contact_inquiry_submit: ['result'],
 
   signup_started: [],
   signup_completed: [],
