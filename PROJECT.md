@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.62** doplňuje před veřejným školním billingem organization payment-loss hardening: kartové `past_due` okamžitě pozastaví nové školní AI náklady, ale během 14denní grace zachová správu školy, uložené lekce a živou výuku; otevřený/prohraný dispute a plný refund používají amount-aware lock s recovery podle skutečných Stripe PaymentIntentů. Bankovní faktury zůstávají na přísnějším modelu aktivace až po potvrzené platbě. Předchozí 0.9.61 ukotvila individuální placené AI kvóty ke Stripe billing periodě. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -430,6 +430,15 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - nepoužívané authenticated compatibility wrappery `reserve_lesson_generation()` a `reserve_revision_operation(text)` jsou odebrané klientské cestě; nákladová AI reservation je pouze service-role server-authoritative;
 - regresní kontrakt: `scripts/verify-billing-anchored-ai-quotas.mjs`.
 
+### AI quota completion boundary 0.9.63 — 2026-09-20
+
+- Produkční audit potvrdil praktický bypass: `public.finish_generation_request(...)` byl `SECURITY DEFINER` a přímo spustitelný rolí `authenticated`. Uživatel mohl po serverové rezervaci vlastní `pending` request označit jako `failed`, zatímco placený AI call dál běžel; pozdější legitimní `succeeded` completion pak kvůli podmínce `status='pending'` nic nezměnil.
+- Dopad se týkal generování nové lekce i AI revizí; u Free mohl předčasný `failed` současně uvolnit i device-budget reservation.
+- Nový `finish_generation_request_server(p_user_id,...)` je dostupný pouze `service_role`, explicitně váže completion na serverem známé `userId` a zachovává atomické dokončení Free device-budget reservation.
+- Původní `finish_generation_request(...)` je odebraný rolím `public`, `anon`, `authenticated` i `service_role`; přímé klientské completion cesty jsou tím fail-closed.
+- `/api/generate`, `/api/revise` a `/api/revise-block` používají pro success i error cleanup pouze admin klienta a nový serverový RPC.
+- Před změnou prošel rollback test proti produkčnímu schématu; regresní kontrakt: `scripts/verify-generation-completion-boundary.mjs`.
+
 ### Organization payment-loss AI pause 0.9.62 — 2026-09-20
 
 - Team / School / Campus mají samostatný server-authoritative payment-loss stav pro kartový billing: `past_due`, otevřený/prohraný dispute a full refund zastavují **nové AI generování, AI revize a AI grading**, ale samy o sobě neznepřístupní správu školy, uložené lekce ani živou výuku;
@@ -491,8 +500,9 @@ Následující scénáře jsou po auditu 2026-09-20 považované za významněj�
 3. **Placené AI kvóty jsou ukotvené ke kalendářnímu měsíci místo billing period — IMPLEMENTED 0.9.61.** Teacher/Teacher Pro lesson+revision quota používá autoritativní LIVE Stripe periodu; monthly přímo `current_period_start/end`, annual měsíční subwindow od annual anchoru. Free a organization pool zůstávají calendar-based; chybějící placená perioda failuje uzavřeně.
 4. **Free device budget lze privacy-minimal modelu obejít smazáním device cookie + novými účty — KNOWN RESIDUAL.** Robustnější prevence by vyžadovala stabilnější cross-cookie signál. Bez dalšího rozhodnutí nezavádět browser/hardware fingerprinting. Pokud se riziko stane významné, preferovat krátkodobý privacy-preserving edge rate-limit před fingerprintingem a předem posoudit GDPR/privacy dopady a false positives.
 5. **Organization refund/dispute/payment-failure ochrana před veřejným školním billingem — IMPLEMENTED 0.9.62.** Card `past_due` používá AI-only 14denní grace, dispute/full refund mají amount-aware recovery z přesných Stripe PaymentIntentů a AI generation/revision/grading používají jednotný organization-aware DB/server gate. Hard licence stavy a bankovní invoice workflow zůstávají oddělené.
+6. **Předčasné klientské uvolnění AI kvóty přes `finish_generation_request` — IMPLEMENTED 0.9.63.** Completion rezervace je service-role only; klient už nemůže vlastní běžící request označit jako `failed` a nechat server dokončit placenou AI operaci mimo kvótu. Generování i obě revizní cesty používají jednotný serverový completion RPC.
 
-Body **1, 2, 3 a 5 jsou implementované**. Bod 4 zůstává vědomé privacy/abuse trade-off riziko a bez dat o skutečné ztrátě se nemá řešit fingerprintingem.
+Body **1, 2, 3, 5 a 6 jsou implementované**. Bod 4 zůstává vědomé privacy/abuse trade-off riziko a bez dat o skutečné ztrátě se nemá řešit fingerprintingem.
 
 Pravidla dalšího anti-abuse kola:
 
