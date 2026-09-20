@@ -23,6 +23,10 @@ requirePattern(landing, /<LandingContactForm\s*\/>/, 'landing page must render t
 requirePattern(landing, /SectionCue href="#kontakt"/, 'the final landing CTA must keep the guided down-arrow into the inquiry section.');
 requirePattern(form, /id="kontakt"/, 'inquiry section anchor is missing.');
 requirePattern(form, /Zůstala vám otázka mimo radar\?/, 'approved light space-tone heading is missing.');
+requirePattern(form, /Is there still a question beyond the radar\?/, 'English space-tone heading is missing.');
+requirePattern(form, /Send the signal/, 'English inquiry CTA is missing.');
+requirePattern(form, /Signal received\. We will reply to the email you provided\./, 'English success feedback is missing.');
+requirePattern(form, /Several signals arrived in quick succession\. Please try again in a few minutes\./, 'English rate-limit feedback is missing.');
 requirePattern(form, /type="email"/, 'email input is missing.');
 requirePattern(form, /<textarea[\s\S]*name="message"/, 'question textarea is missing.');
 requirePattern(form, /name="company"/, 'honeypot field is missing.');
