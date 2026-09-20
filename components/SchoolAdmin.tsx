@@ -83,6 +83,13 @@ type Summary = {
     email: string | null;
     role: 'owner' | 'admin' | 'teacher';
     joinedAt: string;
+    deviceUsage: {
+      required: boolean;
+      activeCount: number;
+      maxActive: number;
+      newIn30Days: number;
+      maxNewIn30Days: number;
+    } | null;
   }>;
   invitations: Array<{
     id: string;
@@ -966,6 +973,37 @@ export default function SchoolAdmin({
       setMessage(ui('Roli se nepodařilo změnit.', 'The role could not be changed.'));
       return;
     }
+    await load();
+  }
+
+  async function resetMemberDevices(userId: string, email: string | null) {
+    if (!window.confirm(ui(
+      `Odpojit všechna důvěryhodná zařízení uživatele ${email ?? ''}? Limit nových zařízení za 30 dní zůstane zachovaný.`,
+      `Disconnect all trusted devices for ${email ?? 'this user'}? The 30-day new-device history will be preserved.`,
+    ))) return;
+
+    setBusy(true);
+    const response = await fetch(
+      '/api/organizations/members/' + encodeURIComponent(userId) + '/devices/reset',
+      { method: 'POST' },
+    );
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Zařízení uživatele se nepodařilo resetovat.',
+        'The user devices could not be reset.',
+      ));
+      return;
+    }
+
+    setMessageKind('success');
+    setMessage(ui(
+      'Aktivní zařízení byla odpojena. Historie nových zařízení za 30 dní zůstala zachovaná.',
+      'Active devices were disconnected. The 30-day new-device history was preserved.',
+    ));
     await load();
   }
 
@@ -1862,6 +1900,7 @@ export default function SchoolAdmin({
                     <tr>
                       <th>E-mail</th>
                       <th>{ui('Role', 'Role')}</th>
+                      {summary.manager ? <th>{ui('Zařízení', 'Devices')}</th> : null}
                       {summary.manager ? <th>{ui('Akce', 'Actions')}</th> : null}
                     </tr>
                   </thead>
@@ -1875,7 +1914,27 @@ export default function SchoolAdmin({
                         <td>{roleLabel(member.role, english)}</td>
                         {summary.manager ? (
                           <td>
+                            {member.deviceUsage?.required
+                              ? `${member.deviceUsage.activeCount}/${member.deviceUsage.maxActive} · ${member.deviceUsage.newIn30Days}/${member.deviceUsage.maxNewIn30Days} / 30 d`
+                              : '—'}
+                          </td>
+                        ) : null}
+                        {summary.manager ? (
+                          <td>
                             <div className={styles.rowActions}>
+                              {member.deviceUsage?.required
+                                && member.userId !== initialUser.id
+                                && member.role !== 'owner'
+                                && (summary.role === 'owner' || member.role === 'teacher') ? (
+                                  <button
+                                    type="button"
+                                    className={styles.secondary}
+                                    disabled={busy}
+                                    onClick={() => resetMemberDevices(member.userId, member.email)}
+                                  >
+                                    {ui('Reset zařízení', 'Reset devices')}
+                                  </button>
+                                ) : null}
                               {member.role !== 'owner' ? (
                                 <>
                                   <button
