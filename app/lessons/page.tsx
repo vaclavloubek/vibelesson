@@ -15,7 +15,7 @@ import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
-import { getIndividualAiBillingPauseReason } from '@/lib/individual-ai-billing';
+import { getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,9 +55,14 @@ export default async function LessonsPage({ searchParams }: Props) {
 
   const entitlement = await getLessonFolderEntitlement(supabase, userId);
   const reusableLessons = await getLessonReuseEntitlement(supabase);
-  let aiBillingPauseReason: 'past_due' | 'dispute' | 'refund' | null = null;
+  let aiBillingState: Awaited<ReturnType<typeof getEffectiveAiBillingPauseState>> = {
+    reason: null,
+    scope: null,
+    organizationId: null,
+    manager: false,
+  };
   try {
-    aiBillingPauseReason = await getIndividualAiBillingPauseReason(userId);
+    aiBillingState = await getEffectiveAiBillingPauseState(userId);
   } catch (billingError) {
     console.error('load AI billing pause state failed', billingError);
   }
@@ -180,7 +185,13 @@ export default async function LessonsPage({ searchParams }: Props) {
         </div>
       </header>
 
-      {aiBillingPauseReason ? <AiPaymentPauseBanner reason={aiBillingPauseReason} /> : null}
+      {aiBillingState.reason ? (
+        <AiPaymentPauseBanner
+          reason={aiBillingState.reason}
+          scope={aiBillingState.scope}
+          manager={aiBillingState.manager}
+        />
+      ) : null}
 
       <section className="lessons-heading">
         <div>
