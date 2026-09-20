@@ -1,13 +1,22 @@
 import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { currentTrustedDeviceHash, requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { generateJoinCode, generateRealtimeKey } from '@/lib/live-server';
 import { LessonSchema } from '@/lib/schema';
 import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-server';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const CreateSessionSchema = z.object({ lessonId: z.string().uuid() });
+
+type CreatedSessionRow = {
+  id: string;
+  join_code: string;
+  status: 'lobby';
+  realtime_key: string;
+  lesson_snapshot: unknown;
+};
 
 async function findActiveSession(
   supabase: Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase'],
@@ -53,7 +62,7 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
 
-    const lessonSnapshot = LessonSchema.parse(lessonRow.lesson);
+    LessonSchema.parse(lessonRow.lesson);
     const active = await findActiveSession(supabase, userId);
     if (active.error) throw active.error;
     if (active.data) {
@@ -63,26 +72,23 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
 
+    const admin = createAdminClient();
+    const deviceHash = await currentTrustedDeviceHash();
+
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const joinCode = generateJoinCode();
       const realtimeKey = generateRealtimeKey();
-      const { data: session, error: insertError } = await supabase
-        .from('sessions')
-        .insert({
-          lesson_id: lessonId,
-          teacher_id: userId,
-          join_code: joinCode,
-          status: 'lobby',
-          active_block_id: null,
-          lesson_snapshot: lessonSnapshot,
-          realtime_key: realtimeKey,
-          started_at: null,
-          ended_at: null,
-        })
-        .select('id, join_code, status, realtime_key')
-        .single();
+      const { data: sessionData, error: insertError } = await admin.rpc('create_live_session_server', {
+        p_user_id: userId,
+        p_lesson_id: lessonId,
+        p_join_code: joinCode,
+        p_realtime_key: realtimeKey,
+        p_device_token_hash: deviceHash,
+      });
+      const session = sessionData as CreatedSessionRow | null;
 
       if (!insertError && session) {
+        const lessonSnapshot = LessonSchema.parse(session.lesson_snapshot);
         after(async () => {
           await bootstrapLiveControl({
             sessionId: session.id,
@@ -106,6 +112,13 @@ export async function POST(req: Request) {
           status: session.status,
           realtimeKey: session.realtime_key,
         });
+      }
+
+      if (insertError?.message?.includes('trusted_device_required')) {
+        return NextResponse.json({
+          error: trustedDeviceErrorMessage('trusted_device_required'),
+          code: 'trusted_device_required',
+        }, { status: 403 });
       }
 
       if (insertError?.message?.includes('free_lesson_replay_locked')) {
