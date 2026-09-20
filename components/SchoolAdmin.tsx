@@ -7,6 +7,7 @@ import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
+import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -103,6 +104,11 @@ type Summary = {
     invoice_pdf_url: string | null;
     external_subscription_id: string | null;
     livemode: boolean;
+    invoice_number: string | null;
+    invoice_issued_at: string | null;
+    invoice_due_date: string | null;
+    payment_confirmation_source: string | null;
+    bank_transaction_reference: string | null;
   }>;
 };
 
@@ -1023,6 +1029,9 @@ export default function SchoolAdmin({
   }
 
   const selectedPlan = ORGANIZATION_PLANS[planCode];
+  const pendingOrder = summary?.orders.find(
+    (order) => order.status === 'awaiting_payment' || order.status === 'ordered',
+  ) ?? null;
 
   return (
     <main className={styles.page}>
@@ -1034,6 +1043,11 @@ export default function SchoolAdmin({
           </Link>
 
           <div className={styles.topActions}>
+            {initialUser?.id === SUPERADMIN_USER_ID ? (
+              <Link className={styles.back} href="/admin/school-invoices">
+                {ui('Všechny faktury', 'All invoices')}
+              </Link>
+            ) : null}
             <LocaleSwitcher />
             {initialUser ? (
               <PublicHeaderAccountMenu
@@ -1255,7 +1269,7 @@ export default function SchoolAdmin({
                   onChange={(event) => setPaymentMethod(event.target.value as 'invoice' | 'card')}
                 >
                   <option value="invoice">
-                    {ui('Faktura', 'Invoice')}
+                    {ui('Faktura / bankovní převod', 'Invoice / bank transfer')}
                   </option>
                   <option value="card">
                     {ui('Platební karta', 'Payment card')}
@@ -1268,7 +1282,9 @@ export default function SchoolAdmin({
                   <button className={styles.primary} type="submit" disabled={busy}>
                     {busy
                       ? ui('Zakládám…', 'Creating…')
-                      : ui('Pokračovat k platbě', 'Continue to payment')}
+                      : paymentMethod === 'invoice'
+                        ? ui('Vystavit fakturu', 'Issue invoice')
+                        : ui('Pokračovat k platbě', 'Continue to payment')}
                   </button>
                   <button
                     className={styles.secondary}
@@ -1322,7 +1338,9 @@ export default function SchoolAdmin({
                       disabled={busy}
                       onClick={retryPayment}
                     >
-                      {ui('Pokračovat k platbě', 'Continue to payment')}
+                      {pendingOrder?.payment_method === 'invoice'
+                        ? ui('Zobrazit fakturu', 'View invoice')
+                        : ui('Pokračovat k platbě', 'Continue to payment')}
                     </button>
                   ) : null}
                 </>
@@ -2010,30 +2028,61 @@ export default function SchoolAdmin({
                               )}
                             </td>
                             <td>{money(order.amount_minor, order.currency, locale)}</td>
-                            <td>{order.payment_method}</td>
-                            <td>{order.status}</td>
+                            <td>
+                              {order.payment_method === 'invoice'
+                                ? ui('Faktura / převod', 'Invoice / transfer')
+                                : ui('Karta', 'Card')}
+                            </td>
+                            <td>
+                              {order.payment_method === 'invoice'
+                                ? order.status === 'paid'
+                                  ? ui('Zaplacená', 'Paid')
+                                  : ui('Nezaplacená', 'Unpaid')
+                                : order.status}
+                            </td>
                             <td>
                               <div className={styles.rowActions}>
-                                {order.hosted_invoice_url ? (
-                                  <a
-                                    className={styles.back}
-                                    href={order.hosted_invoice_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    {ui('Faktura', 'Invoice')}
-                                  </a>
-                                ) : null}
-                                {order.invoice_pdf_url ? (
-                                  <a
-                                    className={styles.back}
-                                    href={order.invoice_pdf_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    PDF
-                                  </a>
-                                ) : null}
+                                {order.invoice_number ? (
+                                  <>
+                                    <a
+                                      className={styles.back}
+                                      href={'/school/invoices/' + order.id}
+                                    >
+                                      {order.invoice_number}
+                                    </a>
+                                    <a
+                                      className={styles.back}
+                                      href={'/api/organizations/invoices/' + order.id + '/pdf'}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      PDF
+                                    </a>
+                                  </>
+                                ) : (
+                                  <>
+                                    {order.hosted_invoice_url ? (
+                                      <a
+                                        className={styles.back}
+                                        href={order.hosted_invoice_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        {ui('Faktura', 'Invoice')}
+                                      </a>
+                                    ) : null}
+                                    {order.invoice_pdf_url ? (
+                                      <a
+                                        className={styles.back}
+                                        href={order.invoice_pdf_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        PDF
+                                      </a>
+                                    ) : null}
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
