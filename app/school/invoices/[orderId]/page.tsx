@@ -145,7 +145,10 @@ export default async function OrganizationInvoicePage({
               {invoice.snapshot.seller.postalCode} {invoice.snapshot.seller.city}<br />
               {invoice.snapshot.seller.country}<br />
               IČO: {invoice.snapshot.seller.registrationNumber}<br />
-              {invoice.snapshot.seller.vatId ? <>DIČ / VAT ID: {invoice.snapshot.seller.vatId}</> : null}
+              {invoice.snapshot.seller.vatId ? <>DIČ / VAT ID: {invoice.snapshot.seller.vatId}<br /></> : null}
+              {(invoice.snapshot.seller.vatPayer ?? Boolean(invoice.snapshot.seller.vatId))
+                ? null
+                : <strong>{ui('Dodavatel není plátcem DPH.', 'Supplier is not registered for VAT.')}</strong>}
             </p>
           </section>
 
