@@ -5,6 +5,7 @@ export const BlockTypeSchema = z.enum([
 ]);
 
 export const GradingStrictnessSchema = z.enum(['lenient', 'neutral', 'strict']);
+export const LessonWorkModeSchema = z.enum(['individual', 'teams']);
 export const LanguageTagSchema = z.string().trim().regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/, 'Neplatný jazykový kód.');
 
 export const GradingCriterionSchema = z.object({
@@ -53,6 +54,7 @@ export const LessonSchema = z.object({
   audience: z.string().min(1),
   totalMinutes: z.number().int().min(10).max(360),
   groupSize: z.string().min(1),
+  workMode: LessonWorkModeSchema.optional(),
   language: LanguageTagSchema.optional(),
   gradingStrictness: GradingStrictnessSchema.optional(),
   learningObjectives: z.array(z.string()).min(2).max(6),
@@ -63,4 +65,5 @@ export type Lesson = z.infer<typeof LessonSchema>;
 export type LessonBlock = z.infer<typeof LessonBlockSchema>;
 export type GradingCriterion = z.infer<typeof GradingCriterionSchema>;
 export type GradingStrictness = z.infer<typeof GradingStrictnessSchema>;
+export type LessonWorkMode = z.infer<typeof LessonWorkModeSchema>;
 export type LessonDataTable = z.infer<typeof DataTableSchema>;
