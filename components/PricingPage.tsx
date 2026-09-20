@@ -358,11 +358,14 @@ function PlanCard({
         <Link
           className={styles.activeCta}
           href={schoolCheckoutHref}
-          onClick={() => trackEvent('plan_select', {
-            plan: plan.id,
-            billing_period: billing,
-            source: 'pricing_school_live',
-          })}
+          onClick={() => {
+            if (plan.id !== 'team' && plan.id !== 'school' && plan.id !== 'campus') return;
+            trackEvent('plan_select', {
+              plan: plan.id,
+              billing_period: billing,
+              source: 'pricing_school_live',
+            });
+          }}
         >
           {english ? 'Choose plan' : 'Vybrat plán'}
         </Link>
