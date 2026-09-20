@@ -14,7 +14,7 @@ const forbidText = (content, needle, label) => {
   }
 };
 
-const migration = read('supabase/migrations/20260920120000_lock_generation_completion_server_side.sql');
+const migration = read('supabase/migrations/20260920115314_lock_generation_completion_server_side.sql');
 for (const [needle, label] of [
   ['finish_generation_request_server', 'service-only completion RPC'],
   ['p_user_id uuid', 'server completion binds explicit user id'],
