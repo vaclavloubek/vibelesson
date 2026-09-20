@@ -16,6 +16,7 @@ const AIGradingOutputSchema = z.object({
   confidence: z.number(),
   aiUseSuspicion: z.enum(['none', 'low', 'high']),
   aiUseSignals: z.array(z.string().trim().min(1).max(240)).max(3),
+  integrityChallengeQuestion: z.string().trim().min(10).max(500).nullable(),
 });
 
 const GradingInputSchema = z.object({
@@ -47,6 +48,7 @@ export type GradingResult = {
   confidence: number;
   aiUseSuspicion: AIUseSuspicion;
   aiUseSignals: string[];
+  integrityChallengeQuestion: string | null;
   needsReview: boolean;
   model: string;
   costUsd: number | null;
@@ -113,6 +115,8 @@ Integrita odpovědi — samostatný signál, který NESMÍ ovlivnit body ani gra
 - U krátkých odpovědí buď zvlášť zdrženlivý. Pokud nejsou přítomné alespoň dva konkrétní signály, vrať "none" nebo "low".
 - aiUseSignals obsahuje nejvýše tři stručné popisy konkrétních znaků v textu. Nevkládej obecné soudy typu "zní jako AI".
 - Tento integrity signál nikdy nepoužívej k úpravě criterion points, overallRationale ani confidence.
+- Pokud aiUseSuspicion = "high", vytvoř integrityChallengeQuestion: jednu krátkou ověřovací otázku založenou na konkrétním tvrzení nebo pojmu z odpovědi. Student ji má zvládnout 1–2 větami bez nové látky. Otázka má být ve stejném jazyce jako odpověď a nesmí prozrazovat podezření na AI.
+- Pokud aiUseSuspicion není "high", vrať integrityChallengeQuestion = null.
 
 Nastavení přísnosti pro tuto odpověď:
 ${gradingStrictnessInstructions[input.strictness]}`,
@@ -173,12 +177,16 @@ ${gradingStrictnessInstructions[input.strictness]}`,
   const aiUseSignals = Array.from(new Set(output.aiUseSignals.map((signal) => signal.trim()).filter(Boolean))).slice(0, 3);
   const highSuspicionEligible = input.answerText.length >= 280
     && output.aiUseSuspicion === 'high'
-    && aiUseSignals.length >= 2;
+    && aiUseSignals.length >= 2
+    && Boolean(output.integrityChallengeQuestion);
   const aiUseSuspicion: AIUseSuspicion = highSuspicionEligible
     ? 'high'
     : output.aiUseSuspicion === 'none'
       ? 'none'
       : 'low';
+  const integrityChallengeQuestion = aiUseSuspicion === 'high'
+    ? output.integrityChallengeQuestion
+    : null;
 
   return {
     score,
@@ -188,6 +196,7 @@ ${gradingStrictnessInstructions[input.strictness]}`,
     confidence: output.confidence,
     aiUseSuspicion,
     aiUseSignals,
+    integrityChallengeQuestion,
     needsReview: output.confidence < 0.7 || aiUseSuspicion === 'high',
     model: gradingModel,
     costUsd: getGatewayCost(providerMetadata),
