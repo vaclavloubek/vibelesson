@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
-import { GradingStrictnessSchema } from '@/lib/schema';
+import { CollaborationModeSchema, GradingStrictnessSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -30,6 +30,7 @@ const InputSchema = z.object({
   audience: z.string().min(1).max(200),
   duration: z.number().int().min(10).max(360),
   groupSize: z.string().min(1).max(100),
+  collaborationMode: CollaborationModeSchema,
   tone: z.string().min(1).max(200),
   lessonLanguage: z.string().trim().min(1).max(100).default('auto'),
   uiLocale: z.enum(['cs', 'en']).default('cs'),
@@ -120,6 +121,9 @@ export async function POST(req: Request) {
     const effectiveLessonLanguage = multilingualLessonsEnabled
       ? input.lessonLanguage
       : requestLocale;
+    const effectiveGroupSize = input.collaborationMode === 'individual'
+      ? (requestLocale === 'en' ? 'Individuals' : 'Jednotlivci')
+      : input.groupSize;
 
     if (input.gradingStrictness !== 'neutral' && !aiGradingEnabled) {
       return NextResponse.json({ error: 'Nastavení přísnosti AI hodnocení není pro tento tarif dostupné.' }, { status: 403 });
@@ -230,7 +234,8 @@ export async function POST(req: Request) {
               prompt: input.prompt,
               audience: input.audience,
               duration: input.duration,
-              groupSize: input.groupSize,
+              groupSize: effectiveGroupSize,
+              collaborationMode: input.collaborationMode,
               tone: input.tone,
               lessonLanguage: effectiveLessonLanguage,
               uiLocale: requestLocale,
