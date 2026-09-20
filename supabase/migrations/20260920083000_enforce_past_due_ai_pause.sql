@@ -38,7 +38,33 @@ as $function$
 declare
   v_token text;
   v_hash text;
+  v_user_id uuid;
 begin
+  select s.teacher_id
+  into v_user_id
+  from public.response_evaluations e
+  join public.sessions s on s.id = e.session_id
+  where e.id = p_evaluation_id;
+
+  if v_user_id is not null
+     and private.individual_ai_billing_paused(v_user_id) then
+    update public.response_evaluations
+    set status = 'needs_review',
+        grader_version = 'manual-payment-v1',
+        error = null,
+        updated_at = now()
+    where id = p_evaluation_id
+      and (
+        status = 'pending'
+        or (status = 'grading' and updated_at < now() - interval '5 minutes')
+      );
+
+    delete from private.grading_jobs
+    where evaluation_id = p_evaluation_id;
+
+    return false;
+  end if;
+
   if not exists (
     select 1
     from public.response_evaluations e
@@ -46,7 +72,6 @@ begin
     join public.profiles p on p.id = s.teacher_id
     where e.id = p_evaluation_id
       and (coalesce(p.ai_grading_enabled, false) or p.role = 'admin')
-      and not private.individual_ai_billing_paused(s.teacher_id)
       and (
         e.status = 'pending'
         or (e.status = 'grading' and e.updated_at < now() - interval '5 minutes')
