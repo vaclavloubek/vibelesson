@@ -79,6 +79,8 @@ export type StripeDisputeEventSync = {
   disputeId: string;
   paymentIntentId: string;
   status: string;
+  amountDisputed: number;
+  currency: 'czk' | 'eur' | 'usd';
   eventAt: string;
 };
 
@@ -477,6 +479,16 @@ export function normalizeStripeDisputeEvent(
     throw new Error('stripe_dispute_status_invalid');
   }
 
+  const amountDisputed = dispute.amount;
+  if (typeof amountDisputed !== 'number' || !Number.isSafeInteger(amountDisputed) || amountDisputed <= 0) {
+    throw new Error('stripe_dispute_amount_invalid');
+  }
+
+  const currency = typeof dispute.currency === 'string' ? dispute.currency.toLowerCase() : '';
+  if (!['czk', 'eur', 'usd'].includes(currency)) {
+    throw new Error('stripe_dispute_currency_invalid');
+  }
+
   const eventAt = unixSecondsToIso(event.created, 'stripe_dispute_event_created_invalid');
 
   return {
@@ -486,6 +498,8 @@ export function normalizeStripeDisputeEvent(
     disputeId,
     paymentIntentId,
     status,
+    amountDisputed,
+    currency: currency as 'czk' | 'eur' | 'usd',
     eventAt,
   };
 }
@@ -536,8 +550,11 @@ export type StripeOrganizationInvoiceEventSync = {
   organizationId: string;
   orderId: string;
   invoiceId: string;
+  amountPaid: number;
   currency: 'czk' | 'eur' | 'usd';
+  billingReason: string;
   billingCountry: string;
+  testClock: boolean;
 };
 
 export type StripeOrganizationSubscriptionEventSync = {
@@ -596,12 +613,30 @@ export function normalizeStripeOrganizationInvoiceEvent(
     /^in_[A-Za-z0-9_]+$/,
     'stripe_organization_invoice_id_invalid',
   );
+  const amountPaid = invoice.amount_paid;
+  if (typeof amountPaid !== 'number' || !Number.isSafeInteger(amountPaid) || amountPaid < 0) {
+    throw new Error('stripe_organization_invoice_amount_paid_invalid');
+  }
+
   const currency = typeof invoice.currency === 'string'
     ? invoice.currency.toLowerCase()
     : '';
   if (!['czk', 'eur', 'usd'].includes(currency)) {
     throw new Error('stripe_organization_invoice_currency_invalid');
   }
+
+  const billingReason = typeof invoice.billing_reason === 'string'
+    ? invoice.billing_reason.trim().toLowerCase()
+    : '';
+  if (!/^[a-z0-9_]{1,64}$/.test(billingReason)) {
+    throw new Error('stripe_organization_invoice_billing_reason_invalid');
+  }
+
+  const testClock = (
+    event.livemode === false
+    && typeof invoice.test_clock === 'string'
+    && /^clock_[A-Za-z0-9_]+$/.test(invoice.test_clock)
+  );
 
   const customerAddress = optionalObjectRecord(invoice.customer_address);
   const billingCountry = typeof customerAddress?.country === 'string'
@@ -622,8 +657,11 @@ export function normalizeStripeOrganizationInvoiceEvent(
     organizationId,
     orderId,
     invoiceId,
+    amountPaid,
     currency: currency as 'czk' | 'eur' | 'usd',
+    billingReason,
     billingCountry,
+    testClock,
   };
 }
 
