@@ -4,6 +4,8 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { gradeResponseWithAI } from '@/lib/grading';
 import { GradingCriterionSchema, LessonSchema } from '@/lib/schema';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 export const maxDuration = 60;
 
@@ -29,13 +31,31 @@ function safeErrorMessage(error: unknown) {
   return 'AI grading failed';
 }
 
-export async function POST(_req: Request, { params }: RouteContext) {
+export async function POST(req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
   const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
   if (!deviceGate.allowed) {
     return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
+
+  const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  let aiBillingPaused: boolean;
+  try {
+    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+  } catch {
+    return NextResponse.json({
+      error: requestLocale === 'en'
+        ? 'The payment status could not be verified. Try again in a moment.'
+        : 'Stav platby se nepodařilo ověřit. Zkus to za chvíli znovu.',
+    }, { status: 503 });
+  }
+  if (aiBillingPaused) {
+    return NextResponse.json({
+      error: aiBillingPausedMessage(requestLocale),
+      code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+    }, { status: 402 });
   }
 
   const { id: sessionId, evaluationId } = await params;
