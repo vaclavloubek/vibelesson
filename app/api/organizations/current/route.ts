@@ -89,7 +89,7 @@ export async function GET() {
     p_organization_id: organization.id,
   });
 
-  const deviceUsageResult = manager
+  const deviceUsageResult = manager && organization.status === 'active'
     ? await admin.rpc('get_organization_member_device_usage_server', {
       p_actor_id: userId,
       p_organization_id: organization.id,
