@@ -5,6 +5,8 @@ import { reviseBlock } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 
 // Keep the same ceiling across AI endpoints; complex block edits can still be slow.
 export const maxDuration = 300;
@@ -71,14 +73,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Vybraná aktivita už v lekci není.' }, { status: 400 });
     }
 
-    const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_revision_operation', { p_action: 'revise_block' });
+    const admin = createAdminClient();
+    const deviceHash = await currentFreeDeviceBudgetHash();
+    const { data: quotaData, error: quotaError } = await admin.rpc('reserve_revision_operation_server', {
+      p_user_id: userId,
+      p_action: 'revise_block',
+      p_device_token_hash: deviceHash,
+    });
     if (quotaError) {
       console.error('reserve block revision quota failed', quotaError);
-      return NextResponse.json({ error: 'Nepodařilo se ověřit měsíční limit AI úprav.' }, { status: 500 });
+      return NextResponse.json({ error: 'Nepodařilo se ověřit limit AI úprav.' }, { status: 500 });
     }
 
     const quota = Array.isArray(quotaData) ? quotaData[0] : quotaData;
     if (!quota?.allowed) {
+      const deviceMessage = freeDeviceBudgetMessage(
+        quota?.denial_code,
+        'revision',
+        quota?.device_limit,
+      );
+      if (deviceMessage) {
+        return NextResponse.json({
+          error: deviceMessage,
+          code: quota?.denial_code,
+        }, { status: quota?.denial_code === 'free_device_cookie_required' ? 409 : 429 });
+      }
       return NextResponse.json({
         error: `Vyčerpal jsi měsíční limit ${quota?.monthly_limit ?? 20} AI úprav. Limit se obnoví na začátku příštího měsíce.`,
       }, { status: 429 });
