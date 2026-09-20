@@ -29,11 +29,15 @@ for (const file of [
   'app/api/generate/route.ts',
   'app/api/revise/route.ts',
   'app/api/revise-block/route.ts',
-  'app/api/sessions/[id]/evaluations/process/route.ts',
   'app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts',
 ]) {
-  requireText(read(file), 'isIndividualAiBillingPaused', `${file} checks current payment state`);
+  requireText(read(file), 'getEffectiveAiBillingPauseState', `${file} checks effective current payment state`);
 }
+requireText(
+  read('app/api/sessions/[id]/evaluations/process/route.ts'),
+  'isEffectiveAiBillingPaused',
+  'background grading checks effective current payment state',
+);
 
 const entitlements = read('app/api/entitlements/route.ts');
 requireText(entitlements, 'aiBillingPaused', 'workspace entitlement payload exposes the pause state');
@@ -44,9 +48,11 @@ requireText(workspace, 'aiBillingPaused', 'lesson workspace disables AI actions'
 
 const dashboard = read('app/lessons/page.tsx');
 requireText(dashboard, 'AiPaymentPauseBanner', 'lesson dashboard visibly warns the user');
+requireText(dashboard, 'getEffectiveAiBillingPauseState', 'lesson dashboard warning is organization-aware');
 
 const teacherSession = read('app/sessions/[id]/page.tsx');
 requireText(teacherSession, 'AiPaymentPauseBanner', 'teacher live surface visibly warns when grading is manual-only');
+requireText(teacherSession, 'getEffectiveAiBillingPauseState', 'teacher live warning is organization-aware');
 
 const subscription = read('components/SubscriptionManagement.tsx');
 requireText(subscription, 'AI funkce jsou dočasně pozastavené', 'subscription page explains the payment pause');
