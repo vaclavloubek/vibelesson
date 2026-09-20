@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { GradingStrictnessSchema } from '@/lib/schema';
@@ -255,6 +255,17 @@ export async function POST(req: Request) {
               p_lesson_id: lessonId,
             });
             if (finishError) console.error('finish generation request failed', finishError);
+
+            if (!finishError) {
+              const quotaUsed = reservation.used;
+              const quotaLimit = reservation.monthly_limit;
+              after(async () => {
+                await Promise.allSettled([
+                  emitFirstLessonCreatedIfNeeded(userId),
+                  emitFreeLessonQuotaLifecycle(userId, quotaUsed, quotaLimit),
+                ]);
+              });
+            }
 
             send({ type: 'result', lesson, lessonId });
           } catch (error) {
