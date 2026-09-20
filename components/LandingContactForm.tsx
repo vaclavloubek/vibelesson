@@ -77,8 +77,6 @@ export default function LandingContactForm() {
         }),
       });
 
-      const payload = await response.json().catch(() => ({})) as { error?: string };
-
       if (!response.ok) {
         setState('error');
         setFeedback(response.status === 429 ? t.rateLimited : t.error);
