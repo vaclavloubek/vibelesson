@@ -44,12 +44,12 @@ for (const [file, label] of [
   ['app/api/folders/route.ts', 'premium folder creation'],
   ['app/api/folders/[id]/route.ts', 'premium folder management'],
 ]) {
-  requireText(read(file), 'requireTrustedDeviceForPaidIndividual', `${label} is server-gated by trusted device`);
+  requireText(read(file), 'requireTrustedDeviceForPaidAccess', `${label} is server-gated by trusted device`);
 }
 
 for (const [needle, label] of [
   ['create_live_session_server', 'live session creation has a server-only RPC'],
-  ['personal_trusted_device_hash_valid', 'DB validates active trusted-device hashes'],
+  ['trusted_device_hash_valid', 'DB validates active trusted-device hashes across paid scopes'],
   ['requeue_response_evaluation_server', 'AI regrade has a server-only RPC'],
   ["coalesce(p_token_hash ~ '^[0-9a-f]{64}$', false)", 'missing device hashes fail closed'],
   ['revoke insert on table public.sessions from authenticated', 'direct authenticated session insert is revoked'],
@@ -61,10 +61,10 @@ requireText(sessionRoute, "admin.rpc('create_live_session_server'", 'live sessio
 requireText(sessionRoute, 'currentTrustedDeviceHash', 'live session start passes server-read device hash');
 
 const gradeRoute = read('app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts');
-requireText(gradeRoute, 'requireTrustedDeviceForPaidIndividual', 'browser-driven AI grading requires trusted device');
+requireText(gradeRoute, 'requireTrustedDeviceForPaidAccess', 'browser-driven AI grading requires trusted device');
 
 const regradeRoute = read('app/api/sessions/[id]/evaluations/[evaluationId]/regrade/route.ts');
-requireText(regradeRoute, 'requireTrustedDeviceForPaidIndividual', 'AI regrade requires trusted device');
+requireText(regradeRoute, 'requireTrustedDeviceForPaidAccess', 'AI regrade requires trusted device');
 requireText(regradeRoute, "admin.rpc('requeue_response_evaluation_server'", 'AI regrade uses the server-only DB boundary');
 
 const panel = read('components/TrustedDevicesPanel.tsx');
