@@ -12,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const english = locale === 'en';
   const title = english ? 'Pricing — Syllonaut' : 'Ceník — Syllonaut';
   const description = english
-    ? 'Syllonaut pricing for individual teachers and schools. Start free or subscribe to Teacher and Teacher Pro; school plans are coming later.'
-    : 'Ceník Syllonautu pro jednotlivé učitele a školy. Začněte zdarma nebo si předplaťte Teacher či Teacher Pro; školní plány se připravují.';
+    ? 'Syllonaut pricing for teachers and schools: AI lesson creation, live teaching and evaluation in one workflow. Start free; paid plans add capacity and advanced tools.'
+    : 'Ceník Syllonautu pro učitele a školy: AI příprava lekce, živá výuka a vyhodnocení v jednom toku. Začněte zdarma; placené tarify přidají kapacitu a pokročilé nástroje.';
 
   return {
     title,
