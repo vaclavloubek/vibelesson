@@ -444,6 +444,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - bankovní faktury se touto grace politikou **nemění**: před první potvrzenou platbou je organizace `awaiting_payment`; nové období se aktivuje až po potvrzené úhradě a neuhrazená obnova po konci zaplacené licence zůstává hard-expiry;
 - interní `Testovací škola` je z organization payment pause vyňatá; ochrana je určena komerčním organizacím;
 - regresní kontrakt: `scripts/verify-organization-ai-billing-pause.mjs` + rozšířený Stripe webhook verifier.
+- **Produkční acceptance 2026-09-20: PASS.** PR #201 je na `main`, produkční Vercel deploy je zelený a Supabase eviduje schéma jako `20260920112300_add_organization_ai_billing_pause`. Předprodukční i produkční rollback abuse suite prošly včetně 14denní grace, amount-aware dispute/refund recovery, replay ochrany, PaymentIntent de-duplikace, bankovního hard-expiry a service-role-only sync RPC. Security advisor nehlásí nové veřejně/spojeným uživatelům dostupné sync RPC; nové private ledger tabulky jsou záměrně deny-all. Performance advisor eviduje pouze neblokující covering-index follow-up pro jejich `order_id` FK.
 
 ### Tarifní abuse hardening 0.9.52
 
