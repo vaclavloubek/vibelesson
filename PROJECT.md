@@ -348,7 +348,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - založení nové live session používá service-role-only RPC a DB-authoritativně načítá snapshot vlastní lekce;
 - u individuálních Teacher / Teacher Pro DB před vytvořením session ověří, že serverem předaný hash odpovídá aktivnímu nerevokovanému trusted-device tokenu;
 - přímý authenticated `INSERT` do `sessions` je po přepnutí aplikace odebraný; běžné řízení už spuštěné hodiny zůstalo beze změny, aby se před ostrým testem nezasahovalo do live baseline;
-- ruční regrade AI hodnocení používá stejnou server-only trusted-device hranici; starý přímo volatelný regrade RPC už authenticated role spustit nemůže;
+- browser-driven AI grading vyžaduje trusted device a ruční regrade navíc používá server-only trusted-device RPC; starý přímo volatelný regrade RPC už authenticated role spustit nemůže;
 - generování a AI revize zůstávají na stávajících server-only kvótových RPC a server-side trusted-device gate, takže tato změna jejich funkční cestu nepřestavuje;
 - regresní check `scripts/verify-trusted-devices.mjs` hlídá jak serverové route, tak DB migrace a odebrání starých přímých cest.
 
