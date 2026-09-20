@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
+import LandingContactForm from '@/components/LandingContactForm';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
 import SyllonautMark from '@/components/SyllonautMark';
@@ -91,6 +92,7 @@ const copy = {
     ownCue: 'Připravit vlastní hodinu',
     finalTitle: 'Připravte si další hodinu s AI. A rovnou ji odučte.',
     finalBody: 'Začněte popisem toho, co mají studenti zažít. Syllonaut připraví zbytek trasy.',
+    contactCue: 'Ještě něco mimo radar?',
   },
   en: {
     brandHome: 'Syllonaut – home',
@@ -157,6 +159,7 @@ const copy = {
     ownCue: 'Prepare your own lesson',
     finalTitle: 'Prepare your next lesson with AI. Then teach it live.',
     finalBody: 'Start by describing what students should experience. Syllonaut prepares the rest of the route.',
+    contactCue: 'Anything still beyond the radar?',
   },
 } as const;
 
@@ -301,7 +304,10 @@ export default function LandingPage() {
         <h2>{t.finalTitle}</h2>
         <p>{t.finalBody}</p>
         <Link href="/new" className={styles.primaryCta} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'other' })}>{t.prepare}</Link>
+        <SectionCue href="#kontakt" label={t.contactCue} />
       </section>
+
+      <LandingContactForm />
 
       <SiteFooter />
     </main>
