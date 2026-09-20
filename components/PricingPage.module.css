@@ -30,6 +30,48 @@
   line-height: 1.58;
 }
 
+.valueFlow {
+  width: min(1120px, calc(100% - 40px));
+  margin: 34px auto 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.valueFlow > div {
+  min-height: 108px;
+  padding: 18px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.72);
+}
+
+.valueFlow span {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.valueFlow strong {
+  font-size: 14px;
+  line-height: 1.4;
+  letter-spacing: -.015em;
+}
+
+.usagePromise {
+  width: min(900px, calc(100% - 40px));
+  margin: 18px auto 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
 .controls {
   width: min(1120px, calc(100% - 40px));
   margin: 44px auto 22px;
@@ -332,6 +374,7 @@
 @media (max-width: 900px) {
   .hero { margin-top: 54px; }
   .controls { align-items: stretch; }
+  .valueFlow { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 680px; }
   .cards { grid-template-columns: 1fr; max-width: 680px; }
   .card { min-height: auto; }
   .cardHeader p { min-height: 0; }
@@ -340,6 +383,8 @@
 
 @media (max-width: 720px) {
   .hero,
+  .valueFlow,
+  .usagePromise,
   .controls,
   .cards,
   .notes {
@@ -349,6 +394,8 @@
   .hero { margin-top: 42px; text-align: left; }
   .hero h1 { font-size: clamp(39px, 12vw, 54px); }
   .hero p { font-size: 16px; }
+  .valueFlow { grid-template-columns: 1fr; margin-top: 26px; }
+  .valueFlow > div { min-height: 0; }
   .controls { flex-direction: column; margin-top: 34px; }
   .segmented { width: 100%; }
   .segmented button { flex: 1; }
