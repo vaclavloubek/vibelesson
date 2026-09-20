@@ -141,13 +141,22 @@ export async function POST(req: Request) {
 
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
 
+    const requireTeamTask = sourceLesson.workMode === 'teams'
+      && block.type === 'team_task'
+      && sourceLesson.blocks.filter((item) => item.type === 'team_task').length === 1;
+
     const revisedResult = await reviseBlock(block, instruction, {
       title: sourceLesson.title,
       audience: sourceLesson.audience,
       groupSize: sourceLesson.groupSize,
+      workMode: sourceLesson.workMode,
       language: sourceLesson.language,
       learningObjectives: sourceLesson.learningObjectives,
-    }, { allowLanguageChange });
+    }, {
+      allowLanguageChange,
+      workMode: sourceLesson.workMode,
+      requireTeamTask,
+    });
     const revisedBlock = revisedResult.block;
     costUsd = revisedResult.costUsd;
 
