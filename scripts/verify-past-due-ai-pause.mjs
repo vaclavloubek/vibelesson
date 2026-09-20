@@ -21,7 +21,7 @@ for (const [needle, label] of [
   ['generation_requests_enforce_ai_payment_state', 'generation/revision DB write-boundary trigger'],
   ["new.action in ('generate_lesson', 'revise_lesson', 'revise_block')", 'only AI generation/revision actions are blocked'],
   ['manual-payment-v1', 'AI grading falls back to manual review'],
-  ['not private.individual_ai_billing_paused(s.teacher_id)', 'grading dispatch does not send a worker request while payment is paused'],
+  ['delete from private.grading_jobs', 'grading dispatch clears queued worker jobs while payment is paused'],
   ['if private.individual_ai_billing_paused(v_user_id) then', 'grading budget fails closed during payment pause'],
 ]) requireText(migrations, needle, label);
 
