@@ -48,10 +48,13 @@ for (const path of forbiddenChallengeFiles) {
   }
 }
 
-const csFeature = 'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí s detekcí podezřelého využití AI';
-const enFeature = 'AI grading of scored open, team and exit-ticket responses with suspicious AI-use detection';
+const csFeature = 'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí';
+const enFeature = 'AI grading of scored open, team and exit-ticket responses';
 requireCount(pricing, csFeature, 3, 'CZ pricing must advertise the feature only for Teacher Pro, School and Campus.');
 requireCount(pricing, enFeature, 3, 'EN pricing must advertise the feature only for Teacher Pro, School and Campus.');
+if (pricing.includes('s detekcí podezřelého využití AI') || pricing.includes('with suspicious AI-use detection')) {
+  throw new Error('AI integrity alert regression: AI grading copy must not duplicate the separate integrity-protection benefit.');
+}
 const csProtectionFeature = 'Ochrana proti nepovolenému využití AI ve studentských odpovědích';
 const enProtectionFeature = 'Protection against unauthorized AI use in student responses';
 requireCount(pricing, csProtectionFeature, 3, 'CZ pricing must show AI integrity protection only for Teacher Pro, School and Campus.');
