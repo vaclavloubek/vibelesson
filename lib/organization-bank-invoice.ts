@@ -2,7 +2,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 type Currency = 'czk' | 'eur' | 'usd';
 
+export type OrganizationInvoiceLocale = 'cs' | 'en';
+
 export type OrganizationBankInvoiceSnapshot = {
+  documentLocale: OrganizationInvoiceLocale;
   seller: {
     name: string;
     registrationNumber: string;
@@ -68,7 +71,18 @@ function dueDays() {
   return raw;
 }
 
-function invoiceConfig(livemode: boolean): OrganizationBankInvoiceSnapshot {
+export function organizationInvoiceLocaleForCountry(country: unknown): OrganizationInvoiceLocale {
+  const normalized = typeof country === 'string'
+    ? country.trim().toUpperCase()
+    : '';
+
+  return normalized === 'CZ' || normalized === 'SK' ? 'cs' : 'en';
+}
+
+function invoiceConfig(
+  livemode: boolean,
+  documentLocale: OrganizationInvoiceLocale,
+): OrganizationBankInvoiceSnapshot {
   const iban = requiredEnv('SYLLONAUT_INVOICE_BANK_IBAN')
     .replace(/\s+/g, '')
     .toUpperCase();
@@ -84,6 +98,7 @@ function invoiceConfig(livemode: boolean): OrganizationBankInvoiceSnapshot {
   }
 
   return {
+    documentLocale,
     seller: {
       name: requiredEnv('SYLLONAUT_INVOICE_SELLER_NAME'),
       registrationNumber: requiredEnv('SYLLONAUT_INVOICE_SELLER_REGISTRATION_NUMBER'),
@@ -176,8 +191,12 @@ export async function issueOrganizationBankInvoice(orderId: string) {
     };
   }
 
-  const snapshot = invoiceConfig(order.livemode !== false);
-  snapshot.customer = (order.billing_snapshot ?? {}) as Record<string, unknown>;
+  const customer = (order.billing_snapshot ?? {}) as Record<string, unknown>;
+  const snapshot = invoiceConfig(
+    order.livemode !== false,
+    organizationInvoiceLocaleForCountry(customer.billingCountry),
+  );
+  snapshot.customer = customer;
   const dueDate = isoDateAfterDays(snapshot.dueDays);
 
   const { data, error } = await admin.rpc('issue_organization_bank_invoice', {
@@ -212,11 +231,21 @@ function asSnapshot(value: unknown): OrganizationBankInvoiceSnapshot {
     throw new Error('organization_bank_invoice_snapshot_invalid');
   }
 
-  const snapshot = value as OrganizationBankInvoiceSnapshot;
+  const snapshot = value as Omit<OrganizationBankInvoiceSnapshot, 'documentLocale'> & {
+    documentLocale?: unknown;
+  };
   if (!snapshot.seller?.name || !snapshot.bank?.iban) {
     throw new Error('organization_bank_invoice_snapshot_invalid');
   }
-  return snapshot;
+
+  const documentLocale = snapshot.documentLocale === 'cs' || snapshot.documentLocale === 'en'
+    ? snapshot.documentLocale
+    : organizationInvoiceLocaleForCountry(snapshot.customer?.billingCountry);
+
+  return {
+    ...snapshot,
+    documentLocale,
+  };
 }
 
 export async function getOrganizationBankInvoiceData(
