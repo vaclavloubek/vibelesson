@@ -346,6 +346,9 @@ for (const needle of [
   "SPD*1.0",
   "'X-VS:'",
   'invoice_snapshot',
+  'documentLocale',
+  'organizationInvoiceLocaleForCountry',
+  "normalized === 'CZ' || normalized === 'SK'",
 ]) {
   if (!bankInvoice.includes(needle)) {
     throw new Error('Bank invoice snapshot/QR contract missing: ' + needle);
@@ -358,6 +361,8 @@ for (const needle of [
   "eccLevel: 'M'",
   'TESTOVACÍ DOKLAD',
   'Dodavatel není plátcem DPH.',
+  'Registration No.:',
+  'VAT ID:',
 ]) {
   if (!invoicePdf.includes(needle)) {
     throw new Error('Bank invoice PDF QR contract missing: ' + needle);
@@ -372,10 +377,20 @@ for (const needle of [
   'Dodavatel není plátcem DPH.',
   'Supplier is not registered for VAT.',
   'seller.vatPayer',
+  'invoice.snapshot.documentLocale',
+  "Registration No.",
 ]) {
   if (!electronicInvoice.includes(needle)) {
     throw new Error('Electronic invoice VAT-status contract missing: ' + needle);
   }
+}
+
+const invoicePdfRoute = fs.readFileSync(
+  'app/api/organizations/invoices/[orderId]/pdf/route.ts',
+  'utf8',
+);
+if (!invoicePdfRoute.includes('invoice.snapshot.documentLocale')) {
+  throw new Error('Organization invoice PDF must use the frozen document locale.');
 }
 
 const publicHeaderAccountMenu = fs.readFileSync(

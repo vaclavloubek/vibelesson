@@ -43,7 +43,10 @@ export async function GET(
 
   try {
     const invoice = await getOrganizationBankInvoiceData(orderId);
-    const pdf = await createOrganizationInvoicePdfBuffer(invoice, 'cs');
+    const pdf = await createOrganizationInvoicePdfBuffer(
+      invoice,
+      invoice.snapshot.documentLocale,
+    );
 
     return new Response(pdf, {
       headers: {

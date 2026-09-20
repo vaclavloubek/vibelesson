@@ -1,11 +1,9 @@
 import Link from 'next/link';
-import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import OrganizationPaymentQr from '@/components/OrganizationPaymentQr';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/SchoolAdmin.module.css';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { normalizeUiLocale, LOCALE_REQUEST_HEADER } from '@/lib/i18n';
 import { getOrganizationBankInvoiceData } from '@/lib/organization-bank-invoice';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -63,8 +61,7 @@ export default async function OrganizationInvoicePage({
     notFound();
   }
 
-  const requestHeaders = await headers();
-  const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  const locale = invoice.snapshot.documentLocale;
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const customer = invoice.snapshot.customer;
@@ -144,8 +141,10 @@ export default async function OrganizationInvoicePage({
               {invoice.snapshot.seller.addressLine2 ? <>{invoice.snapshot.seller.addressLine2}<br /></> : null}
               {invoice.snapshot.seller.postalCode} {invoice.snapshot.seller.city}<br />
               {invoice.snapshot.seller.country}<br />
-              IČO: {invoice.snapshot.seller.registrationNumber}<br />
-              {invoice.snapshot.seller.vatId ? <>DIČ / VAT ID: {invoice.snapshot.seller.vatId}<br /></> : null}
+              {ui('IČO', 'Registration No.')}: {invoice.snapshot.seller.registrationNumber}<br />
+              {invoice.snapshot.seller.vatId
+                ? <>{ui('DIČ / VAT ID', 'VAT ID')}: {invoice.snapshot.seller.vatId}<br /></>
+                : null}
               {(invoice.snapshot.seller.vatPayer ?? Boolean(invoice.snapshot.seller.vatId))
                 ? null
                 : <strong>{ui('Dodavatel není plátcem DPH.', 'Supplier is not registered for VAT.')}</strong>}
@@ -162,8 +161,12 @@ export default async function OrganizationInvoicePage({
                 ? <>{String(address.postalCode ?? '')} {String(address.city ?? '')}<br /></>
                 : null}
               {customer.billingCountry ? <>{String(customer.billingCountry)}<br /></> : null}
-              {customer.registrationNumber ? <>IČO: {String(customer.registrationNumber)}<br /></> : null}
-              {customer.vatId ? <>DIČ / VAT ID: {String(customer.vatId)}</> : null}
+              {customer.registrationNumber
+                ? <>{ui('IČO', 'Registration No.')}: {String(customer.registrationNumber)}<br /></>
+                : null}
+              {customer.vatId
+                ? <>{ui('DIČ / VAT ID', 'VAT ID')}: {String(customer.vatId)}</>
+                : null}
             </p>
           </section>
         </div>
