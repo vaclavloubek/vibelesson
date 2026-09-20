@@ -10,17 +10,12 @@ const AICriterionScoreSchema = z.object({
   rationale: z.string(),
 });
 
-const AIIntegrityAssessmentSchema = z.object({
-  suspicion: z.enum(['none', 'low', 'high']),
-  reasons: z.array(z.string().trim().min(1).max(240)).max(3),
-  challengeQuestion: z.string().trim().min(10).max(500).nullable(),
-});
-
 const AIGradingOutputSchema = z.object({
   criteria: z.array(AICriterionScoreSchema),
   overallRationale: z.string(),
   confidence: z.number(),
-  integrity: AIIntegrityAssessmentSchema,
+  aiUseSuspicion: z.enum(['none', 'low', 'high']),
+  aiUseSignals: z.array(z.string().trim().min(1).max(240)).max(3),
 });
 
 const GradingInputSchema = z.object({
@@ -42,13 +37,7 @@ export type CriterionScore = {
   rationale: string;
 };
 
-export type AISuspicion = 'none' | 'low' | 'high';
-
-export type IntegrityAssessment = {
-  suspicion: AISuspicion;
-  reasons: string[];
-  challengeQuestion: string | null;
-};
+export type AIUseSuspicion = 'none' | 'low' | 'high';
 
 export type GradingResult = {
   score: number;
@@ -56,8 +45,9 @@ export type GradingResult = {
   criterionScores: CriterionScore[];
   rationale: string;
   confidence: number;
+  aiUseSuspicion: AIUseSuspicion;
+  aiUseSignals: string[];
   needsReview: boolean;
-  integrity: IntegrityAssessment;
   model: string;
   costUsd: number | null;
 };
@@ -116,12 +106,13 @@ Bezpečnost a férovost:
 - overallRationale má být stručné a věcné, typicky 1–3 věty.
 - rationale u každého kritéria má stručně vysvětlit přidělené body.
 - confidence je číslo 0 až 1 vyjadřující jistotu hodnocení, nikoli kvalitu odpovědi.
-- Integritní posouzení je ODDĚLENÉ od bodového hodnocení. Podezření na použití generativní AI samo nikdy nesnižuje body.
-- suspicion = "high" použij jen při velmi silných a konkrétních signálech. Samotná plynulost, spisovnost, délka, dobrá struktura, obecné fráze, správná gramatika ani nadprůměrná kvalita textu NIKDY nestačí.
-- "high" je vhodné zejména při explicitních artefaktech generativního modelu (např. odpověď sama mluví jako AI/asistent) nebo při více nezávislých konkrétních znacích, které jsou v dané studentské odpovědi těžko vysvětlitelné běžným psaním. Pokud si nejsi jistý, použij "low" nebo "none".
-- reasons obsahuje nejvýše 3 stručné, konkrétní a neobviňující důvody. Pro "none" vrať prázdné pole.
-- challengeQuestion vyplň pouze při "high". Musí to být jedna krátká kontrolní otázka v jazyce odpovědi, založená na konkrétním tvrzení nebo pojmu z odpovědi, zodpověditelná 1–2 větami bez nové látky. Nesmí studentovi prozrazovat, že je podezřelý z použití AI.
-- Při "none" nebo "low" vrať challengeQuestion = null.
+
+Integrita odpovědi — samostatný signál, který NESMÍ ovlivnit body ani grading confidence:
+- Odhadni pouze z textu, zda odpověď vykazuje jazykové vzorce typické pro generovaný AI text. Nejde o důkaz podvodu.
+- aiUseSuspicion = "high" použij jen při více nezávislých a konkrétních stylistických signálech; samotná správnost, formálnost, dobrá gramatika, delší odpověď nebo odborný styl nestačí.
+- U krátkých odpovědí buď zvlášť zdrženlivý. Pokud nejsou přítomné alespoň dva konkrétní signály, vrať "none" nebo "low".
+- aiUseSignals obsahuje nejvýše tři stručné popisy konkrétních znaků v textu. Nevkládej obecné soudy typu "zní jako AI".
+- Tento integrity signál nikdy nepoužívej k úpravě criterion points, overallRationale ani confidence.
 
 Nastavení přísnosti pro tuto odpověď:
 ${gradingStrictnessInstructions[input.strictness]}`,
@@ -179,25 +170,15 @@ ${gradingStrictnessInstructions[input.strictness]}`,
   }
 
   const rationale = OverallRationaleSchema.parse(output.overallRationale);
-
-  let suspicion: AISuspicion = output.integrity.suspicion;
-  let reasons = output.integrity.reasons;
-  let challengeQuestion = output.integrity.challengeQuestion;
-
-  if (suspicion === 'none') {
-    reasons = [];
-    challengeQuestion = null;
-  } else if (suspicion === 'low') {
-    challengeQuestion = null;
-  } else if (reasons.length === 0 || !challengeQuestion) {
-    // Fail safe against an internally inconsistent model result: never create a
-    // high-severity flag unless the model can name a concrete reason and ask a
-    // bounded verification question.
-    suspicion = 'low';
-    challengeQuestion = null;
-  }
-
-  const integrity: IntegrityAssessment = { suspicion, reasons, challengeQuestion };
+  const aiUseSignals = Array.from(new Set(output.aiUseSignals.map((signal) => signal.trim()).filter(Boolean))).slice(0, 3);
+  const highSuspicionEligible = input.answerText.length >= 280
+    && output.aiUseSuspicion === 'high'
+    && aiUseSignals.length >= 2;
+  const aiUseSuspicion: AIUseSuspicion = highSuspicionEligible
+    ? 'high'
+    : output.aiUseSuspicion === 'none'
+      ? 'none'
+      : 'low';
 
   return {
     score,
@@ -205,8 +186,9 @@ ${gradingStrictnessInstructions[input.strictness]}`,
     criterionScores,
     rationale,
     confidence: output.confidence,
-    needsReview: output.confidence < 0.7 || suspicion === 'high',
-    integrity,
+    aiUseSuspicion,
+    aiUseSignals,
+    needsReview: output.confidence < 0.7 || aiUseSuspicion === 'high',
     model: gradingModel,
     costUsd: getGatewayCost(providerMetadata),
   };

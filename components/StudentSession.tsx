@@ -11,7 +11,6 @@ import {
 } from '@/lib/live-control-client';
 import ConnectionStatusBadge, { type StudentConnectionStatus } from '@/components/ConnectionStatusBadge';
 import { useUiLocale } from '@/components/LocaleProvider';
-import IntegrityChallengeCard, { type StudentIntegrityChallenge } from '@/components/IntegrityChallengeCard';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
@@ -43,7 +42,6 @@ type StudentState = {
   teams: Team[];
   myTeam: Team | null;
   myTeamResponse: { text: string; updatedByParticipantId: string | null; submitted?: boolean; submittedText?: string | null; submittedAt?: string | null } | null;
-  integrityChallenge: StudentIntegrityChallenge | null;
   scoreboard: PublicScoreboardState | null;
 };
 
@@ -126,7 +124,6 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       myTeamResponse: teamResponse
         ? { text: teamResponse.text, updatedByParticipantId: null, submitted: Boolean(teamResponse.submitted) }
         : current?.myTeamResponse ?? null,
-      integrityChallenge: current?.integrityChallenge ?? null,
       scoreboard: current?.scoreboard ?? null,
     }));
     hasLoadedRef.current = true;
@@ -340,16 +337,6 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               selectedTeamId={null}
               locked={false}
               onChanged={() => void refresh()}
-            />
-          ) : null}
-
-          {state.integrityChallenge ? (
-            <IntegrityChallengeCard
-              key={state.integrityChallenge.evaluationId}
-              sessionId={sessionId}
-              challenge={state.integrityChallenge}
-              contentLanguage={state.lessonLanguage}
-              onResolved={() => void refresh()}
             />
           ) : null}
 

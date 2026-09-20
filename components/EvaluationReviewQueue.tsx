@@ -26,19 +26,14 @@ type QueueEvaluation = {
   teacherScore: number | null;
   rationale: string | null;
   confidence: number | null;
+  aiUseSuspicion: 'none' | 'low' | 'high';
+  aiUseSignals: string[];
   rubric: Criterion[];
   criterionScores: CriterionScore[];
   teacherConfirmed: boolean;
   teacherReviewedAt: string | null;
   teacherNote: string | null;
   evaluatedAt: string | null;
-  aiSuspicion: 'none' | 'low' | 'high';
-  aiSuspicionReasons: string[];
-  integrityChallengeQuestion: string | null;
-  integrityChallengeAnswer: string | null;
-  integrityChallengeStatus: 'not_required' | 'pending' | 'answered' | 'expired';
-  integrityChallengeExpiresAt: string | null;
-  integrityChallengeSubmittedAt: string | null;
   createdAt: string;
   manualOnly: boolean;
 };
@@ -56,13 +51,12 @@ function gradableActivityType(value: string): Extract<ActivityType, 'open_text' 
 
 function reviewPriority(item: QueueEvaluation, activeBlockId: string | null) {
   const blockPriority = item.blockId === activeBlockId ? 0 : 10;
-  if (!item.teacherConfirmed && item.aiSuspicion === 'high') return blockPriority;
-  if (item.hasNewerSubmission) return blockPriority + 1;
-  if (!item.teacherConfirmed && item.status === 'needs_review') return blockPriority + 2;
-  if (!item.teacherConfirmed && item.status === 'graded') return blockPriority + 3;
-  if (item.status === 'pending' || item.status === 'grading') return blockPriority + 4;
-  if (item.status === 'failed') return blockPriority + 5;
-  return blockPriority + 6;
+  if (item.hasNewerSubmission) return blockPriority;
+  if (!item.teacherConfirmed && item.status === 'needs_review') return blockPriority + 1;
+  if (!item.teacherConfirmed && item.status === 'graded') return blockPriority + 2;
+  if (item.status === 'pending' || item.status === 'grading') return blockPriority + 3;
+  if (item.status === 'failed') return blockPriority + 4;
+  return blockPriority + 5;
 }
 
 function ReviewForm({ evaluation, sessionId, onReviewed }: {
@@ -118,32 +112,6 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
     }
   }
 
-  async function confirmIntegrityZero() {
-    if (saving || evaluation.aiSuspicion !== 'high') return;
-    setSaving(true);
-    setError('');
-    const note = ui(
-      'Integritní kontrola: učitel potvrdil nepovolené využití generativní AI.',
-      'Integrity review: teacher confirmed unauthorized generative AI use.',
-    );
-    try {
-      const response = await fetch(`/api/sessions/${sessionId}/evaluations/${evaluation.id}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ score: 0, note }),
-      });
-      const data = await response.json() as ReviewPatch & { error?: string };
-      if (!response.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
-      const activityType = gradableActivityType(evaluation.blockType);
-      if (activityType && evaluation.aiScore !== 0) trackEvent('teacher_grade_override', { activity_type: activityType });
-      onReviewed(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <form
       key={`${evaluation.id}:${evaluation.teacherScore ?? 'base'}:${evaluation.teacherNote ?? ''}`}
@@ -164,16 +132,6 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
         <button className="secondary" type="submit" disabled={saving}>
           {saving ? ui('Ukládám…', 'Saving…') : evaluation.teacherConfirmed ? ui('Uložit změnu', 'Save change') : ui('Potvrdit hodnocení', 'Confirm grading')}
         </button>
-        {evaluation.aiSuspicion === 'high' && !evaluation.teacherConfirmed ? (
-          <button
-            className="secondary"
-            type="button"
-            disabled={saving || (evaluation.integrityChallengeQuestion !== null && integrityChallengeStatus === 'pending')}
-            onClick={() => { void confirmIntegrityZero(); }}
-          >
-            {ui('Potvrdit nepovolené využití AI → 0 bodů', 'Confirm unauthorized AI use → 0 points')}
-          </button>
-        ) : null}
       </div>
       {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
     </form>
@@ -195,11 +153,6 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
   const criterionScores = new Map(evaluation.criterionScores.map((item) => [item.criterionId, item]));
   const ready = evaluation.status === 'graded' || evaluation.status === 'needs_review';
   const canRefresh = evaluation.hasNewerSubmission && ['graded', 'needs_review', 'failed'].includes(evaluation.status);
-  const integrityChallengeStatus = evaluation.integrityChallengeStatus === 'pending'
-    && evaluation.integrityChallengeExpiresAt
-    && Date.parse(evaluation.integrityChallengeExpiresAt) <= Date.now()
-    ? 'expired'
-    : evaluation.integrityChallengeStatus;
 
   async function refreshSubmission() {
     if (!canRefresh || regrading) return;
@@ -249,35 +202,6 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
         </div>
       ) : null}
 
-      {evaluation.aiSuspicion === 'high' ? (
-        <div className="reveal" style={{ marginTop: 10 }}>
-          <strong>{ui('Integritní kontrola: vysoké podezření na využití generativní AI.', 'Integrity review: high suspicion of generative AI use.')}</strong>
-          <p className="muted-copy" style={{ margin: '6px 0 0' }}>
-            {ui('Toto není důkaz ani automatický trest. Rozhodnutí zůstává na učiteli.', 'This is not proof or an automatic penalty. The teacher makes the final decision.')}
-          </p>
-          {evaluation.aiSuspicionReasons.length ? (
-            <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-              {evaluation.aiSuspicionReasons.map((reason, index) => <li key={`${evaluation.id}:integrity:${index}`}>{reason}</li>)}
-            </ul>
-          ) : null}
-          {evaluation.integrityChallengeQuestion ? (
-            <div style={{ marginTop: 9 }}>
-              <strong>{ui('Kontrolní otázka:', 'Verification question:')}</strong>
-              <p style={{ margin: '4px 0 0' }}>{evaluation.integrityChallengeQuestion}</p>
-              {integrityChallengeStatus === 'answered' && evaluation.integrityChallengeAnswer ? (
-                <p style={{ margin: '7px 0 0' }}><strong>{ui('Odpověď studenta:', 'Student answer:')}</strong> {evaluation.integrityChallengeAnswer}</p>
-              ) : integrityChallengeStatus === 'expired' ? (
-                <p className="muted-copy" style={{ margin: '7px 0 0' }}>{ui('Student neodpověděl v 60sekundovém limitu.', 'The student did not answer within the 60-second limit.')}</p>
-              ) : (
-                <p className="muted-copy" style={{ margin: '7px 0 0' }}>{ui('Čeká na krátkou odpověď studenta.', 'Waiting for the student’s short answer.')}</p>
-              )}
-            </div>
-          ) : (
-            <p className="muted-copy" style={{ margin: '7px 0 0' }}>{ui('U týmové odpovědi se kontrolní otázka automaticky nezadává.', 'No automatic verification question is issued for a team response.')}</p>
-          )}
-        </div>
-      ) : null}
-
       {evaluation.status === 'pending' ? <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('Čeká na AI hodnocení.', 'Waiting for AI grading.')}</p> : null}
       {evaluation.status === 'grading' ? <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('AI právě hodnotí…', 'AI is grading…')}</p> : null}
       {evaluation.status === 'failed' ? <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('AI hodnocení se nepodařilo. Odpověď zůstává uložená pro ruční hodnocení.', 'AI grading failed. The response remains stored for manual grading.')}</p> : null}
@@ -289,13 +213,29 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
               ? ui('Potvrzeno učitelem.', 'Confirmed by teacher.')
               : evaluation.manualOnly
                 ? ui('Čeká na ruční hodnocení.', 'Waiting for manual grading.')
-                : evaluation.aiSuspicion === 'high'
-                  ? ui('Ke kontrole kvůli integritnímu signálu.', 'Needs review because of an integrity signal.')
+                : evaluation.aiUseSuspicion === 'high'
+                  ? ui('Ke kontrole kvůli podezření na využití AI.', 'Needs review because of suspected AI use.')
                   : evaluation.status === 'needs_review'
                     ? ui('Ke kontrole kvůli nižší jistotě AI.', 'Needs review because AI confidence is lower.')
                     : ui('AI návrh čeká na potvrzení.', 'AI suggestion is waiting for confirmation.')}
             {!evaluation.manualOnly && confidence !== null ? (english ? ` AI confidence: ${confidence}%.` : ` Jistota AI: ${confidence} %.`) : ''}
           </p>
+          {!evaluation.manualOnly && evaluation.aiUseSuspicion === 'high' ? (
+            <div className="reveal" style={{ marginTop: 10 }}>
+              <strong>{ui('Podezření na využití generativní AI', 'Suspected generative AI use')}</strong>
+              <p style={{ margin: '7px 0 0' }}>
+                {ui(
+                  'Jde pouze o upozornění podle textových vzorců, ne o důkaz. Body se tím automaticky nemění.',
+                  'This is only a text-pattern alert, not proof. It does not automatically change the score.',
+                )}
+              </p>
+              {evaluation.aiUseSignals.length ? (
+                <ul style={{ margin: '7px 0 0', paddingLeft: 20 }}>
+                  {evaluation.aiUseSignals.map((signal) => <li key={signal}>{signal}</li>)}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
           {evaluation.teacherConfirmed && evaluation.teacherNote ? (
             <p style={{ margin: '8px 0 0' }}><strong>{ui('Poznámka učitele:', 'Teacher note:')}</strong> {evaluation.teacherNote}</p>
           ) : null}
@@ -422,6 +362,8 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
             teacherScore: null,
             rationale: null,
             confidence: null,
+            aiUseSuspicion: 'none',
+            aiUseSignals: [],
             criterionScores: [],
             teacherConfirmed: false,
             teacherReviewedAt: null,
