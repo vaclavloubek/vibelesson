@@ -237,6 +237,44 @@ for (const needle of [
   }
 }
 
+for (const needle of [
+  'OrganizationStripeError',
+  "input.environment === 'sandbox' && profile?.role === 'admin'",
+  'stripeType',
+  'stripeCode',
+  'diagnostic',
+]) {
+  if (!organizationOrderRoute.includes(needle)) {
+    throw new Error('School sandbox order diagnostics contract missing: ' + needle);
+  }
+}
+
+const organizationPaymentRoute = fs.readFileSync(
+  'app/api/organizations/payment/route.ts',
+  'utf8',
+);
+for (const needle of [
+  'OrganizationStripeError',
+  "!livemode && profile?.role === 'admin'",
+  'stripeType',
+  'stripeCode',
+  'diagnostic',
+]) {
+  if (!organizationPaymentRoute.includes(needle)) {
+    throw new Error('School sandbox payment retry diagnostics contract missing: ' + needle);
+  }
+}
+
+for (const needle of [
+  'SandboxPaymentDiagnostic',
+  'sandboxPaymentDiagnosticSuffix',
+  'Sandbox diagnostika:',
+]) {
+  if (!schoolAdmin.includes(needle)) {
+    throw new Error('School sandbox payment diagnostics UX missing: ' + needle);
+  }
+}
+
 const currentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');
 if (!currentRoute.includes('canManageOrganization')) {
   throw new Error('School summary must enforce manager scope.');
