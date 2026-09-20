@@ -8,7 +8,7 @@ const CUSTOMER_ID_RE = /^cus_[A-Za-z0-9_]+$/;
 const PRICE_ID_RE = /^price_[A-Za-z0-9_]+$/;
 const INVOICE_ID_RE = /^in_[A-Za-z0-9_]+$/;
 const PAYMENT_INTENT_ID_RE = /^pi_[A-Za-z0-9_]+$/;
-const DISPUTE_ID_RE = /^du_[A-Za-z0-9_]+$/;
+const DISPUTE_ID_RE = /^d[pu]_[A-Za-z0-9_]+$/;
 
 export const SUPPORTED_STRIPE_SUBSCRIPTION_EVENTS = new Set([
   'customer.subscription.created',
