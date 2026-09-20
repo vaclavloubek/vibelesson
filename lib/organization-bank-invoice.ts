@@ -7,6 +7,7 @@ export type OrganizationBankInvoiceSnapshot = {
     name: string;
     registrationNumber: string;
     vatId: string | null;
+    vatPayer?: boolean;
     addressLine1: string;
     addressLine2: string | null;
     city: string;
@@ -51,6 +52,14 @@ function optionalEnv(name: string) {
   return process.env[name]?.trim() || null;
 }
 
+function sellerVatPayer() {
+  const raw = process.env.SYLLONAUT_INVOICE_SELLER_VAT_PAYER?.trim().toLowerCase();
+  if (!raw) return false;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  throw new Error('organization_bank_invoice_vat_payer_invalid');
+}
+
 function dueDays() {
   const raw = Number(process.env.SYLLONAUT_INVOICE_DUE_DAYS ?? '14');
   if (!Number.isInteger(raw) || raw < 1 || raw > 90) {
@@ -68,11 +77,18 @@ function invoiceConfig(livemode: boolean): OrganizationBankInvoiceSnapshot {
     throw new Error('organization_bank_invoice_iban_invalid');
   }
 
+  const vatId = optionalEnv('SYLLONAUT_INVOICE_SELLER_VAT_ID');
+  const vatPayer = sellerVatPayer();
+  if (vatPayer && !vatId) {
+    throw new Error('organization_bank_invoice_vat_id_required');
+  }
+
   return {
     seller: {
       name: requiredEnv('SYLLONAUT_INVOICE_SELLER_NAME'),
       registrationNumber: requiredEnv('SYLLONAUT_INVOICE_SELLER_REGISTRATION_NUMBER'),
-      vatId: optionalEnv('SYLLONAUT_INVOICE_SELLER_VAT_ID'),
+      vatId,
+      vatPayer,
       addressLine1: requiredEnv('SYLLONAUT_INVOICE_SELLER_ADDRESS_LINE1'),
       addressLine2: optionalEnv('SYLLONAUT_INVOICE_SELLER_ADDRESS_LINE2'),
       city: requiredEnv('SYLLONAUT_INVOICE_SELLER_CITY'),
