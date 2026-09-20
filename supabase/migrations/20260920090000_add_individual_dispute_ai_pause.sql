@@ -43,7 +43,7 @@ create table if not exists private.individual_billing_disputes (
   updated_at timestamptz not null default now(),
   primary key (provider, livemode, external_dispute_id),
   constraint individual_billing_disputes_provider_check check (provider = 'stripe'),
-  constraint individual_billing_disputes_id_format check (external_dispute_id ~ '^du_[A-Za-z0-9_]+$'),
+  constraint individual_billing_disputes_id_format check (external_dispute_id ~ '^d[pu]_[A-Za-z0-9_]+$'),
   constraint individual_billing_disputes_pi_format check (external_payment_intent_id ~ '^pi_[A-Za-z0-9_]+$'),
   constraint individual_billing_disputes_subscription_format check (external_subscription_id ~ '^sub_[A-Za-z0-9_]+$'),
   constraint individual_billing_disputes_status_nonempty check (char_length(status) between 1 and 64),
@@ -266,7 +266,7 @@ declare
   v_closed_at timestamptz := null;
 begin
   if p_event_id !~ '^evt_[A-Za-z0-9_]+$'
-     or p_dispute_id !~ '^du_[A-Za-z0-9_]+$'
+     or p_dispute_id !~ '^d[pu]_[A-Za-z0-9_]+$'
      or p_payment_intent_id !~ '^pi_[A-Za-z0-9_]+$'
      or char_length(coalesce(p_status, '')) not between 1 and 64
      or p_event_at is null
