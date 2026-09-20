@@ -10,6 +10,7 @@ alter table public.response_evaluations
   add column if not exists integrity_challenge_answer text,
   add column if not exists integrity_challenge_status text not null default 'not_required',
   add column if not exists integrity_challenge_created_at timestamptz,
+  add column if not exists integrity_challenge_presented_at timestamptz,
   add column if not exists integrity_challenge_expires_at timestamptz,
   add column if not exists integrity_challenge_submitted_at timestamptz;
 
@@ -120,10 +121,8 @@ begin
         when p_ai_suspicion = 'high' and e.participant_id is not null then now()
         else null
       end,
-      integrity_challenge_expires_at = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null then now() + interval '60 seconds'
-        else null
-      end,
+      integrity_challenge_presented_at = null,
+      integrity_challenge_expires_at = null,
       integrity_challenge_submitted_at = null,
       updated_at = now()
   where e.id = p_evaluation_id
@@ -225,10 +224,8 @@ begin
         when p_ai_suspicion = 'high' and e.participant_id is not null then now()
         else null
       end,
-      integrity_challenge_expires_at = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null then now() + interval '60 seconds'
-        else null
-      end,
+      integrity_challenge_presented_at = null,
+      integrity_challenge_expires_at = null,
       integrity_challenge_submitted_at = null,
       updated_at = now()
   where e.id = v_evaluation_id
@@ -257,6 +254,7 @@ begin
     new.integrity_challenge_answer := null;
     new.integrity_challenge_status := 'not_required';
     new.integrity_challenge_created_at := null;
+    new.integrity_challenge_presented_at := null;
     new.integrity_challenge_expires_at := null;
     new.integrity_challenge_submitted_at := null;
   end if;
