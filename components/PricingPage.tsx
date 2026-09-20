@@ -86,6 +86,7 @@ const teacherPlansCs: Plan[] = [
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí s detekcí podezřelého využití AI',
+      'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -126,6 +127,7 @@ const schoolPlansCs: Plan[] = [
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí s detekcí podezřelého využití AI',
+      'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -149,6 +151,7 @@ const schoolPlansCs: Plan[] = [
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí s detekcí podezřelého využití AI',
+      'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -194,6 +197,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses with suspicious AI-use detection',
+      'Protection against unauthorized AI use in student responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -225,6 +229,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses with suspicious AI-use detection',
+      'Protection against unauthorized AI use in student responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -244,6 +249,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses with suspicious AI-use detection',
+      'Protection against unauthorized AI use in student responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -333,9 +339,11 @@ function PlanCard({
             || worksheetHook
             || unlimitedReuseHook
             || feature.startsWith('AI hodnocení')
+            || feature.startsWith('Ochrana proti nepovolenému využití AI')
             || feature.startsWith('Složky a podsložky')
             || feature === 'Sdílená knihovna lekcí'
             || feature.startsWith('AI grading')
+            || feature.startsWith('Protection against unauthorized AI use')
             || feature.startsWith('Folders and subfolders')
             || feature === 'Shared lesson library';
           return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}{worksheetHook ? <span className={styles.newFeatureBadge}>{english ? 'NEW' : 'NOVĚ'}</span> : null}</li>;
