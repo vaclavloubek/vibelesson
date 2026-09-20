@@ -179,6 +179,17 @@ export default function SchoolAdmin({
     email: string;
     role: 'teacher' | 'admin';
   }>>([]);
+  const bulkInviteNormalizedEmails = bulkInviteEntries.map(
+    (entry) => entry.email.trim().toLowerCase(),
+  );
+  const bulkInviteHasInvalidEmail = bulkInviteNormalizedEmails.some(
+    (email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+  );
+  const bulkInviteHasDuplicateEmail = new Set(bulkInviteNormalizedEmails).size
+    !== bulkInviteNormalizedEmails.length;
+  const bulkInviteCanSend = bulkInviteEntries.length > 0
+    && !bulkInviteHasInvalidEmail
+    && !bulkInviteHasDuplicateEmail;
   const [libraryLessonId, setLibraryLessonId] = useState('');
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState('__all__');
 
@@ -631,15 +642,46 @@ export default function SchoolAdmin({
     ));
   }
 
+  function updateBulkInviteEntry(
+    index: number,
+    patch: Partial<{ email: string; role: 'teacher' | 'admin' }>,
+  ) {
+    setBulkInviteEntries((current) => current.map(
+      (entry, entryIndex) => entryIndex === index ? { ...entry, ...patch } : entry,
+    ));
+  }
+
+  function removeBulkInviteEntry(index: number) {
+    setBulkInviteEntries((current) => current.filter((_, entryIndex) => entryIndex !== index));
+  }
+
   async function sendBulkInvites() {
-    if (!bulkInviteEntries.length) return;
+    if (!bulkInviteCanSend) {
+      setMessageKind('error');
+      setMessage(bulkInviteHasDuplicateEmail
+        ? ui(
+          'V seznamu jsou duplicitní e-mailové adresy. Před odesláním je upravte nebo odeberte.',
+          'The list contains duplicate email addresses. Edit or remove them before sending.',
+        )
+        : ui(
+          'Některá e-mailová adresa není platná. Před odesláním ji opravte.',
+          'One or more email addresses are invalid. Fix them before sending.',
+        ));
+      return;
+    }
+
+    const normalizedEntries = bulkInviteEntries.map((entry) => ({
+      email: entry.email.trim().toLowerCase(),
+      role: entry.role,
+    }));
+
     setBusy(true);
     setMessage('');
 
     const response = await fetch('/api/organizations/invitations/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entries: bulkInviteEntries }),
+      body: JSON.stringify({ entries: normalizedEntries }),
     });
     const payload = await response.json().catch(() => ({})) as {
       invited?: string[];
@@ -1558,7 +1600,7 @@ export default function SchoolAdmin({
                     <button
                       type="button"
                       className={styles.secondary}
-                      disabled={busy || bulkInviteEntries.length === 0}
+                      disabled={busy || !bulkInviteCanSend}
                       onClick={sendBulkInvites}
                     >
                       {ui(
@@ -1589,18 +1631,74 @@ export default function SchoolAdmin({
                             <tr>
                               <th>E-mail</th>
                               <th>{ui('Role', 'Role')}</th>
+                              <th>{ui('Akce', 'Actions')}</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {bulkInviteEntries.map((entry) => (
-                              <tr key={entry.email}>
-                                <td>{entry.email}</td>
-                                <td>{roleLabel(entry.role, english)}</td>
+                            {bulkInviteEntries.map((entry, index) => (
+                              <tr key={index}>
+                                <td>
+                                  <input
+                                    className={styles.inlineTableInput}
+                                    type="email"
+                                    aria-label={ui(
+                                      'E-mail pozvánky ' + (index + 1),
+                                      'Invitation email ' + (index + 1),
+                                    )}
+                                    value={entry.email}
+                                    onChange={(event) => updateBulkInviteEntry(index, {
+                                      email: event.target.value,
+                                    })}
+                                    disabled={busy}
+                                  />
+                                </td>
+                                <td>
+                                  <select
+                                    className={styles.inlineTableSelect}
+                                    aria-label={ui(
+                                      'Role pozvánky ' + (index + 1),
+                                      'Invitation role ' + (index + 1),
+                                    )}
+                                    value={entry.role}
+                                    onChange={(event) => updateBulkInviteEntry(index, {
+                                      role: event.target.value as 'teacher' | 'admin',
+                                    })}
+                                    disabled={busy}
+                                  >
+                                    <option value="teacher">{ui('Učitel', 'Teacher')}</option>
+                                    <option value="admin">
+                                      {ui('Administrátor', 'Administrator')}
+                                    </option>
+                                  </select>
+                                </td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className={styles.danger}
+                                    disabled={busy}
+                                    onClick={() => removeBulkInviteEntry(index)}
+                                  >
+                                    {ui('Odebrat', 'Remove')}
+                                  </button>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
+                      {bulkInviteHasInvalidEmail || bulkInviteHasDuplicateEmail ? (
+                        <p className={styles.bulkInviteValidation} role="alert">
+                          {bulkInviteHasDuplicateEmail
+                            ? ui(
+                              'Duplicitní e-mailové adresy je potřeba před odesláním upravit nebo odebrat.',
+                              'Duplicate email addresses must be edited or removed before sending.',
+                            )
+                            : ui(
+                              'Opravte neplatnou e-mailovou adresu před odesláním.',
+                              'Fix the invalid email address before sending.',
+                            )}
+                        </p>
+                      ) : null}
                     </>
                   ) : null}
                 </div>
