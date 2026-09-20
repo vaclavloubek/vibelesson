@@ -17,7 +17,7 @@ async function loadDevices(userId: string) {
   const registration = await registerCurrentTrustedDevice(userId);
   const currentHash = await currentTrustedDeviceHash();
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc('list_personal_trusted_devices', {
+  const { data, error } = await admin.rpc('list_trusted_device_access', {
     p_user_id: userId,
     p_current_token_hash: currentHash,
   });
@@ -45,7 +45,7 @@ export async function DELETE(request: Request) {
     const { deviceId } = DeleteSchema.parse(await request.json());
     const currentHash = await currentTrustedDeviceHash();
     const admin = createAdminClient();
-    const { data, error } = await admin.rpc('revoke_personal_trusted_device', {
+    const { data, error } = await admin.rpc('revoke_trusted_device_access', {
       p_user_id: userId,
       p_device_id: deviceId,
       p_current_token_hash: currentHash,
