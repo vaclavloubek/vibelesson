@@ -1,6 +1,7 @@
 -- Remove an empty parallel organization-device implementation that was
 -- applied during the 0.9.59 rollout but never merged into main. The guard
 -- makes this migration fail closed if any real device row ever appeared.
+-- This is a DB-only reconciliation; canonical 0.9.59 remains the 5/10 policy.
 
 do $guard$
 declare
