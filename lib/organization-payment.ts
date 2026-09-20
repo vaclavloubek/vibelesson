@@ -60,6 +60,25 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
   }
 
   const admin = createAdminClient();
+
+  const { data: catalogPrice, error: catalogPriceError } = await admin
+    .from('billing_prices')
+    .select('external_price_id')
+    .eq('provider', 'stripe')
+    .eq('livemode', livemode)
+    .eq('plan_code', input.organization.planCode)
+    .eq('billing_period', input.order.billingPeriod)
+    .eq('currency', input.order.currency)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (catalogPriceError) {
+    throw new Error('organization_price_lookup_failed');
+  }
+  if (!catalogPrice?.external_price_id) {
+    throw new Error('organization_price_not_configured');
+  }
+
   let customerId = input.order.externalCustomerId;
 
   if (!customerId) {
@@ -102,12 +121,10 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
     secretKey,
     livemode,
     customerId,
+    priceId: catalogPrice.external_price_id,
     organizationId: input.organization.id,
     orderId: input.order.id,
     planCode: input.organization.planCode,
-    billingPeriod: input.order.billingPeriod,
-    currency: input.order.currency,
-    amountMinor: input.order.amountMinor,
     managedPayments: route.managedPayments,
   });
 

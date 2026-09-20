@@ -114,16 +114,17 @@ export async function createOrganizationCardCheckout(input: {
   secretKey: string;
   livemode: boolean;
   customerId: string;
+  priceId: string;
   organizationId: string;
   orderId: string;
   planCode: OrganizationPlanCode;
-  billingPeriod: OrganizationBillingPeriod;
-  currency: BillingCurrency;
-  amountMinor: number;
   managedPayments: boolean;
 }) {
   if (!expectedSecret(input.secretKey, input.livemode)) {
     throw new OrganizationStripeError('stripe_secret_mode_invalid');
+  }
+  if (!/^price_[A-Za-z0-9_]+$/.test(input.priceId)) {
+    throw new OrganizationStripeError('stripe_price_id_invalid');
   }
 
   const params = new URLSearchParams();
@@ -133,20 +134,8 @@ export async function createOrganizationCardCheckout(input: {
   params.set('billing_address_collection', 'required');
   params.set('customer_update[address]', 'auto');
   params.set('customer_update[name]', 'auto');
-  params.set('line_items[0][price_data][currency]', input.currency);
-  params.set('line_items[0][price_data][unit_amount]', String(input.amountMinor));
-  params.set(
-    'line_items[0][price_data][recurring][interval]',
-    input.billingPeriod === 'annual' ? 'year' : 'month',
-  );
-  params.set(
-    'line_items[0][price_data][product_data][name]',
-    'Syllonaut ' + input.planCode.charAt(0).toUpperCase() + input.planCode.slice(1),
-  );
-  params.set(
-    'line_items[0][price_data][product_data][description]',
-    'School licence for Syllonaut',
-  );
+  params.set('line_items[0][price]', input.priceId);
+  params.set('line_items[0][quantity]', '1');
   params.set('managed_payments[enabled]', input.managedPayments ? 'true' : 'false');
   params.set('metadata[syllonaut_organization_id]', input.organizationId);
   params.set('metadata[syllonaut_order_id]', input.orderId);

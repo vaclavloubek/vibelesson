@@ -318,3 +318,32 @@ for (const needle of [
     throw new Error('Server-authoritative auth identity contract missing: ' + needle);
   }
 }
+
+
+const organizationPayment = fs.readFileSync('lib/organization-payment.ts', 'utf8');
+for (const needle of [
+  "from('billing_prices')",
+  ".eq('plan_code', input.organization.planCode)",
+  ".eq('billing_period', input.order.billingPeriod)",
+  ".eq('currency', input.order.currency)",
+  'organization_price_not_configured',
+  'priceId: catalogPrice.external_price_id',
+]) {
+  if (!organizationPayment.includes(needle)) {
+    throw new Error('School Stripe catalog price contract missing: ' + needle);
+  }
+}
+
+const organizationStripe = fs.readFileSync('lib/organization-stripe.ts', 'utf8');
+for (const needle of [
+  "params.set('line_items[0][price]', input.priceId)",
+  "params.set('line_items[0][quantity]', '1')",
+  'stripe_price_id_invalid',
+]) {
+  if (!organizationStripe.includes(needle)) {
+    throw new Error('School Stripe checkout catalog contract missing: ' + needle);
+  }
+}
+if (organizationStripe.includes("line_items[0][price_data]")) {
+  throw new Error('School Stripe Checkout must not create inline products or prices.');
+}
