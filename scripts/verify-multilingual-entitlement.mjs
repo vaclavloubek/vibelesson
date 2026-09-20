@@ -46,8 +46,9 @@ requireText(generate, 'uiLocale: requestLocale', 'AI generation must use the ser
 for (const [name, route] of [['whole-lesson revision', revise], ['block revision', reviseBlock]]) {
   requireText(route, ".select('role, multilingual_lessons_enabled')", `${name} must load the multilingual entitlement server-side.`);
   requireText(route, "profile.role === 'admin' || profile.multilingual_lessons_enabled", `${name} must derive language-change access from the server-authoritative profile.`);
-  requireText(route, '{ allowLanguageChange }', `${name} must pass the entitlement decision into the AI revision layer.`);
 }
+requireText(revise, '{ allowLanguageChange }', 'whole-lesson revision must pass the entitlement decision into the AI revision layer.');
+requireText(reviseBlock, 'allowLanguageChange,', 'block revision must pass the entitlement decision into the expanded AI revision options.');
 
 requireText(ai, 'type RevisionOptions = {', 'AI revision layer must expose an internal language-change policy option.');
 requireText(ai, 'options.allowLanguageChange === false', 'AI revisions must support an explicit language lock.');
