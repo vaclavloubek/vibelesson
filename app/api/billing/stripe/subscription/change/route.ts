@@ -19,6 +19,7 @@ import {
   updateStripeChangeSchedule,
 } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getIndividualAiBillingPauseReason } from '@/lib/individual-ai-billing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,17 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (profileError) return jsonError(500, 'profile_lookup_failed');
   if (!isPublicLiveBillingEnabled() && profile?.role !== 'admin') return jsonError(403, 'live_billing_acceptance_only');
+
+  if (input.action === 'change') {
+    try {
+      const pauseReason = await getIndividualAiBillingPauseReason(userId);
+      if (pauseReason === 'dispute' || pauseReason === 'refund') {
+        return jsonError(409, 'billing_recovery_required_before_plan_change');
+      }
+    } catch {
+      return jsonError(503, 'billing_recovery_state_unavailable');
+    }
+  }
 
   const admin = createAdminClient();
   const { data: dbSubscription, error: subscriptionError } = await admin
