@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.61** ukotvuje individuální placené AI kvóty k autoritativní Stripe billing periodě: měsíční Teacher/Teacher Pro používá přesný `current_period_start/end`, roční tarif dostává měsíční podokna odvozená od ročního subscription anchoru. Free a sdílený školní pool zůstávají na UTC kalendářním měsíci; placený účet bez platné period informace failuje uzavřeně. Předchozí 0.9.60 opravila produkční DB-boundary drift organization-device ochrany. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.62** doplňuje před veřejným školním billingem organization payment-loss hardening: kartové `past_due` okamžitě pozastaví nové školní AI náklady, ale během 14denní grace zachová správu školy, uložené lekce a živou výuku; otevřený/prohraný dispute a plný refund používají amount-aware lock s recovery podle skutečných Stripe PaymentIntentů. Bankovní faktury zůstávají na přísnějším modelu aktivace až po potvrzené platbě. Předchozí 0.9.61 ukotvila individuální placené AI kvóty ke Stripe billing periodě. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -430,6 +430,21 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - nepoužívané authenticated compatibility wrappery `reserve_lesson_generation()` a `reserve_revision_operation(text)` jsou odebrané klientské cestě; nákladová AI reservation je pouze service-role server-authoritative;
 - regresní kontrakt: `scripts/verify-billing-anchored-ai-quotas.mjs`.
 
+### Organization payment-loss AI pause 0.9.62 — 2026-09-20
+
+- Team / School / Campus mají samostatný server-authoritative payment-loss stav pro kartový billing: `past_due`, otevřený/prohraný dispute a full refund zastavují **nové AI generování, AI revize a AI grading**, ale samy o sobě neznepřístupní správu školy, uložené lekce ani živou výuku;
+- kartové `invoice.payment_failed` už nepřepíná celou organizaci do licence-wide `past_due`; organizace zůstává `active`, nastaví se `past_due_at` a AI je okamžitě pozastavená. Stávající lifecycle po **14 dnech** bez nápravy přejde do `suspended`, což zůstává tvrdý licenční stav;
+- `expire_organization_licenses()` během této 14denní card-payment grace aktivní organizaci neexpiruje; po grace ji autoritativně řeší `suspend_overdue_organizations(14)`;
+- školní Stripe `invoice.paid` mapuje skutečné `InvoicePayment` / PaymentIntent částky, měnu a billing reason. Součet mapovaných paymentů musí souhlasit s `invoice.amount_paid`;
+- open dispute pozastaví AI okamžitě; won / funds reinstated lock uvolní. Lost dispute zůstává zamčený, dokud pozdější potvrzené school subscription platby ve stejné měně kumulativně nepokryjí ztracenou částku;
+- částečný refund AI nezamyká; full refund ano. Refund a dispute nad stejným původním PaymentIntentem se při recovery **nedvojí**;
+- malá prorata nebo jiná drobná následná platba neodemkne vyšší refund/chargeback; recovery je amount-aware stejně jako u individuálních účtů;
+- DB write-boundary `generation_requests`, automatický grading worker, grading safety-budget i ruční regrade používají společný effective personal/organization billing gate;
+- UI rozlišuje osobní a školní payment pause. Správce školy dostane odkaz do `/school`; běžný člen vidí, že platbu musí vyřešit správce. Hotový obsah a live výuka zůstávají při AI-only locku dostupné;
+- bankovní faktury se touto grace politikou **nemění**: před první potvrzenou platbou je organizace `awaiting_payment`; nové období se aktivuje až po potvrzené úhradě a neuhrazená obnova po konci zaplacené licence zůstává hard-expiry;
+- interní `Testovací škola` je z organization payment pause vyňatá; ochrana je určena komerčním organizacím;
+- regresní kontrakt: `scripts/verify-organization-ai-billing-pause.mjs` + rozšířený Stripe webhook verifier.
+
 ### Tarifní abuse hardening 0.9.52
 
 - Free účet má vlastní měsíční kvóty **3 AI lekce / 10 AI úprav / 2 importy nebo kopie**.
@@ -463,6 +478,7 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
 - **Individual payment failure / chargeback / full refund** — `past_due`, otevřený payment dispute i plně refundovaná subscription platba zachovávají uložené placené funkce a live teaching, ale zastavují nové AI generování/revize/grading. Částečný refund nic nezamyká. `past_due` se odemkne po potvrzení platby; vyhraný dispute po potvrzení výsledku/funds reinstated; prohraný dispute a full-refund lock až poté, co pozdější potvrzené subscription platby kumulativně pokryjí dosud neuhrazenou ztrátu;
 - **Individual paid AI quota window** — Teacher/Teacher Pro lesson+revision usage se od 0.9.61 počítá podle LIVE Stripe billing anchoru; monthly = přesná subscription perioda, annual = měsíční podokna od annual anchoru. Free a organization pool zůstávají calendar-based;
+- **Organization payment failure / chargeback / full refund** — od 0.9.62 kartové `past_due`, open/lost dispute a full refund zastavují pouze nové nákladové školní AI operace; 14denní card grace zachová administraci/hotový obsah/live, potom následuje hard `suspended`. Dispute/refund recovery je amount-aware a PaymentIntent-deduplicated; bankovní faktury zůstávají aktivované až po potvrzené úhradě;
 - **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
 
 ### Otevřený anti-abuse backlog po 0.9.57 — handoff pro další kola
@@ -473,9 +489,9 @@ Následující scénáře jsou po auditu 2026-09-20 považované za významněj�
 2. **Sdílení jednoho školního uživatelského účtu mezi více reálnými učiteli — IMPLEMENTED 0.9.60.** 0.9.59 zavedla oddělenou organization-device politiku 5 aktivních / 10 nových zařízení za klouzavých 30 dní, self-service správu a owner/admin reset bez mazání rolling historie. 0.9.60 opravuje produkční DB drift a znovu vynucuje organization-aware validator i v service-role-only live/regrade boundary.
 3. **Placené AI kvóty jsou ukotvené ke kalendářnímu měsíci místo billing period — IMPLEMENTED 0.9.61.** Teacher/Teacher Pro lesson+revision quota používá autoritativní LIVE Stripe periodu; monthly přímo `current_period_start/end`, annual měsíční subwindow od annual anchoru. Free a organization pool zůstávají calendar-based; chybějící placená perioda failuje uzavřeně.
 4. **Free device budget lze privacy-minimal modelu obejít smazáním device cookie + novými účty — KNOWN RESIDUAL.** Robustnější prevence by vyžadovala stabilnější cross-cookie signál. Bez dalšího rozhodnutí nezavádět browser/hardware fingerprinting. Pokud se riziko stane významné, preferovat krátkodobý privacy-preserving edge rate-limit před fingerprintingem a předem posoudit GDPR/privacy dopady a false positives.
-5. **Organization refund/dispute/payment-failure ochrana před veřejným školním billingem — MISSING / PRE-LAUNCH REQUIREMENT.** Než se Team/School/Campus stanou veřejně self-service prodejné, musí jejich refund/chargeback/past-due lifecycle zastavit další nákladové AI čerpání obdobně jako individuální plány, aniž by zbytečně zablokoval správu organizace a bezpečný billing recovery.
+5. **Organization refund/dispute/payment-failure ochrana před veřejným školním billingem — IMPLEMENTED 0.9.62.** Card `past_due` používá AI-only 14denní grace, dispute/full refund mají amount-aware recovery z přesných Stripe PaymentIntentů a AI generation/revision/grading používají jednotný organization-aware DB/server gate. Hard licence stavy a bankovní invoice workflow zůstávají oddělené.
 
-Doporučené další pořadí po uzavření bodů 1–3: **5**. Bod 4 ponechat jako vědomé privacy/abuse trade-off riziko, dokud data neukážou, že skutečně způsobuje významnou ztrátu.
+Body **1, 2, 3 a 5 jsou implementované**. Bod 4 zůstává vědomé privacy/abuse trade-off riziko a bez dat o skutečné ztrátě se nemá řešit fingerprintingem.
 
 Pravidla dalšího anti-abuse kola:
 
