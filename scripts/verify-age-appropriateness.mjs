@@ -23,8 +23,8 @@ const createSection = ai.slice(createStart, reviseStart);
 const reviseSection = ai.slice(reviseStart, reviseBlockStart);
 const reviseBlockSection = ai.slice(reviseBlockStart);
 
-if (!/system:\s*baseRules/.test(createSection)) {
-  throw new Error('Age-appropriateness regression: lesson generation must use the shared pedagogical rules.');
+if (!createSection.includes('baseRules')) {
+  throw new Error('Age-appropriateness regression: lesson generation must use the shared pedagogical rules even when additional system rules are applied.');
 }
 for (const [name, section] of [['whole-lesson revision', reviseSection], ['block revision', reviseBlockSection]]) {
   if (!section.includes('baseRules')) {
