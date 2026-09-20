@@ -368,6 +368,7 @@ begin
   where oo.organization_id = v_org_id
     and oo.payment_method = 'invoice'
     and oo.invoice_number is not null
+    and oo.livemode = true
     and oo.status in ('ordered','awaiting_payment')
     and oo.amount_minor = p_amount_minor
     and oo.currency = lower(p_currency);
@@ -389,6 +390,7 @@ begin
   where oo.organization_id = v_org_id
     and oo.payment_method = 'invoice'
     and oo.invoice_number is not null
+    and oo.livemode = true
     and oo.status in ('ordered','awaiting_payment')
     and oo.amount_minor = p_amount_minor
     and oo.currency = lower(p_currency)
