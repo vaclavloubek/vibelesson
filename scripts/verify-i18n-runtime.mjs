@@ -84,6 +84,8 @@ const enHome = await expectHtml('/en', [
   '<html lang="en"',
   'From idea to live teaching. With AI.',
   'Write in the language you want to teach in.',
+  'Is there still a question beyond the radar?',
+  'Send the signal',
 ]);
 const enHomeLower = enHome.toLowerCase();
 for (const hreflang of ['cs', 'en', 'x-default']) {
