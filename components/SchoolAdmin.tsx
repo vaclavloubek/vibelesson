@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { type ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
+import { createClient } from '@/lib/supabase/client';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -152,6 +153,9 @@ export default function SchoolAdmin({
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const renderedUserId = initialUser?.id ?? null;
+  const authBoundaryTriggeredRef = useRef(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState('');
@@ -179,6 +183,53 @@ export default function SchoolAdmin({
   }>>([]);
   const [libraryLessonId, setLibraryLessonId] = useState('');
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState('__all__');
+
+  const enforceRenderedIdentity = useCallback((nextUserId: string | null) => {
+    if (nextUserId === renderedUserId || authBoundaryTriggeredRef.current) return;
+
+    authBoundaryTriggeredRef.current = true;
+
+    // Never leave privileged organization state visible after the authenticated
+    // identity changes (including another tab changing the shared Supabase session).
+    setSummary(null);
+    setLoaded(false);
+    setBusy(true);
+    setMessage('');
+
+    window.location.replace(nextUserId ? '/school' : '/' + locale);
+  }, [locale, renderedUserId]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function verifyRenderedIdentity() {
+      const { data, error } = await supabase.auth.getUser();
+      if (!active || error) return;
+      enforceRenderedIdentity(data.user?.id ?? null);
+    }
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      enforceRenderedIdentity(session?.user?.id ?? null);
+    });
+
+    const handleFocus = () => {
+      void verifyRenderedIdentity();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void verifyRenderedIdentity();
+    };
+
+    void verifyRenderedIdentity();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [enforceRenderedIdentity, supabase]);
 
   const load = useCallback(async () => {
     if (!initialUser) {
