@@ -16,6 +16,7 @@ const reviseBlock = source('app/api/revise-block/route.ts');
 const teacher = source('components/TeacherSession.tsx');
 const sessionRoute = source('app/api/sessions/[id]/route.ts');
 const preview = source('components/LessonPreview.tsx');
+const styles = source('app/globals.css');
 
 requireText(schema, "CollaborationModeSchema = z.enum(['individual', 'teams'])", 'explicit collaboration enum is missing.');
 requireText(schema, 'resolveLessonCollaborationMode', 'legacy lesson compatibility resolver is missing.');
@@ -28,6 +29,9 @@ requireText(workspace, '<option value="individual">', 'individual mode option is
 requireText(workspace, '<option value="teams">', 'team mode option is missing.');
 requireText(workspace, 'collaborationMode, tone', 'generation request does not send collaboration mode.');
 requireText(workspace, "collaborationMode === 'teams' ?", 'team size must only be required in team mode.');
+requireText(workspace, 'className="team-size-field"', 'team size field must expose a stable layout hook.');
+requireText(styles, '.team-size-field { order: 1; }', 'desktop layout must place team size after the stable tone field.');
+requireText(styles, '.team-size-field { order: 0; }', 'mobile layout must restore natural stacked field order.');
 
 requireText(generateRoute, 'collaborationMode: CollaborationModeSchema', 'generation API does not validate collaboration mode.');
 requireText(generateRoute, "input.collaborationMode === 'individual'", 'generation API does not derive individual-safe group semantics.');
