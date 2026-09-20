@@ -59,6 +59,23 @@ export const LessonSchema = z.object({
   gradingStrictness: GradingStrictnessSchema.optional(),
   learningObjectives: z.array(z.string()).min(2).max(6),
   blocks: z.array(LessonBlockSchema).min(3).max(16),
+}).superRefine((lesson, ctx) => {
+  if (!lesson.workMode) return;
+  const hasTeamTask = lesson.blocks.some((block) => block.type === 'team_task');
+  if (lesson.workMode === 'individual' && hasTeamTask) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['blocks'],
+      message: 'Individuální lekce nesmí obsahovat team_task.',
+    });
+  }
+  if (lesson.workMode === 'teams' && !hasTeamTask) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['blocks'],
+      message: 'Týmová lekce musí obsahovat alespoň jeden team_task.',
+    });
+  }
 });
 
 export type Lesson = z.infer<typeof LessonSchema>;
