@@ -438,6 +438,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - Původní `finish_generation_request(...)` je odebraný rolím `public`, `anon`, `authenticated` i `service_role`; přímé klientské completion cesty jsou tím fail-closed.
 - `/api/generate`, `/api/revise` a `/api/revise-block` používají pro success i error cleanup pouze admin klienta a nový serverový RPC.
 - Před změnou prošel rollback test proti produkčnímu schématu; regresní kontrakt: `scripts/verify-generation-completion-boundary.mjs`.
+- **Produkční acceptance 2026-09-20: PASS.** PR #205 je na `main`, produkční Vercel deploy je zelený a Supabase eviduje migraci jako `20260920115314_lock_generation_completion_server_side`. Ostrý rollback abuse test potvrdil, že `authenticated` nemůže spustit ani legacy ani nový completion RPC, zatímco `service_role` dokáže korektně dokončit `pending → succeeded`; security advisor už `finish_generation_request` neuvádí mezi authenticated `SECURITY DEFINER` funkcemi.
 
 ### Organization payment-loss AI pause 0.9.62 — 2026-09-20
 
