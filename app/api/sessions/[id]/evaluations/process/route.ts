@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
+import { isEffectiveAiBillingPaused } from '@/lib/individual-ai-billing';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -19,7 +19,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
   try {
-    if (await isIndividualAiBillingPaused(userId)) {
+    if (await isEffectiveAiBillingPaused(userId)) {
       return NextResponse.json({ evaluationIds: [], aiBillingPaused: true });
     }
   } catch {
