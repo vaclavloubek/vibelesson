@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { GradingStrictnessSchema } from '@/lib/schema';
@@ -9,6 +9,7 @@ import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { sendFirstLessonLifecycleEvent, sendLessonQuotaLifecycleEvent } from '@/lib/lifecycle-email';
 import {
   MATERIAL_MAX_FILES,
   MATERIAL_MAX_TEXT_PER_FILE,
@@ -255,6 +256,16 @@ export async function POST(req: Request) {
               p_lesson_id: lessonId,
             });
             if (finishError) console.error('finish generation request failed', finishError);
+
+            after(async () => {
+              const results = await Promise.allSettled([
+                sendFirstLessonLifecycleEvent(userId),
+                sendLessonQuotaLifecycleEvent(userId, supabase),
+              ]);
+              for (const result of results) {
+                if (result.status === 'rejected') console.error('lesson lifecycle event failed', result.reason);
+              }
+            });
 
             send({ type: 'result', lesson, lessonId });
           } catch (error) {
