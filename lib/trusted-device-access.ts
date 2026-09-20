@@ -60,17 +60,22 @@ export async function requireTrustedDeviceForPaidIndividual(userId: string) {
   };
 }
 
-export function trustedDeviceErrorMessage(gate: TrustedDeviceGate) {
-  if (gate.code === 'trusted_device_limit_reached') {
-    return `Tento účet už má maximální počet důvěryhodných zařízení (${gate.maxActive}). Odeber jedno starší zařízení.`;
+export function trustedDeviceErrorMessage(input: string | null | TrustedDeviceGate) {
+  const gate = typeof input === 'object' && input !== null ? input : null;
+  const code = gate?.code ?? input;
+  const maxActive = gate?.maxActive ?? 3;
+  const maxNewIn30Days = gate?.maxNewIn30Days ?? 5;
+
+  if (code === 'trusted_device_limit_reached') {
+    return `Tento účet už má maximální počet důvěryhodných zařízení (${maxActive}). Odeber jedno starší zařízení.`;
   }
-  if (gate.code === 'trusted_device_rotation_limit_reached') {
-    return `Za posledních 30 dní už bylo k tomuto účtu přidáno ${gate.maxNewIn30Days} nových zařízení. Další nové zařízení zatím nelze aktivovat.`;
+  if (code === 'trusted_device_rotation_limit_reached') {
+    return `Za posledních 30 dní už bylo k tomuto účtu přidáno ${maxNewIn30Days} nových zařízení. Další nové zařízení zatím nelze aktivovat.`;
   }
-  if (gate.code === 'trusted_device_cookie_missing') {
+  if (code === 'trusted_device_cookie_missing') {
     return 'Zařízení se zatím nepodařilo bezpečně identifikovat. Obnov stránku a zkus akci znovu.';
   }
-  return gate.scope === 'organization'
+  return gate?.scope === 'organization'
     ? 'Toto zařízení není důvěryhodné pro funkce školní licence.'
     : 'Toto zařízení není pro placené funkce individuálního účtu důvěryhodné.';
 }
