@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: english ? 'Privacy (GDPR) — Syllonaut' : 'Ochrana osobních údajů (GDPR) — Syllonaut',
     description: english
-      ? 'How Syllonaut processes personal data, cookies, account data, live lesson data and marketing consent.'
+      ? 'How Syllonaut processes personal data, cookies, account data, live lesson data, contact enquiries and marketing consent.'
       : 'Jak Syllonaut zpracovává osobní údaje, cookies, údaje z účtů, živých lekcí a marketingových souhlasů.',
     alternates: {
       canonical: `/${locale}/gdpr`,
@@ -74,7 +74,7 @@ export default async function GdprPage() {
             'Tato stránka popisuje, jaké osobní údaje Syllonaut zpracovává, proč je potřebuje, jak dlouho je uchovává a jaká máte práva.',
             'This page explains which personal data Syllonaut processes, why it is needed, how long it is retained and what rights you have.'
           )}</p>
-          <div className={styles.meta}>{ui('Verze 1.0 · účinná od 18. 9. 2026', 'Version 1.0 · effective from 18 September 2026')}</div>
+          <div className={styles.meta}>{ui('Verze 1.1 · účinná od 20. 9. 2026', 'Version 1.1 · effective from 20 September 2026')}</div>
         </div>
 
         <section>
@@ -91,6 +91,7 @@ export default async function GdprPage() {
             <li><strong>{ui('Podklady pro tvorbu lekce:', 'Lesson source materials:')}</strong> {ui('text extrahovaný v prohlížeči. Originální soubor neopouští zařízení a extrahovaný text se v Syllonautu trvale neukládá.', 'text extracted in the browser. The original file does not leave the device and the extracted text is not permanently stored by Syllonaut.')}</li>
             <li><strong>{ui('Živé lekce:', 'Live lessons:')}</strong> {ui('zobrazované jméno studenta, odpovědi, týmové zařazení, výsledky, časy odevzdání a související provozní údaje.', 'student display name, responses, team assignment, results, submission times and related operational data.')}</li>
             <li><strong>{ui('Bezpečnost a provoz:', 'Security and operations:')}</strong> {ui('technické údaje nutné pro přihlášení, ochranu proti zneužití, diagnostiku chyb a zabezpečení.', 'technical data needed for sign-in, abuse prevention, error diagnostics and security.')}</li>
+            <li><strong>{ui('Kontaktní dotazy:', 'Contact enquiries:')}</strong> {ui('e-mailová adresa a text zprávy, které odešlete přes kontaktní formulář. Pro ochranu formuláře ukládáme nejvýše 30 dnů pouze pseudonymní HMAC otisky klienta a e-mailu, nikoli samotnou IP adresu.', 'email address and message text submitted through the contact form. To protect the form, we retain only pseudonymous HMAC hashes of the client and email for up to 30 days, not the raw IP address.')}</li>
             <li><strong>{ui('Marketingový e-mailový souhlas:', 'Marketing email consent:')}</strong> {ui('zda jste se přihlásili k novinkám, případovým studiím a nabídkám, datum souhlasu a verze textu.', 'whether you opted in to news, case studies and offers, the consent date and the version of the consent text.')}</li>
             <li><strong>{ui('Analytika:', 'Analytics:')}</strong> {ui('až po souhlasu mohou být pomocí Google Analytics 4 zpracovávány údaje o návštěvě a používání webu v rozsahu konkrétního nastavení GA4.', 'only after consent, Google Analytics 4 may process website visit and usage data within the configured GA4 scope.')}</li>
           </ul>
@@ -100,6 +101,7 @@ export default async function GdprPage() {
           <h2>{ui('3. Účely a právní základy', '3. Purposes and legal bases')}</h2>
           <div className={styles.tableWrap}><table><thead><tr><th>{ui('Účel', 'Purpose')}</th><th>{ui('Právní základ', 'Legal basis')}</th></tr></thead><tbody>
             <tr><td>{ui('Registrace, přihlášení, ukládání lekcí a poskytování funkcí služby', 'Registration, sign-in, lesson storage and provision of service features')}</td><td>{ui('Plnění smlouvy nebo kroky na žádost uživatele před jejím uzavřením (čl. 6 odst. 1 písm. b GDPR)', 'Performance of a contract or steps taken at the user’s request before entering into a contract (Art. 6(1)(b) GDPR)')}</td></tr>
+            <tr><td>{ui('Vyřízení dotazu odeslaného kontaktním formulářem', 'Handling an enquiry submitted through the contact form')}</td><td>{ui('Kroky na žádost uživatele před uzavřením smlouvy nebo oprávněný zájem na komunikaci s uživateli podle povahy dotazu (čl. 6 odst. 1 písm. b nebo f GDPR)', 'Steps taken at the user’s request before entering into a contract, or legitimate interest in communicating with users depending on the nature of the enquiry (Art. 6(1)(b) or (f) GDPR)')}</td></tr>
             <tr><td>{ui('Zabezpečení služby, prevence zneužití a technická diagnostika', 'Service security, abuse prevention and technical diagnostics')}</td><td>{ui('Oprávněný zájem na bezpečném a spolehlivém provozu (čl. 6 odst. 1 písm. f GDPR)', 'Legitimate interest in secure and reliable operation (Art. 6(1)(f) GDPR)')}</td></tr>
             <tr><td>{ui('Plnění zákonných povinností', 'Compliance with legal obligations')}</td><td>{ui('Právní povinnost (čl. 6 odst. 1 písm. c GDPR)', 'Legal obligation (Art. 6(1)(c) GDPR)')}</td></tr>
             <tr><td>{ui('Analytika webu pomocí GA4', 'Website analytics using GA4')}</td><td>{ui('Souhlas (čl. 6 odst. 1 písm. a GDPR); bez souhlasu se GA4 nenačte', 'Consent (Art. 6(1)(a) GDPR); GA4 does not load without consent')}</td></tr>
@@ -162,6 +164,7 @@ export default async function GdprPage() {
             <li>{ui('Opuštěné session ve stavu lobby/live jsou určeny k automatickému smazání po 30 dnech.', 'Abandoned sessions left in lobby/live state are scheduled for automatic deletion after 30 days.')}</li>
             <li>{ui('Krátkodobé editační zámky se čistí po 24 hodinách.', 'Short-lived editing locks are cleared after 24 hours.')}</li>
             <li>{ui('Volbu cookies uchováváme nejvýše 180 dnů.', 'Cookie choices are retained for no more than 180 days.')}</li>
+            <li>{ui('Kontaktní dotazy uchováváme po dobu nezbytnou k jejich vyřízení a případné navazující komunikaci. Pseudonymní záznamy používané pouze pro rate-limit formuláře se průběžně mažou po 30 dnech.', 'Contact enquiries are retained for as long as needed to handle them and any related follow-up communication. Pseudonymous records used only for form rate limiting are continuously deleted after 30 days.')}</li>
             <li>{ui('Záznam o marketingovém souhlasu můžeme po odvolání v omezeném rozsahu uchovat, pokud je to nutné k doložení respektování vaší volby a zákonných povinností.', 'After withdrawal, a limited record of marketing consent may be retained where necessary to demonstrate that your choice and legal obligations were respected.')}</li>
           </ul>
         </section>
