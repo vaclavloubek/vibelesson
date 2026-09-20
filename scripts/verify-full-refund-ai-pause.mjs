@@ -41,7 +41,8 @@ const webhookRoute = read('app/api/billing/stripe/webhook/route.ts');
 for (const needle of [
   'retrieveStripeChargeRefundState',
   "sync_stripe_refund_state",
-  'stripe refund ignored outside individual billing mapping',
+  'stripe_refund_payment_mapping_missing',
+  'sync_organization_stripe_refund_state',
 ]) requireText(webhookRoute, needle, 'Stripe refund route: ' + needle);
 
 const billing = read('lib/individual-ai-billing.ts');
