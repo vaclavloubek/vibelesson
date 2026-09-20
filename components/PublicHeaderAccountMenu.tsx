@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
@@ -35,6 +35,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
   const quota = controlledQuota === undefined ? loadedQuota : controlledQuota;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [hasOrganization, setHasOrganization] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -45,6 +46,28 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
     ?? user.email?.split('@')[0]
     ?? (english ? 'Account' : 'Účet');
   const initial = accountName.trim().charAt(0).toLocaleUpperCase(locale === 'en' ? 'en' : 'cs') || 'S';
+
+  const refreshOrganizationMembership = useCallback(async () => {
+    try {
+      const response = await fetch('/api/organizations/membership', {
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        setHasOrganization(false);
+        return;
+      }
+      const payload = await response.json().catch(() => ({})) as {
+        hasOrganization?: boolean;
+      };
+      setHasOrganization(payload.hasOrganization === true);
+    } catch {
+      setHasOrganization(false);
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    void refreshOrganizationMembership();
+  }, [refreshOrganizationMembership]);
 
   useEffect(() => {
     void fetch('/api/auth/devices/register', {
@@ -140,7 +163,13 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
         ref={triggerRef}
         type="button"
         className="auth-account-trigger"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setOpen((value) => {
+            const nextOpen = !value;
+            if (nextOpen) void refreshOrganizationMembership();
+            return nextOpen;
+          });
+        }}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls={ACCOUNT_MENU_ID}
@@ -164,9 +193,11 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
             <Link role="menuitem" href={`/${locale}/subscription`} className="auth-account-item" onClick={() => setOpen(false)}>
               {english ? 'Subscription' : 'Předplatné'}
             </Link>
-            <Link role="menuitem" href="/school" className="auth-account-item" onClick={() => setOpen(false)}>
-              {english ? 'My school' : 'Moje škola'}
-            </Link>
+            {hasOrganization ? (
+              <Link role="menuitem" href="/school" className="auth-account-item" onClick={() => setOpen(false)}>
+                {english ? 'My school' : 'Moje škola'}
+              </Link>
+            ) : null}
             <button
               type="button"
               role="menuitem"
