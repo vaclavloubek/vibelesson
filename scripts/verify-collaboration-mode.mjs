@@ -14,6 +14,7 @@ const generateRoute = source('app/api/generate/route.ts');
 const ai = source('lib/ai.ts');
 const reviseBlock = source('app/api/revise-block/route.ts');
 const teacher = source('components/TeacherSession.tsx');
+const sessionRoute = source('app/api/sessions/[id]/route.ts');
 const preview = source('components/LessonPreview.tsx');
 
 requireText(schema, "CollaborationModeSchema = z.enum(['individual', 'teams'])", 'explicit collaboration enum is missing.');
@@ -41,6 +42,7 @@ requireText(reviseBlock, "collaborationMode === 'individual' && hasTeamTask", 'b
 requireText(teacher, 'resolveLessonCollaborationMode(session.lessonSnapshot)', 'live UI is not driven by explicit collaboration mode.');
 requireText(teacher, '{teamMode ? (', 'team setup panel is not conditioned on team mode.');
 requireText(teacher, 'busy || (teamMode && session.teams.length < 2)', 'team mode can start without creating teams.');
+requireText(sessionRoute, "resolveLessonCollaborationMode(lesson) === 'teams'", 'server live-start boundary is not driven by collaboration mode.');
 
 requireText(preview, 'resolveLessonCollaborationMode(lesson)', 'lesson preview does not surface collaboration mode.');
 requireText(preview, "collaborationMode === 'individual'", 'lesson preview does not distinguish individual and team lessons.');
