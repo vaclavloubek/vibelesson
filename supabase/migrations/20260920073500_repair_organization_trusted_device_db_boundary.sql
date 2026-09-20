@@ -1,4 +1,5 @@
 -- Repair production migration drift for organization trusted-device DB boundaries.
+-- Corrective migration is intentionally idempotent: it only redefines the two server boundaries.
 -- The 0.9.59 application and source migration use private.trusted_device_hash_valid,
 -- but production retained the older personal-only validator in these two functions.
 
