@@ -1,8 +1,16 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.67** zpřesňuje komunikaci AI integrity ochrany v Ceníku. Teacher Pro, School a Campus nově zobrazují bezprostředně pod AI hodnocením samostatně zvýrazněný benefit **„Ochrana proti nepovolenému využití AI ve studentských odpovědích“** / **„Protection against unauthorized AI use in student responses“**. Funkční integrity workflow 0.9.65–0.9.66 se nemění; jde o přesnější a viditelnější komunikaci již nasazené ochrany. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.68** sjednocuje zobrazování přepočtu ročních cen na měsíc v Ceníku: u individuálních i školních tarifů se měsíční ekvivalent ve všech měnách zaokrouhluje nejvýše na dvě desetinná místa. Oprava je v `main` přes PR **#231** / commit `a7503aca`; veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Zaokrouhlení měsíčního ekvivalentu ročních cen 0.9.68 — 2026-09-20
+
+- přepočet roční ceny na měsíc se v Ceníku u individuálních i školních tarifů zaokrouhluje nejvýše na **dvě desetinná místa**;
+- pravidlo platí jednotně pro **CZK, EUR i USD** a pro českou i anglickou variantu Ceníku;
+- příklady školních tarifů: **8 900 Kč/rok → ≈ 741,67 Kč/měsíc**, **23 900 Kč/rok → ≈ 1 991,67 Kč/měsíc**, **59 900 Kč/rok → ≈ 4 991,67 Kč/měsíc**;
+- změna je pouze prezentační: nemění katalogové ceny, Stripe billing ani fakturační logiku;
+- implementace: PR **#231**, produkční commit `a7503aca`.
 
 ### Zvýraznění AI integrity ochrany v Ceníku 0.9.67 — 2026-09-20
 
@@ -92,7 +100,7 @@ Finální měsíční AI kvóty:
 
 Interní AI-grading safety budgety (nejsou customer-facing quota): **Teacher Pro $2 / 150 pokusů**, **School $10 / 700 pokusů**, **Campus $25 / 1 750 pokusů** za měsíc. Při dosažení safety budgetu systém bezpečně přechází na manual review.
 
-Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měsíc nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měsíc nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 68 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
+Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měsíc nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měsíc nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Zobrazený přepočet roční ceny na měsíc se ve všech měnách zaokrouhluje nejvýše na dvě desetinná místa. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 68 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
 
 **USP pro Pricing a akvizici:** Syllonaut neprodává neomezené generování materiálů jako hlavní hodnotu. Jedna AI lekce je znovupoužitelný live výukový celek: **zadání → AI příprava → přirozené AI úpravy → živá hodina → studentské odpovědi → vyhodnocení → opakované použití**. AI limit se proto vztahuje pouze na novou AI tvorbu a AI úpravy. U placených tarifů spuštění, studentské připojení a opakované používání již vytvořených lekcí AI limit nespotřebovává. Pricing tuto logiku musí komunikovat výrazněji než samotné číselné kvóty.
 
