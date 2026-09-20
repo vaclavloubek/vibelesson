@@ -66,6 +66,7 @@ export async function POST(req: Request) {
   }
 
   let requestId: string | null = null;
+  const admin = createAdminClient();
 
   try {
     const input = InputSchema.parse(await req.json());
@@ -146,7 +147,6 @@ export async function POST(req: Request) {
 
     const materialText = materialsToPrompt(input.materials);
 
-    const admin = createAdminClient();
     const deviceHash = await currentFreeDeviceBudgetHash();
     const { data, error: reserveError } = await admin.rpc('reserve_lesson_generation_server', {
       p_user_id: userId,
@@ -259,7 +259,8 @@ export async function POST(req: Request) {
             }
 
             const lessonId = savedLesson.id as string;
-            const { error: finishError } = await supabase.rpc('finish_generation_request', {
+            const { error: finishError } = await admin.rpc('finish_generation_request_server', {
+              p_user_id: userId,
               p_request_id: requestId,
               p_status: 'succeeded',
               p_cost_usd: costUsd,
@@ -280,7 +281,8 @@ export async function POST(req: Request) {
 
             send({ type: 'result', lesson, lessonId });
           } catch (error) {
-            const { error: finishError } = await supabase.rpc('finish_generation_request', {
+            const { error: finishError } = await admin.rpc('finish_generation_request_server', {
+              p_user_id: userId,
               p_request_id: requestId,
               p_status: 'failed',
               p_cost_usd: costUsd,
@@ -305,7 +307,8 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     if (requestId) {
-      const { error: finishError } = await supabase.rpc('finish_generation_request', {
+      const { error: finishError } = await admin.rpc('finish_generation_request_server', {
+              p_user_id: userId,
         p_request_id: requestId,
         p_status: 'failed',
         p_cost_usd: null,
