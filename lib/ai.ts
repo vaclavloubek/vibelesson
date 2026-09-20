@@ -513,5 +513,9 @@ Předchozí návrh změnil časovou dotaci, ale faktický studentský úkol zůs
     }
   }
 
+  if (collaborationMode === 'individual' && revisedBlock.type === 'team_task') {
+    throw new Error('Individual lesson block revision produced a team task.');
+  }
+
   return { block: revisedBlock, costUsd };
 }
