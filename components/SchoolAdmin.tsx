@@ -139,6 +139,7 @@ export default function SchoolAdmin({
   initialPlan,
   initialBilling,
   billingEnvironment,
+  initialCheckoutResult,
   schoolBillingAvailable,
   initialUser,
 }: {
@@ -146,6 +147,7 @@ export default function SchoolAdmin({
   initialPlan: OrganizationPlanCode;
   initialBilling: OrganizationBillingPeriod;
   billingEnvironment: 'sandbox' | 'live';
+  initialCheckoutResult: 'success' | 'cancelled' | null;
   schoolBillingAvailable: boolean;
   initialUser: InitialUser | null;
 }) {
@@ -154,6 +156,7 @@ export default function SchoolAdmin({
   const router = useRouter();
   const renderedUserId = initialUser?.id ?? null;
   const authBoundaryTriggeredRef = useRef(false);
+  const checkoutPollingStartedRef = useRef(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState('');
@@ -280,6 +283,83 @@ export default function SchoolAdmin({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!initialUser || !initialCheckoutResult || checkoutPollingStartedRef.current) return;
+
+    if (initialCheckoutResult === 'cancelled') {
+      checkoutPollingStartedRef.current = true;
+      setMessageKind('info');
+      setMessage(ui(
+        'Platba nebyla dokončena. Objednávka zůstává uložená a k platbě se můžete vrátit.',
+        'Payment was not completed. Your order is saved and you can return to payment.',
+      ));
+      window.history.replaceState({}, '', '/school');
+      return;
+    }
+
+    checkoutPollingStartedRef.current = true;
+    setMessageKind('info');
+    setMessage(ui(
+      'Platbu ověřujeme. Licence se aktivuje automaticky po potvrzení Stripe.',
+      'We are confirming your payment. The licence activates automatically after Stripe confirms it.',
+    ));
+
+    let cancelled = false;
+    let timeoutId: number | null = null;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    async function pollCheckoutStatus() {
+      attempts += 1;
+
+      try {
+        const response = await fetch('/api/organizations/current', {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok || cancelled) return;
+
+        const payload = await response.json() as { organization: Summary | null };
+        if (cancelled) return;
+
+        setSummary(payload.organization);
+        setLoaded(true);
+
+        if (payload.organization?.status === 'active') {
+          setMessageKind('info');
+          setMessage(ui(
+            'Platba je potvrzená a školní licence je aktivní. Teď můžete pozvat učitele.',
+            'Payment is confirmed and the school licence is active. You can now invite teachers.',
+          ));
+          window.history.replaceState({}, '', '/school');
+          return;
+        }
+      } catch {
+        // Webhook state remains authoritative. A transient polling failure is safe to retry.
+      }
+
+      if (!cancelled && attempts < maxAttempts) {
+        timeoutId = window.setTimeout(pollCheckoutStatus, 1500);
+        return;
+      }
+
+      if (!cancelled) {
+        setMessageKind('info');
+        setMessage(ui(
+          'Potvrzení platby ještě čeká na Stripe. Objednávka je uložená; stav se po potvrzení automaticky projeví po obnovení stránky.',
+          'Stripe has not confirmed the payment yet. Your order is saved; the status will update after confirmation when the page is refreshed.',
+        ));
+      }
+    }
+
+    void pollCheckoutStatus();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, [initialCheckoutResult, initialUser, english]);
 
   const signupRedirectPath = useMemo(
     () => '/school?plan=' + planCode + '&billing=' + billingPeriod,

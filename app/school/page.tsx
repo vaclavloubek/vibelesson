@@ -12,6 +12,8 @@ export default async function SchoolPage({
     plan?: string | string[];
     billing?: string | string[];
     billing_env?: string | string[];
+    checkout?: string | string[];
+    session_id?: string | string[];
   }>;
 }) {
   const requestHeaders = await headers();
@@ -28,6 +30,15 @@ export default async function SchoolPage({
     ? params.billing_env[0]
     : params.billing_env;
   const billingEnvironment = environmentValue === 'sandbox' ? 'sandbox' : 'live';
+  const checkoutValue = Array.isArray(params.checkout) ? params.checkout[0] : params.checkout;
+  const initialCheckoutResult =
+    checkoutValue === 'success' || checkoutValue === 'cancelled'
+      ? checkoutValue
+      : null;
+
+  // session_id is intentionally ignored here. Stripe webhook state remains
+  // the only authority that may activate an organization licence.
+  void params.session_id;
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -55,6 +66,7 @@ export default async function SchoolPage({
       initialPlan={initialPlan}
       initialBilling={initialBilling}
       billingEnvironment={billingEnvironment}
+      initialCheckoutResult={initialCheckoutResult}
       schoolBillingAvailable={schoolBillingAvailable}
       initialUser={userId ? { id: userId, email } : null}
     />
