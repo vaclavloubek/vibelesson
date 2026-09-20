@@ -34,6 +34,7 @@ export async function GET() {
   const admin = createAdminClient();
   const plan = ORGANIZATION_PLANS[organization.planCode];
   const manager = canManageOrganization(organization.role);
+  const devicePolicyActive = organization.status === 'active';
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
@@ -89,7 +90,7 @@ export async function GET() {
     p_organization_id: organization.id,
   });
 
-  const deviceUsageResult = manager && organization.status === 'active'
+  const deviceUsageResult = manager && devicePolicyActive
     ? await admin.rpc('get_organization_member_device_usage_server', {
       p_actor_id: userId,
       p_organization_id: organization.id,
@@ -155,12 +156,12 @@ export async function GET() {
         email: data.user?.email ?? null,
         role: row.role,
         joinedAt: row.joined_at,
-        devices: {
+        devices: devicePolicyActive ? {
           activeCount: devices?.activeCount ?? 0,
           maxActive: devices?.maxActive ?? 5,
           newIn30Days: devices?.newIn30Days ?? 0,
           maxNewIn30Days: devices?.maxNewIn30Days ?? 10,
-        },
+        } : null,
       };
     }))
     : memberRows
