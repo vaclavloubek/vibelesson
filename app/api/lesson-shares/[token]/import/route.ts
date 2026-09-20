@@ -77,19 +77,19 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
     if (error.message?.includes('free_lesson_import_quota_exhausted')) {
       return NextResponse.json({
-        error: 'Měsíční limit 3 importů nebo kopií je vyčerpaný. Další sdílenou lekci můžeš importovat příští měsíc.',
+        error: 'Měsíční limit 2 importů nebo kopií je vyčerpaný. Další sdílenou lekci můžeš importovat příští měsíc.',
         code: 'free_lesson_import_quota_exhausted',
       }, { status: 429 });
     }
     if (error.message?.includes('free_device_budget_exhausted')) {
       return NextResponse.json({
-        error: freeDeviceBudgetMessage('free_device_budget_exhausted', 'import', 6),
+        error: freeDeviceBudgetMessage('free_device_budget_exhausted', 'import', 4),
         code: 'free_device_budget_exhausted',
       }, { status: 429 });
     }
     if (error.message?.includes('free_device_cookie_required')) {
       return NextResponse.json({
-        error: freeDeviceBudgetMessage('free_device_cookie_required', 'import', 6),
+        error: freeDeviceBudgetMessage('free_device_cookie_required', 'import', 4),
         code: 'free_device_cookie_required',
       }, { status: 409 });
     }
