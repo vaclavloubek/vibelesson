@@ -5,11 +5,17 @@ const STRIPE_VERSION = '2026-07-29.dahlia';
 type StripeInvoicePaymentsResponse = {
   data?: Array<{
     status?: string;
+    amount_paid?: number;
+    currency?: string;
+    status_transitions?: {
+      paid_at?: number | null;
+    } | null;
     payment?: {
       type?: string;
       payment_intent?: string | { id?: string } | null;
     } | null;
   }>;
+  has_more?: boolean;
   error?: { type?: string; code?: string; message?: string };
 };
 
@@ -32,7 +38,7 @@ function paymentIntentId(value: string | { id?: string } | null | undefined) {
   return value?.id ?? null;
 }
 
-export async function listStripePaidInvoicePaymentIntents({
+export async function listStripePaidInvoicePayments({
   secretKey,
   livemode,
   invoiceId,
@@ -77,12 +83,53 @@ export async function listStripePaidInvoicePaymentIntents({
     );
   }
 
-  const ids = new Set<string>();
-  for (const item of payload.data ?? []) {
-    if (item.status !== 'paid' || item.payment?.type !== 'payment_intent') continue;
-    const id = paymentIntentId(item.payment.payment_intent);
-    if (id && /^pi_[A-Za-z0-9_]+$/.test(id)) ids.add(id);
+  if (payload.has_more === true) {
+    throw new StripeInvoicePaymentLookupError('stripe_invoice_payment_pagination_unsupported');
   }
 
-  return [...ids];
+  const payments = new Map<string, {
+    paymentIntentId: string;
+    amountPaid: number;
+    currency: 'czk' | 'eur' | 'usd';
+    paidAt: string;
+  }>();
+
+  for (const item of payload.data ?? []) {
+    if (item.status !== 'paid' || item.payment?.type !== 'payment_intent') continue;
+
+    const id = paymentIntentId(item.payment.payment_intent);
+    if (!id || !/^pi_[A-Za-z0-9_]+$/.test(id)) continue;
+
+    const amountPaid = item.amount_paid;
+    if (typeof amountPaid !== 'number' || !Number.isSafeInteger(amountPaid) || amountPaid < 0) {
+      throw new StripeInvoicePaymentLookupError('stripe_invoice_payment_amount_invalid');
+    }
+
+    const currency = typeof item.currency === 'string' ? item.currency.toLowerCase() : '';
+    if (!['czk', 'eur', 'usd'].includes(currency)) {
+      throw new StripeInvoicePaymentLookupError('stripe_invoice_payment_currency_invalid');
+    }
+
+    const paidAtSeconds = item.status_transitions?.paid_at;
+    if (typeof paidAtSeconds !== 'number' || !Number.isInteger(paidAtSeconds) || paidAtSeconds <= 0) {
+      throw new StripeInvoicePaymentLookupError('stripe_invoice_payment_paid_at_invalid');
+    }
+
+    payments.set(id, {
+      paymentIntentId: id,
+      amountPaid,
+      currency: currency as 'czk' | 'eur' | 'usd',
+      paidAt: new Date(paidAtSeconds * 1000).toISOString(),
+    });
+  }
+
+  return [...payments.values()];
+}
+
+export async function listStripePaidInvoicePaymentIntents(args: {
+  secretKey: string | undefined;
+  livemode: boolean;
+  invoiceId: string;
+}) {
+  return (await listStripePaidInvoicePayments(args)).map((payment) => payment.paymentIntentId);
 }
