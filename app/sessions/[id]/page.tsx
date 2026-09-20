@@ -74,7 +74,7 @@ async function loadAiBillingPauseReason(userId: string | null) {
 function teacherSurface(
   id: string,
   userId: string | null,
-  aiBillingPauseReason: 'past_due' | 'dispute' | null,
+  aiBillingPauseReason: 'past_due' | 'dispute' | 'refund' | null,
 ) {
   return (
     <>
