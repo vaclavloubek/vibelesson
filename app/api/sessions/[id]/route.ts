@@ -5,7 +5,7 @@ import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 import { emitFirstLiveStartedIfNeeded } from '@/lib/marketing-lifecycle';
 import { clearLiveResumeCookie } from '@/lib/live-resume';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
-import { LessonSchema, type LessonBlock } from '@/lib/schema';
+import { LessonSchema, resolveLessonCollaborationMode, type LessonBlock } from '@/lib/schema';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 type RouteContext = { params: Promise<{ id: string }> };
