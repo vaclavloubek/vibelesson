@@ -145,7 +145,7 @@ export async function POST(req: Request) {
           error: deviceMessage,
           code: reservation.denial_code,
           deviceQuota: {
-            used: reservation.device_used ?? reservation.device_limit ?? 10,
+            used: reservation.device_used ?? reservation.device_limit ?? 6,
             limit: reservation.device_limit ?? 10,
             remaining: 0,
           },
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({
-        error: `Měsíční limit ${reservation.monthly_limit ?? 5} lekcí je vyčerpaný. Další lekci můžeš vytvořit příští měsíc.`,
+        error: `Měsíční limit ${reservation.monthly_limit ?? 3} lekcí je vyčerpaný. Další lekci můžeš vytvořit příští měsíc.`,
         quota: {
           used: reservation.used,
           monthlyLimit: reservation.monthly_limit,
