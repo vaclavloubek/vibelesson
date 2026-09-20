@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { LessonSchema } from '@/lib/schema';
+import { LessonSchema, resolveLessonCollaborationMode } from '@/lib/schema';
 import { reviseBlock } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
@@ -141,10 +141,12 @@ export async function POST(req: Request) {
 
     requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
 
+    const collaborationMode = resolveLessonCollaborationMode(sourceLesson);
     const revisedResult = await reviseBlock(block, instruction, {
       title: sourceLesson.title,
       audience: sourceLesson.audience,
       groupSize: sourceLesson.groupSize,
+      collaborationMode,
       language: sourceLesson.language,
       learningObjectives: sourceLesson.learningObjectives,
     }, { allowLanguageChange });
@@ -152,8 +154,13 @@ export async function POST(req: Request) {
     costUsd = revisedResult.costUsd;
 
     const blocks = sourceLesson.blocks.map((item) => item.id === revisedBlock.id ? revisedBlock : item);
+    const hasTeamTask = blocks.some((item) => item.type === 'team_task');
+    if ((collaborationMode === 'individual' && hasTeamTask) || (collaborationMode === 'teams' && !hasTeamTask)) {
+      throw new Error('Block revision violates the explicit collaboration mode.');
+    }
     const revisedLesson = LessonSchema.parse({
       ...sourceLesson,
+      collaborationMode,
       blocks,
       totalMinutes: blocks.reduce((sum, item) => sum + item.durationMinutes, 0),
     });
