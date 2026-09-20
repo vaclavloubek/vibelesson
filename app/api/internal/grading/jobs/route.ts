@@ -103,6 +103,15 @@ export async function POST(req: Request) {
       strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
+    if (result.aiUseSuspicion === 'high' && result.integrityChallengeQuestion) {
+      const { data: recorded, error: challengeError } = await supabase.rpc('record_grading_job_integrity_challenge', {
+        p_token: token,
+        p_question: result.integrityChallengeQuestion,
+      });
+      if (challengeError) throw challengeError;
+      if (!recorded) throw new Error('Integrity challenge could not be attached to the grading job.');
+    }
+
     const { data: finished, error: finishError } = await supabase.rpc('finish_grading_job_v2', {
       p_token: token,
       p_ai_score: result.score,
