@@ -13,6 +13,8 @@ type DeviceRow = {
 
 type DeviceSummary = {
   required: boolean;
+  scope: 'none' | 'individual' | 'organization';
+  organizationName?: string | null;
   activeCount: number;
   maxActive: number;
   newIn30Days: number;
@@ -103,13 +105,13 @@ export default function TrustedDevicesPanel() {
   const blockedCode = payload.registration.code;
   const blockedMessage = blockedCode === 'trusted_device_limit_reached'
     ? ui(
-      'Toto zařízení zatím není důvěryhodné, protože už jsou aktivní 3 zařízení. Odeber některé jiné zařízení; aktuální se pak automaticky zkusí přidat.',
-      'This device is not trusted yet because 3 devices are already active. Remove another device and the current one will be registered automatically.',
+      `Toto zařízení zatím není důvěryhodné, protože už je aktivní maximum ${payload.summary.maxActive} zařízení. Odeber některé jiné zařízení; aktuální se pak automaticky zkusí přidat.`,
+      `This device is not trusted yet because the maximum of ${payload.summary.maxActive} devices is already active. Remove another device and the current one will be registered automatically.`,
     )
     : blockedCode === 'trusted_device_rotation_limit_reached'
       ? ui(
-        'Toto zařízení zatím nelze přidat: za posledních 30 dní už bylo přidáno 5 nových zařízení.',
-        'This device cannot be added yet: 5 new devices have already been added in the last 30 days.',
+        `Toto zařízení zatím nelze přidat: za posledních 30 dní už bylo přidáno ${payload.summary.maxNewIn30Days} nových zařízení.`,
+        `This device cannot be added yet: ${payload.summary.maxNewIn30Days} new devices have already been added in the last 30 days.`,
       )
       : blockedCode === 'trusted_device_cookie_missing'
         ? ui(
@@ -124,10 +126,15 @@ export default function TrustedDevicesPanel() {
         <div>
           <span className={styles.kicker}>{ui('Zabezpečení tarifu', 'Plan security')}</span>
           <h2>{ui('Důvěryhodná zařízení', 'Trusted devices')}</h2>
-          <p>{ui(
-            'Teacher a Teacher Pro jsou určené pro jednoho učitele. Účet může používat nejvýše 3 důvěryhodná zařízení.',
-            'Teacher and Teacher Pro are intended for one teacher. The account can use up to 3 trusted devices.',
-          )}</p>
+          <p>{payload.summary.scope === 'organization'
+            ? ui(
+              `Školní licence je určená pro jednoho konkrétního uživatele. Tento účet může používat nejvýše ${payload.summary.maxActive} důvěryhodných zařízení.`,
+              `The school licence is intended for one specific user. This account can use up to ${payload.summary.maxActive} trusted devices.`,
+            )
+            : ui(
+              `Teacher a Teacher Pro jsou určené pro jednoho učitele. Účet může používat nejvýše ${payload.summary.maxActive} důvěryhodných zařízení.`,
+              `Teacher and Teacher Pro are intended for one teacher. The account can use up to ${payload.summary.maxActive} trusted devices.`,
+            )}</p>
         </div>
       </div>
 
