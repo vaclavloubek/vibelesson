@@ -9,7 +9,7 @@ const requireText = (content, needle, label) => {
   }
 };
 
-const migration = read('supabase/migrations/20260920103000_add_organization_ai_billing_pause.sql');
+const migration = read('supabase/migrations/20260920112300_add_organization_ai_billing_pause.sql');
 for (const [needle, label] of [
   ['private.organization_stripe_payments', 'organization Stripe payment map'],
   ['private.organization_billing_disputes', 'organization dispute ledger'],
