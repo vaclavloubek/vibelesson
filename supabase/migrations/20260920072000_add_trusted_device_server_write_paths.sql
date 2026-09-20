@@ -95,7 +95,7 @@ begin
     'lobby',
     null,
     v_lesson.lesson,
-    p_realtime_key,
+    p_realtime_key::uuid,
     null,
     null
   )

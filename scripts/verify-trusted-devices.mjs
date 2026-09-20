@@ -49,6 +49,7 @@ for (const [file, label] of [
 
 for (const [needle, label] of [
   ['create_live_session_server', 'live session creation has a server-only RPC'],
+  ['p_realtime_key::uuid', 'live session realtime key is explicitly cast to UUID'],
   ['trusted_device_hash_valid', 'DB validates active trusted-device hashes across paid scopes'],
   ['requeue_response_evaluation_server', 'AI regrade has a server-only RPC'],
   ["coalesce(p_token_hash ~ '^[0-9a-f]{64}$', false)", 'missing device hashes fail closed'],
