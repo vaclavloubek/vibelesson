@@ -1,8 +1,21 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.65** přidává k placenému AI hodnocení samostatný **AI integrity alert**. Stejný hodnoticí průchod nově vrací nezávislé podezření na využití generativní AI a nejvýše tři konkrétní textové signály; tento signál nesmí měnit bodové hodnocení ani grading confidence. Vysoké podezření se zobrazí učiteli jako upozornění a přesune odpověď ke kontrole, přičemž vysoký stav je aplikačně povolen pouze u odpovědi od 280 znaků a při nejméně dvou konkrétních signálech. Ceník tuto funkci komunikuje pouze u tarifů, které skutečně mají AI grading: Teacher Pro, School a Campus. Produkční DB migrace `20260920180324_add_ai_integrity_alert` je aplikovaná zpětně kompatibilně. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.66** rozšiřuje AI integrity hardening o krátkou kontrolní otázku pro individuální odpovědi s vysokým podezřením na využití generativní AI. Detekce sama nadále nikdy nesnižuje body; student dostane 60 sekund od zobrazení otázky na stručnou odpověď vlastními slovy a učitel vidí otázku, odpověď nebo propadnutí času v grading frontě. Teprve učitel může explicitně potvrdit neoprávněné využití AI a nastavit 0 bodů. Týmové odpovědi se automatickou individuální otázkou neověřují. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+
+### AI integrity challenge 0.9.66 — 2026-09-20
+
+- navazuje na 0.9.65: `none / low / high` zůstává pouze integritní signál a nikdy samo nemění body;
+- `high` je nadále přijato jen u odpovědi od 280 znaků, při nejméně dvou konkrétních signálech a nyní také pouze tehdy, když AI vytvoří validní krátkou kontrolní otázku;
+- u individuálních odpovědí se při `high` uloží jedna kontrolní otázka přímo navázaná na tvrzení či pojem z původní odpovědi;
+- student otázku uvidí v live rozhraní; 60sekundový limit začíná až skutečným prvním zobrazením otázky, ne okamžikem dokončení gradingu;
+- odpověď na kontrolní otázku je tokenově svázaná s konkrétní participant identitou a serverově omezená na aktivní časové okno;
+- učitel v grading frontě vidí otázku, odpověď nebo stav expirace;
+- pouze učitel může zvolit **Potvrdit neoprávněné použití AI → 0 bodů**; žádná automatická nula podle detektoru nevzniká;
+- týmové odpovědi mohou být označené `high`, ale automatická kontrolní otázka se nevytváří, protože není spolehlivě určitelné individuální autorství;
+- regresní kontrakt: `scripts/verify-ai-integrity-challenge.mjs`.
 
 ### AI integrity alert při AI hodnocení 0.9.65 — 2026-09-20
 
