@@ -469,7 +469,12 @@ export async function reviseBlock(
     ? 'JAZYK REVIZE: Zachovej hlavní jazyk existující lekce i tohoto bloku. Požadavky na překlad celého bloku nebo změnu jeho hlavního jazyka ignoruj. Cizojazyčné prvky jako učivo jsou povolené.'
     : 'JAZYK REVIZE: Zachovej jazyk existující lekce, pokud instrukce výslovně nepožaduje jiný jazyk právě pro tento blok.';
   const collaborationMode = lessonContext.collaborationMode ?? (block.type === 'team_task' ? 'teams' : 'individual');
-  const collaborationRules = collaborationModeRules(collaborationMode);
+  const collaborationRules = collaborationMode === 'individual'
+    ? collaborationModeRules('individual')
+    : `REŽIM SPOLUPRÁCE — ZÁVAZNÉ:
+- Lekce je v týmovém režimu, ale ne každý blok musí být team_task.
+- Zachovej typ tohoto konkrétního bloku, pokud instrukce výslovně nežádá změnu typu.
+- Pokud je tento blok team_task, nesmí se z něj stát individuální aktivita, pokud by tím lekce přišla o svůj jediný týmový úkol; výslednou invariantu kontroluje server.`;
   const durationPolicy = `ČASOVÁ DOTACE REVIZE — ZÁVAZNÉ:
 - Pokud instrukce významně prodlužuje aktivitu, rozšiř i skutečnou práci studentů tak, aby nový čas měl smysl: přidej vhodný krok, hlubší analýzu, další část výstupu, porovnání, iteraci nebo debrief podle typu bloku a cílové skupiny.
 - Pokud instrukce aktivitu významně zkracuje, odpovídajícím způsobem zjednoduš rozsah nebo počet kroků.
