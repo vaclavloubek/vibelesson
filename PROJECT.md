@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.52** uzavírá další tarifní abuse-hardening vrstvu: Free účetní kvóty jsou doplněné o privacy-minimal společný device budget napříč Free účty, individuální Teacher / Teacher Pro mají důvěryhodná zařízení a školní plány mají ochrany proti rotaci míst i odnášení školního obsahu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.53** uzavírá trusted-device write-boundary hardening: založení nové live session a ruční znovuspuštění AI hodnocení jdou přes service-role-only RPC, které pro individuální Teacher / Teacher Pro znovu ověřují aktivní trusted-device hash; přímý authenticated INSERT session a legacy regrade RPC jsou po přepnutí aplikace uzamčené. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -343,6 +343,15 @@ Individuální plány:
 
 U placených individuálních plánů jsou live hodiny a opakované používání již vytvořených lekcí bez tarifního limitu; AI kvóta se čerpá pouze při nové AI tvorbě a AI úpravách. Free může každou lesson family živě použít jednou. Studenti se připojují bez plnohodnotného účtu.
 
+### Trusted-device write-boundary hardening 0.9.53 — 2026-09-20
+
+- založení nové live session používá service-role-only RPC a DB-authoritativně načítá snapshot vlastní lekce;
+- u individuálních Teacher / Teacher Pro DB před vytvořením session ověří, že serverem předaný hash odpovídá aktivnímu nerevokovanému trusted-device tokenu;
+- přímý authenticated `INSERT` do `sessions` je po přepnutí aplikace odebraný; běžné řízení už spuštěné hodiny zůstalo beze změny, aby se před ostrým testem nezasahovalo do live baseline;
+- ruční regrade AI hodnocení používá stejnou server-only trusted-device hranici; starý přímo volatelný regrade RPC už authenticated role spustit nemůže;
+- generování a AI revize zůstávají na stávajících server-only kvótových RPC a server-side trusted-device gate, takže tato změna jejich funkční cestu nepřestavuje;
+- regresní check `scripts/verify-trusted-devices.mjs` hlídá jak serverové route, tak DB migrace a odebrání starých přímých cest.
+
 ### Tarifní abuse hardening 0.9.52
 
 - Free účet má vlastní měsíční kvóty **3 AI lekce / 10 AI úprav / 2 importy nebo kopie**.
@@ -353,7 +362,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - Teacher / Teacher Pro mají samostatný anti-sharing model: max. **3 současně důvěryhodná zařízení** a **5 skutečně nových zařízení za klouzavých 30 dní**; aktivní školní členství a interní admin jsou vyjmuté.
 - Organizace mají současně seat cap podle tarifu a per-billing-period limit unikátních lidí `seat_limit + max(1, ceil(10 %))`; návrat stejného člena se nepočítá znovu a čekající pozvánka pro nového člověka kapacitu dočasně rezervuje.
 - School/Campus školní obsah nese immutable `organization_origin_id`; po zániku členství zůstává uložený, ale přejde do read-only licenčního zámku a znovu se odemkne po obnovení přístupu.
-- AI grading má interní safety budget nezávislý na marketingových kvótách: Teacher Pro **$8 / 1 000 pokusů**, School **$75 / 7 500**, Campus **$200 / 20 000** za UTC kalendářní měsíc; při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
+- AI grading má interní safety budget nezávislý na marketingových kvótách: Teacher Pro **$2 / 150 pokusů**, School **$10 / 700**, Campus **$25 / 1 750** za UTC kalendářní měsíc; při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
 
 ### Teacher Pro AI kapacita 0.9.51 — 2026-09-20
 
@@ -370,7 +379,7 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **Free lesson-family reuse** — jedna skutečná live výuka na logickou rodinu lekce; kopie/importy zachovávají immutable `reuse_family_id`, takže duplikace neresetuje oprávnění;
 - **Free session lifetime** — první účastník spustí čas; nové joiny max. 120 minut, hard lifetime 6 hodin, write-boundary enforcement + cron, ukončenou session nelze znovu otevřít;
 - **Free multi-account farming** — shared privacy-minimal device budget 6 AI lekcí / 20 AI úprav / 4 importy nebo kopie za klouzavých 30 dní napříč Free účty na jednom zařízení; limity se odvozují jako 2× aktuální Free plán a device hash je server-authoritative;
-- **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení;
+- **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení; od 0.9.53 jsou vytvoření nové live session a ruční AI regrade navíc DB/server write-boundary chráněné a staré přímé authenticated cesty jsou uzamčené;
 - **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
 - **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
