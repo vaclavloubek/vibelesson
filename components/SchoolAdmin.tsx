@@ -1029,7 +1029,7 @@ export default function SchoolAdmin({
       return;
     }
 
-    setMessageKind('success');
+    setMessageKind('info');
     setMessage(ui(
       `Aktivní zařízení byla resetována (${payload.revokedCount ?? 0}). Historie nových zařízení za 30 dní zůstala zachovaná (${payload.newIn30Days ?? 0}/${payload.maxNewIn30Days ?? 10}).`,
       `Active devices were reset (${payload.revokedCount ?? 0}). The rolling 30-day new-device history was preserved (${payload.newIn30Days ?? 0}/${payload.maxNewIn30Days ?? 10}).`,
