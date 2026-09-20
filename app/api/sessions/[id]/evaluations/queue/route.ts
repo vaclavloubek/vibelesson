@@ -28,6 +28,11 @@ const EvaluationRowSchema = z.object({
   confidence: z.number().min(0).max(1).nullable(),
   ai_use_suspicion: AIUseSuspicionSchema,
   ai_use_signals: z.array(z.string().trim().min(1).max(240)).max(3),
+  integrity_challenge_question: z.string().nullable(),
+  integrity_challenge_answer: z.string().nullable(),
+  integrity_challenge_status: z.enum(['not_required', 'pending', 'answered', 'expired']),
+  integrity_challenge_expires_at: z.string().nullable(),
+  integrity_challenge_submitted_at: z.string().nullable(),
   rubric: z.array(GradingCriterionSchema).min(1).max(6),
   criterion_scores: z.array(CriterionScoreSchema).max(6),
   teacher_confirmed: z.boolean(),
@@ -78,7 +83,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const [evaluationsResult, participantsResult, teamsResult, responsesResult, teamResponsesResult] = await Promise.all([
     supabase
       .from('response_evaluations')
-      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, ai_use_suspicion, ai_use_signals, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, grader_version, created_at')
+      .select('id, block_id, participant_id, team_id, response_id, team_response_id, status, max_points, ai_score, teacher_score, rationale, confidence, ai_use_suspicion, ai_use_signals, integrity_challenge_question, integrity_challenge_answer, integrity_challenge_status, integrity_challenge_expires_at, integrity_challenge_submitted_at, rubric, criterion_scores, teacher_confirmed, teacher_reviewed_at, teacher_note, answer_snapshot, evaluated_at, grader_version, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true }),
     supabase.from('participants').select('id, display_name').eq('session_id', sessionId),
@@ -154,6 +159,11 @@ export async function GET(_req: Request, { params }: RouteContext) {
       confidence: parsed.data.confidence,
       aiUseSuspicion: parsed.data.ai_use_suspicion,
       aiUseSignals: parsed.data.ai_use_signals,
+      integrityChallengeQuestion: parsed.data.integrity_challenge_question,
+      integrityChallengeAnswer: parsed.data.integrity_challenge_answer,
+      integrityChallengeStatus: parsed.data.integrity_challenge_status,
+      integrityChallengeExpiresAt: parsed.data.integrity_challenge_expires_at,
+      integrityChallengeSubmittedAt: parsed.data.integrity_challenge_submitted_at,
       rubric: parsed.data.rubric,
       criterionScores: parsed.data.criterion_scores,
       teacherConfirmed: parsed.data.teacher_confirmed,
