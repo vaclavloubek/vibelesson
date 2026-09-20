@@ -101,6 +101,16 @@ export async function POST(req: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Hodnocení se nepodařilo převzít ke zpracování.' }, { status: 500 });
   }
   if (!claimedRaw) {
+    try {
+      if (await isIndividualAiBillingPaused(userId)) {
+        return NextResponse.json({
+          error: aiBillingPausedMessage(requestLocale),
+          code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+        }, { status: 402 });
+      }
+    } catch {
+      // The claim already failed closed; keep the generic state response below.
+    }
     return NextResponse.json({ error: 'Hodnocení právě zpracovává jiný proces nebo AI hodnocení není povolené.' }, { status: 409 });
   }
 
