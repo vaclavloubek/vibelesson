@@ -244,7 +244,7 @@ export async function POST(request: Request) {
           });
 
           for (const paymentIntentId of paymentIntentIds) {
-            const { error: mappingError } = await supabase.rpc('sync_stripe_invoice_payment_event', {
+            const { error: mappingError } = await supabase.rpc('sync_stripe_invoice_payment_event_v2', {
               p_event_id: invoiceSync.eventId,
               p_livemode: invoiceSync.livemode,
               p_user_id: invoiceSync.userId,
@@ -252,6 +252,9 @@ export async function POST(request: Request) {
               p_invoice_id: invoiceSync.invoiceId,
               p_payment_intent_id: paymentIntentId,
               p_paid_at: invoiceSync.paidAt,
+              p_amount_paid: invoiceSync.amountPaid,
+              p_currency: invoiceSync.currency,
+              p_billing_reason: invoiceSync.billingReason,
             });
             if (mappingError) {
               console.error('stripe invoice payment mapping failed', {
