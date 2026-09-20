@@ -339,6 +339,7 @@ for (const needle of [
   "params.set('line_items[0][price]', input.priceId)",
   "params.set('line_items[0][quantity]', '1')",
   'stripe_price_id_invalid',
+  "'syllonaut_org_checkout_v2_' + input.orderId",
 ]) {
   if (!organizationStripe.includes(needle)) {
     throw new Error('School Stripe checkout catalog contract missing: ' + needle);
@@ -346,4 +347,8 @@ for (const needle of [
 }
 if (organizationStripe.includes("line_items[0][price_data]")) {
   throw new Error('School Stripe Checkout must not create inline products or prices.');
+}
+
+if (organizationStripe.includes("'syllonaut_org_checkout_' + input.orderId")) {
+  throw new Error('School Stripe Checkout must not reuse the legacy v1 idempotency scope.');
 }
