@@ -49,7 +49,7 @@ const teacherPlansCs: Plan[] = [
     features: [
       '5 nových AI lekcí za měsíc',
       '3 importy nebo kopie lekcí za měsíc',
-      '20 AI úprav za měsíc',
+      '10 AI úprav za měsíc',
       'Každou lekci lze živě použít jednou',
       'Archivované lekce lze dál upravovat ručně i pomocí AI',
       'Studenti se připojují bez plnohodnotného účtu',
@@ -61,13 +61,14 @@ const teacherPlansCs: Plan[] = [
   {
     id: 'teacher',
     name: 'Teacher',
-    description: 'Pro učitele, kteří Syllonaut používají pravidelně během měsíce.',
+    description: 'Pro pravidelnou výuku: nové lekce tvoříte s AI, hotové pak učíte opakovaně bez omezení.',
     price: pricingPagePrice('teacher'),
     features: [
-      '25 nových AI lekcí za měsíc',
-      '100 AI úprav za měsíc',
+      '10 nových AI lekcí za měsíc',
+      '20 AI úprav za měsíc',
       'Lekce v libovolném jazyce',
       'Opakované používání lekcí bez omezení',
+      'Živé spuštění hotové lekce nespotřebovává AI limit',
       'Studenti se připojují bez plnohodnotného účtu',
       'Automatické bodování kvízů',
       'Ruční hodnocení otevřených a týmových odpovědí',
@@ -77,16 +78,17 @@ const teacherPlansCs: Plan[] = [
   {
     id: 'teacher-pro',
     name: 'Teacher Pro',
-    description: 'Pro intenzivní výuku, více kurzů a pokročilou práci s výsledky.',
+    description: 'Pro intenzivní práci s lekcemi, AI hodnocením, pracovními listy a organizací výuky.',
     price: pricingPagePrice('teacher_pro'),
     features: [
-      '60 nových AI lekcí za měsíc',
-      '250 AI úprav za měsíc',
+      '20 nových AI lekcí za měsíc',
+      '25 AI úprav za měsíc',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
+      'Živé spuštění hotové lekce nespotřebovává AI limit',
       'Studenti se připojují bez plnohodnotného účtu',
     ],
   },
@@ -96,35 +98,37 @@ const schoolPlansCs: Plan[] = [
   {
     id: 'team',
     name: 'Team',
-    description: 'Pro menší tým, který chce připravovat, učit i vyhodnocovat v jednom nástroji.'
+    description: 'Pro menší tým, který chce připravovat, učit i vyhodnocovat v jednom nástroji.',
     price: { monthlyCzk: 890, annualCzk: 8900, monthlyEur: 37.99, annualEur: 379.9, monthlyUsd: 39.99, annualUsd: 399 },
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
       'Až 10 učitelů',
       'Samostatný účet pro každého učitele',
-      '200 nových AI lekcí za měsíc společně',
-      '800 AI úprav za měsíc společně',
+      '40 nových AI lekcí za měsíc společně',
+      '80 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
       'Opakované používání lekcí bez omezení',
+      'Živé spuštění hotové lekce nespotřebovává AI limit',
       'Sdílený měsíční AI limit pro celý tým',
     ],
   },
   {
     id: 'school',
     name: 'School',
-    description: 'Pro školu, která chce sjednotit AI přípravu, živou výuku a vyhodnocení napříč sborem.'
+    description: 'Pro školu, která chce sjednotit AI přípravu, živou výuku a vyhodnocení napříč sborem.',
     price: { monthlyCzk: 2390, annualCzk: 23900, monthlyEur: 99.99, annualEur: 999.9, monthlyUsd: 109.99, annualUsd: 1099 },
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
       'Až 30 učitelů',
       'Samostatný účet pro každého učitele',
-      '600 nových AI lekcí za měsíc společně',
-      '2 400 AI úprav za měsíc společně',
+      '120 nových AI lekcí za měsíc společně',
+      '240 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
+      'Živé spuštění hotové lekce nespotřebovává AI limit',
       'Sdílená knihovna lekcí',
       'Licenční zámek školních lekcí',
       'Sdílený měsíční AI limit pro celou školu',
@@ -134,19 +138,20 @@ const schoolPlansCs: Plan[] = [
   {
     id: 'campus',
     name: 'Campus',
-    description: 'Pro velkou školu nebo instituci, která chce jeden společný workflow pro více týmů a pracovišť.'
+    description: 'Pro velkou školu nebo instituci, která chce jeden společný workflow pro více týmů a pracovišť.',
     price: { monthlyCzk: 5990, annualCzk: 59900, monthlyEur: 249.99, annualEur: 2499.9, monthlyUsd: 269.99, annualUsd: 2699 },
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
       'Až 100 učitelů',
       'Samostatný účet pro každého učitele',
-      '2 000 nových AI lekcí za měsíc společně',
-      '8 000 AI úprav za měsíc společně',
+      '300 nových AI lekcí za měsíc společně',
+      '600 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
+      'Živé spuštění hotové lekce nespotřebovává AI limit',
       'Sdílená knihovna lekcí',
       'Licenční zámek školních lekcí',
       'Sdílený měsíční AI limit pro celou organizaci',
@@ -160,7 +165,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     features: [
       '5 new AI lessons per month',
       '3 lesson imports or copies per month',
-      '20 AI edits per month',
+      '10 AI edits per month',
       'Each lesson can be used live once',
       'Archived lessons remain editable manually and with AI',
       'Students join without a full account',
@@ -169,74 +174,79 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     ],
   },
   teacher: {
-    description: 'For teachers who use Syllonaut regularly throughout the month.',
+    description: 'For regular teaching: create new lessons with AI, then teach the finished lessons again without limits.',
     features: [
-      '25 new AI lessons per month',
-      '100 AI edits per month',
+      '10 new AI lessons per month',
+      '20 AI edits per month',
       'Lessons in any language',
       'Unlimited repeated use of lessons',
+      'Running a finished lesson live does not use the AI allowance',
       'Students join without a full account',
       'Automatic quiz scoring',
       'Manual grading of open and team responses',
     ],
   },
   'teacher-pro': {
-    description: 'For intensive teaching, multiple courses and advanced work with results.',
+    description: 'For intensive lesson work with AI grading, worksheets and organisation tools.',
     features: [
-      '60 new AI lessons per month',
-      '250 AI edits per month',
+      '20 new AI lessons per month',
+      '25 AI edits per month',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
+      'Running a finished lesson live does not use the AI allowance',
       'Students join without a full account',
     ],
   },
   team: {
-    description: 'For a small team that wants to prepare, teach and evaluate in one tool.'
+    description: 'For a small team that wants to prepare, teach and evaluate in one tool.',
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 10 teachers',
       'A separate account for every teacher',
-      '200 new AI lessons per month shared',
-      '800 AI edits per month shared',
+      '40 new AI lessons per month shared',
+      '80 AI edits per month shared',
       'Lessons in any language',
       'Unlimited repeated use of lessons',
+      'Running a finished lesson live does not use the AI allowance',
       'Shared monthly AI allowance for the whole team',
     ],
   },
   school: {
-    description: 'For schools that want one workflow for AI preparation, live teaching and evaluation across staff.'
+    description: 'For schools that want one workflow for AI preparation, live teaching and evaluation across staff.',
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 30 teachers',
       'A separate account for every teacher',
-      '600 new AI lessons per month shared',
-      '2,400 AI edits per month shared',
+      '120 new AI lessons per month shared',
+      '240 AI edits per month shared',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
+      'Running a finished lesson live does not use the AI allowance',
       'Shared lesson library',
       'School lesson license lock',
       'Shared monthly AI allowance for the whole school',
     ],
   },
   campus: {
-    description: 'For large schools or institutions that want one shared workflow across teams and sites.'
+    description: 'For large schools or institutions that want one shared workflow across teams and sites.',
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
       'Up to 100 teachers',
       'A separate account for every teacher',
-      '2,000 new AI lessons per month shared',
-      '8,000 AI edits per month shared',
+      '300 new AI lessons per month shared',
+      '600 AI edits per month shared',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
+      'Running a finished lesson live does not use the AI allowance',
       'Shared lesson library',
       'School lesson license lock',
       'Shared monthly AI allowance for the whole organisation',
@@ -690,6 +700,11 @@ export default function PricingPage({
         ))}
       </section>
 
+      <p className={styles.usagePromise}>{ui(
+        'Jedna AI lekce není jednorázový materiál. AI limit se čerpá jen při nové tvorbě a AI úpravách; hotové lekce můžete v placených tarifech spouštět a učit znovu bez omezení.',
+        'An AI lesson is not a one-off material. The AI allowance is used only for new creation and AI edits; finished lessons can be launched and taught repeatedly without limits on paid plans.'
+      )}</p>
+
       {checkoutResult && (sandboxCheckoutEnabled || publicLiveBillingEnabled) ? (
         <div className={styles.checkoutNotice} role="status">
           {checkoutResult === 'success'
@@ -880,8 +895,8 @@ export default function PricingPage({
       <section className={styles.notes}>
         <div>
           <span className={styles.noteIndex}>01</span>
-          <strong>{ui('Měsíční limity se obnovují každý kalendářní měsíc.', 'Monthly limits reset every calendar month.')}</strong>
-          <p>{ui('U školních plánů má každý učitel vlastní účet. AI lekce a úpravy se čerpají ze společného limitu pracovního prostoru školy.', 'On school plans, every teacher has their own account. AI lessons and edits use the school workspace’s shared allowance.')}</p>
+          <strong>{ui('AI limit chrání tvorbu, ne samotnou výuku.', 'The AI allowance limits creation, not teaching itself.')}</strong>
+          <p>{ui('Limity se obnovují každý kalendářní měsíc. U placených tarifů spuštění a opakované použití hotových lekcí limit nespotřebovává; u škol se nová tvorba a AI úpravy čerpají ze společného poolu.', 'Allowances reset every calendar month. On paid plans, launching and reusing finished lessons does not consume them; school plans share the allowance for new creation and AI edits.')}</p>
         </div>
         <div>
           <span className={styles.noteIndex}>02</span>
