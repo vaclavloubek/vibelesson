@@ -266,7 +266,7 @@ function localizePlan(plan: Plan, english: boolean): Plan {
   return translated ? { ...plan, description: translated.description, features: translated.features } : plan;
 }
 
-const czk = new Intl.NumberFormat('cs-CZ');
+const czk = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 });
 
 function formatPrice(value: number, currency: BillingCurrency, english: boolean) {
   if (currency === 'czk') return `${czk.format(value)} Kč`;
@@ -304,7 +304,7 @@ function PlanCard({
   const annual = billing === 'annual';
   const primary = priceValue(plan, billing, currency);
   const annualPrice = priceValue(plan, 'annual', currency);
-  const monthlyEquivalent = plan.free ? 0 : annualPrice / 12;
+  const monthlyEquivalent = plan.free ? 0 : Math.round((annualPrice / 12) * 100) / 100;
 
   return (
     <article className={`${styles.card} ${plan.featured ? styles.featured : ''}`} id={plan.id}>
