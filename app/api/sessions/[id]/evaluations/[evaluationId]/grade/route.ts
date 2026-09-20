@@ -169,12 +169,14 @@ export async function POST(req: Request, { params }: RouteContext) {
       strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
-    const { data: finished, error: finishError } = await supabase.rpc('finish_response_evaluation', {
+    const { data: finished, error: finishError } = await supabase.rpc('finish_response_evaluation_v2', {
       p_evaluation_id: evaluationId,
       p_ai_score: result.score,
       p_rationale: result.rationale,
       p_confidence: result.confidence,
       p_criterion_scores: result.criterionScores,
+      p_ai_use_suspicion: result.aiUseSuspicion,
+      p_ai_use_signals: result.aiUseSignals,
       p_model: result.model,
       p_cost_usd: result.costUsd,
     });
@@ -191,6 +193,8 @@ export async function POST(req: Request, { params }: RouteContext) {
       confidence: result.confidence,
       rationale: result.rationale,
       criterionScores: result.criterionScores,
+      aiUseSuspicion: result.aiUseSuspicion,
+      aiUseSignals: result.aiUseSignals,
       costUsd: result.costUsd,
     });
   } catch (error) {
