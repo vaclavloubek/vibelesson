@@ -200,9 +200,6 @@ declare
   v_membership_role text;
   v_reason text;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'forbidden' using errcode='42501';
-  end if;
 
   select p.role into v_role from public.profiles p where p.id=p_user_id;
   if not found then raise exception 'profile_not_found' using errcode='P0001'; end if;
@@ -254,9 +251,6 @@ security definer
 set search_path = ''
 as $function$
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'forbidden' using errcode='42501';
-  end if;
   return private.organization_ai_billing_pause_reason(p_organization_id);
 end;
 $function$;
@@ -410,9 +404,6 @@ declare
   v_existing private.organization_stripe_payments%rowtype;
   v_recovery jsonb;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'forbidden' using errcode='42501';
-  end if;
 
   if p_event_id !~ '^evt_[A-Za-z0-9_]+$'
      or p_invoice_id !~ '^in_[A-Za-z0-9_]+$'
@@ -508,9 +499,6 @@ declare
   v_release_reason text:=null;
   v_closed_at timestamptz:=null;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'forbidden' using errcode='42501';
-  end if;
 
   if p_event_id !~ '^evt_[A-Za-z0-9_]+$'
      or p_dispute_id !~ '^d[pu]_[A-Za-z0-9_]+$'
@@ -638,9 +626,6 @@ declare
   v_released_at timestamptz;
   v_release_reason text;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'forbidden' using errcode='42501';
-  end if;
 
   if p_event_id !~ '^evt_[A-Za-z0-9_]+$'
      or p_event_type not in ('charge.refunded','refund.created','refund.updated','refund.failed')
