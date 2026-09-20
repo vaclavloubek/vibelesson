@@ -1,8 +1,16 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.71** opravuje společné ukotvení přihlašovacího panelu. Auth dialog se nyní pozicuje podle skutečného tlačítka ve viewportu, nikoli podle šířky rodičovského kontejneru; při nedostatku místa pod tlačítkem se otevře nad ním a vždy zůstane v bezpečných okrajích obrazovky. Pozice se průběžně přepočítává při scrollu, resize, změně visual viewportu i výšky formuláře. Oprava je společná pro školní objednávku, školní pozvánku, sdílenou lekci, landing, Ceník a lesson workspace. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.72** doplňuje do sekce **Stavebnice aktivit** na landing page responzivní wordcloud přímo v HTML/CSS. Uprostřed dominuje Syllonaut, kolem něj jsou klíčové produktové pojmy v odstínech fialové a jemné orbitální/vesmírné prvky. Wordcloud vyplňuje dříve prázdnou horní část celé viewportové sekce, zachovává spodní claim i activity chips a má českou i anglickou variantu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Landing wordcloud 0.9.72 — 2026-09-20
+
+- sekce **Stavebnice aktivit** nově využívá volný horní prostor pro živý wordcloud renderovaný přímo na stránce, bez bitmapového obrázku;
+- **Syllonaut** je centrální, největší a nejtučnější prvek; okolní pojmy popisují produkt jako celek (AI, interaktivní výuka, živá hodina, úspora času, zapojení, spolupráce, příprava, AI úpravy, studenti, učitel, zpětná vazba, reflexe, mobily a hodnocení);
+- vizuál používá jen střídmou fialovou paletu Syllonautu a jemné orbitální linky/body, aby ladil s existujícím kosmickým motivem;
+- cloud je čistě dekorativní pro asistivní technologie (`aria-hidden`) a nezměnil informační hierarchii ani ovládání stránky;
+- desktop zachovává dvousloupcový claim + activity chips pod wordcloudem; mobil cloud zjednodušuje a skrývá méně důležité výrazy, aby zůstal čitelný.
 
 ### Viewport-safe přihlašovací panel 0.9.71 — 2026-09-20
 
