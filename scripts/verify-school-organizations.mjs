@@ -378,6 +378,21 @@ for (const needle of [
   }
 }
 
+const publicHeaderAccountMenu = fs.readFileSync(
+  'components/PublicHeaderAccountMenu.tsx',
+  'utf8',
+);
+for (const needle of [
+  'SUPERADMIN_USER_ID',
+  'user.id === SUPERADMIN_USER_ID',
+  'href="/admin/school-invoices"',
+  'Superadmin faktury',
+]) {
+  if (!publicHeaderAccountMenu.includes(needle)) {
+    throw new Error('Superadmin invoice main-menu contract missing: ' + needle);
+  }
+}
+
 const superadminInvoiceRoute = fs.readFileSync(
   'app/api/admin/school-invoices/[orderId]/mark-paid/route.ts',
   'utf8',
