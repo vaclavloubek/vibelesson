@@ -166,8 +166,8 @@ export async function POST(request: Request) {
 
   const bucket = Math.floor(Date.now() / RATE_WINDOW_MS);
   const admin = createAdminClient();
-  const { data: reservation, error: reservationError } = await admin
-    .from('contact_form_rate_limits')
+  const rateLimitTable = admin.schema('private').from('contact_form_rate_limits');
+  const { data: reservation, error: reservationError } = await rateLimitTable
     .insert({
       client_hash: clientHash,
       email_hash: emailHash,
@@ -199,8 +199,7 @@ export async function POST(request: Request) {
     });
 
     // Delivery failed, so release this rate-limit reservation and let the user retry.
-    await admin
-      .from('contact_form_rate_limits')
+    await rateLimitTable
       .delete()
       .eq('id', reservation.id);
 
@@ -208,8 +207,7 @@ export async function POST(request: Request) {
   }
 
   // Keep only a short, privacy-minimal anti-abuse history.
-  void admin
-    .from('contact_form_rate_limits')
+  void rateLimitTable
     .delete()
     .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1_000).toISOString());
 
