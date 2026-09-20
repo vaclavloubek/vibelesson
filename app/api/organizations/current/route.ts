@@ -48,6 +48,12 @@ export async function GET() {
   const billingPauseResult = await admin.rpc('get_organization_ai_billing_pause_reason_server', {
     p_organization_id: organization.id,
   });
+  if (billingPauseResult.error) {
+    console.warn('organization AI billing pause lookup unavailable', {
+      organizationId: organization.id,
+      code: billingPauseResult.error.code,
+    });
+  }
 
   const membersResult = await admin
     .from('organization_memberships')
@@ -112,7 +118,6 @@ export async function GET() {
   if (
     lifecycleResult.error
     || !lifecycleResult.data
-    || billingPauseResult.error
     || membersResult.error
     || invitesResult.error
     || requestsResult.error
@@ -124,7 +129,6 @@ export async function GET() {
   ) {
     console.error('organization summary lookup failed', {
       lifecycle: lifecycleResult.error?.code,
-      billingPause: billingPauseResult.error?.code,
       members: membersResult.error?.code,
       invites: invitesResult.error?.code,
       requests: requestsResult.error?.code,
