@@ -461,7 +461,6 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   }, [session]);
   const activeBlock = activeIndex >= 0 && session ? session.lessonSnapshot.blocks[activeIndex] : null;
   const teamMode = session ? resolveLessonCollaborationMode(session.lessonSnapshot) === 'teams' : false;
-  const hasTeamTasks = teamMode && (session?.lessonSnapshot.blocks.some((block) => block.type === 'team_task') ?? false);
 
   function teamMembers(teamId: string) {
     return session?.participants.filter((participant) => participant.teamId === teamId) ?? [];
