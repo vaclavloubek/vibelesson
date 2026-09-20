@@ -8,7 +8,7 @@ function requireText(text, needle, message) {
   if (!text.includes(needle)) throw new Error(`header account menu regression: ${message}`);
 }
 
-const [landing, pricing, authControls, dashboard, workspace, teacherLive, privacy, menu, membershipRoute, identityRoute, landingCss, globals] = await Promise.all([
+const [landing, pricing, authControls, dashboard, workspace, teacherLive, privacy, menu, membershipRoute, identityRoute, landingCss, globals, schoolAdmin, schoolInvite, sharedLessonAuth] = await Promise.all([
   source('components/LandingPage.tsx'),
   source('components/PricingPage.tsx'),
   source('components/AuthControls.tsx'),
@@ -21,6 +21,9 @@ const [landing, pricing, authControls, dashboard, workspace, teacherLive, privac
   source('app/api/auth/identity/route.ts'),
   source('components/LandingPage.module.css'),
   source('app/globals.css'),
+  source('components/SchoolAdmin.tsx'),
+  source('components/SchoolInviteClient.tsx'),
+  source('components/SharedLessonAuthControls.tsx'),
 ]);
 
 requireText(authControls, '<PublicHeaderAccountMenu', 'authenticated AuthControls must render the shared account menu.');
@@ -28,6 +31,9 @@ requireText(landing, '<AuthControls onAuthChange={setUser} />', 'landing must us
 requireText(pricing, '<AuthControls', 'pricing must use the shared auth/account control.');
 requireText(dashboard, '<PublicHeaderAccountMenu', 'dashboard must use the shared account menu.');
 requireText(workspace, '<AuthControls onAuthChange={handleAuthChange}', 'lesson workspace must inherit the shared account menu through AuthControls.');
+requireText(schoolAdmin, '<AuthControls', 'school admin sign-in must use the shared auth control.');
+requireText(schoolInvite, '<AuthControls', 'school invite sign-in must use the shared auth control.');
+requireText(sharedLessonAuth, '<AuthControls', 'shared lesson sign-in must use the shared auth control.');
 requireText(teacherLive, '<PublicHeaderAccountMenu user={authUser} />', 'teacher live must use the shared account menu when primary auth is available.');
 requireText(privacy, '<PublicHeaderAccountMenu user={accountUser} />', 'privacy page must use the shared account menu for signed-in teachers.');
 
@@ -56,6 +62,14 @@ requireText(menu, "event.key !== 'Escape'", 'the dropdown must support Escape cl
 requireText(menu, "document.addEventListener('pointerdown'", 'the dropdown must close on outside pointer interaction.');
 requireText(landingCss, ':global(.auth-account-label)', 'the public mobile header must compact the profile trigger.');
 requireText(globals, '.auth-account-popover', 'global account dropdown styling must exist.');
+requireText(globals, '.auth-popover {\n  position: fixed;', 'auth popover must use viewport positioning instead of page-flow anchoring.');
+requireText(authControls, 'const repositionPopover = () => {', 'auth popover must recalculate its viewport-safe position.');
+requireText(authControls, 'Math.max(triggerRect.left, minLeft)', 'auth popover must anchor horizontally to the actual trigger.');
+requireText(authControls, "window.addEventListener('scroll', repositionPopover, true)", 'auth popover must follow nested/page scrolling.');
+requireText(authControls, 'const resizeObserver = new ResizeObserver(repositionPopover);', 'auth popover must re-anchor when its content height changes.');
+if (landingCss.includes(':global(.auth-popover)')) {
+  throw new Error('header account menu regression: landing must not carry a private auth-popover positioning override.');
+}
 requireText(globals, '.app-header-cta', 'teacher surfaces must share a compact primary header CTA style.');
 
 console.log('Header account menu checks passed.');

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
@@ -59,6 +59,12 @@ type Quota = {
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email';
 type ChallengeStatus = 'loading' | 'checking' | 'interactive' | 'retrying' | 'verified';
+
+type PopoverPosition = {
+  top: number;
+  left: number;
+  maxHeight: number;
+};
 
 type TurnstileChallengeProps = {
   ready: boolean;
@@ -160,6 +166,7 @@ export default function AuthControls({
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaVersion, setCaptchaVersion] = useState(0);
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const marketingConsentId = useId();
@@ -250,6 +257,73 @@ export default function AuthControls({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPopoverPosition(null);
+      return;
+    }
+
+    const trigger = triggerRef.current;
+    const popover = popoverRef.current;
+    if (!trigger || !popover) return;
+
+    const margin = 12;
+    const gap = 8;
+
+    const repositionPopover = () => {
+      const triggerRect = trigger.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const maxHeight = Math.max(160, viewportHeight - (margin * 2));
+      const measuredHeight = Math.min(popoverRect.height, maxHeight);
+
+      const minLeft = viewportLeft + margin;
+      const maxLeft = Math.max(
+        minLeft,
+        viewportLeft + viewportWidth - margin - popoverRect.width,
+      );
+      const left = Math.min(
+        Math.max(triggerRect.left, minLeft),
+        maxLeft,
+      );
+
+      const minTop = viewportTop + margin;
+      const maxTop = Math.max(
+        minTop,
+        viewportTop + viewportHeight - margin - measuredHeight,
+      );
+      const belowTop = triggerRect.bottom + gap;
+      const aboveTop = triggerRect.top - gap - measuredHeight;
+      const top = belowTop + measuredHeight <= viewportTop + viewportHeight - margin
+        ? belowTop
+        : aboveTop >= minTop
+          ? aboveTop
+          : Math.min(Math.max(belowTop, minTop), maxTop);
+
+      setPopoverPosition({ top, left, maxHeight });
+    };
+
+    repositionPopover();
+    const resizeObserver = new ResizeObserver(repositionPopover);
+    resizeObserver.observe(popover);
+    window.addEventListener('resize', repositionPopover);
+    window.addEventListener('scroll', repositionPopover, true);
+    window.visualViewport?.addEventListener('resize', repositionPopover);
+    window.visualViewport?.addEventListener('scroll', repositionPopover);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', repositionPopover);
+      window.removeEventListener('scroll', repositionPopover, true);
+      window.visualViewport?.removeEventListener('resize', repositionPopover);
+      window.visualViewport?.removeEventListener('scroll', repositionPopover);
+    };
+  }, [mode, open]);
 
   useEffect(() => {
     if (!initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
@@ -458,6 +532,14 @@ export default function AuthControls({
           ref={popoverRef}
           id={AUTH_POPOVER_ID}
           className="auth-popover"
+          style={popoverPosition
+            ? {
+                top: popoverPosition.top,
+                left: popoverPosition.left,
+                maxHeight: popoverPosition.maxHeight,
+                visibility: 'visible',
+              }
+            : { visibility: 'hidden' }}
           role="dialog"
           aria-modal="false"
           aria-labelledby={AUTH_POPOVER_TITLE_ID}

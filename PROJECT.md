@@ -1,8 +1,18 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.70** stabilizuje desktopové rozložení volby týmových aktivit: při zapnutí týmových aktivit se pole **Velikost týmu** na desktopu zobrazí až za polem **Tón**, takže Tón zůstává na stejné pozici. Na mobilu zůstává přirozené pořadí **volba týmových aktivit → velikost týmu → tón**. Jde pouze o responzivní layout; logika generování ani live workflow se nemění. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.71** opravuje společné ukotvení přihlašovacího panelu. Auth dialog se nyní pozicuje podle skutečného tlačítka ve viewportu, nikoli podle šířky rodičovského kontejneru; při nedostatku místa pod tlačítkem se otevře nad ním a vždy zůstane v bezpečných okrajích obrazovky. Pozice se průběžně přepočítává při scrollu, resize, změně visual viewportu i výšky formuláře. Oprava je společná pro školní objednávku, školní pozvánku, sdílenou lekci, landing, Ceník a lesson workspace. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Viewport-safe přihlašovací panel 0.9.71 — 2026-09-20
+
+- společný `AuthControls` nově ukotvuje dialog horizontálně podle skutečné levé hrany triggeru a omezuje jej hranami viewportu;
+- vertikálně se dialog otevře pod tlačítkem, pokud se vejde; jinak se automaticky překlápí nad tlačítko;
+- pokud je formulář vyšší než dostupný viewport, dostane vlastní scroll a zůstane celý dosažitelný;
+- pozice se přepočítává při page/nested scrollu, resize, změně `visualViewport` a změně výšky obsahu přes `ResizeObserver`;
+- odstraněna byla landing-only mobilní výjimka, aby School, School invite, shared lesson, landing, Pricing a lesson workspace používaly stejnou logiku;
+- `verify-header-account-menu.mjs` nově regresně hlídá i školní a share scénáře a zákaz lokální positioning výjimky;
+- veřejně zobrazovaná verze zůstává 0.9.30.
 
 ### Stabilní desktopové rozložení týmových polí 0.9.70 — 2026-09-20
 
