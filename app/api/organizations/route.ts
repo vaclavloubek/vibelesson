@@ -14,21 +14,16 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const InputSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  legalName: z.string().trim().max(200).optional().default(''),
+  legalName: z.string().trim().min(2).max(200),
   registrationNumber: z.string().trim().max(80).optional().default(''),
   vatId: z.string().trim().max(80).optional().default(''),
   billingEmail: z.string().trim().email().max(254),
   billingCountry: z.string().trim().length(2).transform((value) => value.toUpperCase()),
   billingAddress: z.object({
-    line1: z.string().trim().max(160).optional().default(''),
+    line1: z.string().trim().min(2).max(160),
     line2: z.string().trim().max(160).optional().default(''),
-    city: z.string().trim().max(120).optional().default(''),
-    postalCode: z.string().trim().max(32).optional().default(''),
-  }).default({
-    line1: '',
-    line2: '',
-    city: '',
-    postalCode: '',
+    city: z.string().trim().min(2).max(120),
+    postalCode: z.string().trim().min(2).max(32),
   }),
   planCode: z.string(),
   billingPeriod: z.enum(['monthly', 'annual']),
