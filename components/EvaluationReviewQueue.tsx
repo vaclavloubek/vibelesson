@@ -112,6 +112,40 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
     }
   }
 
+
+  async function confirmUnauthorizedAiUse() {
+    if (saving || evaluation.aiUseSuspicion !== 'high' || evaluation.teacherConfirmed) return;
+    const confirmed = window.confirm(ui(
+      'Opravdu potvrdit nepovolené využití generativní AI? Hodnocení bude nastaveno na 0 bodů.',
+      'Confirm unauthorized generative AI use? The score will be set to 0 points.',
+    ));
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError('');
+    const note = ui(
+      'Integritní kontrola: učitel potvrdil nepovolené využití generativní AI.',
+      'Integrity review: teacher confirmed unauthorized generative AI use.',
+    );
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/evaluations/${evaluation.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score: 0, note }),
+      });
+      const data = await response.json() as ReviewPatch & { error?: string };
+      if (!response.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
+      const activityType = gradableActivityType(evaluation.blockType);
+      if (activityType && evaluation.aiScore !== 0) {
+        trackEvent('teacher_grade_override', { activity_type: activityType });
+      }
+      onReviewed(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : ui('Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <form
       key={`${evaluation.id}:${evaluation.teacherScore ?? 'base'}:${evaluation.teacherNote ?? ''}`}
@@ -132,6 +166,16 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
         <button className="secondary" type="submit" disabled={saving}>
           {saving ? ui('Ukládám…', 'Saving…') : evaluation.teacherConfirmed ? ui('Uložit změnu', 'Save change') : ui('Potvrdit hodnocení', 'Confirm grading')}
         </button>
+        {evaluation.aiUseSuspicion === 'high' && !evaluation.teacherConfirmed ? (
+          <button
+            className="secondary"
+            type="button"
+            disabled={saving}
+            onClick={() => { void confirmUnauthorizedAiUse(); }}
+          >
+            {ui('Potvrdit nepovolené využití AI → 0 bodů', 'Confirm unauthorized AI use → 0 points')}
+          </button>
+        ) : null}
       </div>
       {error ? <p className="muted-copy" style={{ margin: 0 }}>{error}</p> : null}
     </form>
