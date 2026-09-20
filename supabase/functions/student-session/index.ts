@@ -83,19 +83,20 @@ async function respond(b: Record<string, unknown>) {
   const sessionId = typeof b.sessionId === "string" ? b.sessionId : ""; const rawToken = typeof b.participantToken === "string" ? b.participantToken : ""; const blockId = typeof b.blockId === "string" ? b.blockId.trim() : ""; if (!/^[0-9a-f-]{36}$/i.test(sessionId) || blockId.length < 1 || blockId.length > 200) return reply({ error: "Neplatný požadavek na odpověď." }, 400); const v = await verify(sessionId, rawToken, "id"); if (v.response) return v.response; const p = v.participant!;
   const { data: s, error } = await db.from("sessions").select("status,active_block_id,lesson_snapshot,realtime_key,revealed_block_ids").eq("id", sessionId).maybeSingle(); if (error) return reply({ error: "Hodinu se nepodařilo načíst." }, 500); if (!s) return reply({ error: "Hodina neexistuje." }, 404); if (s.status !== "live") return reply({ error: "Odpovídat lze pouze během živé hodiny." }, 409); if (s.active_block_id !== blockId) return reply({ error: "Učitel už přešel na jiný blok." }, 409); const block = blocks(s.lesson_snapshot).find(x => x.id === blockId); if (!block) return reply({ error: "Aktivní blok nebyl nalezen ve snapshotu." }, 500); if (block.type === "team_task") return reply({ error: "Týmový úkol použij společnou týmovou odpověď." }, 409); const revealed = Array.isArray(s.revealed_block_ids) ? s.revealed_block_ids.filter((x): x is string => typeof x === "string") : []; if ((block.type === "poll" || block.type === "quiz") && revealed.includes(blockId)) return reply({ error: "Výsledky už byly zveřejněné. Odpověď už nelze změnit." }, 409); const n = normalize(block, b.answer); if (!n.answer) return reply({ error: n.error ?? "Neplatná odpověď." }, n.status ?? 400);
   const responseAction = b.responseAction === "submit" ? "submit" : "save";
-  const explicitSubmit = responseAction === "submit" && (block.type === "open_text" || block.type === "exit_ticket");
+  const marksSubmission = responseAction === "submit" && (block.type === "open_text" || block.type === "exit_ticket" || block.type === "ranking");
+  const queuesEvaluation = responseAction === "submit" && (block.type === "open_text" || block.type === "exit_ticket");
   const timestamp = new Date().toISOString();
   const values: Record<string, unknown> = { session_id: sessionId, participant_id: p.id, block_id: blockId, answer: n.answer, updated_at: timestamp };
-  if (explicitSubmit) { values.submitted_answer = n.answer; values.submitted_at = timestamp; }
+  if (marksSubmission) { values.submitted_answer = n.answer; values.submitted_at = timestamp; }
   const { data: saved, error: saveError } = await db.from("responses").upsert(values, { onConflict: "session_id,participant_id,block_id" }).select("id,answer,submitted_answer,submitted_at,updated_at").single(); if (saveError || !saved) return sessionWriteError(saveError, "Odpověď se nepodařilo uložit.");
   let queuedForEvaluation = false;
-  if (explicitSubmit) {
+  if (queuesEvaluation) {
     const { data: queued, error: queueError } = await db.rpc("queue_submitted_response_evaluation", { p_response_id: saved.id });
     if (queueError) { console.error("Submit individual response grading queue failed", queueError); return reply({ error: "Odpověď je odevzdaná, ale nepodařilo se zařadit hodnocení. Zkus odevzdání znovu." }, 500); }
     queuedForEvaluation = Boolean(queued);
   }
   const submittedCurrent = Boolean(saved.submitted_at && sameJson(saved.answer, saved.submitted_answer));
-  scheduleInvalidate(s.realtime_key as string); return reply({ ok: true, blockId, answer: saved.answer, updatedAt: saved.updated_at, submitted: explicitSubmit, submittedCurrent, queuedForEvaluation });
+  scheduleInvalidate(s.realtime_key as string); return reply({ ok: true, blockId, answer: saved.answer, updatedAt: saved.updated_at, submitted: marksSubmission, submittedCurrent, queuedForEvaluation });
 }
 
 Deno.serve(async req => {
