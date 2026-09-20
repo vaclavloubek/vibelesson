@@ -7,7 +7,6 @@ import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
-import { createClient } from '@/lib/supabase/client';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -153,7 +152,6 @@ export default function SchoolAdmin({
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
   const renderedUserId = initialUser?.id ?? null;
   const authBoundaryTriggeredRef = useRef(false);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -196,21 +194,27 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    window.location.replace(nextUserId ? '/school' : '/' + locale);
+    window.location.reload();
   }, [locale, renderedUserId]);
 
   useEffect(() => {
     let active = true;
 
     async function verifyRenderedIdentity() {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active || error) return;
-      enforceRenderedIdentity(data.user?.id ?? null);
+      try {
+        const response = await fetch('/api/auth/identity', {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
+        if (!active || !response.ok) return;
+        const payload = await response.json().catch(() => ({})) as {
+          userId?: string | null;
+        };
+        enforceRenderedIdentity(payload.userId ?? null);
+      } catch {
+        // Backend authorization remains authoritative if this freshness probe fails.
+      }
     }
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      enforceRenderedIdentity(session?.user?.id ?? null);
-    });
 
     const handleFocus = () => {
       void verifyRenderedIdentity();
@@ -218,18 +222,27 @@ export default function SchoolAdmin({
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') void verifyRenderedIdentity();
     };
+    const handlePageShow = () => {
+      void verifyRenderedIdentity();
+    };
 
     void verifyRenderedIdentity();
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void verifyRenderedIdentity();
+    }, 5000);
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageShow);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       active = false;
-      authListener.subscription.unsubscribe();
+      window.clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enforceRenderedIdentity, supabase]);
+  }, [enforceRenderedIdentity]);
 
   const load = useCallback(async () => {
     if (!initialUser) {

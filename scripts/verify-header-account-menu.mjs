@@ -8,7 +8,7 @@ function requireText(text, needle, message) {
   if (!text.includes(needle)) throw new Error(`header account menu regression: ${message}`);
 }
 
-const [landing, pricing, authControls, dashboard, workspace, teacherLive, privacy, menu, membershipRoute, landingCss, globals] = await Promise.all([
+const [landing, pricing, authControls, dashboard, workspace, teacherLive, privacy, menu, membershipRoute, identityRoute, landingCss, globals] = await Promise.all([
   source('components/LandingPage.tsx'),
   source('components/PricingPage.tsx'),
   source('components/AuthControls.tsx'),
@@ -18,6 +18,7 @@ const [landing, pricing, authControls, dashboard, workspace, teacherLive, privac
   source('app/gdpr/page.tsx'),
   source('components/PublicHeaderAccountMenu.tsx'),
   source('app/api/organizations/membership/route.ts'),
+  source('app/api/auth/identity/route.ts'),
   source('components/LandingPage.module.css'),
   source('app/globals.css'),
 ]);
@@ -39,6 +40,12 @@ for (const [name, text] of [['dashboard', dashboard], ['workspace', workspace], 
 requireText(menu, "supabase.rpc('get_ai_quota')", 'the dropdown must keep AI quota information available when quota is not supplied by AuthControls.');
 requireText(menu, 'href="/lessons"', 'the dropdown must expose My lessons.');
 requireText(menu, '/subscription', 'the dropdown must expose direct subscription management.');
+requireText(menu, "fetch('/api/auth/identity'", 'the dropdown must verify the server-authoritative current identity.');
+requireText(menu, 'window.location.reload()', 'the dropdown must hard-reload stale rendered account state.');
+requireText(menu, "window.addEventListener('focus'", 'the dropdown must recheck identity when a stale tab regains focus.');
+requireText(menu, "window.addEventListener('pageshow'", 'the dropdown must recheck identity when restored from browser history.');
+requireText(identityRoute, 'supabase.auth.getUser()', 'identity endpoint must verify the current cookie session with Auth.');
+requireText(identityRoute, "'Cache-Control': 'private, no-store, max-age=0'", 'identity endpoint must never be cached.');
 requireText(menu, "fetch('/api/organizations/membership'", 'the dropdown must verify active school membership.');
 requireText(menu, 'hasOrganization ? (', 'My school must be conditional on active membership.');
 requireText(membershipRoute, 'getCurrentOrganizationForUser(userId)', 'membership endpoint must use current active organization lookup.');
