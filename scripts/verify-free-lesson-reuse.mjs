@@ -38,7 +38,7 @@ requireText(library, 'Archivované lekce', 'Free library exposes the archive');
 requireText(library, 'Stále je můžeš otevírat a upravovat ručně i pomocí AI', 'archive keeps AI editing available');
 
 const pricing = read('components/PricingPage.tsx');
-requireText(pricing, '3 importy nebo kopie lekcí za měsíc', 'Free pricing states the separate import/copy quota');
+requireText(pricing, '2 importy nebo kopie lekcí za měsíc', 'Free pricing states the separate import/copy quota');
 requireText(pricing, 'Každou lekci lze živě použít jednou', 'Free pricing states one live use per lesson');
 requireText(pricing, 'Opakované používání lekcí bez omezení', 'paid pricing highlights repeat use');
 
@@ -74,11 +74,27 @@ if (!splitQuotaMigration) {
 }
 
 for (const [needle, label] of [
-  ["when code = 'free' then 3", 'Free plan stores a three-import monthly limit'],
   ["action = 'import_lesson'", 'import/copy usage is tracked separately from AI generations'],
   ['free_lesson_import_quota_exhausted', 'shared imports enforce the import/copy quota'],
 ]) {
   requireText(splitQuotaMigration.content, needle, label);
+}
+
+const reducedFreeMigration = fs.readdirSync(migrationDir)
+  .filter((name) => name.endsWith('.sql'))
+  .map((name) => ({ name, content: read(path.join('supabase/migrations', name)) }))
+  .find(({ content }) => content.includes('Reduce Free entry limits to protect AI unit economics.'));
+
+if (!reducedFreeMigration) {
+  throw new Error('Missing migration for current reduced Free limits.');
+}
+
+for (const [needle, label] of [
+  ['monthly_lesson_limit = 3', 'Free lesson generation limit is three'],
+  ['monthly_revision_limit = 10', 'Free AI revision limit remains ten'],
+  ['monthly_import_limit = 2', 'Free import/copy limit is two'],
+]) {
+  requireText(reducedFreeMigration.content, needle, label);
 }
 
 const familyMigration = fs.readdirSync(migrationDir)

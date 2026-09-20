@@ -99,7 +99,7 @@ export async function POST(req: Request) {
         }, { status: quota?.denial_code === 'free_device_cookie_required' ? 409 : 429 });
       }
       return NextResponse.json({
-        error: `Vyčerpal jsi měsíční limit ${quota?.monthly_limit ?? 20} AI úprav. Limit se obnoví na začátku příštího měsíce.`,
+        error: `Vyčerpal jsi měsíční limit ${quota?.monthly_limit ?? 10} AI úprav. Limit se obnoví na začátku příštího měsíce.`,
       }, { status: 429 });
     }
 

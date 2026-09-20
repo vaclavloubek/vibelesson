@@ -16,9 +16,6 @@ if (!budget) throw new Error('Missing Free device-budget migration.');
 
 for (const [needle, label] of [
   ["p.active_plan_code = 'free'", 'only Free accounts consume the shared device budget'],
-  ["p_action = 'generate_lesson' then 10", '10 rolling lesson generations'],
-  ["p_action in ('revise_lesson', 'revise_block') then 40", '40 rolling AI revisions'],
-  ["p_action = 'import_lesson' then 6", '6 rolling imports or copies'],
   ["interval '30 days'", 'rolling 30-day accounting window'],
   ['for update', 'device/account reservations are serialized'],
   ['reserve_lesson_generation_server', 'server-only generation reservation'],
@@ -27,6 +24,21 @@ for (const [needle, label] of [
   ["raise exception 'free_device_budget_server_required'", 'direct authenticated Free reserve calls fail closed'],
   ['complete_free_device_budget_request', 'failed operations release their device reservation'],
 ]) requireText(budget.content, needle, label);
+
+const currentLimits = migrations.find(({ content }) =>
+  content.includes('Reduce Free entry limits to protect AI unit economics.')
+  && content.includes('v_free_lesson_limit * 2')
+);
+if (!currentLimits) throw new Error('Missing current Free limit/device-budget rebalance migration.');
+
+for (const [needle, label] of [
+  ['monthly_lesson_limit = 3', 'Free has three AI lesson generations per month'],
+  ['monthly_revision_limit = 10', 'Free keeps ten AI revisions per month'],
+  ['monthly_import_limit = 2', 'Free has two imports/copies per month'],
+  ['v_free_lesson_limit * 2', 'device lesson budget follows two Free accounts'],
+  ['v_free_revision_limit * 2', 'device revision budget follows two Free accounts'],
+  ['v_free_import_limit * 2', 'device import budget follows two Free accounts'],
+]) requireText(currentLimits.content, needle, label);
 
 for (const [file, needle, label] of [
   ['app/api/generate/route.ts', 'reserve_lesson_generation_server', 'generation uses server-authoritative device hash'],

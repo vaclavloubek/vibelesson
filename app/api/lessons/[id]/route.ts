@@ -192,9 +192,9 @@ export async function POST(_req: Request, { params }: RouteContext) {
         }
 
         return NextResponse.json({
-          error: `Měsíční limit ${quota?.monthly_limit ?? 3} importů nebo kopií je vyčerpaný. Další import nebo kopii můžeš vytvořit příští měsíc.`,
+          error: `Měsíční limit ${quota?.monthly_limit ?? 2} importů nebo kopií je vyčerpaný. Další import nebo kopii můžeš vytvořit příští měsíc.`,
           quota: {
-            used: quota?.used ?? quota?.monthly_limit ?? 3,
+            used: quota?.used ?? quota?.monthly_limit ?? 2,
             monthlyLimit: quota?.monthly_limit ?? 3,
             remaining: 0,
           },

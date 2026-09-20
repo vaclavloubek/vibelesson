@@ -47,8 +47,8 @@ const teacherPlansCs: Plan[] = [
     description: 'Pro první lekce a občasné použití bez platební karty.',
     price: { monthlyCzk: 0, annualCzk: 0, monthlyEur: 0, annualEur: 0, monthlyUsd: 0, annualUsd: 0 },
     features: [
-      '5 nových AI lekcí za měsíc',
-      '3 importy nebo kopie lekcí za měsíc',
+      '3 nové AI lekce za měsíc',
+      '2 importy nebo kopie lekcí za měsíc',
       '10 AI úprav za měsíc',
       'Každou lekci lze živě použít jednou',
       'Archivované lekce lze dál upravovat ručně i pomocí AI',
@@ -163,8 +163,8 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   free: {
     description: 'For first lessons and occasional use with no payment card.',
     features: [
-      '5 new AI lessons per month',
-      '3 lesson imports or copies per month',
+      '3 new AI lessons per month',
+      '2 lesson imports or copies per month',
       '10 AI edits per month',
       'Each lesson can be used live once',
       'Archived lessons remain editable manually and with AI',
