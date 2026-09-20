@@ -172,7 +172,7 @@ const disputeEvent = {
   created: now,
   data: {
     object: {
-      id: 'du_regression001',
+      id: 'dp_regression001',
       object: 'dispute',
       payment_intent: 'pi_regression001',
       status: 'needs_response',
@@ -180,7 +180,7 @@ const disputeEvent = {
   },
 };
 const normalizedDispute = normalizeStripeDisputeEvent(disputeEvent);
-assert(normalizedDispute?.disputeId === 'du_regression001', 'dispute ID should normalize');
+assert(normalizedDispute?.disputeId === 'dp_regression001', 'dispute ID should normalize');
 assert(normalizedDispute?.paymentIntentId === 'pi_regression001', 'dispute must retain the payment intent');
 assert(normalizedDispute?.status === 'needs_response', 'dispute status should normalize');
 assert(normalizedDispute?.eventAt === new Date(now * 1000).toISOString(), 'dispute event timestamp should normalize');
