@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import SchoolInvoicesAdmin, {
   type SchoolInvoiceAdminRow,
 } from '@/components/SchoolInvoicesAdmin';
@@ -13,7 +12,30 @@ export const dynamic = 'force-dynamic';
 
 export default async function SchoolInvoicesAdminPage() {
   const { userId } = await getAuthenticatedUserId();
-  if (!isSuperadminUserId(userId)) notFound();
+
+  if (!isSuperadminUserId(userId)) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <header className={styles.header}>
+            <Link href="/lessons" className={styles.brand}>
+              <SyllonautMark />
+              <span>Syllonaut</span>
+            </Link>
+          </header>
+
+          <section className={styles.hero}>
+            <span className={styles.eyebrow}>SUPERADMIN</span>
+            <h1>Přístup není dostupný</h1>
+            <p>
+              Tato sekce je dostupná pouze superadmin účtu.
+            </p>
+            <Link className={styles.back} href="/lessons">← Zpět na moje lekce</Link>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   const admin = createAdminClient();
   const { data: orders, error } = await admin
