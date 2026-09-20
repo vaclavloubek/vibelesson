@@ -290,6 +290,7 @@ function PlanCard({
   currency,
   checkoutEnabled,
   checkoutLabel,
+  schoolCheckoutHref,
   onCheckout,
   english,
 }: {
@@ -298,6 +299,7 @@ function PlanCard({
   currency: BillingCurrency;
   checkoutEnabled: boolean;
   checkoutLabel: string;
+  schoolCheckoutHref: string | null;
   onCheckout: (plan: Plan) => void;
   english: boolean;
 }) {
@@ -352,10 +354,22 @@ function PlanCard({
 
       {plan.free ? (
         <a className={styles.activeCta} href={english ? '/en/pricing?signup=1' : '/cs/pricing?signup=1'} onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>{english ? 'Create Free account' : 'Vytvořit Free účet'}</a>
+      ) : schoolCheckoutHref ? (
+        <Link
+          className={styles.activeCta}
+          href={schoolCheckoutHref}
+          onClick={() => trackEvent('plan_select', {
+            plan: plan.id,
+            billing_period: billing,
+            source: 'pricing_school_live',
+          })}
+        >
+          {english ? 'Choose plan' : 'Vybrat plán'}
+        </Link>
       ) : checkoutEnabled && (plan.id === 'teacher' || plan.id === 'teacher-pro') ? (
         <button type="button" className={styles.activeCta} onClick={() => onCheckout(plan)}>{checkoutLabel}</button>
       ) : (
-        <button type="button" className={styles.disabledCta} disabled>{english ? 'Coming soon' : 'Připravujeme'}</button>
+        <button type="button" className={styles.disabledCta} disabled>{english ? 'Temporarily unavailable' : 'Dočasně nedostupné'}</button>
       )}
     </article>
   );
@@ -367,6 +381,7 @@ export default function PricingPage({
   initialCountry,
   sandboxCheckoutEnabled = false,
   publicLiveBillingEnabled = false,
+  publicSchoolBillingEnabled = false,
   billingTestEnvironment = 'sandbox',
   checkoutResult = null,
   checkoutSessionId = null,
@@ -377,6 +392,7 @@ export default function PricingPage({
   initialCountry?: string | null;
   sandboxCheckoutEnabled?: boolean;
   publicLiveBillingEnabled?: boolean;
+  publicSchoolBillingEnabled?: boolean;
   billingTestEnvironment?: 'sandbox' | 'live';
   checkoutResult?: 'success' | 'cancelled' | null;
   checkoutSessionId?: string | null;
@@ -798,6 +814,12 @@ export default function PricingPage({
                 ? (user ? ui('Vybrat plán', 'Choose plan') : ui('Přihlásit se a koupit', 'Sign in to buy'))
                 : ui('Otestovat nákup', 'Test purchase')
             }
+            schoolCheckoutHref={
+              publicSchoolBillingEnabled
+              && (plan.id === 'team' || plan.id === 'school' || plan.id === 'campus')
+                ? `/school?plan=${plan.id}&billing=${billing}`
+                : null
+            }
             onCheckout={openSandboxCheckout}
             english={english}
           />
@@ -908,13 +930,13 @@ export default function PricingPage({
         </div>
         <div>
           <span className={styles.noteIndex}>02</span>
-          <strong>{ui('Teacher a Teacher Pro jsou aktivní.', 'Teacher and Teacher Pro are live.')}</strong>
-          <p>{ui('Individuální předplatné lze koupit přímo přes Stripe. Školní tarify zatím zůstávají ve fázi přípravy.', 'Individual subscriptions can be purchased directly through Stripe. School plans are still being prepared.')}</p>
+          <strong>{ui('Individuální i školní tarify jsou aktivní.', 'Individual and school plans are live.')}</strong>
+          <p>{ui('Teacher a Teacher Pro lze koupit přímo přes Stripe. Team, School a Campus lze objednat včetně školní správy, platby kartou nebo na fakturu.', 'Teacher and Teacher Pro can be purchased directly through Stripe. Team, School and Campus can be ordered with school administration, by card or invoice.')}</p>
         </div>
         <div>
           <span className={styles.noteIndex}>03</span>
-          <strong>{ui('Školní správa se ještě připravuje.', 'School administration is still being prepared.')}</strong>
-          <p>{ui('U školních plánů nyní zveřejňujeme kapacitu, společné AI limity a ceny; detail týmové správy doplníme před spuštěním.', 'For school plans, we currently show capacity, shared AI allowances and pricing; detailed team administration will be added before launch.')}</p>
+          <strong>{ui('Školní správa je součástí licence.', 'School administration is included.')}</strong>
+          <p>{ui('Vlastník a administrátoři spravují členy, pozvánky, společný AI limit i fakturaci. School a Campus navíc obsahují sdílenou knihovnu lekcí.', 'Owners and administrators manage members, invitations, the shared AI allowance and billing. School and Campus also include a shared lesson library.')}</p>
         </div>
       </section>
 
