@@ -94,6 +94,7 @@ export default function LessonWorkspace({
   const [multilingualLessonsEnabled, setMultilingualLessonsEnabled] = useState(false);
   const [worksheetExportEnabled, setWorksheetExportEnabled] = useState(false);
   const [aiBillingPaused, setAiBillingPaused] = useState(false);
+  const [aiBillingPauseReason, setAiBillingPauseReason] = useState<'past_due' | 'dispute' | null>(null);
   const [entitlementsLoaded, setEntitlementsLoaded] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
@@ -165,6 +166,7 @@ export default function LessonWorkspace({
       setMultilingualLessonsEnabled(false);
       setWorksheetExportEnabled(false);
       setAiBillingPaused(false);
+      setAiBillingPauseReason(null);
       setEntitlementsLoaded(false);
       return;
     }
@@ -177,12 +179,18 @@ export default function LessonWorkspace({
           multilingualLessonsEnabled?: boolean;
           worksheetExportEnabled?: boolean;
           aiBillingPaused?: boolean;
+          aiBillingPauseReason?: 'past_due' | 'dispute' | null;
         };
         if (!cancelled) {
           setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
           setMultilingualLessonsEnabled(response.ok && Boolean(data.multilingualLessonsEnabled));
           setWorksheetExportEnabled(response.ok && Boolean(data.worksheetExportEnabled));
           setAiBillingPaused(response.ok && Boolean(data.aiBillingPaused));
+          setAiBillingPauseReason(
+            response.ok && (data.aiBillingPauseReason === 'past_due' || data.aiBillingPauseReason === 'dispute')
+              ? data.aiBillingPauseReason
+              : null,
+          );
           setEntitlementsLoaded(true);
         }
       })
@@ -192,6 +200,7 @@ export default function LessonWorkspace({
           setMultilingualLessonsEnabled(false);
           setWorksheetExportEnabled(false);
           setAiBillingPaused(false);
+          setAiBillingPauseReason(null);
           setEntitlementsLoaded(true);
         }
       });
@@ -282,10 +291,15 @@ export default function LessonWorkspace({
   function requireAiAccess() {
     if (!requireAuth()) return false;
     if (!aiBillingPaused) return true;
-    setError(ui(
-      'AI funkce jsou dočasně pozastavené kvůli platbě předplatného. Po potvrzení platby Stripe se automaticky odemknou.',
-      'AI features are temporarily paused because of the subscription payment. They unlock automatically as soon as Stripe confirms the payment.',
-    ));
+    setError(aiBillingPauseReason === 'dispute'
+      ? ui(
+          'AI funkce jsou dočasně pozastavené kvůli reklamaci platby. Uložené lekce a živá výuka dál fungují; AI se odemkne po příznivém vyřešení sporu, případně po další potvrzené platbě.',
+          'AI features are temporarily paused because a subscription payment is disputed. Saved lessons and live teaching still work; AI unlocks when the dispute resolves in Syllonaut’s favour, or after the next confirmed payment if the dispute is lost.',
+        )
+      : ui(
+          'AI funkce jsou dočasně pozastavené kvůli platbě předplatného. Po potvrzení platby Stripe se automaticky odemknou.',
+          'AI features are temporarily paused because of the subscription payment. They unlock automatically as soon as Stripe confirms the payment.',
+        ));
     return false;
   }
 
@@ -686,7 +700,7 @@ export default function LessonWorkspace({
         </div>
       </header>
 
-      {aiBillingPaused ? <AiPaymentPauseBanner /> : null}
+      {aiBillingPaused ? <AiPaymentPauseBanner reason={aiBillingPauseReason} /> : null}
 
       {authUser && recovery && (!lessonId || recovery.lessonId !== lessonId) ? (
         <div className="recovery-banner">
