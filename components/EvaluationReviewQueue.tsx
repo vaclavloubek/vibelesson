@@ -165,7 +165,12 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
           {saving ? ui('Ukládám…', 'Saving…') : evaluation.teacherConfirmed ? ui('Uložit změnu', 'Save change') : ui('Potvrdit hodnocení', 'Confirm grading')}
         </button>
         {evaluation.aiSuspicion === 'high' && !evaluation.teacherConfirmed ? (
-          <button className="secondary" type="button" disabled={saving} onClick={() => { void confirmIntegrityZero(); }}>
+          <button
+            className="secondary"
+            type="button"
+            disabled={saving || (evaluation.integrityChallengeQuestion !== null && integrityChallengeStatus === 'pending')}
+            onClick={() => { void confirmIntegrityZero(); }}
+          >
             {ui('Potvrdit nepovolené využití AI → 0 bodů', 'Confirm unauthorized AI use → 0 points')}
           </button>
         ) : null}
