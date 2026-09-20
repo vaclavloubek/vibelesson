@@ -12,6 +12,7 @@ const migrations = fs.readdirSync(path.join(root, 'supabase/migrations'))
   .map((name) => ({ name, content: read(path.join('supabase/migrations', name)) }));
 
 const migration = migrations.find(({ content }) => content.includes('private.user_trusted_devices'));
+const allMigrationText = migrations.map(({ content }) => content).join('\n');
 if (!migration) throw new Error('Missing trusted-device migration.');
 
 for (const [needle, label] of [
@@ -45,6 +46,22 @@ for (const [file, label] of [
 ]) {
   requireText(read(file), 'requireTrustedDeviceForPaidIndividual', `${label} is server-gated by trusted device`);
 }
+
+for (const [needle, label] of [
+  ['create_live_session_server', 'live session creation has a server-only RPC'],
+  ['personal_trusted_device_hash_valid', 'DB validates active trusted-device hashes'],
+  ['requeue_response_evaluation_server', 'AI regrade has a server-only RPC'],
+  ['revoke insert on table public.sessions from authenticated', 'direct authenticated session insert is revoked'],
+  ['revoke execute on function public.requeue_response_evaluation_for_teacher(uuid)', 'legacy direct regrade RPC is revoked'],
+]) requireText(allMigrationText, needle, label);
+
+const sessionRoute = read('app/api/sessions/route.ts');
+requireText(sessionRoute, "admin.rpc('create_live_session_server'", 'live session start uses the server-only DB boundary');
+requireText(sessionRoute, 'currentTrustedDeviceHash', 'live session start passes server-read device hash');
+
+const regradeRoute = read('app/api/sessions/[id]/evaluations/[evaluationId]/regrade/route.ts');
+requireText(regradeRoute, 'requireTrustedDeviceForPaidIndividual', 'AI regrade requires trusted device');
+requireText(regradeRoute, "admin.rpc('requeue_response_evaluation_server'", 'AI regrade uses the server-only DB boundary');
 
 const panel = read('components/TrustedDevicesPanel.tsx');
 requireText(panel, 'Aktivní zařízení', 'device management distinguishes active devices');
