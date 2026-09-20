@@ -9,6 +9,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
 import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
+import { TERMS_VERSION } from '@/lib/legal';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -213,6 +214,8 @@ export default function SchoolAdmin({
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'invoice' | 'card'>('invoice');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [authorityConfirmed, setAuthorityConfirmed] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'teacher' | 'admin'>('teacher');
@@ -497,6 +500,11 @@ export default function SchoolAdmin({
 
   async function createOrder(event: FormEvent) {
     event.preventDefault();
+    if (!termsAccepted || !authorityConfirmed) {
+      setMessageKind('error');
+      setMessage(ui('Před objednávkou potvrď obchodní podmínky a oprávnění jednat za organizaci.', 'Before ordering, accept the Terms and confirm your authority to act for the organisation.'));
+      return;
+    }
     setBusy(true);
     setMessage('');
 
@@ -519,6 +527,9 @@ export default function SchoolAdmin({
         billingPeriod,
         paymentMethod,
         environment: billingEnvironment,
+        termsAccepted,
+        termsVersion: TERMS_VERSION,
+        authorityConfirmed,
       }),
     });
 
@@ -1324,13 +1335,26 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.full}>
+                <div className={styles.legalConsents}>
+                  <label>
+                    <input type="checkbox" checked={termsAccepted} onChange={(event) => { setTermsAccepted(event.target.checked); setMessage(''); }} required />
+                    <span>{ui('Souhlasím s ', 'I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('Obchodními podmínkami', 'Terms of Service')}</Link>{ui(' pro tuto objednávku.', ' for this order.')}</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" checked={authorityConfirmed} onChange={(event) => { setAuthorityConfirmed(event.target.checked); setMessage(''); }} required />
+                    <span>{ui('Potvrzuji, že jsem oprávněn/a objednat licenci jménem uvedené školy, týmu nebo organizace.', 'I confirm that I am authorised to order the licence on behalf of the stated school, team or organisation.')}</span>
+                  </label>
+                  <p>{paymentMethod === 'card'
+                    ? ui('Kartové předplatné se po zvoleném období automaticky obnovuje do jeho zrušení.', 'The card subscription renews automatically after the selected period until cancelled.')
+                    : ui('Licence placená fakturou se obnovuje manuálně; nová platba nevznikne bez obnovovací objednávky nebo faktury.', 'An invoice-based licence renews manually; no new charge is created without a renewal order or invoice.')}</p>
+                </div>
                 <div className={styles.rowActions}>
-                  <button className={styles.primary} type="submit" disabled={busy}>
+                  <button className={styles.primary} type="submit" disabled={busy || !termsAccepted || !authorityConfirmed}>
                     {busy
                       ? ui('Zakládám…', 'Creating…')
                       : paymentMethod === 'invoice'
-                        ? ui('Vystavit fakturu', 'Issue invoice')
-                        : ui('Pokračovat k platbě', 'Continue to payment')}
+                        ? ui('Objednat s povinností platby a vystavit fakturu', 'Order with obligation to pay and issue invoice')
+                        : ui('Objednávka zavazující k platbě', 'Order with obligation to pay')}
                   </button>
                   <button
                     className={styles.secondary}
