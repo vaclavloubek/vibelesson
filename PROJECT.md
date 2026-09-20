@@ -419,6 +419,18 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **Individual payment failure / chargeback / full refund** — `past_due`, otevřený payment dispute i plně refundovaná subscription platba zachovávají uložené placené funkce a live teaching, ale zastavují nové AI generování/revize/grading. Částečný refund nic nezamyká. `past_due` se odemkne po potvrzení platby; vyhraný dispute po potvrzení výsledku/funds reinstated; prohraný dispute a full-refund lock až po další potvrzené platbě;
 - **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
 
+### Otevřený anti-abuse backlog po 0.9.57 — handoff pro další kola
+
+Následující scénáře jsou po auditu 2026-09-20 považované za významnější zbytková ekonomická / tarifní rizika. Při pokračování se musí znovu ověřit aktuální `main` a produkční DB; tato klasifikace není náhradou skutečného testu.
+
+1. **Recovery-payment integrity po refundu / chargebacku — MISSING, řešit jako první.** Současný refund/dispute lock se může uvolnit po libovolné pozdější potvrzené subscription platbě. Malá proratační platba po změně tarifu proto nesmí odemknout výrazně vyšší refund/chargeback. Doporučené řešení: serverově zakázat změnu tarifu během `refund` / prohraného `dispute` locku a lock uvolnit jen po běžné následné renewal platbě stejné subscription nebo po skutečné recovery platbě alespoň ve výši původně ztracené/refundované platby. Tento bod je **aktuálně rozpracovaný**.
+2. **Sdílení jednoho školního uživatelského účtu mezi více reálnými učiteli — PARTIAL.** Organization seat accounting sleduje `user_id`, ale aktivní školní člen je vyjmutý z individuální trusted-device politiky. Před veřejným self-service prodejem Team/School/Campus zavést mírnější organization-device politiku s vyššími limity než individuálních 3/5 a bezpečným admin resetem.
+3. **Placené AI kvóty jsou ukotvené ke kalendářnímu měsíci místo billing period — MISSING.** Nákup těsně před UTC začátkem měsíce může dát dvě plné měsíční AI kvóty za jedinou měsíční platbu. Doporučení: individuální placené kvóty ukotvit k subscription billing anchoru; u annual plánu vytvářet měsíční quota windows odvozené od počátku subscription. Free může zůstat kalendářní.
+4. **Free device budget lze privacy-minimal modelu obejít smazáním device cookie + novými účty — KNOWN RESIDUAL.** Robustnější prevence by vyžadovala stabilnější cross-cookie signál. Bez dalšího rozhodnutí nezavádět browser/hardware fingerprinting. Pokud se riziko stane významné, preferovat krátkodobý privacy-preserving edge rate-limit před fingerprintingem a předem posoudit GDPR/privacy dopady a false positives.
+5. **Organization refund/dispute/payment-failure ochrana před veřejným školním billingem — MISSING / PRE-LAUNCH REQUIREMENT.** Než se Team/School/Campus stanou veřejně self-service prodejné, musí jejich refund/chargeback/past-due lifecycle zastavit další nákladové AI čerpání obdobně jako individuální plány, aniž by zbytečně zablokoval správu organizace a bezpečný billing recovery.
+
+Doporučené pořadí: **1 → 2 → 3 → 5**. Bod 4 ponechat jako vědomé privacy/abuse trade-off riziko, dokud data neukážou, že skutečně způsobuje významnou ztrátu.
+
 Pravidla dalšího anti-abuse kola:
 
 1. Nejdřív vytvořit nové realistické scénáře zneužití **tarifní politiky a ekonomiky produktu** napříč Free, Teacher, Teacher Pro, Team, School a Campus. Zaměřit se na obcházení kvót, sdílení účtů, rotaci identit, kopírování/licencování obsahu, souběh, downgrade/upgrade, trial/payment lifecycle, veřejné share/import flow, AI grading a rozdíly browser/API/RPC cest.
