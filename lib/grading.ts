@@ -177,7 +177,8 @@ ${gradingStrictnessInstructions[input.strictness]}`,
   const aiUseSignals = Array.from(new Set(output.aiUseSignals.map((signal) => signal.trim()).filter(Boolean))).slice(0, 3);
   const highSuspicionEligible = input.answerText.length >= 280
     && output.aiUseSuspicion === 'high'
-    && aiUseSignals.length >= 2;
+    && aiUseSignals.length >= 2
+    && Boolean(output.integrityChallengeQuestion);
   const aiUseSuspicion: AIUseSuspicion = highSuspicionEligible
     ? 'high'
     : output.aiUseSuspicion === 'none'
