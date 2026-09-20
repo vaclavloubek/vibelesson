@@ -393,6 +393,20 @@ for (const needle of [
   }
 }
 
+const superadminInvoicePage = fs.readFileSync(
+  'app/admin/school-invoices/page.tsx',
+  'utf8',
+);
+for (const needle of [
+  'isSuperadminUserId',
+  'Přístup není dostupný',
+  'Tato sekce je dostupná pouze superadmin účtu.',
+]) {
+  if (!superadminInvoicePage.includes(needle)) {
+    throw new Error('Superadmin invoice page access-boundary contract missing: ' + needle);
+  }
+}
+
 const superadminInvoiceRoute = fs.readFileSync(
   'app/api/admin/school-invoices/[orderId]/mark-paid/route.ts',
   'utf8',
