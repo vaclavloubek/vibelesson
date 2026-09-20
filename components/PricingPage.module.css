@@ -63,6 +63,15 @@
   letter-spacing: -.015em;
 }
 
+.usagePromise {
+  width: min(900px, calc(100% - 40px));
+  margin: 18px auto 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
 .controls {
   width: min(1120px, calc(100% - 40px));
   margin: 44px auto 22px;
@@ -375,6 +384,7 @@
 @media (max-width: 720px) {
   .hero,
   .valueFlow,
+  .usagePromise,
   .controls,
   .cards,
   .notes {
