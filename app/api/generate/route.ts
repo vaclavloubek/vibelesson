@@ -308,7 +308,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (requestId) {
       const { error: finishError } = await admin.rpc('finish_generation_request_server', {
-              p_user_id: userId,
+        p_user_id: userId,
         p_request_id: requestId,
         p_status: 'failed',
         p_cost_usd: null,
