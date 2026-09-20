@@ -34,6 +34,19 @@ requireText(queue, 'ai_use_suspicion', 'teacher queue does not load suspicion.')
 requireText(queue, 'aiUseSignals: parsed.data.ai_use_signals', 'teacher queue does not expose integrity signals.');
 requireText(ui, 'Podezření na využití generativní AI', 'teacher alert is missing.');
 requireText(ui, 'Body se tím automaticky nemění.', 'teacher alert does not state that the score is unaffected.');
+requireText(ui, 'Potvrdit nepovolené využití AI → 0 bodů', 'teacher cannot explicitly confirm unauthorized AI use with zero points.');
+requireText(ui, "body: JSON.stringify({ score: 0, note })", 'teacher integrity zero action does not use the authenticated review endpoint.');
+requireText(ui, 'Opravdu potvrdit nepovolené využití generativní AI?', 'zero-point integrity action is missing explicit teacher confirmation.');
+
+const forbiddenChallengeFiles = [
+  'components/IntegrityChallengeCard.tsx',
+  'app/api/student/sessions/[id]/integrity-challenge/route.ts',
+];
+for (const path of forbiddenChallengeFiles) {
+  if (fs.existsSync(new URL(`../${path}`, import.meta.url))) {
+    throw new Error(`AI integrity alert regression: automatic student verification challenge must not exist (${path}).`);
+  }
+}
 
 const csFeature = 'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí s detekcí podezřelého využití AI';
 const enFeature = 'AI grading of scored open, team and exit-ticket responses with suspicious AI-use detection';
