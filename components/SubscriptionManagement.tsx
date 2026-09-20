@@ -132,6 +132,12 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
         if (known === 'subscription_payment_issue' || known === 'subscription_pending_update_exists') {
           throw new Error(ui('Nejdřív je potřeba dořešit rozpracovanou nebo neúspěšnou platbu ve Stripe.', 'First resolve the pending or failed payment in Stripe.'));
         }
+        if (known === 'billing_recovery_required_before_plan_change') {
+          throw new Error(ui(
+            'Tarif teď nelze změnit, protože účet má neuhrazený refund nebo chargeback. Nejdřív musí potvrzené platby pokrýt vrácenou nebo ztracenou částku.',
+            'You cannot change plans while the account has an unrecovered refund or chargeback. Confirmed payments must first cover the refunded or lost amount.',
+          ));
+        }
         if (known === 'subscription_schedule_conflict') {
           throw new Error(ui('Předplatné má naplánovanou změnu, kterou nelze bezpečně upravit samoobslužně. Kontaktuj podporu.', 'The subscription has a scheduled change that cannot be safely modified here. Contact support.'));
         }
