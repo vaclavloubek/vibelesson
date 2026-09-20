@@ -3,6 +3,7 @@ import { billingRouteForCountry } from '../lib/billing-region.ts';
 import {
   normalizeStripeDisputeEvent,
   normalizeStripeInvoiceEvent,
+  normalizeStripeRefundEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
 } from '../lib/stripe-webhook.ts';
@@ -194,6 +195,43 @@ assert(normalizeStripeDisputeEvent(wonDispute)?.status === 'won', 'won dispute s
 const unrelatedDispute = structuredClone(disputeEvent);
 unrelatedDispute.type = 'charge.succeeded';
 assert(normalizeStripeDisputeEvent(unrelatedDispute) === null, 'unsupported charge event should be ignored');
+
+const refundedChargeEvent = {
+  id: 'evt_refund_charge001',
+  type: 'charge.refunded',
+  livemode: false,
+  created: now,
+  data: {
+    object: {
+      id: 'ch_regression001',
+      object: 'charge',
+      amount: 1000,
+      amount_refunded: 1000,
+      refunded: true,
+      payment_intent: 'pi_regression001',
+    },
+  },
+};
+const normalizedRefundedCharge = normalizeStripeRefundEvent(refundedChargeEvent);
+assert(normalizedRefundedCharge?.chargeId === 'ch_regression001', 'charge.refunded must retain charge ID');
+assert(normalizedRefundedCharge?.eventType === 'charge.refunded', 'charge.refunded must normalize');
+
+const refundFailedEvent = {
+  id: 'evt_refund_failed001',
+  type: 'refund.failed',
+  livemode: false,
+  created: now,
+  data: {
+    object: {
+      id: 're_regression001',
+      object: 'refund',
+      charge: 'ch_regression001',
+      payment_intent: 'pi_regression001',
+      status: 'failed',
+    },
+  },
+};
+assert(normalizeStripeRefundEvent(refundFailedEvent)?.chargeId === 'ch_regression001', 'refund.failed must retain parent charge ID');
 
 const unrelatedInvoice = structuredClone(invoiceEvent);
 unrelatedInvoice.data.object.parent = { type: 'quote_details' };
