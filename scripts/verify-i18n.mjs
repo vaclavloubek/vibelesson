@@ -68,7 +68,7 @@ requireOrder(i18n, [
 
 requireText(proxy, "pathname === '/'", 'root locale gateway is missing.');
 requireText(proxy, 'target.pathname = `/${locale}`', 'root gateway must redirect to the resolved locale URL.');
-requirePattern(proxy, /pathname === '\/pricing' \|\| pathname === '\/gdpr'/, 'public pricing/GDPR routes must remain locale-aware gateways.');
+requirePattern(proxy, /pathname === '\/pricing' \|\| pathname === '\/gdpr' \|\| pathname === '\/terms'/, 'public pricing/GDPR/Terms routes must remain locale-aware gateways.');
 requireText(proxy, "function localizedAppGatewayPath", 'localized acquisition gateway helper is missing.');
 requireText(proxy, "unprefixed === '/new'", 'localized new-lesson entry must redirect to the canonical app route.');
 requireText(proxy, "unprefixed === '/lessons'", 'localized lessons entry must redirect to the canonical app route.');
