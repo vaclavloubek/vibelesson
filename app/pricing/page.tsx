@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import PricingPage from '@/components/PricingPage';
 import { resolvePricingCountry, resolvePricingCurrency } from '@/lib/billing-region';
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
+import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createClient } from '@/lib/supabase/server';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 
@@ -75,6 +76,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
 
   const liveSecretConfigured = /^(?:sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY_LIVE ?? '');
   const publicLiveBillingEnabled = isPublicLiveBillingEnabled() && liveSecretConfigured;
+  const publicSchoolBillingEnabled = isPublicSchoolBillingEnabled() && liveSecretConfigured;
   let billingTestEnvironment: 'sandbox' | 'live' = publicLiveBillingEnabled ? 'live' : 'sandbox';
   let sandboxCheckoutEnabled = false;
   let activePlanCode: 'teacher' | 'teacher-pro' | null = null;
@@ -117,6 +119,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
       initialCountry={initialCountry}
       sandboxCheckoutEnabled={sandboxCheckoutEnabled}
       publicLiveBillingEnabled={publicLiveBillingEnabled}
+      publicSchoolBillingEnabled={publicSchoolBillingEnabled}
       billingTestEnvironment={billingTestEnvironment}
       checkoutResult={checkout === 'success' || checkout === 'cancelled' ? checkout : null}
       checkoutSessionId={checkoutSessionId}

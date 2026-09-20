@@ -382,3 +382,42 @@ if (schoolPage.includes("process.env.STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED")
 if (schoolBillingLaunch.includes('STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED')) {
   throw new Error('Legacy public-enabled env gate must not be able to keep launched school billing closed.');
 }
+
+
+const pricingRoute = fs.readFileSync('app/pricing/page.tsx', 'utf8');
+for (const needle of [
+  "import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';",
+  'const publicSchoolBillingEnabled = isPublicSchoolBillingEnabled() && liveSecretConfigured;',
+  'publicSchoolBillingEnabled={publicSchoolBillingEnabled}',
+]) {
+  if (!pricingRoute.includes(needle)) {
+    throw new Error('Pricing school launch route contract missing: ' + needle);
+  }
+}
+
+const pricingPage = fs.readFileSync('components/PricingPage.tsx', 'utf8');
+for (const needle of [
+  'schoolCheckoutHref: string | null',
+  "source: 'pricing_school_live'",
+  '`/school?plan=${plan.id}&billing=${billing}`',
+  'Individuální i školní tarify jsou aktivní.',
+  'Individual and school plans are live.',
+  'Školní správa je součástí licence.',
+  'School administration is included.',
+]) {
+  if (!pricingPage.includes(needle)) {
+    throw new Error('Pricing school launch UI contract missing: ' + needle);
+  }
+}
+for (const legacy of [
+  'Připravujeme',
+  'Coming soon',
+  'Školní tarify zatím zůstávají ve fázi přípravy.',
+  'School plans are still being prepared.',
+  'Školní správa se ještě připravuje.',
+  'School administration is still being prepared.',
+]) {
+  if (pricingPage.includes(legacy)) {
+    throw new Error('Legacy pre-launch school pricing copy must not return: ' + legacy);
+  }
+}
