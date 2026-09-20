@@ -32,7 +32,7 @@ import {
 import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
 import { localizedApiError } from '@/lib/i18n';
-import { LessonSchema, type GradingStrictness, type Lesson } from '@/lib/schema';
+import { LessonSchema, resolveLessonCollaborationMode, type CollaborationMode, type GradingStrictness, type Lesson } from '@/lib/schema';
 import { maybeStartFirstSyllonautGuide, signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
 const LAST_LESSON_KEY = 'syllonaut_last_lesson_v1';
@@ -84,7 +84,8 @@ export default function LessonWorkspace({
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [audience, setAudience] = useState(initialLesson?.audience ?? '');
   const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
-  const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '');
+  const [collaborationMode, setCollaborationMode] = useState<CollaborationMode>(() => initialLesson ? resolveLessonCollaborationMode(initialLesson) : 'individual');
+  const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '3–4');
   const [tone, setTone] = useState('');
   const [lessonLanguage, setLessonLanguage] = useState('auto');
   const [customLessonLanguage, setCustomLessonLanguage] = useState('');
@@ -442,9 +443,14 @@ export default function LessonWorkspace({
     const files = formData.getAll('materials').filter((value): value is File => value instanceof File && value.size > 0);
     const hasMaterials = files.length > 0;
     const requestedDuration = Number(duration);
+    const effectiveGroupSize = collaborationMode === 'individual' ? ui('Jednotlivci', 'Individuals') : groupSize.trim();
 
     if (!prompt.trim() && files.length === 0) {
       setError(ui('Popiš hodinu nebo nahraj alespoň jeden podklad.', 'Describe the lesson or upload at least one source file.'));
+      return;
+    }
+    if (collaborationMode === 'teams' && !groupSize.trim()) {
+      setError(ui('Zadej velikost týmu.', 'Enter the team size.'));
       return;
     }
     const requestedLessonLanguage = lessonLanguage === 'other' ? customLessonLanguage.trim() : lessonLanguage;
@@ -473,7 +479,7 @@ export default function LessonWorkspace({
       has_materials: hasMaterials,
       material_mode: materialMode,
       duration_bucket: bucketDuration(requestedDuration),
-      group_size_bucket: bucketGroupSize(groupSize),
+      group_size_bucket: bucketGroupSize(collaborationMode === 'individual' ? '1' : groupSize),
     });
 
     setBusy(true);
@@ -492,7 +498,7 @@ export default function LessonWorkspace({
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize, tone, lessonLanguage: requestedLessonLanguage || 'auto', uiLocale: locale, gradingStrictness, materialMode, materials, folderId: initialFolderId }),
+        body: JSON.stringify({ prompt, audience, duration: Number(duration), groupSize: effectiveGroupSize, collaborationMode, tone, lessonLanguage: requestedLessonLanguage || 'auto', uiLocale: locale, gradingStrictness, materialMode, materials, folderId: initialFolderId }),
       });
 
       const contentType = res.headers.get('content-type') ?? '';
@@ -856,7 +862,13 @@ export default function LessonWorkspace({
                   {multilingualLessonsEnabled && lessonLanguage === 'other' ? <label>{ui('Jiný jazyk', 'Other language')}<input value={customLessonLanguage} onChange={(event) => setCustomLessonLanguage(event.target.value)} placeholder={ui('např. Italiano, Українська, Português…', 'e.g. Italiano, Українська, Português…')} required /></label> : null}
                   <label>{ui('Cílovka', 'Audience')}<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={ui('např. 1. ročník vysoké školy', 'e.g. first-year university students')} required /></label>
                   <label>{ui('Délka v minutách', 'Duration in minutes')}<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder={ui('např. 90', 'e.g. 90')} required /></label>
-                  <label>{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label>
+                  <label>{ui('Režim práce', 'Work mode')}
+                    <select value={collaborationMode} onChange={(event) => setCollaborationMode(event.target.value as CollaborationMode)} className="materials-mode-select">
+                      <option value="individual">{ui('Jednotlivci', 'Individuals')}</option>
+                      <option value="teams">{ui('Týmy', 'Teams')}</option>
+                    </select>
+                  </label>
+                  {collaborationMode === 'teams' ? <label>{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label> : null}
                   <label>{ui('Tón', 'Tone')}<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder={ui('např. živý, praktický a lehce vtipný', 'e.g. lively, practical and lightly humorous')} required /></label>
                 </div>
                 {aiGradingEnabled ? (
@@ -952,7 +964,7 @@ export default function LessonWorkspace({
         </section>
 
         <section ref={stageRef} className="stage" data-tour="lesson-review">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId && !licenseLocked ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId && !licenseLocked ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={licenseLocked ? undefined : setSelectedBlockId} onEditBlock={licenseLocked ? undefined : editBlock} readOnly={licenseLocked} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId && !licenseLocked ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId && !licenseLocked ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={licenseLocked ? undefined : setSelectedBlockId} onEditBlock={licenseLocked ? undefined : editBlock} readOnly={licenseLocked} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={collaborationMode === 'individual' ? ui('Jednotlivci', 'Individuals') : groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
       <SyllonautGuide userId={authUser?.id ?? null} />
