@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.50** uzavírá další tarifní abuse-hardening vrstvu: Free účetní kvóty jsou doplněné o privacy-minimal společný device budget napříč Free účty, individuální Teacher / Teacher Pro mají důvěryhodná zařízení a školní plány mají ochrany proti rotaci míst i odnášení školního obsahu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.52** uzavírá další tarifní abuse-hardening vrstvu: Free účetní kvóty jsou doplněné o privacy-minimal společný device budget napříč Free účty, individuální Teacher / Teacher Pro mají důvěryhodná zařízení a školní plány mají ochrany proti rotaci míst i odnášení školního obsahu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -47,7 +47,7 @@ Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; ten
 Tarify byly přepočítány podle skutečně uložených AI Gateway nákladů z produkčního provozu 16.–19. 9. 2026. Naměřený průměr: nová lekce **$0.142037** (n=28; p95 $0.243025), úprava celé lekce **$0.095525** (n=13; p95 $0.151851), úprava bloku **$0.032222** (n=8; p95 $0.048424) a AI hodnocení jedné odpovědi **$0.014362** (n=63; p95 $0.026176). Pozorovaný mix lesson/block revizí stojí v průměru **$0.071409 za AI úpravu**.
 
 Finální měsíční AI kvóty:
-- **Free:** 5 nových AI lekcí + 10 AI úprav; 3 importy/kopie; každou lesson family lze živě použít jednou;
+- **Free:** 3 nové AI lekce + 10 AI úprav; 2 importy/kopie; každou lesson family lze živě použít jednou;
 - **Teacher:** 10 nových AI lekcí + 20 AI úprav; hotové lekce lze živě používat opakovaně bez omezení;
 - **Teacher Pro:** 25 nových AI lekcí + 40 AI úprav; navíc AI grading, pracovní listy/PDF a složky;
 - **Team:** 40 nových AI lekcí + 80 AI úprav společně / měsíc, až 10 učitelů;
@@ -337,16 +337,16 @@ Roční varianta komunikuje přibližně **2 měsíce zdarma**. Individuální t
 
 Individuální plány:
 
-- **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně + 3 importy/kopie měsíčně; nové lekce pouze v aktivním jazyce UI a AI úpravy bez změny hlavního jazyka; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
+- **Free** — 0 Kč / €0 / $0; 3 nové AI lekce + 10 AI úprav měsíčně + 2 importy/kopie měsíčně; nové lekce pouze v aktivním jazyce UI a AI úpravy bez změny hlavního jazyka; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
 - **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 10 AI lekcí + 20 AI úprav; **lekce v libovolném jazyce**; bez placeného AI gradingu a bez prémiových složek;
 - **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 25 AI lekcí + 40 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
 
 U placených individuálních plánů jsou live hodiny a opakované používání již vytvořených lekcí bez tarifního limitu; AI kvóta se čerpá pouze při nové AI tvorbě a AI úpravách. Free může každou lesson family živě použít jednou. Studenti se připojují bez plnohodnotného účtu.
 
-### Tarifní abuse hardening 0.9.50
+### Tarifní abuse hardening 0.9.52
 
-- Free účet má vlastní měsíční kvóty **5 AI lekcí / 10 AI úprav / 3 importy nebo kopie**.
-- Nad nimi je privacy-minimal společný budget zařízení napříč všemi Free účty na stejném browserovém zařízení: **10 AI lekcí / 40 AI úprav / 6 importů nebo kopií za klouzavých 30 dní**.
+- Free účet má vlastní měsíční kvóty **3 AI lekce / 10 AI úprav / 2 importy nebo kopie**.
+- Nad nimi je privacy-minimal společný budget zařízení napříč všemi Free účty na stejném browserovém zařízení: **6 AI lekcí / 20 AI úprav / 4 importy nebo kopie za klouzavých 30 dní**; limit je v DB odvozen jako 2× aktuální Free plán.
 - Zařízení je identifikované pouze SHA-256 hashem náhodného 256bitového HttpOnly tokenu; Syllonaut pro tuto ochranu neukládá IP, User-Agent, polohu ani browser/hardware fingerprint.
 - Free účet lze dál normálně registrovat a přihlásit i po vyčerpání device budgetu; blokované jsou pouze nákladové Free operace. Neúspěšná operace rezervaci uvolní.
 - Free account + device quota se rezervují atomicky v jedné databázové transakci. Device hash přijímá pouze service-role serverová cesta; staré přímo volatelné Free quota RPC failují, aby klient nemohl hash zařízení podvrhnout.
@@ -366,10 +366,10 @@ Tahle sekce je handoff pro další anti-abuse chat. **`PROJECT.md` je orientačn
 
 Již známé a produkčně zavedené třídy ochrany, které se nemají znovu navrhovat bez nalezení konkrétního bypassu:
 
-- **Free account quota** — 5 AI lekcí / 20 AI úprav / 3 importy nebo kopie za měsíc;
+- **Free account quota** — 3 AI lekce / 10 AI úprav / 2 importy nebo kopie za měsíc;
 - **Free lesson-family reuse** — jedna skutečná live výuka na logickou rodinu lekce; kopie/importy zachovávají immutable `reuse_family_id`, takže duplikace neresetuje oprávnění;
 - **Free session lifetime** — první účastník spustí čas; nové joiny max. 120 minut, hard lifetime 6 hodin, write-boundary enforcement + cron, ukončenou session nelze znovu otevřít;
-- **Free multi-account farming** — shared privacy-minimal device budget 10 AI lekcí / 40 AI úprav / 6 importů nebo kopií za klouzavých 30 dní napříč Free účty na jednom zařízení; device hash je server-authoritative;
+- **Free multi-account farming** — shared privacy-minimal device budget 6 AI lekcí / 20 AI úprav / 4 importy nebo kopie za klouzavých 30 dní napříč Free účty na jednom zařízení; limity se odvozují jako 2× aktuální Free plán a device hash je server-authoritative;
 - **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení;
 - **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
@@ -405,7 +405,7 @@ Nový auth user dostane `profiles` řádek přes `on_auth_user_created → priva
 Free default:
 
 - `role=user`
-- `monthly_lesson_limit=5`
+- `monthly_lesson_limit=3`
 - `monthly_revision_limit=10`
 - `ai_grading_enabled=false`
 - `lesson_folders_enabled=false`
