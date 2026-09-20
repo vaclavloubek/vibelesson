@@ -26,6 +26,8 @@ type QueueEvaluation = {
   teacherScore: number | null;
   rationale: string | null;
   confidence: number | null;
+  aiUseSuspicion: 'none' | 'low' | 'high';
+  aiUseSignals: string[];
   rubric: Criterion[];
   criterionScores: CriterionScore[];
   teacherConfirmed: boolean;
@@ -211,11 +213,29 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
               ? ui('Potvrzeno učitelem.', 'Confirmed by teacher.')
               : evaluation.manualOnly
                 ? ui('Čeká na ruční hodnocení.', 'Waiting for manual grading.')
-                : evaluation.status === 'needs_review'
-                  ? ui('Ke kontrole kvůli nižší jistotě AI.', 'Needs review because AI confidence is lower.')
-                  : ui('AI návrh čeká na potvrzení.', 'AI suggestion is waiting for confirmation.')}
+                : evaluation.aiUseSuspicion === 'high'
+                  ? ui('Ke kontrole kvůli podezření na využití AI.', 'Needs review because of suspected AI use.')
+                  : evaluation.status === 'needs_review'
+                    ? ui('Ke kontrole kvůli nižší jistotě AI.', 'Needs review because AI confidence is lower.')
+                    : ui('AI návrh čeká na potvrzení.', 'AI suggestion is waiting for confirmation.')}
             {!evaluation.manualOnly && confidence !== null ? (english ? ` AI confidence: ${confidence}%.` : ` Jistota AI: ${confidence} %.`) : ''}
           </p>
+          {!evaluation.manualOnly && evaluation.aiUseSuspicion === 'high' ? (
+            <div className="reveal" style={{ marginTop: 10 }}>
+              <strong>{ui('Podezření na využití generativní AI', 'Suspected generative AI use')}</strong>
+              <p style={{ margin: '7px 0 0' }}>
+                {ui(
+                  'Jde pouze o upozornění podle textových vzorců, ne o důkaz. Body se tím automaticky nemění.',
+                  'This is only a text-pattern alert, not proof. It does not automatically change the score.',
+                )}
+              </p>
+              {evaluation.aiUseSignals.length ? (
+                <ul style={{ margin: '7px 0 0', paddingLeft: 20 }}>
+                  {evaluation.aiUseSignals.map((signal) => <li key={signal}>{signal}</li>)}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
           {evaluation.teacherConfirmed && evaluation.teacherNote ? (
             <p style={{ margin: '8px 0 0' }}><strong>{ui('Poznámka učitele:', 'Teacher note:')}</strong> {evaluation.teacherNote}</p>
           ) : null}
@@ -342,6 +362,8 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
             teacherScore: null,
             rationale: null,
             confidence: null,
+            aiUseSuspicion: 'none',
+            aiUseSignals: [],
             criterionScores: [],
             teacherConfirmed: false,
             teacherReviewedAt: null,
