@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
-import { GradingStrictnessSchema } from '@/lib/schema';
+import { GradingStrictnessSchema, LessonWorkModeSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -29,7 +29,8 @@ const InputSchema = z.object({
   prompt: z.string().max(5000).refine((value) => value.trim().length === 0 || value.trim().length >= 5),
   audience: z.string().min(1).max(200),
   duration: z.number().int().min(10).max(360),
-  groupSize: z.string().min(1).max(100),
+  groupSize: z.string().max(100).default(''),
+  workMode: LessonWorkModeSchema.default('teams'),
   tone: z.string().min(1).max(200),
   lessonLanguage: z.string().trim().min(1).max(100).default('auto'),
   uiLocale: z.enum(['cs', 'en']).default('cs'),
@@ -73,6 +74,9 @@ export async function POST(req: Request) {
 
     if (!input.prompt.trim() && input.materials.length === 0) {
       return NextResponse.json({ error: 'Popiš hodinu nebo nahraj alespoň jeden podklad.' }, { status: 400 });
+    }
+    if (input.workMode === 'teams' && !input.groupSize.trim()) {
+      return NextResponse.json({ error: 'Pro týmovou lekci zadej velikost týmu.' }, { status: 400 });
     }
 
     const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? input.uiLocale;
@@ -230,7 +234,8 @@ export async function POST(req: Request) {
               prompt: input.prompt,
               audience: input.audience,
               duration: input.duration,
-              groupSize: input.groupSize,
+              groupSize: input.workMode === 'individual' ? '1' : input.groupSize.trim(),
+              workMode: input.workMode,
               tone: input.tone,
               lessonLanguage: effectiveLessonLanguage,
               uiLocale: requestLocale,
