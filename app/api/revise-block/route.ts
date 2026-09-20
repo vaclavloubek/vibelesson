@@ -56,6 +56,7 @@ export async function POST(req: Request) {
 
   let requestId: string | null = null;
   let costUsd: number | null = null;
+  const admin = createAdminClient();
 
   try {
     const { instruction, lesson, lessonId = null, blockId } = InputSchema.parse(await req.json());
@@ -98,7 +99,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Vybraná aktivita už v lekci není.' }, { status: 400 });
     }
 
-    const admin = createAdminClient();
     const deviceHash = await currentFreeDeviceBudgetHash();
     const { data: quotaData, error: quotaError } = await admin.rpc('reserve_revision_operation_server', {
       p_user_id: userId,
@@ -177,7 +177,8 @@ export async function POST(req: Request) {
     }
 
     if (requestId) {
-      const { error: finishError } = await supabase.rpc('finish_generation_request', {
+      const { error: finishError } = await admin.rpc('finish_generation_request_server', {
+        p_user_id: userId,
         p_request_id: requestId,
         p_status: 'succeeded',
         p_cost_usd: costUsd,
@@ -189,7 +190,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ lesson: revisedLesson, lessonId });
   } catch (error) {
     if (requestId) {
-      const { error: finishError } = await supabase.rpc('finish_generation_request', {
+      const { error: finishError } = await admin.rpc('finish_generation_request_server', {
+        p_user_id: userId,
         p_request_id: requestId,
         p_status: 'failed',
         p_cost_usd: costUsd,
