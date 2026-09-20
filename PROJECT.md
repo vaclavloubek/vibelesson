@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.59** zavádí anti-sharing ochranu pro aktivní školní členy: každý školní uživatelský účet má oddělený privacy-minimal trusted-device ledger s limitem 5 současně aktivních zařízení a 10 skutečně nových zařízení za klouzavých 30 dní; správce školy může aktivní zařízení člena resetovat bez vymazání 30denní historie a resetované tokeny se nesmějí tiše znovu aktivovat. Předchozí 0.9.58 uzavřela recovery-payment bypass po refundu / chargebacku. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.60** přidává consent-gated behavior-driven lifecycle e-maily přes Resend: onboarding reaguje na skutečné vytvoření první lekce a první živou hodinu, upgrade okamžitě ukončí Free konverzní větev a Free uživatel dostane kontextový signál při poslední zbývající / vyčerpané nové AI lekci. Efektivní plán zohledňuje i aktivní školní organizaci, takže Team/School/Campus člen není chybně osloven jako Free. Předchozí 0.9.59 zavedla organization-member trusted-device hardening. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -387,6 +387,18 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - UI stav zobrazuje na dashboardu, v lesson workspace, na Teacher Live a ve správě předplatného a vysvětluje, že AI se **automaticky odemkne, jakmile Stripe platbu potvrdí**;
 - autoritativní enforcement je v DB: generation/revision write boundary + grading dispatch/budget; aplikační kontroly slouží pro rychlé a srozumitelné UX;
 - regresní kontrakt: `scripts/verify-past-due-ai-pause.mjs`.
+
+### Lifecycle e-mail automation 0.9.60 — 2026-09-20
+
+- marketingová lifecycle komunikace je oddělená od transakčních billing e-mailů a běží pouze při aktivním marketingovém souhlasu; změna souhlasu se serverově synchronizuje do Resendu;
+- Resend obsahuje 14 publikovaných CZ/EN šablon v jednotném brand designu a čtyři behavior-driven automations: onboarding, první live → placený tarif, Free quota near-limit a Free quota reached;
+- onboarding posílá welcome po potvrzení registrace, čeká na skutečný `first_lesson.created`, při neaktivitě nabízí tři veřejné ukázkové lekce a po vytvoření lekce čeká na `first_live.started`; splněná CTA tedy ruší nerelevantní další maily;
+- po první živé hodině Free uživatel čeká 3 dny na případný `subscription.upgraded`; potvrzený upgrade konverzní mail okamžitě zruší;
+- quota v1 reaguje pouze na měsíční limit **nových AI lekcí** ve Free tarifu: při poslední zbývající lekci `near_limit`, po vyčerpání `reached`; AI-revision quota zatím záměrně nemá vlastní e-mail, aby nevznikaly duplicitní prodejní zásahy bez cooldown ledgeru;
+- efektivní `plan` bere v úvahu individuální tarif i aktivní organization membership; Team/School/Campus/admin tedy nevstoupí do Free prodejní větve;
+- ukázkové lesson linky používají stejnou UTM taxonomii jako organická Facebook cesta (`showcase_*` + stejné `utm_content`), pouze `utm_source=email` a `utm_medium=lifecycle`;
+- Resend E2E test na testovacím sinku potvrdil: CZ welcome → CTA event přeskočí showcase → first-live event přeskočí reminder; samostatně bylo potvrzeno, že upgrade během 3denního waitu přeskočí prodejní mail a near-limit větev pošle správnou CZ šablonu;
+- Resend automations zůstávají **disabled do úspěšného Preview/CI a produkčního deploymentu**; teprve potom se zapnou.
 
 ### Organization-member trusted devices 0.9.59 — 2026-09-20
 

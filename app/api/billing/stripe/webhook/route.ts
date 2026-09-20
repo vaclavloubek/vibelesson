@@ -5,6 +5,7 @@ import {
   deliverBillingLifecycleEmail,
   BillingEmailDeliveryError,
 } from '@/lib/billing-email';
+import { sendLifecycleEvent, syncLifecycleContact } from '@/lib/lifecycle-email';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
@@ -609,6 +610,21 @@ export async function POST(request: Request) {
           code,
         });
         return jsonError(503, 'billing_email_delivery_failed');
+      }
+
+      try {
+        if (lifecycleNotification === 'subscription_activated') {
+          await sendLifecycleEvent(sync.userId, 'syllonaut.subscription.upgraded');
+        } else if (lifecycleNotification === 'subscription_ended') {
+          await syncLifecycleContact(sync.userId);
+        }
+      } catch (marketingError) {
+        console.error('billing marketing lifecycle sync failed', {
+          eventId: sync.eventId,
+          eventType: sync.eventType,
+          notification: lifecycleNotification,
+          error: marketingError instanceof Error ? marketingError.message : 'unknown',
+        });
       }
     }
 

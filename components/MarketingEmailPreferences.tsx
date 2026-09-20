@@ -57,19 +57,26 @@ export default function MarketingEmailPreferences() {
   async function updatePreference(next: boolean) {
     setBusy(true);
     setMessage('');
-    const { error } = await supabase.rpc('set_marketing_email_consent', { p_granted: next });
-    setBusy(false);
 
-    if (error) {
+    try {
+      const response = await fetch('/api/marketing-email-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error ?? 'marketing_consent_update_failed');
+
+      setEnabled(next);
+      setMessage(next
+        ? ui('Souhlas se zasíláním marketingových e-mailů je aktivní.', 'Marketing email consent is active.')
+        : ui('Marketingové e-maily jsou odhlášené.', 'Marketing emails are disabled.'));
+    } catch (error) {
       console.error('update marketing consent failed', error);
       setMessage(ui('Změnu se nepodařilo uložit. Zkuste to prosím znovu.', 'The change could not be saved. Please try again.'));
-      return;
+    } finally {
+      setBusy(false);
     }
-
-    setEnabled(next);
-    setMessage(next
-      ? ui('Souhlas se zasíláním marketingových e-mailů je aktivní.', 'Marketing email consent is active.')
-      : ui('Marketingové e-maily jsou odhlášené.', 'Marketing emails are disabled.'));
   }
 
   if (signedIn === null) {

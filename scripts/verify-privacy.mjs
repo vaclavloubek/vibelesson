@@ -8,7 +8,7 @@ function requirePattern(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(`Privacy regression: ${message}`);
 }
 
-const [layout, cookieConsent, analytics, footer, gdpr, auth, nextConfig, marketingPreferences] = await Promise.all([
+const [layout, cookieConsent, analytics, footer, gdpr, auth, nextConfig, marketingPreferences, marketingPreferenceRoute] = await Promise.all([
   source('app/layout.tsx'),
   source('components/CookieConsent.tsx'),
   source('lib/analytics.ts'),
@@ -17,6 +17,7 @@ const [layout, cookieConsent, analytics, footer, gdpr, auth, nextConfig, marketi
   source('components/AuthControls.tsx'),
   source('next.config.ts'),
   source('components/MarketingEmailPreferences.tsx'),
+  source('app/api/marketing-email-preference/route.ts'),
 ]);
 
 requirePattern(layout, /<CookieConsent\s*\/>/, 'global cookie consent surface is missing.');
@@ -39,7 +40,9 @@ requirePattern(gdpr, /Ochrana osobních údajů \(GDPR\)/, 'GDPR page content is
 requirePattern(gdpr, /Google Analytics 4 se načte pouze po aktivním/, 'GA4 opt-in explanation is missing.');
 requirePattern(auth, /marketing_email_consent:\s*marketingConsent/, 'signup marketing opt-in is not persisted into signup metadata.');
 requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'marketing opt-in checkbox is missing or not explicit.');
-requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
+requirePattern(marketingPreferences, /\/api\/marketing-email-preference/, 'marketing-email consent must have a self-service withdrawal path.');
+requirePattern(marketingPreferenceRoute, /set_marketing_email_consent/, 'marketing preference API must persist the consent choice server-side.');
+requirePattern(marketingPreferenceRoute, /syncLifecycleContact/, 'marketing preference API must synchronize the consent choice with the email platform.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
 requirePattern(nextConfig, /https:\/\/www\.googletagmanager\.com/, 'CSP does not allow the consent-gated GA4 script.');
 requirePattern(nextConfig, /https:\/\/\*\.google-analytics\.com/, 'CSP does not allow consent-gated GA4 collection.');
