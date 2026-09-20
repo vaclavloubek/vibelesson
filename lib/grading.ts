@@ -48,6 +48,7 @@ export type GradingResult = {
   confidence: number;
   aiUseSuspicion: AIUseSuspicion;
   aiUseSignals: string[];
+  // Verification question is advisory evidence for a teacher, never an automatic penalty.
   integrityChallengeQuestion: string | null;
   needsReview: boolean;
   model: string;
