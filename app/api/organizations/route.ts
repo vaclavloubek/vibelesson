@@ -8,6 +8,7 @@ import {
   organizationMinorUnitPrice,
   type OrganizationBillingPeriod,
 } from '@/lib/organization-billing-catalog';
+import { issueOrganizationBankInvoice } from '@/lib/organization-bank-invoice';
 import { startOrganizationPayment } from '@/lib/organization-payment';
 import { OrganizationStripeError } from '@/lib/organization-stripe';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
@@ -157,6 +158,40 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 
+  if (input.paymentMethod === 'invoice') {
+    try {
+      const invoice = await issueOrganizationBankInvoice(orderId);
+      return NextResponse.json({
+        created: true,
+        organizationId,
+        orderId,
+        amountMinor,
+        currency: route.currency,
+        status: 'awaiting_payment',
+        paymentUrl: invoice.invoiceUrl,
+        paymentKind: 'bank_invoice',
+        invoiceNumber: invoice.invoiceNumber,
+        variableSymbol: invoice.variableSymbol,
+      }, { status: 201 });
+    } catch (invoiceError) {
+      const code = invoiceError instanceof Error ? invoiceError.message : 'unknown_error';
+      console.error('organization bank invoice startup failed', {
+        organizationId,
+        orderId,
+        error: code,
+      });
+      return NextResponse.json({
+        error: 'organization_bank_invoice_issue_failed',
+        orderCreated: true,
+        organizationId,
+        orderId,
+        ...(input.environment === 'sandbox' && profile?.role === 'admin'
+          ? { diagnostic: { code, stripeType: null, stripeCode: null } }
+          : {}),
+      }, { status: 502 });
+    }
+  }
+
   try {
     const payment = await startOrganizationPayment({
       environment: input.environment,
@@ -164,8 +199,6 @@ export async function POST(request: Request) {
         id: organizationId,
         name: input.name,
         legalName: input.legalName || null,
-        registrationNumber: input.registrationNumber || null,
-        vatId: input.vatId || null,
         billingEmail: input.billingEmail.toLowerCase(),
         billingCountry: input.billingCountry,
         billingAddress: input.billingAddress,
@@ -180,8 +213,6 @@ export async function POST(request: Request) {
         externalCustomerId: null,
         externalCheckoutSessionId: null,
         externalCheckoutUrl: null,
-        externalInvoiceId: null,
-        hostedInvoiceUrl: null,
       },
     });
 
