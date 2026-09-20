@@ -310,7 +310,9 @@ const authIdentityRoute = fs.readFileSync('app/api/auth/identity/route.ts', 'utf
 for (const needle of [
   'supabase.auth.getUser()',
   "'Cache-Control': 'private, no-store, max-age=0'",
-  '{ userId: error ? null : (data.user?.id ?? null) }',
+  "{ userId: data.user?.id ?? null }",
+  "error.name !== 'AuthSessionMissingError'",
+  'error.status !== 401',
 ]) {
   if (!authIdentityRoute.includes(needle)) {
     throw new Error('Server-authoritative auth identity contract missing: ' + needle);
