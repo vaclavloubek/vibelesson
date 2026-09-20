@@ -9,6 +9,7 @@ import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { emitFirstLessonCreatedIfNeeded, emitFreeLessonQuotaLifecycle } from '@/lib/marketing-lifecycle';
 import {
   MATERIAL_MAX_FILES,
   MATERIAL_MAX_TEXT_PER_FILE,
