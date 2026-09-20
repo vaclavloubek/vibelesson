@@ -5,7 +5,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 
 const RenameSchema = z.object({
@@ -30,10 +30,10 @@ async function schoolLicenseLockResponse(userId: string, lessonId: string) {
 }
 
 async function trustedDeviceLockResponse(userId: string) {
-  const gate = await requireTrustedDeviceForPaidIndividual(userId);
+  const gate = await requireTrustedDeviceForPaidAccess(userId);
   if (gate.allowed) return null;
   return NextResponse.json({
-    error: trustedDeviceErrorMessage(gate.code),
+    error: trustedDeviceErrorMessage(gate),
     code: gate.code,
   }, { status: 403 });
 }
