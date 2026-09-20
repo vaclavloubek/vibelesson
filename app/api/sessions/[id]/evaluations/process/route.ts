@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,14 @@ function parseTime(value: unknown) {
 export async function POST(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+
+  try {
+    if (await isIndividualAiBillingPaused(userId)) {
+      return NextResponse.json({ evaluationIds: [], aiBillingPaused: true });
+    }
+  } catch {
+    return NextResponse.json({ error: 'Stav platby se nepodařilo ověřit.' }, { status: 503 });
+  }
 
   const { id: sessionId } = await params;
   const { data: session, error: sessionError } = await supabase

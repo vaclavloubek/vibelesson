@@ -146,6 +146,8 @@
 
 .notice { background: #f2f1ff; color: #484493; }
 .warning { background: #fff7e8; color: #765515; }
+.warning strong { display: block; margin-bottom: 4px; color: #5f3f09; }
+.warning p { margin: 0; }
 .success { background: #eef8f4; color: #276a57; }
 .error { background: #fff2f1; color: #8a2e29; }
 

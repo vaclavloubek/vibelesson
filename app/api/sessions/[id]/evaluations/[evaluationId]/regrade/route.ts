@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { currentTrustedDeviceHash, requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 type RouteContext = { params: Promise<{ id: string; evaluationId: string }> };
 
@@ -12,6 +13,13 @@ export async function POST(_req: Request, { params }: RouteContext) {
   const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
   if (!deviceGate.allowed) {
     return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
+
+  let aiBillingPaused: boolean;
+  try {
+    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+  } catch {
+    return NextResponse.json({ error: 'Stav platby se nepodařilo ověřit.' }, { status: 503 });
   }
 
   const { id: sessionId, evaluationId } = await params;
@@ -71,6 +79,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
   return NextResponse.json({
     evaluationId,
     requeued: true,
-    gradingMode: aiGradingEnabled ? 'ai' : 'manual',
+    gradingMode: aiGradingEnabled && !aiBillingPaused ? 'ai' : 'manual',
+    aiBillingPaused,
   });
 }

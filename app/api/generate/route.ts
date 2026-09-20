@@ -7,6 +7,7 @@ import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import {
   MATERIAL_MAX_FILES,
@@ -72,6 +73,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Popiš hodinu nebo nahraj alespoň jeden podklad.' }, { status: 400 });
     }
 
+    const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? input.uiLocale;
+    let aiBillingPaused: boolean;
+    try {
+      aiBillingPaused = await isIndividualAiBillingPaused(userId);
+    } catch {
+      return NextResponse.json({
+        error: requestLocale === 'en'
+          ? 'The payment status could not be verified. Try again in a moment.'
+          : 'Stav platby se nepodařilo ověřit. Zkus to za chvíli znovu.',
+      }, { status: 503 });
+    }
+    if (aiBillingPaused) {
+      return NextResponse.json({
+        error: aiBillingPausedMessage(requestLocale),
+        code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+      }, { status: 402 });
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, ai_grading_enabled, multilingual_lessons_enabled')
@@ -83,8 +102,6 @@ export async function POST(req: Request) {
     const isAdmin = profile?.role === 'admin';
     const aiGradingEnabled = Boolean(profile && (isAdmin || profile.ai_grading_enabled));
     const multilingualLessonsEnabled = Boolean(profile && (isAdmin || profile.multilingual_lessons_enabled));
-    const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? input.uiLocale;
-
     if (!multilingualLessonsEnabled
       && input.lessonLanguage !== 'auto'
       && input.lessonLanguage !== requestLocale) {
@@ -129,6 +146,12 @@ export async function POST(req: Request) {
       p_user_id: userId,
       p_device_token_hash: deviceHash,
     });
+    if (reserveError?.message?.includes(AI_BILLING_PAYMENT_REQUIRED_CODE)) {
+      return NextResponse.json({
+        error: aiBillingPausedMessage(requestLocale),
+        code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+      }, { status: 402 });
+    }
     if (reserveError) throw reserveError;
 
     const reservation = (Array.isArray(data) ? data[0] : data) as ReservationRow | null;

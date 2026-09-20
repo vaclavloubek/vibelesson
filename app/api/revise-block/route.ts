@@ -7,6 +7,8 @@ import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 // Keep the same ceiling across AI endpoints; complex block edits can still be slow.
 export const maxDuration = 300;
@@ -27,6 +29,24 @@ export async function POST(req: Request) {
   const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
   if (!deviceGate.allowed) {
     return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
+
+  const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
+  let aiBillingPaused: boolean;
+  try {
+    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+  } catch {
+    return NextResponse.json({
+      error: requestLocale === 'en'
+        ? 'The payment status could not be verified. Try again in a moment.'
+        : 'Stav platby se nepodařilo ověřit. Zkus to za chvíli znovu.',
+    }, { status: 503 });
+  }
+  if (aiBillingPaused) {
+    return NextResponse.json({
+      error: aiBillingPausedMessage(requestLocale),
+      code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+    }, { status: 402 });
   }
 
   let requestId: string | null = null;
@@ -80,6 +100,12 @@ export async function POST(req: Request) {
       p_action: 'revise_block',
       p_device_token_hash: deviceHash,
     });
+    if (quotaError?.message?.includes(AI_BILLING_PAYMENT_REQUIRED_CODE)) {
+      return NextResponse.json({
+        error: aiBillingPausedMessage(requestLocale),
+        code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+      }, { status: 402 });
+    }
     if (quotaError) {
       console.error('reserve block revision quota failed', quotaError);
       return NextResponse.json({ error: 'Nepodařilo se ověřit limit AI úprav.' }, { status: 500 });
