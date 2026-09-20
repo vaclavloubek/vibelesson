@@ -33,10 +33,11 @@ forbidPattern(form, /trackEvent\([^)]*(email|message)/s, 'analytics must never i
 
 requirePattern(route, /isSameOrigin\(request\)/, 'same-origin POST protection is missing.');
 requirePattern(route, /MAX_BODY_BYTES/, 'request body size guard is missing.');
+requirePattern(route, /Buffer\\.byteLength\\(rawBody, 'utf8'\\)/, 'actual request body size must be checked, not only content-length.');
 requirePattern(route, /input\.company\.trim\(\)/, 'server-side honeypot handling is missing.');
 requirePattern(route, /MIN_FILL_TIME_MS = 3_000/, 'minimum fill-time spam guard is missing.');
 requirePattern(route, /createHmac\('sha256'/, 'privacy-preserving HMAC client hashing is missing.');
-requirePattern(route, /contact_form_rate_limits/, 'persistent rate-limit reservation is missing.');
+requirePattern(route, /schema\\('private'\\)\\.from\\('contact_form_rate_limits'\\)/, 'persistent rate-limit reservation must use the private schema.');
 requirePattern(route, /reservationError\?\.code === '23505'/, 'atomic unique-conflict rate limiting is missing.');
 requirePattern(route, /reply_to: email/, 'inquiry email must remain directly replyable.');
 requirePattern(route, /to: \['vaclav@syllonaut\.com'\]/, 'inquiry destination changed unexpectedly.');
@@ -44,12 +45,12 @@ requirePattern(route, /escapeHtml\(message\)/, 'message HTML escaping is missing
 requirePattern(route, /30 \* 24 \* 60 \* 60 \* 1_000/, 'rate-limit history retention must remain bounded to 30 days.');
 forbidPattern(route, /client_ip|ip_address|raw_ip/, 'raw IP addresses must not be stored.');
 
-requirePattern(gdpr, /Kontaktní dotazy:/, 'GDPR page must disclose contact-form data.');
-requirePattern(gdpr, /Pseudonymní záznamy používané pouze pro rate-limit/, 'GDPR page must disclose bounded anti-abuse hash retention.');
+requirePattern(gdpr, /Kontaktní formulář:/, 'GDPR page must disclose contact-form data.');
+requirePattern(gdpr, /Pseudonymizované záznamy rate-limitu/, 'GDPR page must disclose bounded anti-abuse hash retention.');
 
 const migrationsDir = new URL('../supabase/migrations/', import.meta.url);
 const migrationFiles = await readdir(migrationsDir);
-const rateMigration = migrationFiles.find((file) => file.endsWith('_add_contact_form_rate_limit.sql'));
+const rateMigration = migrationFiles.find((file) => file.endsWith('_add_contact_form_rate_limits.sql'));
 if (!rateMigration) throw new Error('Contact inquiry regression: contact rate-limit migration is missing.');
 
 const migration = await source(`supabase/migrations/${rateMigration}`);
