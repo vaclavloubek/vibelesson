@@ -13,6 +13,7 @@ import { startOrganizationPayment } from '@/lib/organization-payment';
 import { OrganizationStripeError } from '@/lib/organization-stripe';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { TERMS_VERSION } from '@/lib/legal';
 
 function paymentDiagnostic(error: unknown) {
   if (error instanceof OrganizationStripeError) {
@@ -46,6 +47,9 @@ const InputSchema = z.object({
   billingPeriod: z.enum(['monthly', 'annual']),
   paymentMethod: z.enum(['card', 'invoice']),
   environment: z.enum(['sandbox', 'live']).default('live'),
+  termsAccepted: z.boolean().optional().default(false),
+  termsVersion: z.string().trim().max(32).optional().default(''),
+  authorityConfirmed: z.boolean().optional().default(false),
 });
 
 export async function POST(request: Request) {
@@ -59,6 +63,10 @@ export async function POST(request: Request) {
     input = InputSchema.parse(await request.json());
   } catch {
     return NextResponse.json({ error: 'invalid_organization_order' }, { status: 400 });
+  }
+
+  if (input.environment === 'live' && (!input.termsAccepted || input.termsVersion !== TERMS_VERSION || !input.authorityConfirmed)) {
+    return NextResponse.json({ error: 'legal_acceptance_required' }, { status: 400 });
   }
 
   if (!isOrganizationPlanCode(input.planCode)) {
@@ -138,9 +146,37 @@ export async function POST(request: Request) {
     );
   }
 
+  const legalAcceptedAt = new Date().toISOString();
+  const { data: orderSnapshotRow, error: orderSnapshotError } = await admin
+    .from('organization_orders')
+    .select('billing_snapshot')
+    .eq('id', orderId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  if (orderSnapshotError) {
+    console.error('organization order snapshot lookup failed', { organizationId, orderId, code: orderSnapshotError.code });
+  }
+
+  const currentBillingSnapshot = orderSnapshotRow?.billing_snapshot && typeof orderSnapshotRow.billing_snapshot === 'object' && !Array.isArray(orderSnapshotRow.billing_snapshot)
+    ? orderSnapshotRow.billing_snapshot as Record<string, unknown>
+    : {};
+
   const { error: environmentError } = await admin
     .from('organization_orders')
-    .update({ livemode: input.environment === 'live' })
+    .update({
+      livemode: input.environment === 'live',
+      billing_snapshot: {
+        ...currentBillingSnapshot,
+        legalAcceptance: {
+          termsVersion: input.termsVersion || null,
+          termsAccepted: input.termsAccepted,
+          authorityConfirmed: input.authorityConfirmed,
+          acceptedAt: legalAcceptedAt,
+          acceptedByUserId: userId,
+        },
+      },
+    })
     .eq('id', orderId)
     .eq('organization_id', organizationId);
 
