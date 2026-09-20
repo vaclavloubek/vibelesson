@@ -71,13 +71,15 @@ export async function POST(request: Request) {
 
     if (error || !invitationId) {
       const message = error?.message ?? '';
-      const code = message.includes('replacement_limit')
-        ? 'replacement_limit_reached'
-        : message.includes('seat_limit')
-          ? 'seat_limit_reached'
-          : error?.code === '23505'
-            ? 'already_pending'
-            : 'create_failed';
+      const code = message.includes('member_already_active')
+        ? 'member_already_active'
+        : message.includes('replacement_limit')
+          ? 'replacement_limit_reached'
+          : message.includes('seat_limit')
+            ? 'seat_limit_reached'
+            : error?.code === '23505'
+              ? 'already_pending'
+              : 'create_failed';
       failed.push({ email, error: code });
       if (code === 'seat_limit_reached' || code === 'replacement_limit_reached') break;
       continue;
