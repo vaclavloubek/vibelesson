@@ -43,6 +43,10 @@
 .muted { color:var(--muted,#686b74); font-size:13px; }
 .back { color:inherit; text-decoration:none; font-weight:700; }
 .planNote { padding:14px 16px; border:1px solid var(--line,#e2e1dc); border-radius:14px; background:#fbfaf7; }
+.bulkInvitePreviewHeader { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-top:16px; }
+.bulkInviteScrollable { max-height:470px; overflow:auto; border:1px solid var(--line,#e2e1dc); border-radius:14px; margin-top:8px; }
+.bulkInviteScrollable .table { margin-top:0; }
+.bulkInviteScrollable .table th { position:sticky; top:0; z-index:2; background:#fbfaf7; box-shadow:0 1px 0 var(--line,#e2e1dc); }
 @media (max-width: 760px) {
   .shell { padding:18px 14px 54px; }
   .header { align-items:flex-start; }

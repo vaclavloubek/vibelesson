@@ -1538,6 +1538,42 @@ export default function SchoolAdmin({
                       )}
                     </button>
                   </div>
+
+                  {bulkInviteEntries.length ? (
+                    <>
+                      <div className={styles.bulkInvitePreviewHeader}>
+                        <strong>{ui('Náhled pozvánek', 'Invitation preview')}</strong>
+                        <span className={styles.muted}>
+                          {bulkInviteEntries.length} {ui('adres', 'addresses')}
+                        </span>
+                      </div>
+                      <div
+                        className={
+                          styles.tableWrap
+                          + (bulkInviteEntries.length > 10
+                            ? ' ' + styles.bulkInviteScrollable
+                            : '')
+                        }
+                      >
+                        <table className={styles.table}>
+                          <thead>
+                            <tr>
+                              <th>E-mail</th>
+                              <th>{ui('Role', 'Role')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bulkInviteEntries.map((entry) => (
+                              <tr key={entry.email}>
+                                <td>{entry.email}</td>
+                                <td>{roleLabel(entry.role, english)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : null}
                 </div>
               </section>
             ) : null}
