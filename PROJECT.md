@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. **Dodatečně je k 2026-09-20 produkčně nasazená behaviorální CZ/EN akviziční lifecycle sekvence, spam-protected poptávkový formulář na landing page a locale-preserving EN akviziční vstupy; tyto již nasazené growth změny se zde pouze dokumentují, takže samotná tato dokumentační aktualizace verzi neposouvá.** Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. **Dodatečně je k 2026-09-20 produkčně nasazená behaviorální CZ/EN akviziční lifecycle sekvence, spam-protected poptávkový formulář na landing page a locale-preserving EN akviziční vstupy; tyto již nasazené growth změny se zde pouze dokumentují, takže samotná tato dokumentační aktualizace verzi neposouvá.** Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30. Ve stejné dokumentační synchronizaci je doplněn skutečný produkční stav školního workflow V1/V1.1: uzavřené membership/library/limit scénáře, bankovní faktury s QR, superadmin potvrzení úhrady, audit, lokalizace faktur a přesný seznam zbývajícího acceptance/cleanup; tato dokumentační aktualizace sama o sobě interní verzi neposouvá.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -128,6 +128,10 @@ Dokud výjimka platí, Preview testy nesmí dělat destruktivní zásahy do prod
 - `/cs`, `/en` — lokalizované landing pages
 - `/pricing` — veřejný Pricing / Ceník
 - `/subscription`, `/cs/subscription`, `/en/subscription` — přihlášená správa individuálního předplatného; tarif/fakturační období v Syllonautu, platby/faktury/zrušení přes Stripe Portal
+- `/school` — organizace / školní licence, membership, role, shared usage, knihovna a billing administrace podle oprávnění
+- `/cs/school`, `/en/school` a school subrouty — locale-preserving gateway na kanonické `/school...` routy se zachováním query stringu
+- `/school/invoices/<orderId>` — elektronická bankovní faktura organizace; owner/admin dané organizace nebo superadmin
+- `/admin/school-invoices` — globální přehled vydaných školních bankovních faktur; pouze Syllonaut superadmin, včetně ručního potvrzení úhrady
 - `/new` — tvorba nové lekce
 - `/cs/new`, `/en/new` — locale-preserving acquisition gateway; uloží explicitní UI locale, zachová query/UTM a přesměruje na kanonickou `/new`
 - `/lessons` — Moje lekce + Poslední výsledky + složky
@@ -531,66 +535,112 @@ Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obs
 
 Organizační vrstva pro školní tarify je implementovaná: organizations, membership/role model, pozvánky, seat enforcement, sdílená knihovna pro School/Campus, billing/workflow základ a licenční ochrany obsahu. Team / School / Campus zatím nejsou veřejně samoobslužně prodejné přes LIVE Checkout; jejich provisioning a billing se nesmí vydávat za veřejně spuštěný self-service prodej.
 
-### Školní workflow V1 — implementace a acceptance 0.9.55 — 2026-09-20
+### Školní workflow V1 / V1.1 — implementace a acceptance — 2026-09-20
 
-**Stav: produkčně nasazené a částečně E2E ověřené. Veřejný self-service nákup školních tarifů zůstává vypnutý.**
+**Stav: V1 organizační workflow je produkčně nasazené a hlavní funkční acceptance je COMPLETE / PASS. V1.1 školní billing a fakturace jsou produkčně nasazené a klíčová fakturační cesta je E2E PASS; veřejný self-service nákup Team / School / Campus zůstává záměrně vypnutý do finálního acceptance/sign-off.**
 
-Referenční testovací organizace:
-- interní organizace **Testovací škola**;
-- plán **Campus**, stav `active`, `is_internal_test=true`;
-- vlastník je interní Syllonaut admin; testovací organizace nemá expiraci ani fakturaci;
-- interní admin/owner účet se nezapočítává do komerčních míst ani do společného školního AI poolu.
+Referenční interní organizace:
+- **Testovací škola** — plán Campus, `active`, `is_internal_test=true`;
+- vlastník je interní Syllonaut admin; interní owner se nezapočítává do komerčních míst, unique rotation ani společného školního AI poolu;
+- slouží pro dlouhodobé testování membership/role/library/device funkcí bez komerční fakturace.
 
 Aktuální školní tarifní politika:
 - Team: 10 aktivních míst, 40 AI lekcí + 80 AI úprav / měsíc společně;
 - School: 30 aktivních míst, 120 AI lekcí + 240 AI úprav / měsíc společně;
 - Campus: 100 aktivních míst, 300 AI lekcí + 600 AI úprav / měsíc společně;
-- rotace členů je omezená per billing period na `seat_limit + max(1, ceil(10 %))` unikátních lidí; Campus tedy používá **100 aktivních míst / 110 unikátních lidí v období**;
-- návrat stejného člověka v témže období se do unique limitu nezapočítá znovu;
-- čekající pozvánka pro nového člověka rezervuje místo v rotation budgetu;
-- interní admin účet Testovací školy je výjimka pouze pro interní test: nečerpá komerční místo, unique rotation ani školní AI pool.
+- rotace členů je omezená per billing period na `seat_limit + max(1, ceil(10 %))` unikátních lidí; Campus používá **100 aktivních míst / 110 unikátních lidí v období**;
+- návrat stejného člověka v témže období unique limit nezvyšuje;
+- čekající pozvánka pro nového člověka rezervuje místo v replacement budgetu;
+- interní admin je z komerční seat/AI účetní logiky vyňatý pouze jako interní testovací výjimka.
 
-Produkčně ověřené acceptance scénáře:
-- **pozvánka e-mailem** dorazí;
-- invite flow nepřihlášeného uživatele používá login vpravo nahoře; po přihlášení stejným e-mailem se pozvánka automaticky přijme a uživatel je přesměrován do `/school`;
-- **Učitel** vidí školní licenci, AI pool a školní knihovnu, ale nevidí správu členů, pozvánky, usage po uživatelích ani billing/admin sekce;
-- **Učitel → Administrátor → Učitel**: administrační sekce se po změně role korektně objeví a zase zmizí;
-- owner/admin vidí druhého člena školy a jeho roli;
-- běžný člen vytvořil 1 AI lekci a provedl 1 AI úpravu; DB ověřila spotřebu **1/300 lekcí + 1/600 úprav** právě na tomto členovi, zatímco interní owner/admin zůstal na 0/0;
-- odebrání člena uvolní aktivní místo a účet přestane být členem školy;
-- po odebrání člena položka **Moje škola** z účtového menu zmizí; menu ji nyní zobrazuje jen při aktuálním aktivním členství;
-- znovupřidání stejného uživatele v témže období vrátí aktivní místo na 1/100, ale unique count zůstane **1/110**; předchozí školní AI usage zůstane zachovaný;
-- backend správně odmítl pokus o privilegovanou akci z běžného účtu i ve chvíli, kdy starý admin panel zůstal vizuálně otevřený.
+#### V1 — produkčně ověřené / uzavřené scénáře
+
+- pozvánka e-mailem, login a automatické přijetí invite jsou PASS;
+- role Učitel / Administrátor se správně promítají do viditelnosti školních administračních funkcí a změna role funguje oběma směry;
+- owner/admin vidí členy a role, běžný učitel nevidí privilegované části;
+- společný AI pool je serverově sdílený; usage běžného člena se započítává organizaci, interní owner/admin testovací školy ne;
+- odebrání člena uvolní aktivní místo a `Moje škola` po zániku členství zmizí;
+- návrat stejného uživatele v témže období znovu nezvyšuje unique count a předchozí usage zůstává zachovaný;
+- bulk CSV pozvánky mají preview, editaci řádků/rolí, validaci invalidních a duplicitních řádků, skutečné odeslání a zrušení pending pozvánky;
+- pending invitation rezervuje replacement budget a zrušení rezervaci uvolní;
+- seat cap a replacement cap byly ověřeny rollback testy bez vytváření stovek reálných účtů;
+- entitlement lifecycle `active → past_due → suspended → reactivated → expired/cancelled` byl ověřen rollback testy;
+- owner/admin edge cases jsou PASS: dvojí přijetí invite, reinvite aktivního člena, owner guardy, ownership transfer a účetní invariants;
+- PR #177 uzavřel kritickou chybu, kdy reinvite aktivního člena mohl poškodit owner roli; produkční DB guardy jsou nasazené;
+- stale-auth multi-tab problém je opraven server-authoritative identity kontrolou a původní scénář byl ručně potvrzen jako PASS.
 
 Školní knihovna:
-- School/Campus mají společnou školní knihovnu jako immutable snapshoty předaných lekcí;
-- člen předává škole samostatnou kopii; jeho původní osobní lekce se tím nemění;
+- School/Campus používají immutable snapshoty předaných lekcí;
+- člen škole předává samostatnou kopii a osobní originál se tím nemění;
 - člen si ze školní knihovny vytváří vlastní nezávislou kopii;
-- nové/revidované AI lekce nesou volitelný široký `subject`;
-- knihovna umožňuje filtr podle předmětu a fallback **Nezařazeno** pro starší lekce bez subject metadata;
-- při 10+ zobrazených lekcích se seznam přepne do rolovacího kontejneru se sticky hlavičkou;
-- produkční migrace `add_school_library_subject` je aplikovaná.
+- subject metadata, filtr a fallback **Nezařazeno** jsou nasazené;
+- při 10+ lekcích se seznam přepne do rolovacího kontejneru se sticky hlavičkou;
+- provenance je immutable: importovaná školní kopie si zachovává původ organizace, nelze ji veřejně sdílet ani převést do jiné organizace jako nový školní originál;
+- po ztrátě organizačního přístupu obsah přejde do read-only licenčního zámku a po návratu členství se znovu odemkne;
+- tyto scénáře jsou produkčně ověřené.
 
-Opravené chyby nalezené při acceptance:
-- invite login modal byl přesunut z nelogické pozice do pravého horního headeru;
-- po loginu už invite klient nezůstává v `idle`; přijetí pokračuje automaticky;
-- `Moje škola` už není v menu natvrdo a mizí po zániku členství;
-- kritický stale-auth UI problém: při změně Supabase session v jiném panelu mohl starý admin obsah a staré jméno účtu zůstat vykreslené, i když server už používal novou identitu. Backend oprávnění akci správně odmítl, ale UI bylo zavádějící;
-- první oprava přes browser `supabase.auth.getUser()` byla nedostatečná, protože klientský objekt mohl držet starou session;
-- finální oprava v produkčním commitu **`32ddca9` / PR #170** používá serverově autoritativní endpoint `/api/auth/identity` nad SSR cookies + `supabase.auth.getUser()`, `Cache-Control: private, no-store`; SchoolAdmin i společné account menu při nesouladu identity provedou hard reload;
-- identita se znovu kontroluje při focus/pageshow/visibility a na viditelné školní stránce periodicky; dočasný Auth outage se neinterpretuje jako logout;
-- uživatel ručně zopakoval původní multi-tab scénář a potvrdil **PASS**: po změně účtu se starý privilegovaný pohled už nezachová.
+#### V1.1 — objednávka, billing, fakturace a aktivace
 
-Co ještě není uzavřené a patří do dalšího acceptance kola:
-- nový dosud nezapočítaný člověk má po přijetí zvýšit Campus unique count z 1/110 na **2/110**, při zachování 1 aktivního místa po výměně;
-- ověřit pending invite reservation a release při expiraci/zrušení;
-- ověřit bulk CSV pozvánky, včetně částečného failu na limitech;
-- ověřit pozvánku rovnou s rolí Administrátor;
-- ověřit seat cap a replacement cap fail-closed chování pomocí rollback/dry-run testů, ne 100 reálnými účty;
-- ověřit chování školních entitlementů po suspend/expired/cancelled stavu bez veřejného spuštění billing flow;
-- ověřit school-library licence lock po ztrátě členství a opětovné odemčení po návratu;
-- následně projít zbývající owner/admin edge cases a teprve potom rozhodnout, co je nutné pro veřejné spuštění Team/School/Campus.
+Architektura:
+- **Platební karta** používá Stripe Checkout / subscription flow;
+- **Faktura / bankovní převod** už nepoužívá Stripe Hosted Invoice Page jako platební mechanismus; Syllonaut vystavuje vlastní bankovní fakturu;
+- veřejný LIVE self-service gate pro školní tarify zůstává vypnutý; sandbox je dostupný jen interním adminům;
+- checkout return z karty je bezpečný: klient nevěří `session_id` jako autoritě aktivace a po návratu čeká na serverově potvrzený stav organizace;
+- objednávka vyžaduje oficiální název, fakturační e-mail, zemi, ulici, město a PSČ; IČO/registrační číslo a DIČ/VAT ID jsou globálně volitelné;
+- legal name se v UI automaticky zrcadlí z názvu školy, dokud ho uživatel ručně nezmění.
 
+Bankovní faktury:
+- každá organizace má **stabilní vlastní variabilní symbol**; VS identifikuje organizaci, nikoli jednotlivou fakturu;
+- faktura má vlastní číslo, datum vystavení, splatnost a immutable snapshot dodavatele, odběratele a bankovních údajů;
+- standardní splatnost je **14 dní**;
+- PDF i elektronická faktura obsahují **QR Platbu / SPD** s IBAN, částkou, měnou, VS a zprávou; QR bylo ručně ověřeno v Air Bank jako funkční;
+- na české faktuře je uvedeno **Dodavatel není plátcem DPH.**; stav plátce DPH se snapshotuje pro budoucí změnu režimu;
+- jazyk dokladu se při vystavení zmrazí podle fakturační země: **CZ/SK → čeština, všechny ostatní země → angličtina**;
+- elektronická faktura i PDF používají stejný `documentLocale`; starší doklady bez tohoto pole používají fallback podle uložené fakturační země;
+- sandbox doklad je výrazně označený **TESTOVACÍ DOKLAD — NEPLAŤTE**.
+
+Viditelnost a oprávnění:
+- owner/admin organizace vidí své faktury, číslo, částku, splatnost, stav **Zaplacená / Nezaplacená**, elektronickou verzi a PDF;
+- owner/admin organizace nemůže měnit stav úhrady;
+- všechny faktury všech organizací vidí pouze Syllonaut superadmin na `/admin/school-invoices`;
+- jediný účet oprávněný ručně označit bankovní fakturu jako zaplacenou je superadmin `vaclav.loubek@gmail.com`, vynucený pevným `user_id`, nikoli jen e-mailem nebo běžnou rolí `admin`;
+- superadmin má položku **Superadmin faktury** v hlavním účtovém menu; ostatní ji nevidí;
+- přímý vstup na superadmin stránku pod jiným účtem ukáže explicitní access-boundary informaci místo matoucí 404;
+- akce `Označit jako zaplacenou` je chráněná UI, API i service-role-only DB RPC.
+
+Automatické párování bankovních plateb:
+- backend je připravený na `bank_match`: **VS → organizace + přesná částka + měna → právě nezaplacená faktura**;
+- matcher vyžaduje unikátní referenci bankovní transakce a je idempotentní;
+- automatický matcher ignoruje sandboxové faktury a pracuje pouze s `livemode=true`;
+- rollback behavior test potvrdil superadmin guard, LIVE match a ochranu před duplicitní bankovní referencí;
+- **přímé automatické čtení Air Bank zatím není připojené**; adapter čeká na licencovaný open-banking provider nebo jiný bezpečný zdroj transakcí;
+- ruční superadmin potvrzení je do té doby plnohodnotný fallback.
+
+#### V1.1 — dosud úspěšně provedená acceptance
+
+- sandbox Stripe diagnostika bezpečně odhalila `more_permissions_required`; restricted key byl opraven a Stripe customer/invoice test následně fungoval;
+- původní Stripe-hosted invoice test byl úspěšně zaplacen testovací kartou a potvrdil webhookovou aktivaci `order=paid → organization=active`; tento Hosted Invoice flow už není finální bankovní fakturační mechanismus;
+- bankovní sandbox faktura **SY-2026-000003**, Team / měsíčně / 890 Kč, byla úspěšně vystavena z aplikace;
+- elektronická faktura, PDF, QR Platba, bankovní údaje, VS, splatnost a text o neplátci DPH byly ručně ověřeny;
+- superadmin ručně označil **SY-2026-000003** jako zaplacenou;
+- DB ověřila `organization=active`, `order=paid`, období **2026-09-20 → 2026-10-20** a audit `payment_confirmation_source=superadmin_manual` s přesným superadmin user ID;
+- localized `/cs/school` a `/en/school` routy včetně school subroutů správně přesměrují na kanonické aplikační routy se zachovaným query stringem a locale;
+- školní fakturační env konfigurace je produkčně nastavena a deploy je zelený;
+- PR #179: bezpečný Checkout return; PR #180: povinné fakturační údaje; PR #181: sandbox payment diagnostika;
+- PR #190: vlastní bankovní faktury, QR, superadmin potvrzení a bank-match základ;
+- PR #194: localized school routing fix; PR #195: neplátce DPH; PR #196: superadmin menu/access boundary; PR #207: automatický jazyk faktury podle billing country.
+
+#### Zbývající acceptance / cleanup před veřejným Team / School / Campus self-service
+
+1. dokončit **kartový** V1.1 E2E přes skutečný Stripe sandbox Checkout z finálního školního UI; serverové lifecycle/rollback testy jsou PASS, ale finální user-facing card path má dostat krátký acceptance;
+2. ověřit finální pohled ownera po zaplacení bankovní faktury: active organizace, faktura Zaplacená, PDF/elektronická verze dostupná a bez možnosti ownera měnit stav;
+3. ověřit nový **renewal přes bankovní fakturu** z reálného UI; backend lifecycle už je otestovaný, není třeba opakovat membership scénáře;
+4. podle potřeby otestovat Stripe subscription cancel-at-period-end / restore na sandbox school card subscription jako externí-provider scénář;
+5. rozhodnout, zda je automatické napojení bankovních transakcí přes open-banking provider podmínkou veřejného launch; ruční superadmin potvrzení je funkční fallback;
+6. po dokončení acceptance odstranit dočasnou sandbox organizaci **Test School**;
+7. testovací účet `loubek@icloud.com` je dočasně app-level `admin` pouze kvůli sandbox školnímu billingu; po testech ho vrátit na běžný `user/free` přes autoritativní entitlement recompute a ověřit Free baseline;
+8. po cleanupu vrátit tento účet do interní **Testovací školy**; protože už byl v aktuálním období aktivovaný, návrat nesmí zvýšit unique count;
+9. teprve po finálním sign-off rozhodnout o zapnutí veřejného self-service školního billingu. Do té doby `STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED` nezapínat.
 ### Server-authoritative profil a entitlementy
 
 Nový auth user dostane `profiles` řádek přes `on_auth_user_created → private.handle_new_user()`.
@@ -1588,7 +1638,7 @@ Nejbližší priority v tomto pořadí:
 6. **live billing je veřejný a lifecycle e-maily mají produkční E2E acceptance COMPLETE / PASS**; správa předplatného po 0.9.23/0.9.25 načítá produkční stav správně a admin UX je ručně ověřený PASS. LIVE restricted key permissions byly doplněny a read cesta je produkčně ověřená. Další billing acceptance krok je první skutečná změna tarifu, která ověří write/schedule cestu; změna země/měny zůstává řízená. Team / School / Campus zatím nezapínat;
 7. rozšířit již existující CZ/EN ukázkový balíček na **5–10 veřejných lekcí** napříč věkem/předměty; současný lifecycle Showcase má funkční CZ/EN distribuční základ a sjednocené UTM, takže další krok je rozšíření témat a organické vyhodnocení výkonu, nikoli stavba share infrastruktury od nuly;
 8. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
-9. pokračovat v produkčním acceptance školního workflow: nový unikátní člen → 2/110, pending invite reservation/release, bulk CSV pozvánky, admin-role invitation, seat/replacement limity přes rollback testy, entitlement lifecycle a licenční zámek školního obsahu; membership/roles, AI pool a základ školní knihovny už jsou implementované a částečně PASS;
+9. dokončit **V1.1 školní billing acceptance** bez opakování již uzavřených V1 testů: finální card Checkout E2E, owner pohled po bankovní úhradě, bankovní renewal, případně Stripe cancel/restore; potom cleanup sandbox `Test School`, vrácení `loubek@icloud.com` na `user/free`, návrat do interní `Testovací školy` a finální rozhodnutí o veřejném Team/School/Campus self-service. Automatický `bank_match` backend je připravený, ale Air Bank/open-banking provider zatím není připojený;
 10. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
 Security výjimky SEC-002/007 znovu otevřít při změně předpokladů. Případný odchod od Supabase by zároveň odstranil dnešní SEC-002 architektonický důvod pro sdílený Supabase trust boundary, ale nesmí se předjímat před pondělním rozhodovacím bodem.
