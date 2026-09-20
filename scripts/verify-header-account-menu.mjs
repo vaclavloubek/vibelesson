@@ -8,7 +8,7 @@ function requireText(text, needle, message) {
   if (!text.includes(needle)) throw new Error(`header account menu regression: ${message}`);
 }
 
-const [landing, pricing, authControls, dashboard, workspace, teacherLive, privacy, menu, landingCss, globals] = await Promise.all([
+const [landing, pricing, authControls, dashboard, workspace, teacherLive, privacy, menu, membershipRoute, landingCss, globals] = await Promise.all([
   source('components/LandingPage.tsx'),
   source('components/PricingPage.tsx'),
   source('components/AuthControls.tsx'),
@@ -17,6 +17,7 @@ const [landing, pricing, authControls, dashboard, workspace, teacherLive, privac
   source('components/TeacherSession.tsx'),
   source('app/gdpr/page.tsx'),
   source('components/PublicHeaderAccountMenu.tsx'),
+  source('app/api/organizations/membership/route.ts'),
   source('components/LandingPage.module.css'),
   source('app/globals.css'),
 ]);
@@ -38,6 +39,10 @@ for (const [name, text] of [['dashboard', dashboard], ['workspace', workspace], 
 requireText(menu, "supabase.rpc('get_ai_quota')", 'the dropdown must keep AI quota information available when quota is not supplied by AuthControls.');
 requireText(menu, 'href="/lessons"', 'the dropdown must expose My lessons.');
 requireText(menu, '/subscription', 'the dropdown must expose direct subscription management.');
+requireText(menu, "fetch('/api/organizations/membership'", 'the dropdown must verify active school membership.');
+requireText(menu, 'hasOrganization ? (', 'My school must be conditional on active membership.');
+requireText(membershipRoute, 'getCurrentOrganizationForUser(userId)', 'membership endpoint must use current active organization lookup.');
+requireText(membershipRoute, '{ hasOrganization: Boolean(organization) }', 'membership endpoint must return only the school-membership boolean.');
 requireText(menu, "fetch('/api/auth/clear-live-resume'", 'standalone logout must clear live-resume state.');
 requireText(menu, 'supabase.auth.signOut()', 'standalone logout must terminate the Supabase session.');
 requireText(menu, "event.key !== 'Escape'", 'the dropdown must support Escape closing.');
