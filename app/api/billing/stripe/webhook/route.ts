@@ -8,8 +8,10 @@ import {
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
+import { listStripePaidInvoicePaymentIntents } from '@/lib/stripe-invoice-payments';
 import {
   configuredStripeWebhookSecrets,
+  normalizeStripeDisputeEvent,
   normalizeStripeInvoiceEvent,
   normalizeStripeOrganizationInvoiceEvent,
   normalizeStripeOrganizationSubscriptionEvent,
@@ -226,7 +228,59 @@ export async function POST(request: Request) {
         return jsonError(500, 'invoice_event_log_failed');
       }
 
-      return NextResponse.json({ received: true, paymentEvent: invoiceSync.eventType }, {
+      let paymentMappings = 0;
+      if (invoiceSync.eventType === 'invoice.paid' && invoiceSync.paidAt && !invoiceSync.testClock) {
+        const secretKey = invoiceSync.livemode
+          ? process.env.STRIPE_SECRET_KEY_LIVE
+          : process.env.STRIPE_SECRET_KEY_TEST;
+
+        try {
+          const paymentIntentIds = await listStripePaidInvoicePaymentIntents({
+            secretKey,
+            livemode: invoiceSync.livemode,
+            invoiceId: invoiceSync.invoiceId,
+          });
+
+          for (const paymentIntentId of paymentIntentIds) {
+            const { error: mappingError } = await supabase.rpc('sync_stripe_invoice_payment_event', {
+              p_event_id: invoiceSync.eventId,
+              p_livemode: invoiceSync.livemode,
+              p_user_id: invoiceSync.userId,
+              p_subscription_id: invoiceSync.subscriptionId,
+              p_invoice_id: invoiceSync.invoiceId,
+              p_payment_intent_id: paymentIntentId,
+              p_paid_at: invoiceSync.paidAt,
+            });
+            if (mappingError) {
+              console.error('stripe invoice payment mapping failed', {
+                eventId: invoiceSync.eventId,
+                invoiceId: invoiceSync.invoiceId,
+                livemode: invoiceSync.livemode,
+                code: mappingError.code,
+              });
+              if (invoiceSync.livemode) return jsonError(500, 'invoice_payment_mapping_failed');
+              continue;
+            }
+            paymentMappings += 1;
+          }
+        } catch (mappingLookupError) {
+          console.error('stripe invoice payment lookup failed', {
+            eventId: invoiceSync.eventId,
+            invoiceId: invoiceSync.invoiceId,
+            livemode: invoiceSync.livemode,
+            error: mappingLookupError instanceof Error ? mappingLookupError.message : 'unknown',
+          });
+          // LIVE disputes depend on this map, so make Stripe retry a transient failure.
+          // Sandbox remains best-effort because test-clock and restricted-key setups vary.
+          if (invoiceSync.livemode) return jsonError(503, 'invoice_payment_lookup_failed');
+        }
+      }
+
+      return NextResponse.json({
+        received: true,
+        paymentEvent: invoiceSync.eventType,
+        paymentMappings,
+      }, {
         status: 200,
         headers: { 'Cache-Control': 'no-store' },
       });
@@ -235,6 +289,72 @@ export async function POST(request: Request) {
         eventId: invoiceSync.eventId,
         eventType: invoiceSync.eventType,
         livemode: invoiceSync.livemode,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(503, 'billing_not_configured');
+    }
+  }
+
+  let disputeSync;
+  try {
+    disputeSync = normalizeStripeDisputeEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'dispute_event_invalid';
+    console.warn('stripe dispute event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_dispute_event');
+  }
+
+  if (disputeSync) {
+    try {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase.rpc('sync_stripe_dispute_event', {
+        p_event_id: disputeSync.eventId,
+        p_event_type: disputeSync.eventType,
+        p_livemode: disputeSync.livemode,
+        p_dispute_id: disputeSync.disputeId,
+        p_payment_intent_id: disputeSync.paymentIntentId,
+        p_status: disputeSync.status,
+        p_event_at: disputeSync.eventAt,
+      });
+
+      if (error?.message?.includes('stripe_dispute_payment_mapping_missing')) {
+        console.warn('stripe dispute payment mapping is not ready', {
+          eventId: disputeSync.eventId,
+          disputeId: disputeSync.disputeId,
+          paymentIntentId: disputeSync.paymentIntentId,
+          livemode: disputeSync.livemode,
+        });
+        return jsonError(503, 'dispute_payment_mapping_pending');
+      }
+
+      if (error) {
+        console.error('stripe dispute sync failed', {
+          eventId: disputeSync.eventId,
+          disputeId: disputeSync.disputeId,
+          livemode: disputeSync.livemode,
+          code: error.code,
+        });
+        return jsonError(500, 'dispute_sync_failed');
+      }
+
+      return NextResponse.json({
+        received: true,
+        disputeEvent: disputeSync.eventType,
+        result: data,
+      }, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      console.error('stripe dispute event processing failed', {
+        eventId: disputeSync.eventId,
+        disputeId: disputeSync.disputeId,
+        livemode: disputeSync.livemode,
         error: error instanceof Error ? error.message : 'unknown',
       });
       return jsonError(503, 'billing_not_configured');
