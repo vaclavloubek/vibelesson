@@ -28,6 +28,11 @@ type QueueEvaluation = {
   confidence: number | null;
   aiUseSuspicion: 'none' | 'low' | 'high';
   aiUseSignals: string[];
+  integrityChallengeQuestion: string | null;
+  integrityChallengeAnswer: string | null;
+  integrityChallengeStatus: 'not_required' | 'pending' | 'answered' | 'expired';
+  integrityChallengeExpiresAt: string | null;
+  integrityChallengeSubmittedAt: string | null;
   rubric: Criterion[];
   criterionScores: CriterionScore[];
   teacherConfirmed: boolean;
@@ -278,6 +283,19 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
                   {evaluation.aiUseSignals.map((signal) => <li key={signal}>{signal}</li>)}
                 </ul>
               ) : null}
+              {evaluation.integrityChallengeQuestion ? (
+                <div style={{ marginTop: 10 }}>
+                  <strong>{ui('Kontrolní otázka:', 'Verification question:')}</strong>
+                  <p style={{ margin: '5px 0 0' }}>{evaluation.integrityChallengeQuestion}</p>
+                  {evaluation.integrityChallengeStatus === 'answered' ? (
+                    <p style={{ margin: '7px 0 0' }}><strong>{ui('Odpověď studenta:', 'Student answer:')}</strong> {evaluation.integrityChallengeAnswer}</p>
+                  ) : evaluation.integrityChallengeStatus === 'expired' ? (
+                    <p className="muted-copy" style={{ margin: '7px 0 0' }}>{ui('Student otázku v časovém limitu nezodpověděl.', 'The student did not answer within the time limit.')}</p>
+                  ) : evaluation.integrityChallengeStatus === 'pending' ? (
+                    <p className="muted-copy" style={{ margin: '7px 0 0' }}>{ui('Čeká na krátké ověření studenta.', 'Waiting for the student verification response.')}</p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {evaluation.teacherConfirmed && evaluation.teacherNote ? (
@@ -408,6 +426,11 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
             confidence: null,
             aiUseSuspicion: 'none',
             aiUseSignals: [],
+            integrityChallengeQuestion: null,
+            integrityChallengeAnswer: null,
+            integrityChallengeStatus: 'not_required',
+            integrityChallengeExpiresAt: null,
+            integrityChallengeSubmittedAt: null,
             criterionScores: [],
             teacherConfirmed: false,
             teacherReviewedAt: null,
