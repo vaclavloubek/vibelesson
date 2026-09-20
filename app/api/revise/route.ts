@@ -5,6 +5,8 @@ import { reviseLesson } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 
 // Full-lesson revisions can be almost as expensive as initial generation.
 export const maxDuration = 300;
@@ -65,14 +67,31 @@ export async function POST(req: Request) {
       profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled),
     );
 
-    const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_revision_operation', { p_action: 'revise_lesson' });
+    const admin = createAdminClient();
+    const deviceHash = await currentFreeDeviceBudgetHash();
+    const { data: quotaData, error: quotaError } = await admin.rpc('reserve_revision_operation_server', {
+      p_user_id: userId,
+      p_action: 'revise_lesson',
+      p_device_token_hash: deviceHash,
+    });
     if (quotaError) {
       console.error('reserve revision quota failed', quotaError);
-      return NextResponse.json({ error: 'Nepodařilo se ověřit měsíční limit AI úprav.' }, { status: 500 });
+      return NextResponse.json({ error: 'Nepodařilo se ověřit limit AI úprav.' }, { status: 500 });
     }
 
     const quota = Array.isArray(quotaData) ? quotaData[0] : quotaData;
     if (!quota?.allowed) {
+      const deviceMessage = freeDeviceBudgetMessage(
+        quota?.denial_code,
+        'revision',
+        quota?.device_limit,
+      );
+      if (deviceMessage) {
+        return NextResponse.json({
+          error: deviceMessage,
+          code: quota?.denial_code,
+        }, { status: quota?.denial_code === 'free_device_cookie_required' ? 409 : 429 });
+      }
       return NextResponse.json({
         error: `Vyčerpal jsi měsíční limit ${quota?.monthly_limit ?? 20} AI úprav. Limit se obnoví na začátku příštího měsíce.`,
       }, { status: 429 });
