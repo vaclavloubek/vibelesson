@@ -68,10 +68,39 @@ async function state(b: Record<string, unknown>) {
   const counts = new Map<string, number>(); for (const m of memberRows ?? []) if (typeof m.team_id === "string") counts.set(m.team_id, (counts.get(m.team_id) ?? 0) + 1); const teams = (teamRows ?? []).map(t => ({ id: t.id, name: t.name, memberCount: counts.get(t.id as string) ?? 0 })); const myTeam = typeof p.team_id === "string" ? teams.find(t => t.id === p.team_id) ?? null : null;
   let myResponse: Answer | null = null; let myResponseSubmitted = false; if (activeBlock && typeof s.active_block_id === "string" && rawBlock?.type !== "team_task") { const { data: r, error: re } = await db.from("responses").select("answer,submitted_answer,submitted_at").eq("session_id", sessionId).eq("participant_id", p.id).eq("block_id", s.active_block_id).maybeSingle(); if (re) return reply({ error: "Odpověď se nepodařilo načíst." }, 500); myResponse = (r?.answer as Answer | undefined) ?? null; myResponseSubmitted = Boolean(r?.submitted_at && sameJson(r?.answer, r?.submitted_answer)); }
   let myTeamResponse: { text: string; updatedByParticipantId: string | null; submittedText: string | null; submittedAt: string | null } | null = null; if (rawBlock?.type === "team_task" && typeof p.team_id === "string" && typeof s.active_block_id === "string") { const { data: r, error: re } = await db.from("team_responses").select("answer,submitted_answer,submitted_at,updated_by_participant_id").eq("session_id", sessionId).eq("team_id", p.team_id).eq("block_id", s.active_block_id).maybeSingle(); if (re) return reply({ error: "Týmovou odpověď se nepodařilo načíst." }, 500); const a = r?.answer as Record<string, unknown> | undefined; const submitted = r?.submitted_answer as Record<string, unknown> | null | undefined; if (typeof a?.text === "string") myTeamResponse = { text: a.text, updatedByParticipantId: r?.updated_by_participant_id as string | null, submittedText: typeof submitted?.text === "string" ? submitted.text : null, submittedAt: typeof r?.submitted_at === "string" ? r.submitted_at : null }; }
+  const integrityNow = new Date().toISOString();
+  const { data: challengeRowRaw, error: challengeError } = await db.from("response_evaluations").select("id,block_id,integrity_challenge_question,integrity_challenge_presented_at,integrity_challenge_expires_at").eq("session_id", sessionId).eq("participant_id", p.id).eq("ai_suspicion", "high").eq("integrity_challenge_status", "pending").order("integrity_challenge_created_at", { ascending: false }).limit(1).maybeSingle();
+  if (challengeError) { console.error("Integrity challenge lookup failed", challengeError); return reply({ error: "Kontrolní otázku se nepodařilo načíst." }, 500); }
+
+  let challengeRow = challengeRowRaw;
+  if (challengeRow && challengeRow.integrity_challenge_expires_at == null) {
+    const presentedAt = integrityNow;
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const { data: presented, error: presentError } = await db.from("response_evaluations").update({
+      integrity_challenge_presented_at: presentedAt,
+      integrity_challenge_expires_at: expiresAt,
+      updated_at: presentedAt,
+    }).eq("id", challengeRow.id).eq("session_id", sessionId).eq("participant_id", p.id).eq("integrity_challenge_status", "pending").is("integrity_challenge_presented_at", null).select("id,block_id,integrity_challenge_question,integrity_challenge_presented_at,integrity_challenge_expires_at").maybeSingle();
+    if (presentError) { console.error("Integrity challenge presentation failed", presentError); return reply({ error: "Kontrolní otázku se nepodařilo načíst." }, 500); }
+    if (presented) challengeRow = presented;
+    else {
+      const { data: refreshed, error: refreshError } = await db.from("response_evaluations").select("id,block_id,integrity_challenge_question,integrity_challenge_presented_at,integrity_challenge_expires_at").eq("id", challengeRow.id).eq("session_id", sessionId).eq("participant_id", p.id).maybeSingle();
+      if (refreshError) { console.error("Integrity challenge presentation refresh failed", refreshError); return reply({ error: "Kontrolní otázku se nepodařilo načíst." }, 500); }
+      challengeRow = refreshed;
+    }
+  }
+
+  if (challengeRow && typeof challengeRow.integrity_challenge_expires_at === "string" && challengeRow.integrity_challenge_expires_at <= integrityNow) {
+    const { error: expireError } = await db.from("response_evaluations").update({ integrity_challenge_status: "expired", updated_at: integrityNow }).eq("id", challengeRow.id).eq("session_id", sessionId).eq("participant_id", p.id).eq("integrity_challenge_status", "pending");
+    if (expireError) { console.error("Integrity challenge expiry failed", expireError); return reply({ error: "Kontrolní otázku se nepodařilo načíst." }, 500); }
+    challengeRow = null;
+  }
+
+  const integrityChallenge = challengeRow && typeof challengeRow.integrity_challenge_question === "string" && typeof challengeRow.integrity_challenge_expires_at === "string" ? { evaluationId: challengeRow.id, blockId: challengeRow.block_id, question: challengeRow.integrity_challenge_question, expiresAt: challengeRow.integrity_challenge_expires_at } : null;
   const revealed = Array.isArray(s.revealed_block_ids) ? s.revealed_block_ids.filter((x): x is string => typeof x === "string") : []; const resultsRevealed = typeof s.active_block_id === "string" && revealed.includes(s.active_block_id) && (rawBlock?.type === "poll" || rawBlock?.type === "quiz"); let revealedResults: Record<string, unknown> | null = null;
   if (resultsRevealed && rawBlock && typeof s.active_block_id === "string") { const opts = Array.isArray(rawBlock.options) ? rawBlock.options.filter((x): x is string => typeof x === "string") : []; const { data: rows, error: re } = await db.from("responses").select("answer").eq("session_id", sessionId).eq("block_id", s.active_block_id); if (re) return reply({ error: "Zveřejněné výsledky se nepodařilo načíst." }, 500); const agg = opts.map(option => ({ option, count: 0 })); let total = 0; for (const row of rows ?? []) { const a = row.answer as Record<string, unknown> | null; const choice = typeof a?.choice === "string" ? a.choice : ""; const item = agg.find(x => x.option === choice); if (item) { item.count++; total++; } } revealedResults = { type: rawBlock.type, counts: agg, total }; if (rawBlock.type === "quiz") { const correct = typeof rawBlock.correctAnswer === "string" ? rawBlock.correctAnswer : undefined; const mine = myResponse && "choice" in myResponse ? myResponse.choice : null; revealedResults.correctAnswer = correct; revealedResults.myAnswer = mine; revealedResults.isCorrect = mine && correct ? mine === correct : null; } }
   const syncedAt = new Date().toISOString(); const timerState = rawBlock?.type === "timer" ? { status: s.timer_status === "running" || s.timer_status === "paused" ? s.timer_status : "idle", remainingSeconds: remaining(s, Date.parse(syncedAt)), syncedAt } : null;
-  return reply({ sessionId: s.id, status: s.status, title: typeof lesson.title === "string" ? lesson.title : "Hodina", lessonLanguage: typeof lesson.language === "string" ? lesson.language : null, participantDisplayName: p.display_name, activeBlock, activeBlockIndex: index >= 0 ? index : null, totalBlocks: all.length, realtimeKey: s.realtime_key, myResponse, myResponseSubmitted, resultsRevealed, revealedResults, timer: timerState, teams, myTeam, myTeamResponse });
+  return reply({ sessionId: s.id, status: s.status, title: typeof lesson.title === "string" ? lesson.title : "Hodina", lessonLanguage: typeof lesson.language === "string" ? lesson.language : null, participantDisplayName: p.display_name, activeBlock, activeBlockIndex: index >= 0 ? index : null, totalBlocks: all.length, realtimeKey: s.realtime_key, myResponse, myResponseSubmitted, resultsRevealed, revealedResults, timer: timerState, teams, myTeam, myTeamResponse, integrityChallenge });
 }
 
 async function chooseTeam(b: Record<string, unknown>) {
@@ -99,8 +128,42 @@ async function respond(b: Record<string, unknown>) {
   scheduleInvalidate(s.realtime_key as string); return reply({ ok: true, blockId, answer: saved.answer, updatedAt: saved.updated_at, submitted: marksSubmission, submittedCurrent, queuedForEvaluation });
 }
 
+async function answerIntegrityChallenge(b: Record<string, unknown>) {
+  const sessionId = typeof b.sessionId === "string" ? b.sessionId : "";
+  const rawToken = typeof b.participantToken === "string" ? b.participantToken : "";
+  const evaluationId = typeof b.evaluationId === "string" ? b.evaluationId : "";
+  const answer = typeof b.answer === "string" ? b.answer.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[0-9a-f-]{36}$/i.test(evaluationId)) return reply({ error: "Neplatná kontrolní otázka." }, 400);
+  if (answer.length < 1 || answer.length > 1000) return reply({ error: "Odpověď musí mít 1 až 1000 znaků." }, 400);
+
+  const v = await verify(sessionId, rawToken, "id");
+  if (v.response) return v.response;
+  const p = v.participant!;
+  const now = new Date().toISOString();
+
+  const { data: row, error: lookupError } = await db.from("response_evaluations").select("id,integrity_challenge_expires_at,integrity_challenge_status").eq("id", evaluationId).eq("session_id", sessionId).eq("participant_id", p.id).eq("ai_suspicion", "high").maybeSingle();
+  if (lookupError) { console.error("Integrity challenge answer lookup failed", lookupError); return reply({ error: "Kontrolní otázku se nepodařilo ověřit." }, 500); }
+  if (!row || row.integrity_challenge_status !== "pending") return reply({ error: "Tato kontrolní otázka už není aktivní." }, 409);
+  if (typeof row.integrity_challenge_expires_at !== "string" || row.integrity_challenge_expires_at <= now) {
+    const { error: expireError } = await db.from("response_evaluations").update({ integrity_challenge_status: "expired", updated_at: now }).eq("id", evaluationId).eq("session_id", sessionId).eq("participant_id", p.id).eq("integrity_challenge_status", "pending");
+    if (expireError) console.error("Integrity challenge late expiry failed", expireError);
+    return reply({ error: "Čas na kontrolní otázku už vypršel." }, 409);
+  }
+
+  const { data: updated, error: updateError } = await db.from("response_evaluations").update({
+    integrity_challenge_answer: answer,
+    integrity_challenge_status: "answered",
+    integrity_challenge_submitted_at: now,
+    updated_at: now,
+  }).eq("id", evaluationId).eq("session_id", sessionId).eq("participant_id", p.id).eq("integrity_challenge_status", "pending").gt("integrity_challenge_expires_at", now).select("id").maybeSingle();
+
+  if (updateError) { console.error("Integrity challenge answer save failed", updateError); return reply({ error: "Kontrolní odpověď se nepodařilo uložit." }, 500); }
+  if (!updated) return reply({ error: "Čas na kontrolní otázku už vypršel." }, 409);
+  return reply({ ok: true, evaluationId, submittedAt: now });
+}
+
 Deno.serve(async req => {
   if (req.method !== "POST") return reply({ error: "Method not allowed." }, 405);
-  try { const b = await req.json() as Record<string, unknown>; if (b.action === "join") return await join(b); if (b.action === "state") return await state(b); if (b.action === "choose_team") return await chooseTeam(b); if (b.action === "respond") return await respond(b); return reply({ error: "Neznámá akce." }, 400); }
+  try { const b = await req.json() as Record<string, unknown>; if (b.action === "join") return await join(b); if (b.action === "state") return await state(b); if (b.action === "choose_team") return await chooseTeam(b); if (b.action === "respond") return await respond(b); if (b.action === "integrity_challenge") return await answerIntegrityChallenge(b); return reply({ error: "Neznámá akce." }, 400); }
   catch (e) { console.error("student-session failed", e); return reply({ error: "Požadavek se nepodařilo zpracovat." }, 500); }
 });
