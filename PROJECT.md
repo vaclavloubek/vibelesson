@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.53** uzavírá trusted-device write-boundary hardening: založení nové live session a ruční znovuspuštění AI hodnocení jdou přes service-role-only RPC, které pro individuální Teacher / Teacher Pro znovu ověřují aktivní trusted-device hash; přímý authenticated INSERT session a legacy regrade RPC jsou po přepnutí aplikace uzamčené. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.54** přidává ekonomický fail-closed režim pro individuální předplatné `past_due`: Teacher / Teacher Pro dál používají uložené lekce, live výuku a ostatní nenákladové funkce, ale nová AI tvorba, AI úpravy a AI grading jsou do potvrzení platby dočasně pozastavené. Stav je viditelně vysvětlen v aplikaci a AI se po návratu platby do pořádku automaticky odemkne. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -343,6 +343,16 @@ Individuální plány:
 
 U placených individuálních plánů jsou live hodiny a opakované používání již vytvořených lekcí bez tarifního limitu; AI kvóta se čerpá pouze při nové AI tvorbě a AI úpravách. Free může každou lesson family živě použít jednou. Studenti se připojují bez plnohodnotného účtu.
 
+### Individuální `past_due` AI pause 0.9.54 — 2026-09-20
+
+- stav Stripe `past_due` u individuálního Teacher / Teacher Pro **neshazuje účet na Free** a neblokuje uložené lekce, živou výuku, Presenter ani ostatní nenákladové placené funkce;
+- po dobu `past_due` jsou však serverově a databázově pozastavené nové nákladové operace: generování AI lekcí, AI revize celé lekce/bloku a AI grading;
+- otevřené/týmové odpovědi zůstávají dostupné k ručnímu hodnocení; nové nebo znovu odevzdané odpovědi se při platebním problému přepnou do manual-review režimu místo AI callu;
+- interní admin a uživatel s aktivním organizačním přístupem jsou z individuálního `past_due` AI locku vyjmutí;
+- UI stav zobrazuje na dashboardu, v lesson workspace, na Teacher Live a ve správě předplatného a vysvětluje, že AI se **automaticky odemkne, jakmile Stripe platbu potvrdí**;
+- autoritativní enforcement je v DB: generation/revision write boundary + grading dispatch/budget; aplikační kontroly slouží pro rychlé a srozumitelné UX;
+- regresní kontrakt: `scripts/verify-past-due-ai-pause.mjs`.
+
 ### Trusted-device write-boundary hardening 0.9.53 — 2026-09-20
 
 - založení nové live session používá service-role-only RPC a DB-authoritativně načítá snapshot vlastní lekce;
@@ -382,6 +392,7 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení; od 0.9.53 jsou vytvoření nové live session a ruční AI regrade navíc DB/server write-boundary chráněné a staré přímé authenticated cesty jsou uzamčené;
 - **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
+- **Individual payment failure** — `past_due` zachovává uložené placené funkce a live teaching, ale zastavuje nové AI generování/revize/grading; po potvrzení platby se AI bez ručního zásahu znovu odemkne;
 - **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
 
 Pravidla dalšího anti-abuse kola:
@@ -437,7 +448,7 @@ Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
 - `manual_entitlement_overrides` zachovává explicitní beta/admin výjimky nad základním plánem;
 - service-role-only RPC `sync_stripe_subscription_event` provádí atomický sync;
 - sandbox (`livemode=false`) se ukládá, ale nikdy nesmí změnit produkční entitlement v `profiles`;
-- ostrý entitlement se počítá jen z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují;
+- základní placené entitlementy se počítají z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují. U individuálního `past_due` však od 0.9.54 zůstávají placené nenákladové funkce dostupné a pouze nové variabilní AI náklady jsou do potvrzení platby serverově pozastavené;
 - admin zůstává vždy neomezený a ruční entitlement override se při změně tarifu zachovává.
 
 Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, u subscription lifecycle eventů vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Od 0.9.13 live subscription event před DB syncem navíc serverově vyhledá právě jeden dokončený Checkout Session podle subscription ID, ověří Customer/user vazbu a skutečnou `customer_details.address.country`; entitlement se fail-closed neprovisionuje, pokud skutečná země neodpovídá měně a Merchant-of-Record větvi. Do DB se ukládá skutečná Checkout country, nikoli pouze předvolená metadata. `invoice.payment_failed` a `invoice.paid` zůstávají pouze audit/recovery signál. Test-clock subscription eventy se dál ignorují. Production Vercel má oddělené test/live Stripe server-only credentials. LIVE Checkout je veřejně aktivní pro Teacher / Teacher Pro; Team / School / Campus zůstávají mimo veřejný self-service prodej.
