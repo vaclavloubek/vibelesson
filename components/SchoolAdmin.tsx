@@ -824,6 +824,35 @@ export default function SchoolAdmin({
     await load();
   }
 
+  async function revokeInvitation(invitationId: string, email: string) {
+    if (!window.confirm(ui(
+      'Zrušit čekající pozvánku pro ' + email + '?',
+      'Cancel the pending invitation for ' + email + '?',
+    ))) return;
+
+    setBusy(true);
+    setMessage('');
+
+    const response = await fetch(
+      '/api/organizations/invitations/' + encodeURIComponent(invitationId),
+      { method: 'DELETE' },
+    );
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Pozvánku se nepodařilo zrušit.',
+        'The invitation could not be cancelled.',
+      ));
+      return;
+    }
+
+    setMessageKind('info');
+    setMessage(ui('Pozvánka byla zrušena.', 'Invitation cancelled.'));
+    await load();
+  }
+
   const selectedPlan = ORGANIZATION_PLANS[planCode];
 
   return (
@@ -1645,11 +1674,54 @@ export default function SchoolAdmin({
               </div>
 
               {summary.manager && summary.invitations.length ? (
-                <p className={styles.muted}>
-                  {ui('Čekající pozvánky', 'Pending invitations')}
-                  {': '}
-                  {summary.invitations.map((invite) => invite.email_normalized).join(', ')}
-                </p>
+                <div style={{ marginTop: 18 }}>
+                  <strong>{ui('Čekající pozvánky', 'Pending invitations')}</strong>
+                  <div
+                    className={
+                      styles.tableWrap
+                      + (summary.invitations.length > 10
+                        ? ' ' + styles.bulkInviteScrollable
+                        : '')
+                    }
+                  >
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>E-mail</th>
+                          <th>{ui('Role', 'Role')}</th>
+                          <th>{ui('Platí do', 'Expires')}</th>
+                          <th>{ui('Akce', 'Actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.invitations.map((invitation) => (
+                          <tr key={invitation.id}>
+                            <td>{invitation.email_normalized}</td>
+                            <td>{roleLabel(invitation.role, english)}</td>
+                            <td>
+                              {new Date(invitation.expires_at).toLocaleDateString(
+                                english ? 'en-GB' : 'cs-CZ',
+                              )}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className={styles.danger}
+                                disabled={busy}
+                                onClick={() => revokeInvitation(
+                                  invitation.id,
+                                  invitation.email_normalized,
+                                )}
+                              >
+                                {ui('Zrušit pozvánku', 'Cancel invitation')}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ) : null}
             </section>
 
