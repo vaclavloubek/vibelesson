@@ -1,8 +1,16 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.69** zpřesňuje UX volby individuální/týmové práce při tvorbě lekce: místo matoucího „Režim práce: Jednotlivci / Týmy“ se učitel ptá, zda má lekce obsahovat týmové aktivity, s volbami **„Ne, pouze individuální“** a **„Ano, kombinovat individuální a týmové“**. Stejná terminologie je použita i v náhledu lekce; logika `collaborationMode` a serverové invarianty se nemění. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.70** stabilizuje desktopové rozložení volby týmových aktivit: při zapnutí týmových aktivit se pole **Velikost týmu** na desktopu zobrazí až za polem **Tón**, takže Tón zůstává na stejné pozici. Na mobilu zůstává přirozené pořadí **volba týmových aktivit → velikost týmu → tón**. Jde pouze o responzivní layout; logika generování ani live workflow se nemění. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Stabilní desktopové rozložení týmových polí 0.9.70 — 2026-09-20
+
+- při zapnutí týmových aktivit se na desktopu pole **Velikost týmu** řadí až za **Tón**, takže existující pole nemění pozici;
+- díky dvousloupcovému gridu se velikost týmu zobrazí vizuálně pod volbou týmových aktivit;
+- na mobilu se CSS pořadí resetuje a zachovává intuitivní sekvenci **volba týmových aktivit → velikost týmu → tón**;
+- změna používá samostatný layout hook `team-size-field`; DOM pořadí zůstává mobilně přirozené;
+- regresní kontrola `verify-collaboration-mode.mjs` hlídá desktopové i mobilní pořadí.
 
 ### Srozumitelnější volba týmových aktivit 0.9.69 — 2026-09-20
 
