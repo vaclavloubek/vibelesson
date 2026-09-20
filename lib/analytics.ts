@@ -53,9 +53,9 @@ type AnalyticsEventParameters = {
   pricing_billing_period_change: { billing_period: 'monthly' | 'annual' };
   free_signup_click: { location: 'pricing' | 'auth' | 'landing' };
   plan_select: {
-    plan: 'teacher' | 'teacher-pro';
+    plan: 'teacher' | 'teacher-pro' | 'team' | 'school' | 'campus';
     billing_period: 'monthly' | 'annual';
-    source: 'pricing_sandbox' | 'pricing_live_acceptance' | 'pricing_live';
+    source: 'pricing_sandbox' | 'pricing_live_acceptance' | 'pricing_live' | 'pricing_school_live';
   };
   checkout_start: {
     plan: 'teacher' | 'teacher-pro';
