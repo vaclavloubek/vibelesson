@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.63** uzavírá race/cleanup bypass AI kvót: dokončení `generation_requests` už nemůže volat přihlášený klient, ale pouze serverový `service_role` RPC svázaný s autentizovaným uživatelem. Tím už klient nemůže během běžící generace nebo revize předčasně označit rezervaci jako `failed` a získat AI výstup bez započtení do kvóty. Předchozí 0.9.62 doplnila organization payment-loss hardening. **Dodatečně je k 2026-09-20 produkčně nasazená behaviorální CZ/EN akviziční lifecycle sekvence, spam-protected poptávkový formulář na landing page a locale-preserving EN akviziční vstupy; tyto již nasazené growth změny se zde pouze dokumentují, takže samotná tato dokumentační aktualizace verzi neposouvá.** Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -129,10 +129,13 @@ Dokud výjimka platí, Preview testy nesmí dělat destruktivní zásahy do prod
 - `/pricing` — veřejný Pricing / Ceník
 - `/subscription`, `/cs/subscription`, `/en/subscription` — přihlášená správa individuálního předplatného; tarif/fakturační období v Syllonautu, platby/faktury/zrušení přes Stripe Portal
 - `/new` — tvorba nové lekce
+- `/cs/new`, `/en/new` — locale-preserving acquisition gateway; uloží explicitní UI locale, zachová query/UTM a přesměruje na kanonickou `/new`
 - `/lessons` — Moje lekce + Poslední výsledky + složky
+- `/cs/lessons`, `/en/lessons` a jejich subrouty — locale-preserving gateway na kanonické lesson routy; používá se mimo jiné z lifecycle e-mailů
 - `/lessons/<id>` — lesson workspace
 - `/lessons/<id>/worksheet` — serverově chráněný A4 pracovní list / klíč pro učitele; Teacher Pro + budoucí School/Campus, tisk nebo uložení jako PDF
 - `/s/<token>` — veřejný read-only snímek sdílené lekce; přihlášení je nutné až pro uložení vlastní kopie. Capability link je záměrně přenositelný/přeposílatelný a může sloužit i jako distribuční URL ukázkové lekce; zveřejnění neotevírá originál, účet autora, výsledky studentů, live session ani AI historii
+- `/cs/s/<token>`, `/en/s/<token>` — locale-preserving acquisition gateway pro veřejné ukázky; zachová UTM parametry, uloží explicitní locale cookie a přesměruje na kanonickou share route
 - `/sessions/<id>` — teacher live session / report
 - `/sessions/<id>/presenter` — projekční režim
 - `/join`, `/join/<code>` — studentský vstup
@@ -791,9 +794,49 @@ Privacy/cookies baseline je produkčně dokončený a ověřený.
 - po odvolání analytického souhlasu se GA4 zablokuje a aplikace se pokusí odstranit `_ga*` cookies;
 - Nastavení cookies je kdykoli dostupné ze sdílené patičky;
 - marketingový e-mailový souhlas je oddělený od registrace, není předzaškrtnutý a má self-service withdrawal cestu;
+- landing page má CZ/EN kontaktní formulář; jeho e-mail + dotaz se používají pro vyřízení zprávy, zatímco anti-abuse ledger uchovává pouze HMAC pseudonymy klienta/e-mailu s omezenou retencí;
 - privacy regression check je součástí `npm run check`.
 
 GA4 je nyní pouze **technicky připravené**: loader/config je consent-gated a očekává `NEXT_PUBLIC_GA_MEASUREMENT_ID`. Produkční Measurement ID a produktová eventová taxonomie ještě nejsou zavedené. Další analytický krok má nejprve vytvořit GA4 property/web data stream, bezpečně nastavit Measurement ID a potom zavést explicitní produktové eventy bez PII a bez studentského obsahu.
+
+### Growth / lifecycle e-maily a poptávkový formulář — produkčně COMPLETE / PASS 2026-09-20
+
+**Behaviorální lifecycle akvizice přes Resend:**
+
+- produkčně jsou aktivní přesně čtyři hlavní automations: **Syllonaut · Onboarding**, **Syllonaut · First live → Paid**, **Syllonaut · Free quota near limit** a **Syllonaut · Free quota reached**;
+- každá produkční větev podporuje **CZ i EN** podle kontaktového `ui_locale`; aktivní kontakt synchronizuje `plan`, `ui_locale` a marketingový opt-in stav;
+- existuje sedm obsahových šablon v obou jazycích: Welcome, Showcase, Teach first lesson, Free conversion, Reactivation, Quota near a Quota reached;
+- marketingový lifecycle je **oddělený od transakčních billing e-mailů** a smí běžet jen pro uživatele s aktivním marketingovým souhlasem; Resend unsubscribe je respektovaný a běžný produktový event kontakt sám znovu nepřihlásí;
+- potvrzený signup s marketingovým souhlasem spustí Welcome; pokud nevznikne první lekce, po zpoždění následuje Showcase a později Reactivation;
+- skutečné vytvoření/import první lekce ukončí „no lesson“ větev; pokud poté uživatel nespustí live hodinu, přijde Teach first lesson;
+- první skutečně serverem potvrzená live session spouští u Free účtu konverzní čekání; pokud uživatel mezitím zaplatí, `syllonaut.subscription.upgraded` workflow ukončí a sales e-mail se neodešle;
+- Free kvóta nové AI tvorby má samostatné behaviorální eventy: **near limit při 2/3** a **reached při 3/3**; placený nebo organizační uživatel se do individuální Free konverze nezařadí;
+- hlavní produktové eventy: `syllonaut.onboarding.started`, `syllonaut.first_lesson.created`, `syllonaut.first_live.started`, `syllonaut.subscription.upgraded`, `syllonaut.quota.near_limit`, `syllonaut.quota.reached`;
+- integrační vrstva v aplikaci je best-effort: selhání marketingového orchestrationu nesmí shodit signup, AI generation, live session ani Stripe webhook;
+- regresní kontrakt: `scripts/verify-marketing-lifecycle.mjs`.
+
+**EN acquisition parity:**
+
+- všechny EN lifecycle CTA používají locale-preserving `/en/...` vstupy, takže i nový návštěvník z CZ otevře po kliknutí **anglické UI**; query a UTM parametry se při redirectu zachovají;
+- anglický Showcase má tři skutečně anglické veřejné ukázky: **Addition and subtraction within 10**, **Pythagoras' theorem: when can you actually use it?** a **Have you ever…? Present Perfect vs Past Simple**;
+- české veřejné ukázky zůstaly beze změny; EN matematické varianty jsou samostatné marketingové shares, ne přepsané české originály;
+- runtime i18n smoke test ověřuje `/en/new`, `/en/lessons` a `/en/s/...` včetně locale cookie a zachování UTM;
+- všech sedm EN šablon bylo 2026-09-20 vyrenderováno a úspěšně odesláno přes Resend testovací workflow; následně byly všechny skutečné EN maily odeslány na kontrolní Gmail a vlastník projektu jejich podobu ručně schválil;
+- dočasné review/test automations jsou po testu **disabled**; produkční čtyři automations zůstávají **enabled**.
+
+**Poptávkový formulář na landing page:**
+
+- konec CZ/EN homepage obsahuje dvoupolový formulář v designovém rytmu landing page: e-mail + text dotazu, český headline **„Zůstala vám otázka mimo radar?“**, EN **„Is there still a question beyond the radar?“**;
+- formulář je napojený z předchozí závěrečné CTA sekce stejným guided-scroll / section-cue prvkem jako ostatní části homepage;
+- odeslání jde serverově přes Resend; `Reply-To` je e-mail návštěvníka a produkční doručení míří do nakonfigurovaných interních schránek;
+- anti-spam vrstvy: same-origin kontrola, skrytý honeypot, minimální doba vyplnění 3 s, limity velikosti body/polí, serverová Zod validace a desetiminutový atomický rate-limit podle HMAC pseudonymu klienta i e-mailu;
+- rate-limit ledger je v `private.contact_form_rate_limits`; neukládá raw IP, raw e-mail ani text dotazu a jeho historie se čistí po 30 dnech;
+- přístup k rate-limit ledgeru jde pouze přes service-role-only RPC `reserve_contact_form_rate_limit_server` / `release_contact_form_rate_limit_server`; `anon` a `authenticated` nemají EXECUTE;
+- při selhání Resend delivery se rezervace uvolní, aby legitimní uživatel mohl dotaz zopakovat;
+- GA4 event `contact_inquiry_submit` nese pouze výsledek `success/error/rate_limited`, nikdy e-mail ani text zprávy;
+- GDPR stránka popisuje kontaktní data i pseudonymizovanou anti-abuse retenci;
+- produkční acceptance: formulář ručně ověřen jako funkční; DB test potvrdil první rezervaci + blokaci druhé ve stejném okně; CI/Preview prošly včetně accessibility/WCAG 2.2 AA automatické kontroly;
+- regresní kontrakt: `scripts/verify-contact-inquiry.mjs`.
 
 ## 10. Student a live session
 
@@ -1527,7 +1570,7 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou veřejně prodejné; 0.9.19 doplňuje vlastní CZ/EN lifecycle e-maily Syllonautu, zatímco finanční e-maily zůstávají ve Stripe. Školní tarify zůstávají mimo live billing.** **Sdílení lekcí 0.9.20 je produkčně COMPLETE / PASS:** read-only snapshot, vlastní idempotentní kopie příjemce, nezávislá editace, revokace → 404 a zachování již uložené kopie jsou E2E ověřené; přenositelný capability link je zamýšlený distribuční mechanismus i pro ukázkové lekce. **Pracovní listy 0.9.22–0.9.28 jsou produkčně COMPLETE / PASS:** entitlement Teacher Pro, studentská/učitelská varianta, výběr aktivit, A4 náhled, skutečný serverový PDF export s českou diakritikou, nedělení aktivit mezi stránky a souvislé přečíslování částečně vybraných úkolů byly implementované a ručně ověřené v ostrém provozu. Úkol je uzavřený.** **Kontextový průvodce „První let“ 0.9.30–0.9.41 je produkčně COMPLETE / PASS:** celý tříkapitolový tok byl 2026-09-19 ručně ověřen v ostré verzi včetně Presenter handoffu, projektorového layoutu, student join flow, týmového panelu a výsledkového kroku. Úkol je uzavřený; další změny jen při regresi nebo rozšíření produktu.** Live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2 zůstává zachovaný.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou veřejně prodejné; transakční subscription lifecycle e-maily 0.9.19 zůstávají oddělené od marketingu a finanční e-maily zůstávají Stripe-owned. Navíc je produkčně COMPLETE / PASS behaviorální CZ/EN onboarding/activation/conversion lifecycle přes Resend a CZ/EN landing inquiry s anti-spamem. Školní tarify zůstávají mimo live billing.** **Sdílení lekcí 0.9.20 je produkčně COMPLETE / PASS:** read-only snapshot, vlastní idempotentní kopie příjemce, nezávislá editace, revokace → 404 a zachování již uložené kopie jsou E2E ověřené; přenositelný capability link je zamýšlený distribuční mechanismus i pro ukázkové lekce. **Pracovní listy 0.9.22–0.9.28 jsou produkčně COMPLETE / PASS:** entitlement Teacher Pro, studentská/učitelská varianta, výběr aktivit, A4 náhled, skutečný serverový PDF export s českou diakritikou, nedělení aktivit mezi stránky a souvislé přečíslování částečně vybraných úkolů byly implementované a ručně ověřené v ostrém provozu. Úkol je uzavřený.** **Kontextový průvodce „První let“ 0.9.30–0.9.41 je produkčně COMPLETE / PASS:** celý tříkapitolový tok byl 2026-09-19 ručně ověřen v ostré verzi včetně Presenter handoffu, projektorového layoutu, student join flow, týmového panelu a výsledkového kroku. Úkol je uzavřený; další změny jen při regresi nebo rozšíření produktu.** Live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2 zůstává zachovaný.
 
 Nejbližší priority v tomto pořadí:
 
@@ -1537,7 +1580,7 @@ Nejbližší priority v tomto pořadí:
 4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
 5. multilingual 0.9 acceptance je dokončený a produkčně PASS; v pondělním ostrém testu už jen krátce ověřit, že české/anglické UI a běžný lesson flow neutrpěly regresi, bez znovuotevírání locale architektury;
 6. **live billing je veřejný a lifecycle e-maily mají produkční E2E acceptance COMPLETE / PASS**; správa předplatného po 0.9.23/0.9.25 načítá produkční stav správně a admin UX je ručně ověřený PASS. LIVE restricted key permissions byly doplněny a read cesta je produkčně ověřená. Další billing acceptance krok je první skutečná změna tarifu, která ověří write/schedule cestu; změna země/měny zůstává řízená. Team / School / Campus zatím nezapínat;
-7. vytvořit **5–10 ukázkových lekcí** jako první distribuční balíček, publikovat je přes hotové přenositelné share linky, zvolit témata napříč věkem/předměty, připravit jasnou cestu k uložení vlastní kopie/registraci a UTM naming convention; nejprve je ověřit organicky, teprve potom pustit placené kampaně;
+7. rozšířit již existující CZ/EN ukázkový balíček na **5–10 veřejných lekcí** napříč věkem/předměty; současný lifecycle Showcase má funkční CZ/EN distribuční základ a sjednocené UTM, takže další krok je rozšíření témat a organické vyhodnocení výkonu, nikoli stavba share infrastruktury od nuly;
 8. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
 9. pokračovat v produkčním acceptance školního workflow: nový unikátní člen → 2/110, pending invite reservation/release, bulk CSV pozvánky, admin-role invitation, seat/replacement limity přes rollback testy, entitlement lifecycle a licenční zámek školního obsahu; membership/roles, AI pool a základ školní knihovny už jsou implementované a částečně PASS;
 10. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
