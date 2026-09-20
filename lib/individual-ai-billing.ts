@@ -99,6 +99,18 @@ export async function getEffectiveAiBillingPauseState(
     p_user_id: userId,
   });
   if (error) {
+    // Safe app-first rollout: the new RPC can be briefly absent from PostgREST
+    // before the matching DB migration is applied. Fall back only for that
+    // explicit schema-cache condition; all other lookup errors remain fail-closed.
+    if (error.code === 'PGRST202' || error.message?.includes('get_effective_ai_billing_pause_state_server')) {
+      const reason = await getIndividualAiBillingPauseReason(userId);
+      return {
+        reason,
+        scope: reason ? 'individual' : null,
+        organizationId: null,
+        manager: false,
+      };
+    }
     console.error('effective AI billing state lookup failed', { userId, code: error.code });
     throw new Error('ai_billing_state_lookup_failed');
   }
