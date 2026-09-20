@@ -7,6 +7,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
+import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
@@ -14,6 +15,7 @@ import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
+import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +55,12 @@ export default async function LessonsPage({ searchParams }: Props) {
 
   const entitlement = await getLessonFolderEntitlement(supabase, userId);
   const reusableLessons = await getLessonReuseEntitlement(supabase);
+  let aiBillingPaused = false;
+  try {
+    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+  } catch (billingError) {
+    console.error('load AI billing pause state failed', billingError);
+  }
 
   const { data: rows, error } = await supabase
     .from('lessons')
@@ -171,6 +179,8 @@ export default async function LessonsPage({ searchParams }: Props) {
           <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
         </div>
       </header>
+
+      {aiBillingPaused ? <AiPaymentPauseBanner /> : null}
 
       <section className="lessons-heading">
         <div>
