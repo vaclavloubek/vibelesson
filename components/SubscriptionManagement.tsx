@@ -221,9 +221,17 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
         </div>
       ) : null}
 
-      {active.paymentIssue || active.pendingUpdate ? (
+      {active.paymentIssue ? (
+        <div className={styles.warning} role="status">
+          <strong>{ui('AI funkce jsou dočasně pozastavené.', 'AI features are temporarily paused.')}</strong>
+          <p>{ui(
+            'Platba předplatného vyžaduje pozornost. Uložené lekce a živá výuka dál fungují. AI generování, AI úpravy a AI hodnocení se automaticky odemknou, jakmile Stripe platbu potvrdí. Platbu můžeš napravit přes „Platba, faktury a zrušení“ výše.',
+            'The subscription payment needs attention. Saved lessons and live teaching still work. AI generation, AI edits and AI grading unlock automatically as soon as Stripe confirms the payment. You can resolve the payment using “Payment, invoices & cancellation” above.',
+          )}</p>
+        </div>
+      ) : active.pendingUpdate ? (
         <div className={styles.warning}>
-          {ui('Nejdřív dořeš platbu ve Stripe. Do té doby změnu tarifu neprovedeme.', 'Resolve the payment in Stripe first. Plan changes are paused until then.')}
+          {ui('Nejdřív dořeš rozpracovanou platbu ve Stripe. Do té doby změnu tarifu neprovedeme.', 'Resolve the pending payment in Stripe first. Plan changes are paused until then.')}
         </div>
       ) : null}
 
