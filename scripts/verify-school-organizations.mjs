@@ -24,6 +24,14 @@ const requiredFiles = [
   'supabase/migrations/20260919172000_add_school_renewal_lifecycle.sql',
   'supabase/migrations/20260919173000_harden_school_overdue_and_admin_quota.sql',
   'supabase/migrations/20260920064000_protect_school_owner_invites.sql',
+  'supabase/migrations/20260920073000_add_organization_bank_invoices.sql',
+  'lib/organization-bank-invoice.ts',
+  'lib/organization-bank-match.ts',
+  'lib/organization-invoice-pdf.ts',
+  'app/school/invoices/[orderId]/page.tsx',
+  'app/api/organizations/invoices/[orderId]/pdf/route.ts',
+  'app/admin/school-invoices/page.tsx',
+  'app/api/admin/school-invoices/[orderId]/mark-paid/route.ts',
 ];
 
 for (const path of requiredFiles) {
@@ -275,6 +283,88 @@ for (const needle of [
   }
 }
 
+const bankInvoiceMigration = fs.readFileSync(
+  'supabase/migrations/20260920073000_add_organization_bank_invoices.sql',
+  'utf8',
+);
+for (const needle of [
+  'payment_variable_symbol',
+  'organizations_payment_variable_symbol_uidx',
+  'issue_organization_bank_invoice',
+  'confirm_organization_bank_payment_manual',
+  'match_organization_bank_payment',
+  "'5bbed66a-c125-4740-947c-946a364c6d3f'::uuid",
+  "'superadmin_manual'",
+  "'bank_match'",
+  'organization_bank_payment_confirmations',
+  'from public, anon, authenticated',
+  'to service_role',
+]) {
+  if (!bankInvoiceMigration.includes(needle)) {
+    throw new Error('Organization bank invoice DB contract missing: ' + needle);
+  }
+}
+
+const organizationPayment = fs.readFileSync('lib/organization-payment.ts', 'utf8');
+if (!organizationPayment.includes('organization_bank_invoice_required')) {
+  throw new Error('Stripe organization payment must reject invoice payment methods.');
+}
+if (organizationPayment.includes('createOrganizationInvoice')) {
+  throw new Error('Bank invoices must never be created through Stripe.');
+}
+
+for (const needle of [
+  'issueOrganizationBankInvoice',
+  "paymentKind: 'bank_invoice'",
+]) {
+  if (!organizationOrderRoute.includes(needle)) {
+    throw new Error('Initial bank invoice route contract missing: ' + needle);
+  }
+}
+
+const bankInvoice = fs.readFileSync('lib/organization-bank-invoice.ts', 'utf8');
+for (const needle of [
+  'SYLLONAUT_INVOICE_BANK_IBAN',
+  'SYLLONAUT_INVOICE_BANK_ACCOUNT',
+  "SPD*1.0",
+  "'X-VS:'",
+  'invoice_snapshot',
+]) {
+  if (!bankInvoice.includes(needle)) {
+    throw new Error('Bank invoice snapshot/QR contract missing: ' + needle);
+  }
+}
+
+const invoicePdf = fs.readFileSync('lib/organization-invoice-pdf.ts', 'utf8');
+for (const needle of [
+  'qr: invoice.spayd',
+  "eccLevel: 'M'",
+  'TESTOVACÍ DOKLAD',
+]) {
+  if (!invoicePdf.includes(needle)) {
+    throw new Error('Bank invoice PDF QR contract missing: ' + needle);
+  }
+}
+
+const superadminInvoiceRoute = fs.readFileSync(
+  'app/api/admin/school-invoices/[orderId]/mark-paid/route.ts',
+  'utf8',
+);
+for (const needle of [
+  'isSuperadminUserId',
+  'confirm_organization_bank_payment_manual',
+  'superadmin_required',
+]) {
+  if (!superadminInvoiceRoute.includes(needle)) {
+    throw new Error('Superadmin invoice confirmation contract missing: ' + needle);
+  }
+}
+
+const bankMatch = fs.readFileSync('lib/organization-bank-match.ts', 'utf8');
+if (!bankMatch.includes("rpc('match_organization_bank_payment'")) {
+  throw new Error('Bank transaction adapter must use the bank-match RPC.');
+}
+
 const currentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');
 if (!currentRoute.includes('canManageOrganization')) {
   throw new Error('School summary must enforce manager scope.');
@@ -314,8 +404,8 @@ for (const needle of [
 }
 
 const renewalRoute = fs.readFileSync('app/api/organizations/renewal/route.ts', 'utf8');
-if (!renewalRoute.includes("paymentMethod: 'invoice'")) {
-  throw new Error('Manual school renewal must remain invoice-based.');
+if (!renewalRoute.includes('issueOrganizationBankInvoice')) {
+  throw new Error('Manual school renewal must issue a bank invoice.');
 }
 
 const subscriptionRoute = fs.readFileSync(
