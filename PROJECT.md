@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.60** uzavírá produkční DB-boundary drift v organization-device ochraně: 0.9.59 zavedla školní 5/10 trusted-device politiku a aplikační gate, ale produkční `create_live_session_server` a `requeue_response_evaluation_server` zůstaly po migračním driftu na starém personal-only validatoru. 0.9.60 je explicitně přepisuje na `private.trusted_device_hash_valid` a regresně hlídá opravnou migraci. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.61** ukotvuje individuální placené AI kvóty k autoritativní Stripe billing periodě: měsíční Teacher/Teacher Pro používá přesný `current_period_start/end`, roční tarif dostává měsíční podokna odvozená od ročního subscription anchoru. Free a sdílený školní pool zůstávají na UTC kalendářním měsíci; placený účet bez platné period informace failuje uzavřeně. Předchozí 0.9.60 opravila produkční DB-boundary drift organization-device ochrany. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -417,6 +417,19 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - generování a AI revize zůstávají na stávajících server-only kvótových RPC a server-side trusted-device gate, takže tato změna jejich funkční cestu nepřestavuje;
 - regresní check `scripts/verify-trusted-devices.mjs` hlídá jak serverové route, tak DB migrace a odebrání starých přímých cest.
 
+### Billing-anchored individuální AI kvóty 0.9.61 — 2026-09-20
+
+- Teacher / Teacher Pro už nepočítají AI lesson/revision kvótu podle UTC kalendářního měsíce;
+- monthly subscription používá přímo Stripe `current_period_start` → `current_period_end`;
+- annual subscription má stejné měsíční marketingové limity, ale jednotlivá měsíční quota windows se odvozují vždy od původního ročního anchoru (`anchor + N měsíců`), takže nákup těsně před 1. dnem měsíce nedá druhou plnou kvótu po několika hodinách;
+- annual výpočet je anchor-stable i pro konce měsíců (např. 31. 1. → 28. 2. → 31. 3.), nevzniká postupný drift zkráceného únorového data;
+- Free individuální kvóty, Free import quota/device budget a Team/School/Campus shared AI pool zůstávají záměrně na UTC kalendářním měsíci;
+- AI grading safety budget zůstává samostatný interní UTC-calendar cost ceiling; tato změna se týká marketingových lesson/revision kvót;
+- placený profil bez aktuální autoritativní LIVE Stripe period informace **failuje uzavřeně** (`paid_quota_period_unavailable/out_of_range`) místo fallbacku na kalendářní měsíc;
+- serverové `reserve_lesson_generation_server`, `reserve_revision_operation_server` i `get_ai_quota` používají jediný private helper `individual_ai_quota_window`;
+- nepoužívané authenticated compatibility wrappery `reserve_lesson_generation()` a `reserve_revision_operation(text)` jsou odebrané klientské cestě; nákladová AI reservation je pouze service-role server-authoritative;
+- regresní kontrakt: `scripts/verify-billing-anchored-ai-quotas.mjs`.
+
 ### Tarifní abuse hardening 0.9.52
 
 - Free účet má vlastní měsíční kvóty **3 AI lekce / 10 AI úprav / 2 importy nebo kopie**.
@@ -449,6 +462,7 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
 - **Individual payment failure / chargeback / full refund** — `past_due`, otevřený payment dispute i plně refundovaná subscription platba zachovávají uložené placené funkce a live teaching, ale zastavují nové AI generování/revize/grading. Částečný refund nic nezamyká. `past_due` se odemkne po potvrzení platby; vyhraný dispute po potvrzení výsledku/funds reinstated; prohraný dispute a full-refund lock až poté, co pozdější potvrzené subscription platby kumulativně pokryjí dosud neuhrazenou ztrátu;
+- **Individual paid AI quota window** — Teacher/Teacher Pro lesson+revision usage se od 0.9.61 počítá podle LIVE Stripe billing anchoru; monthly = přesná subscription perioda, annual = měsíční podokna od annual anchoru. Free a organization pool zůstávají calendar-based;
 - **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
 
 ### Otevřený anti-abuse backlog po 0.9.57 — handoff pro další kola
@@ -457,11 +471,11 @@ Následující scénáře jsou po auditu 2026-09-20 považované za významněj�
 
 1. **Recovery-payment integrity po refundu / chargebacku — IMPLEMENTED 0.9.58.** Potvrzené subscription platby se účtují amount-aware po jednotlivých PaymentIntentech a refund/dispute lock se uvolní až při kumulativním pokrytí celkové otevřené ztráty v dané měně. Změna tarifu je během `refund` / `dispute` locku serverově zakázaná. Starý amount-less payment-sync RPC je po cutoveru uzamčený.
 2. **Sdílení jednoho školního uživatelského účtu mezi více reálnými učiteli — IMPLEMENTED 0.9.60.** 0.9.59 zavedla oddělenou organization-device politiku 5 aktivních / 10 nových zařízení za klouzavých 30 dní, self-service správu a owner/admin reset bez mazání rolling historie. 0.9.60 opravuje produkční DB drift a znovu vynucuje organization-aware validator i v service-role-only live/regrade boundary.
-3. **Placené AI kvóty jsou ukotvené ke kalendářnímu měsíci místo billing period — MISSING.** Nákup těsně před UTC začátkem měsíce může dát dvě plné měsíční AI kvóty za jedinou měsíční platbu. Doporučení: individuální placené kvóty ukotvit k subscription billing anchoru; u annual plánu vytvářet měsíční quota windows odvozené od počátku subscription. Free může zůstat kalendářní.
+3. **Placené AI kvóty jsou ukotvené ke kalendářnímu měsíci místo billing period — IMPLEMENTED 0.9.61.** Teacher/Teacher Pro lesson+revision quota používá autoritativní LIVE Stripe periodu; monthly přímo `current_period_start/end`, annual měsíční subwindow od annual anchoru. Free a organization pool zůstávají calendar-based; chybějící placená perioda failuje uzavřeně.
 4. **Free device budget lze privacy-minimal modelu obejít smazáním device cookie + novými účty — KNOWN RESIDUAL.** Robustnější prevence by vyžadovala stabilnější cross-cookie signál. Bez dalšího rozhodnutí nezavádět browser/hardware fingerprinting. Pokud se riziko stane významné, preferovat krátkodobý privacy-preserving edge rate-limit před fingerprintingem a předem posoudit GDPR/privacy dopady a false positives.
 5. **Organization refund/dispute/payment-failure ochrana před veřejným školním billingem — MISSING / PRE-LAUNCH REQUIREMENT.** Než se Team/School/Campus stanou veřejně self-service prodejné, musí jejich refund/chargeback/past-due lifecycle zastavit další nákladové AI čerpání obdobně jako individuální plány, aniž by zbytečně zablokoval správu organizace a bezpečný billing recovery.
 
-Doporučené další pořadí po uzavření bodů 1–2: **3 → 5**. Bod 4 ponechat jako vědomé privacy/abuse trade-off riziko, dokud data neukážou, že skutečně způsobuje významnou ztrátu.
+Doporučené další pořadí po uzavření bodů 1–3: **5**. Bod 4 ponechat jako vědomé privacy/abuse trade-off riziko, dokud data neukážou, že skutečně způsobuje významnou ztrátu.
 
 Pravidla dalšího anti-abuse kola:
 
