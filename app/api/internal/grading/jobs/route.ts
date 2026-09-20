@@ -103,6 +103,13 @@ export async function POST(req: Request) {
       strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
+    const { data: challengeRecorded, error: challengeError } = await supabase.rpc('record_grading_job_integrity_challenge', {
+      p_token: token,
+      p_question: result.integrityChallengeQuestion,
+    });
+    if (challengeError) throw challengeError;
+    if (!challengeRecorded) throw new Error('Integrity challenge lost its grading capability.');
+
     const { data: finished, error: finishError } = await supabase.rpc('finish_grading_job_v2', {
       p_token: token,
       p_ai_score: result.score,
