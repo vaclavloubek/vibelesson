@@ -36,6 +36,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hasOrganization, setHasOrganization] = useState(false);
+  const identityBoundaryTriggeredRef = useRef(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -47,7 +48,36 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
     ?? (english ? 'Account' : 'Účet');
   const initial = accountName.trim().charAt(0).toLocaleUpperCase(locale === 'en' ? 'en' : 'cs') || 'S';
 
+  const verifyServerIdentity = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/identity', {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return true;
+
+      const payload = await response.json().catch(() => ({})) as {
+        userId?: string | null;
+      };
+      const currentUserId = payload.userId ?? null;
+
+      if (currentUserId === user.id) return true;
+      if (identityBoundaryTriggeredRef.current) return false;
+
+      identityBoundaryTriggeredRef.current = true;
+      setOpen(false);
+      setBusy(true);
+      setHasOrganization(false);
+      window.location.reload();
+      return false;
+    } catch {
+      // Server-side authorization remains authoritative if freshness probing fails.
+      return true;
+    }
+  }, [user.id]);
+
   const refreshOrganizationMembership = useCallback(async () => {
+    if (!(await verifyServerIdentity())) return;
     try {
       const response = await fetch('/api/organizations/membership', {
         cache: 'no-store',
@@ -63,11 +93,33 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
     } catch {
       setHasOrganization(false);
     }
-  }, [user.id]);
+  }, [verifyServerIdentity]);
 
   useEffect(() => {
-    void refreshOrganizationMembership();
-  }, [refreshOrganizationMembership]);
+    void verifyServerIdentity().then((matches) => {
+      if (matches) void refreshOrganizationMembership();
+    });
+
+    const handleFocus = () => {
+      void verifyServerIdentity();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void verifyServerIdentity();
+    };
+    const handlePageShow = () => {
+      void verifyServerIdentity();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageShow);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshOrganizationMembership, verifyServerIdentity]);
 
   useEffect(() => {
     void fetch('/api/auth/devices/register', {
@@ -163,12 +215,14 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
         ref={triggerRef}
         type="button"
         className="auth-account-trigger"
-        onClick={() => {
-          setOpen((value) => {
-            const nextOpen = !value;
-            if (nextOpen) void refreshOrganizationMembership();
-            return nextOpen;
-          });
+        onClick={async () => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          if (!(await verifyServerIdentity())) return;
+          await refreshOrganizationMembership();
+          setOpen(true);
         }}
         aria-expanded={open}
         aria-haspopup="menu"
