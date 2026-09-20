@@ -8,7 +8,7 @@ import {
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
-import { listStripePaidInvoicePaymentIntents } from '@/lib/stripe-invoice-payments';
+import { listStripePaidInvoicePayments } from '@/lib/stripe-invoice-payments';
 import { retrieveStripeChargeRefundState } from '@/lib/stripe-refunds';
 import {
   configuredStripeWebhookSecrets,
@@ -237,23 +237,47 @@ export async function POST(request: Request) {
           : process.env.STRIPE_SECRET_KEY_TEST;
 
         try {
-          const paymentIntentIds = await listStripePaidInvoicePaymentIntents({
+          const payments = await listStripePaidInvoicePayments({
             secretKey,
             livemode: invoiceSync.livemode,
             invoiceId: invoiceSync.invoiceId,
           });
 
-          for (const paymentIntentId of paymentIntentIds) {
+          const mappedAmount = payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
+          if (mappedAmount !== invoiceSync.amountPaid) {
+            console.error('stripe invoice payment amount mismatch', {
+              eventId: invoiceSync.eventId,
+              invoiceId: invoiceSync.invoiceId,
+              livemode: invoiceSync.livemode,
+              invoiceAmountPaid: invoiceSync.amountPaid,
+              mappedAmount,
+            });
+            if (invoiceSync.livemode) return jsonError(500, 'invoice_payment_amount_mismatch');
+          }
+
+          for (const payment of payments) {
+            if (payment.currency !== invoiceSync.currency) {
+              console.error('stripe invoice payment currency mismatch', {
+                eventId: invoiceSync.eventId,
+                invoiceId: invoiceSync.invoiceId,
+                livemode: invoiceSync.livemode,
+                invoiceCurrency: invoiceSync.currency,
+                paymentCurrency: payment.currency,
+              });
+              if (invoiceSync.livemode) return jsonError(500, 'invoice_payment_currency_mismatch');
+              continue;
+            }
+
             const { error: mappingError } = await supabase.rpc('sync_stripe_invoice_payment_event_v2', {
               p_event_id: invoiceSync.eventId,
               p_livemode: invoiceSync.livemode,
               p_user_id: invoiceSync.userId,
               p_subscription_id: invoiceSync.subscriptionId,
               p_invoice_id: invoiceSync.invoiceId,
-              p_payment_intent_id: paymentIntentId,
-              p_paid_at: invoiceSync.paidAt,
-              p_amount_paid: invoiceSync.amountPaid,
-              p_currency: invoiceSync.currency,
+              p_payment_intent_id: payment.paymentIntentId,
+              p_paid_at: payment.paidAt,
+              p_amount_paid: payment.amountPaid,
+              p_currency: payment.currency,
               p_billing_reason: invoiceSync.billingReason,
             });
             if (mappingError) {
