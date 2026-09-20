@@ -25,12 +25,12 @@ export default function AiPaymentPauseBanner({
             : (english ? 'AI features are temporarily paused' : 'AI funkce jsou dočasně pozastavené')}</strong>
         <p>{disputed
           ? (english
-              ? 'A subscription payment is being disputed through the bank or card network. Saved lessons and live teaching still work, and open responses can be graded manually. AI unlocks automatically if Stripe confirms the funds were returned to Syllonaut; after a lost dispute it unlocks after the next confirmed payment.'
-              : 'Platba předplatného je reklamovaná u banky nebo platební sítě. Uložené lekce a živá výuka dál fungují a otevřené odpovědi lze hodnotit ručně. AI se automaticky odemkne, pokud Stripe potvrdí vrácení prostředků Syllonautu; po prohraném sporu se odemkne po další potvrzené platbě.')
+              ? 'A subscription payment is being disputed through the bank or card network. Saved lessons and live teaching still work, and open responses can be graded manually. AI unlocks automatically if Stripe confirms the funds were returned to Syllonaut; after a lost dispute it unlocks once later confirmed subscription payments cover the lost amount.'
+              : 'Platba předplatného je reklamovaná u banky nebo platební sítě. Uložené lekce a živá výuka dál fungují a otevřené odpovědi lze hodnotit ručně. AI se automaticky odemkne, pokud Stripe potvrdí vrácení prostředků Syllonautu; po prohraném sporu se odemkne, až pozdější potvrzené platby předplatného pokryjí ztracenou částku.')
           : refunded
             ? (english
-                ? 'The current subscription payment was fully refunded. Saved lessons and live teaching still work, and open responses can be graded manually. AI generation, AI edits and AI grading unlock automatically after the next confirmed subscription payment.'
-                : 'Platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka dál fungují a otevřené odpovědi lze hodnotit ručně. AI generování, AI úpravy a AI hodnocení se automaticky odemknou po další potvrzené platbě předplatného.')
+                ? 'The current subscription payment was fully refunded. Saved lessons and live teaching still work, and open responses can be graded manually. AI generation, AI edits and AI grading unlock automatically once later confirmed subscription payments cover the refunded amount.'
+                : 'Platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka dál fungují a otevřené odpovědi lze hodnotit ručně. AI generování, AI úpravy a AI hodnocení se automaticky odemknou, až pozdější potvrzené platby předplatného pokryjí vrácenou částku.')
             : (english
                 ? 'The subscription payment needs attention. Saved lessons and live teaching still work, and open responses can be graded manually. AI generation, AI edits and AI grading unlock automatically as soon as Stripe confirms the payment.'
                 : 'Platba předplatného vyžaduje pozornost. Uložené lekce a živá výuka dál fungují a otevřené odpovědi lze hodnotit ručně. AI generování, AI úpravy a AI hodnocení se automaticky odemknou, jakmile Stripe platbu potvrdí.')}</p>
