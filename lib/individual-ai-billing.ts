@@ -10,14 +10,14 @@ export function aiBillingPausedMessage(
 ) {
   if (reason === 'dispute') {
     return locale === 'en'
-      ? 'AI features are temporarily paused because a subscription payment is under dispute. Saved lessons and live teaching remain available. AI unlocks automatically if Stripe confirms the funds were returned to Syllonaut; after a lost dispute it unlocks after the next confirmed payment.'
-      : 'AI funkce jsou dočasně pozastavené, protože platba předplatného je reklamovaná. Uložené lekce a živá výuka zůstávají dostupné. AI se automaticky odemkne, pokud Stripe potvrdí vrácení prostředků Syllonautu; po prohraném sporu se odemkne po další potvrzené platbě.';
+      ? 'AI features are temporarily paused because a subscription payment is under dispute. Saved lessons and live teaching remain available. AI unlocks automatically if Stripe confirms the funds were returned to Syllonaut; after a lost dispute it unlocks once later confirmed subscription payments cover the lost amount.'
+      : 'AI funkce jsou dočasně pozastavené, protože platba předplatného je reklamovaná. Uložené lekce a živá výuka zůstávají dostupné. AI se automaticky odemkne, pokud Stripe potvrdí vrácení prostředků Syllonautu; po prohraném sporu se odemkne, až pozdější potvrzené platby předplatného pokryjí ztracenou částku.';
   }
 
   if (reason === 'refund') {
     return locale === 'en'
-      ? 'AI features are temporarily paused because the current subscription payment was fully refunded. Saved lessons and live teaching remain available. AI unlocks automatically after the next confirmed subscription payment.'
-      : 'AI funkce jsou dočasně pozastavené, protože platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka zůstávají dostupné. AI se automaticky odemkne po další potvrzené platbě předplatného.';
+      ? 'AI features are temporarily paused because the current subscription payment was fully refunded. Saved lessons and live teaching remain available. AI unlocks automatically once later confirmed subscription payments cover the refunded amount.'
+      : 'AI funkce jsou dočasně pozastavené, protože platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka zůstávají dostupné. AI se automaticky odemkne, až pozdější potvrzené platby předplatného pokryjí vrácenou částku.';
   }
 
   if (reason === 'past_due') {
