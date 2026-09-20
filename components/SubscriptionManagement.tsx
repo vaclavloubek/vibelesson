@@ -78,7 +78,8 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
     targetBilling,
   );
   const disputedPayment = active.aiBillingPauseReason === 'dispute';
-  const blocked = active.cancelAtPeriodEnd || active.paymentIssue || disputedPayment || active.pendingUpdate;
+  const refundedPayment = active.aiBillingPauseReason === 'refund';
+  const blocked = active.cancelAtPeriodEnd || active.paymentIssue || disputedPayment || refundedPayment || active.pendingUpdate;
   const renewalDate = formatDate(active.currentPeriodEnd, english);
   const targetPlanName = targetPlan === 'teacher-pro' ? 'Teacher Pro' : 'Teacher';
 
@@ -193,7 +194,7 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
         <dl className={styles.details}>
           <div><dt>{active.cancelAtPeriodEnd ? ui('Přístup do', 'Access until') : ui('Další obnovení', 'Next renewal')}</dt><dd>{renewalDate}</dd></div>
           <div><dt>{ui('Fakturační země', 'Billing country')}</dt><dd>{active.billingCountry ?? '—'}</dd></div>
-          <div><dt>{ui('Stav', 'Status')}</dt><dd>{disputedPayment ? ui('Platba reklamována', 'Payment disputed') : active.paymentIssue ? ui('Platba vyžaduje pozornost', 'Payment needs attention') : active.cancelAtPeriodEnd ? ui('Ukončení naplánováno', 'Cancellation scheduled') : ui('Aktivní', 'Active')}</dd></div>
+          <div><dt>{ui('Stav', 'Status')}</dt><dd>{disputedPayment ? ui('Platba reklamována', 'Payment disputed') : refundedPayment ? ui('Platba vrácena', 'Payment refunded') : active.paymentIssue ? ui('Platba vyžaduje pozornost', 'Payment needs attention') : active.cancelAtPeriodEnd ? ui('Ukončení naplánováno', 'Cancellation scheduled') : ui('Aktivní', 'Active')}</dd></div>
         </dl>
 
         <button type="button" className={styles.secondary} onClick={openPortal} disabled={portalBusy}>
@@ -228,6 +229,14 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
           <p>{ui(
             'Platba za předplatné je reklamovaná u banky nebo platební sítě. Uložené lekce a živá výuka dál fungují. Pokud Stripe potvrdí vrácení prostředků Syllonautu, AI se automaticky odemkne; pokud spor skončí vrácením platby držiteli karty, AI se odemkne po další potvrzené platbě. Stripe Portal výše můžeš dál použít pro kartu, faktury a správu předplatného, samotný spor se ale řeší přes banku nebo karetní síť.',
             'A subscription payment is being disputed through the bank or card network. Saved lessons and live teaching still work. If Stripe confirms the funds were returned to Syllonaut, AI unlocks automatically; if the dispute returns the payment to the cardholder, AI unlocks after the next confirmed payment. You can still use the Stripe Portal above for your card, invoices and subscription management, but the dispute itself is handled through the bank or card network.',
+          )}</p>
+        </div>
+      ) : active.aiBillingPauseReason === 'refund' ? (
+        <div className={styles.warning} role="status">
+          <strong>{ui('AI funkce jsou dočasně pozastavené, protože platba byla vrácena.', 'AI features are temporarily paused because the payment was refunded.')}</strong>
+          <p>{ui(
+            'Platba za aktuální předplatné byla plně vrácena. Uložené lekce a živá výuka dál fungují. AI generování, AI úpravy a AI hodnocení se automaticky odemknou po další potvrzené platbě předplatného.',
+            'The current subscription payment was fully refunded. Saved lessons and live teaching still work. AI generation, AI edits and AI grading unlock automatically after the next confirmed subscription payment.',
           )}</p>
         </div>
       ) : active.paymentIssue ? (
