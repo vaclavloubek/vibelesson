@@ -82,6 +82,15 @@ create index if not exists organization_billing_refunds_open_idx
 alter table private.organization_billing_refunds enable row level security;
 revoke all on private.organization_billing_refunds from public, anon, authenticated, service_role;
 
+-- Migrate the old licence-wide card past_due representation into the new
+-- AI-only payment-grace representation. Manual invoice lifecycle is unchanged.
+update public.organizations
+set status = 'active',
+    updated_at = now()
+where status = 'past_due'
+  and renewal_mode = 'automatic_card'
+  and past_due_at is not null;
+
 create or replace function private.organization_ai_billing_pause_reason(p_organization_id uuid)
 returns text
 language sql
@@ -526,6 +535,9 @@ begin
   if v_payment.currency is distinct from p_currency then
     raise exception 'organization_stripe_dispute_currency_mismatch' using errcode='P0001';
   end if;
+  if p_amount_disputed > v_payment.amount_paid then
+    raise exception 'organization_stripe_dispute_amount_mismatch' using errcode='P0001';
+  end if;
 
   select * into v_existing
   from private.organization_billing_disputes d
@@ -647,6 +659,9 @@ begin
 
   if not found then
     raise exception 'organization_stripe_refund_payment_mapping_missing' using errcode='P0001';
+  end if;
+  if p_amount_total is distinct from v_payment.amount_paid then
+    raise exception 'organization_stripe_refund_amount_mismatch' using errcode='P0001';
   end if;
 
   select * into v_existing
