@@ -1,6 +1,7 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { sendLifecycleEvent } from '@/lib/lifecycle-email';
 
 const SUPPORTED_TYPES = new Set<EmailOtpType>(['email', 'signup', 'recovery']);
 const SHARED_LESSON_PATH = /^\/s\/[0-9a-f]{48}$/;
@@ -54,6 +55,20 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(new URL('/auth/error?reason=invalid', request.url), 303);
+  }
+
+  if (type === 'signup') {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id ?? null;
+    if (userId) {
+      after(async () => {
+        try {
+          await sendLifecycleEvent(userId, 'syllonaut.onboarding.started');
+        } catch (lifecycleError) {
+          console.error('signup lifecycle event failed', lifecycleError);
+        }
+      });
+    }
   }
 
   const requestedDestination = type === 'recovery' ? null : safeSignupDestination(next, request.url);
