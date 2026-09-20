@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { GradingStrictnessSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
@@ -60,9 +60,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Pro AI generování se nejdřív přihlas.' }, { status: 401 });
   }
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
-    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code }, { status: 403 });
   }
 
   let requestId: string | null = null;
