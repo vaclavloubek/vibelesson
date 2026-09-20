@@ -170,32 +170,31 @@ export async function POST(request: Request) {
 
   const bucket = Math.floor(Date.now() / RATE_WINDOW_MS);
   const admin = createAdminClient();
-  const rateLimitTable = admin.schema('private').from('contact_form_rate_limits');
-  const { data: reservation, error: reservationError } = await rateLimitTable
-    .insert({
-      client_hash: clientHash,
-      email_hash: emailHash,
-      window_bucket: bucket,
-    })
-    .select('id')
-    .single();
+  const { data: reservationId, error: reservationError } = await admin.rpc(
+    'reserve_contact_form_rate_limit_server',
+    {
+      p_client_hash: clientHash,
+      p_email_hash: emailHash,
+      p_window_bucket: bucket,
+    },
+  );
 
-  if (reservationError?.code === '23505') {
-    return jsonError(429, 'rate_limited');
-  }
-
-  if (reservationError || !reservation?.id) {
+  if (reservationError) {
     console.error('contact inquiry rate reservation failed', {
-      code: reservationError?.code ?? 'missing_reservation',
+      code: reservationError.code,
     });
     return jsonError(503, 'contact_unavailable');
+  }
+
+  if (typeof reservationId !== 'string' || !reservationId) {
+    return jsonError(429, 'rate_limited');
   }
 
   try {
     await deliverInquiryEmail(
       input.email.toLowerCase(),
       input.message,
-      `syllonaut:contact:${reservation.id}`,
+      `syllonaut:contact:${reservationId}`,
     );
   } catch (error) {
     console.error('contact inquiry email delivery failed', {
@@ -203,17 +202,12 @@ export async function POST(request: Request) {
     });
 
     // Delivery failed, so release this rate-limit reservation and let the user retry.
-    await rateLimitTable
-      .delete()
-      .eq('id', reservation.id);
+    await admin.rpc('release_contact_form_rate_limit_server', {
+      p_reservation_id: reservationId,
+    });
 
     return jsonError(503, 'contact_delivery_failed');
   }
-
-  // Keep only a short, privacy-minimal anti-abuse history.
-  await rateLimitTable
-    .delete()
-    .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1_000).toISOString());
 
   return NextResponse.json({ sent: true }, {
     status: 200,
