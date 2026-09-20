@@ -896,7 +896,7 @@ export default function PricingPage({
         <div>
           <span className={styles.noteIndex}>01</span>
           <strong>{ui('AI limit chrání tvorbu, ne samotnou výuku.', 'The AI allowance limits creation, not teaching itself.')}</strong>
-          <p>{ui('Limity se obnovují každý kalendářní měsíc. U placených tarifů spuštění a opakované použití hotových lekcí limit nespotřebovává; u škol se nová tvorba a AI úpravy čerpají ze společného poolu.', 'Allowances reset every calendar month. On paid plans, launching and reusing finished lessons does not consume them; school plans share the allowance for new creation and AI edits.')}</p>
+          <p>{ui('Limity se obnovují každý kalendářní měsíc. U placených tarifů spuštění a opakované použití hotových lekcí limit nespotřebovává; u škol má každý učitel vlastní účet a nová tvorba i AI úpravy se čerpají ze společného limitu pracovního prostoru školy.', 'Allowances reset every calendar month. On paid plans, launching and reusing finished lessons does not consume them; school plans share the allowance for new creation and AI edits.')}</p>
         </div>
         <div>
           <span className={styles.noteIndex}>02</span>
