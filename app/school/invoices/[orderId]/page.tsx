@@ -75,7 +75,7 @@ export default async function OrganizationInvoicePage({
       <div className={styles.shell}>
         <header className={styles.header}>
           <Link href="/school" className={styles.brand}>
-            <SyllonautMark size={30} />
+            <SyllonautMark />
             <span>Syllonaut</span>
           </Link>
           <Link href="/school" className={styles.back}>
