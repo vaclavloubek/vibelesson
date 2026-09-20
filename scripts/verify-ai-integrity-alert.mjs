@@ -52,6 +52,12 @@ const csFeature = 'AI hodnocení bodovaných otevřených, týmových a exit-tic
 const enFeature = 'AI grading of scored open, team and exit-ticket responses with suspicious AI-use detection';
 requireCount(pricing, csFeature, 3, 'CZ pricing must advertise the feature only for Teacher Pro, School and Campus.');
 requireCount(pricing, enFeature, 3, 'EN pricing must advertise the feature only for Teacher Pro, School and Campus.');
+const csProtectionFeature = 'Ochrana proti nepovolenému využití AI ve studentských odpovědích';
+const enProtectionFeature = 'Protection against unauthorized AI use in student responses';
+requireCount(pricing, csProtectionFeature, 3, 'CZ pricing must show AI integrity protection only for Teacher Pro, School and Campus.');
+requireCount(pricing, enProtectionFeature, 3, 'EN pricing must show AI integrity protection only for Teacher Pro, School and Campus.');
+requireText(pricing, "feature.startsWith('Ochrana proti nepovolenému využití AI')", 'CZ AI integrity protection is not highlighted.');
+requireText(pricing, "feature.startsWith('Protection against unauthorized AI use')", 'EN AI integrity protection is not highlighted.');
 const teamSection = pricing.slice(pricing.indexOf("id: 'team'"), pricing.indexOf("id: 'school'"));
 if (teamSection.includes('AI hodnocení') || teamSection.includes('AI grading')) {
   throw new Error('AI integrity alert regression: Team pricing must not advertise AI grading without the entitlement.');
