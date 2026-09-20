@@ -736,7 +736,7 @@ CREATE OR REPLACE FUNCTION private.enforce_individual_ai_payment_state()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 begin
   if new.action in ('generate_lesson', 'revise_lesson', 'revise_block') then
     if new.organization_id is not null
@@ -759,7 +759,7 @@ CREATE OR REPLACE FUNCTION private.dispatch_response_evaluation_job(p_evaluation
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_token text;
   v_hash text;
@@ -852,7 +852,7 @@ CREATE OR REPLACE FUNCTION private.enqueue_server_grading_job()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_user_id uuid;
 begin
@@ -895,7 +895,7 @@ CREATE OR REPLACE FUNCTION private.reserve_ai_grading_budget(p_evaluation_id uui
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_user_id uuid;
   v_role text;
@@ -1033,7 +1033,7 @@ CREATE OR REPLACE FUNCTION public.requeue_response_evaluation_server(p_user_id u
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_evaluation public.response_evaluations%rowtype;
   v_submitted_answer jsonb;
@@ -1131,7 +1131,7 @@ CREATE OR REPLACE FUNCTION public.sync_organization_invoice_event(p_event_id tex
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_order public.organization_orders%rowtype;
   v_org public.organizations%rowtype;
@@ -1251,7 +1251,7 @@ CREATE OR REPLACE FUNCTION public.sync_organization_subscription_event(p_event_i
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_inserted integer := 0;
   v_next_status text;
@@ -1361,7 +1361,7 @@ CREATE OR REPLACE FUNCTION public.expire_organization_licenses()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_count integer;
 begin
@@ -1385,7 +1385,7 @@ CREATE OR REPLACE FUNCTION public.suspend_overdue_organizations(p_grace_days int
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$
+AS $function$;
 declare
   v_count integer;
 begin
