@@ -185,8 +185,12 @@ for (const needle of [
     throw new Error('School checkout return contract missing: ' + needle);
   }
 }
-if (/session_id[\s\S]{0,500}(activate|status\s*=\s*['"]active['"]|rpc\()/i.test(schoolPage)) {
-  throw new Error('School checkout return must never activate a licence from session_id.');
+const sessionIdRuntimeReads = schoolPage.match(/params\.session_id/g) ?? [];
+if (
+  sessionIdRuntimeReads.length !== 1
+  || !schoolPage.includes('void params.session_id;')
+) {
+  throw new Error('School checkout return must ignore session_id as an activation authority.');
 }
 
 const schoolAdminCheckout = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
