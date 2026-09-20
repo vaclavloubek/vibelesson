@@ -2,6 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { broadcastSessionInvalidate } from '@/lib/live-server';
 import { mirrorLiveControlEvent } from '@/lib/live-control-server';
+import { emitFirstLiveStartedIfNeeded } from '@/lib/marketing-lifecycle';
 import { clearLiveResumeCookie } from '@/lib/live-resume';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
@@ -301,6 +302,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
             ...('expectedActiveBlockId' in action ? { expectedActiveBlockId: action.expectedActiveBlockId } : {}),
           },
         }),
+        ...(action.action === 'start' && updated.status === 'live'
+          ? [emitFirstLiveStartedIfNeeded(userId)]
+          : []),
       ]);
     });
 

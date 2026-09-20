@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { GradingStrictnessSchema } from '@/lib/schema';
@@ -9,6 +9,7 @@ import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { emitFirstLessonCreatedIfNeeded, emitFreeLessonQuotaLifecycle } from '@/lib/marketing-lifecycle';
 import {
   MATERIAL_MAX_FILES,
   MATERIAL_MAX_TEXT_PER_FILE,
@@ -255,6 +256,17 @@ export async function POST(req: Request) {
               p_lesson_id: lessonId,
             });
             if (finishError) console.error('finish generation request failed', finishError);
+
+            if (!finishError) {
+              const quotaUsed = reservation.used;
+              const quotaLimit = reservation.monthly_limit;
+              after(async () => {
+                await Promise.allSettled([
+                  emitFirstLessonCreatedIfNeeded(userId),
+                  emitFreeLessonQuotaLifecycle(userId, quotaUsed, quotaLimit),
+                ]);
+              });
+            }
 
             send({ type: 'result', lesson, lessonId });
           } catch (error) {

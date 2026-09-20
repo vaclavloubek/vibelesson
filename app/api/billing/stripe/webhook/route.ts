@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   billingLifecycleNotification,
@@ -6,6 +6,7 @@ import {
   BillingEmailDeliveryError,
 } from '@/lib/billing-email';
 import { billingRouteForCountry } from '@/lib/billing-region';
+import { emitSubscriptionUpgraded, syncMarketingPlan } from '@/lib/marketing-lifecycle';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { listStripePaidInvoicePayments } from '@/lib/stripe-invoice-payments';
@@ -610,6 +611,22 @@ export async function POST(request: Request) {
         });
         return jsonError(503, 'billing_email_delivery_failed');
       }
+    }
+
+    if (sync.livemode) {
+      after(async () => {
+        try {
+          if (lifecycleNotification === 'subscription_activated') {
+            await emitSubscriptionUpgraded(sync.userId);
+          } else {
+            await syncMarketingPlan(sync.userId);
+          }
+        } catch (marketingError) {
+          console.warn('marketing billing sync failed', {
+            code: marketingError instanceof Error ? marketingError.message : 'unknown',
+          });
+        }
+      });
     }
 
     return NextResponse.json({ received: true, result: data }, {
