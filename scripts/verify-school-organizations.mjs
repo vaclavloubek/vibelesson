@@ -175,6 +175,33 @@ if (!schoolAdmin.includes('organization_member_already_active')) {
   throw new Error('School admin must explain active-member invitation conflicts.');
 }
 
+const schoolPage = fs.readFileSync('app/school/page.tsx', 'utf8');
+for (const needle of [
+  "checkoutValue === 'success'",
+  "checkoutValue === 'cancelled'",
+  'session_id is intentionally ignored',
+]) {
+  if (!schoolPage.includes(needle)) {
+    throw new Error('School checkout return contract missing: ' + needle);
+  }
+}
+if (/session_id[\s\S]{0,500}(activate|status\s*=\s*['"]active['"]|rpc\()/i.test(schoolPage)) {
+  throw new Error('School checkout return must never activate a licence from session_id.');
+}
+
+const schoolAdminCheckout = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
+for (const needle of [
+  'initialCheckoutResult',
+  'checkoutPollingStartedRef',
+  "fetch('/api/organizations/current'",
+  "payload.organization?.status === 'active'",
+  'Stripe has not confirmed the payment yet',
+]) {
+  if (!schoolAdminCheckout.includes(needle)) {
+    throw new Error('School checkout polling contract missing: ' + needle);
+  }
+}
+
 const currentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');
 if (!currentRoute.includes('canManageOrganization')) {
   throw new Error('School summary must enforce manager scope.');
