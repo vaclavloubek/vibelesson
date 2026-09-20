@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { LessonSchema } from '@/lib/schema';
 import { reviseLesson } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
@@ -25,9 +25,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Pro AI úpravy se nejdřív přihlas.' }, { status: 401 });
   }
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
-    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code }, { status: 403 });
   }
 
   const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
