@@ -14,6 +14,8 @@ const AIGradingOutputSchema = z.object({
   criteria: z.array(AICriterionScoreSchema),
   overallRationale: z.string(),
   confidence: z.number(),
+  aiUseSuspicion: z.enum(['none', 'low', 'high']),
+  aiUseSignals: z.array(z.string().trim().min(1).max(240)).max(3),
 });
 
 const GradingInputSchema = z.object({
@@ -35,12 +37,16 @@ export type CriterionScore = {
   rationale: string;
 };
 
+export type AIUseSuspicion = 'none' | 'low' | 'high';
+
 export type GradingResult = {
   score: number;
   maxPoints: number;
   criterionScores: CriterionScore[];
   rationale: string;
   confidence: number;
+  aiUseSuspicion: AIUseSuspicion;
+  aiUseSignals: string[];
   needsReview: boolean;
   model: string;
   costUsd: number | null;
@@ -101,6 +107,13 @@ Bezpečnost a férovost:
 - rationale u každého kritéria má stručně vysvětlit přidělené body.
 - confidence je číslo 0 až 1 vyjadřující jistotu hodnocení, nikoli kvalitu odpovědi.
 
+Integrita odpovědi — samostatný signál, který NESMÍ ovlivnit body ani grading confidence:
+- Odhadni pouze z textu, zda odpověď vykazuje jazykové vzorce typické pro generovaný AI text. Nejde o důkaz podvodu.
+- aiUseSuspicion = "high" použij jen při více nezávislých a konkrétních stylistických signálech; samotná správnost, formálnost, dobrá gramatika, delší odpověď nebo odborný styl nestačí.
+- U krátkých odpovědí buď zvlášť zdrženlivý. Pokud nejsou přítomné alespoň dva konkrétní signály, vrať "none" nebo "low".
+- aiUseSignals obsahuje nejvýše tři stručné popisy konkrétních znaků v textu. Nevkládej obecné soudy typu "zní jako AI".
+- Tento integrity signál nikdy nepoužívej k úpravě criterion points, overallRationale ani confidence.
+
 Nastavení přísnosti pro tuto odpověď:
 ${gradingStrictnessInstructions[input.strictness]}`,
     prompt: JSON.stringify({
@@ -157,6 +170,15 @@ ${gradingStrictnessInstructions[input.strictness]}`,
   }
 
   const rationale = OverallRationaleSchema.parse(output.overallRationale);
+  const aiUseSignals = Array.from(new Set(output.aiUseSignals.map((signal) => signal.trim()).filter(Boolean))).slice(0, 3);
+  const highSuspicionEligible = input.answerText.length >= 280
+    && output.aiUseSuspicion === 'high'
+    && aiUseSignals.length >= 2;
+  const aiUseSuspicion: AIUseSuspicion = highSuspicionEligible
+    ? 'high'
+    : output.aiUseSuspicion === 'none'
+      ? 'none'
+      : 'low';
 
   return {
     score,
@@ -164,7 +186,9 @@ ${gradingStrictnessInstructions[input.strictness]}`,
     criterionScores,
     rationale,
     confidence: output.confidence,
-    needsReview: output.confidence < 0.7,
+    aiUseSuspicion,
+    aiUseSignals,
+    needsReview: output.confidence < 0.7 || aiUseSuspicion === 'high',
     model: gradingModel,
     costUsd: getGatewayCost(providerMetadata),
   };
