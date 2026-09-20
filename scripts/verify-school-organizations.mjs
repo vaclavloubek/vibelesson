@@ -13,6 +13,7 @@ const requiredFiles = [
   'app/api/organizations/payment/route.ts',
   'app/api/organizations/invitations/route.ts',
   'app/api/organizations/invitations/accept/route.ts',
+  'app/api/organizations/invitations/[invitationId]/route.ts',
   'app/api/organizations/members/[userId]/route.ts',
   'app/school/page.tsx',
   'app/school/invite/page.tsx',
@@ -105,6 +106,34 @@ if (!invite.includes("randomBytes(32).toString('base64url')")) {
 }
 if (!invite.includes("createHash('sha256')")) {
   throw new Error('School invitation tokens must be stored as hashes.');
+}
+
+const revokeInvite = fs.readFileSync(
+  'app/api/organizations/invitations/[invitationId]/route.ts',
+  'utf8',
+);
+for (const needle of [
+  'canManageOrganization',
+  ".eq('organization_id', organization.id)",
+  ".eq('status', 'pending')",
+  "status: 'revoked'",
+]) {
+  if (!revokeInvite.includes(needle)) {
+    throw new Error('School pending invitation revoke contract missing: ' + needle);
+  }
+}
+
+const schoolAdmin = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
+for (const needle of [
+  'updateBulkInviteEntry',
+  'removeBulkInviteEntry',
+  'bulkInviteHasInvalidEmail',
+  'bulkInviteHasDuplicateEmail',
+  'Zrušit pozvánku',
+]) {
+  if (!schoolAdmin.includes(needle)) {
+    throw new Error('School invitation admin UX contract missing: ' + needle);
+  }
 }
 
 const currentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');
