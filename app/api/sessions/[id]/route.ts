@@ -6,6 +6,7 @@ import { clearLiveResumeCookie } from '@/lib/live-resume';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { sendFirstLiveLifecycleEvent } from '@/lib/lifecycle-email';
 
 type RouteContext = { params: Promise<{ id: string }> };
 type SupabaseClient = Awaited<ReturnType<typeof getAuthenticatedUserId>>['supabase'];
@@ -287,7 +288,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
     after(async () => {
-      await Promise.allSettled([
+      const tasks: Promise<unknown>[] = [
         broadcastSessionInvalidate(updated.realtime_key as string),
         mirrorLiveControlEvent({
           sessionId: id,
@@ -301,7 +302,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
             ...('expectedActiveBlockId' in action ? { expectedActiveBlockId: action.expectedActiveBlockId } : {}),
           },
         }),
-      ]);
+      ];
+      if (action.action === 'start' && updated.status === 'live') {
+        tasks.push(sendFirstLiveLifecycleEvent(userId));
+      }
+      const results = await Promise.allSettled(tasks);
+      for (const result of results) {
+        if (result.status === 'rejected') console.error('session after-task failed', result.reason);
+      }
     });
 
     if (action.action === 'end' && updated.status === 'ended') {
