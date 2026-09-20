@@ -89,6 +89,13 @@ export async function GET() {
     p_organization_id: organization.id,
   });
 
+  const deviceUsageResult = manager
+    ? await admin.rpc('list_organization_member_device_usage', {
+      p_actor_user_id: userId,
+      p_organization_id: organization.id,
+    })
+    : { data: [], error: null };
+
   const ordersResult = manager
     ? await admin
       .from('organization_orders')
@@ -106,6 +113,7 @@ export async function GET() {
     || libraryResult.error
     || ownLessonsResult.error
     || seatUsageResult.error
+    || deviceUsageResult.error
     || ordersResult.error
   ) {
     console.error('organization summary lookup failed', {
@@ -116,12 +124,25 @@ export async function GET() {
       library: libraryResult.error?.code,
       ownLessons: ownLessonsResult.error?.code,
       seats: seatUsageResult.error?.code,
+      devices: deviceUsageResult.error?.code,
       orders: ordersResult.error?.code,
     });
     return NextResponse.json({ error: 'organization_summary_failed' }, { status: 500 });
   }
 
   const memberRows = membersResult.data ?? [];
+  const deviceUsageRows = (deviceUsageResult.data ?? []) as Array<{
+    userId: string;
+    required: boolean;
+    activeCount: number;
+    maxActive: number;
+    newIn30Days: number;
+    maxNewIn30Days: number;
+  }>;
+  const deviceUsageByUser = new Map(
+    deviceUsageRows.map((entry) => [entry.userId, entry] as const),
+  );
+
   const members = manager
     ? await Promise.all(memberRows.map(async (row) => {
       const { data } = await admin.auth.admin.getUserById(row.user_id);
@@ -130,6 +151,7 @@ export async function GET() {
         email: data.user?.email ?? null,
         role: row.role,
         joinedAt: row.joined_at,
+        deviceUsage: deviceUsageByUser.get(row.user_id) ?? null,
       };
     }))
     : memberRows
@@ -139,6 +161,7 @@ export async function GET() {
         email: null,
         role: row.role,
         joinedAt: row.joined_at,
+        deviceUsage: null,
       }));
 
   const requestRows = requestsResult.data ?? [];
