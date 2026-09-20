@@ -84,7 +84,7 @@ export default function LessonWorkspace({
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [audience, setAudience] = useState(initialLesson?.audience ?? '');
   const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
-  const [collaborationMode, setCollaborationMode] = useState<CollaborationMode>(() => initialLesson ? resolveLessonCollaborationMode(initialLesson) : 'individual');
+  const [collaborationMode, setCollaborationMode] = useState<CollaborationMode | ''>(() => initialLesson ? resolveLessonCollaborationMode(initialLesson) : '');
   const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '3–4');
   const [tone, setTone] = useState('');
   const [lessonLanguage, setLessonLanguage] = useState('auto');
@@ -445,6 +445,10 @@ export default function LessonWorkspace({
     const requestedDuration = Number(duration);
     const effectiveGroupSize = collaborationMode === 'individual' ? ui('Jednotlivci', 'Individuals') : groupSize.trim();
 
+    if (!collaborationMode) {
+      setError(ui('Vyber, jestli budou studenti pracovat jednotlivě, nebo v týmech.', 'Choose whether students will work individually or in teams.'));
+      return;
+    }
     if (!prompt.trim() && files.length === 0) {
       setError(ui('Popiš hodinu nebo nahraj alespoň jeden podklad.', 'Describe the lesson or upload at least one source file.'));
       return;
@@ -863,7 +867,8 @@ export default function LessonWorkspace({
                   <label>{ui('Cílovka', 'Audience')}<input name="audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={ui('např. 1. ročník vysoké školy', 'e.g. first-year university students')} required /></label>
                   <label>{ui('Délka v minutách', 'Duration in minutes')}<input name="duration" type="number" min="10" max="360" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder={ui('např. 90', 'e.g. 90')} required /></label>
                   <label>{ui('Režim práce', 'Work mode')}
-                    <select value={collaborationMode} onChange={(event) => setCollaborationMode(event.target.value as CollaborationMode)} className="materials-mode-select">
+                    <select value={collaborationMode} onChange={(event) => setCollaborationMode(event.target.value as CollaborationMode)} className="materials-mode-select" required>
+                      <option value="" disabled>{ui('Vyber režim…', 'Choose mode…')}</option>
                       <option value="individual">{ui('Jednotlivci', 'Individuals')}</option>
                       <option value="teams">{ui('Týmy', 'Teams')}</option>
                     </select>
