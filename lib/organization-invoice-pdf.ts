@@ -27,7 +27,10 @@ function date(value: string, locale: 'cs' | 'en') {
   }).format(new Date(value + (value.length === 10 ? 'T12:00:00Z' : '')));
 }
 
-function customerLines(invoice: OrganizationBankInvoiceData) {
+function customerLines(
+  invoice: OrganizationBankInvoiceData,
+  locale: 'cs' | 'en',
+) {
   const customer = invoice.snapshot.customer;
   const address = (customer.billingAddress ?? {}) as Record<string, unknown>;
   const values = [
@@ -36,8 +39,12 @@ function customerLines(invoice: OrganizationBankInvoiceData) {
     address.line2,
     [address.postalCode, address.city].filter(Boolean).join(' '),
     customer.billingCountry,
-    customer.registrationNumber ? 'IČO: ' + customer.registrationNumber : null,
-    customer.vatId ? 'DIČ / VAT ID: ' + customer.vatId : null,
+    customer.registrationNumber
+      ? (locale === 'en' ? 'Registration No.: ' : 'IČO: ') + customer.registrationNumber
+      : null,
+    customer.vatId
+      ? (locale === 'en' ? 'VAT ID: ' : 'DIČ / VAT ID: ') + customer.vatId
+      : null,
     customer.billingEmail,
   ];
   return values.filter(Boolean).map(String);
@@ -56,8 +63,10 @@ function sellerLines(
     seller.addressLine2,
     seller.postalCode + ' ' + seller.city,
     seller.country,
-    'IČO: ' + seller.registrationNumber,
-    seller.vatId ? 'DIČ / VAT ID: ' + seller.vatId : null,
+    (locale === 'en' ? 'Registration No.: ' : 'IČO: ') + seller.registrationNumber,
+    seller.vatId
+      ? (locale === 'en' ? 'VAT ID: ' : 'DIČ / VAT ID: ') + seller.vatId
+      : null,
     !vatPayer
       ? (locale === 'en'
         ? 'Supplier is not registered for VAT.'
@@ -160,7 +169,7 @@ export function createOrganizationInvoicePdfDefinition(
           width: '*',
           stack: [
             { text: english ? 'Customer' : 'Odběratel', fontSize: 8, bold: true, color: MUTED },
-            ...customerLines(invoice).map((line, index) => ({
+            ...customerLines(invoice, locale).map((line, index) => ({
               text: line,
               fontSize: index === 0 ? 10 : 9,
               bold: index === 0,
