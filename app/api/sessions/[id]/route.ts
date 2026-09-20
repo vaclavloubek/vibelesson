@@ -193,14 +193,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
     if (action.action === 'start') {
       if (session.status !== 'lobby') return NextResponse.json({ error: 'Hodinu lze zahájit pouze z lobby.' }, { status: 409 });
-      if (lesson.blocks.some((block) => block.type === 'team_task')) {
+      if (resolveLessonCollaborationMode(lesson) === 'teams') {
         const { count, error: teamCountError } = await supabase
           .from('teams')
           .select('id', { count: 'exact', head: true })
           .eq('session_id', id);
         if (teamCountError) throw teamCountError;
         if ((count ?? 0) < 2) {
-          return NextResponse.json({ error: 'Lekce obsahuje týmový úkol. Před zahájením vytvoř alespoň 2 týmy.' }, { status: 409 });
+          return NextResponse.json({ error: 'Lekce je v týmovém režimu. Před zahájením vytvoř alespoň 2 týmy.' }, { status: 409 });
         }
       }
       const firstBlock = lesson.blocks[0];
