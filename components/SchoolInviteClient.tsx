@@ -56,7 +56,12 @@ export default function SchoolInviteClient({
           )
           : payload.error === 'invitation_expired'
             ? ui('Platnost pozvánky vypršela.', 'This invitation has expired.')
-            : payload.error === 'organization_replacement_limit_reached'
+            : payload.error === 'organization_member_already_active'
+              ? ui(
+                'Tento účet už je aktivním členem této školy. Otevřete Moji školu.',
+                'This account is already an active member of this school. Open My school.',
+              )
+              : payload.error === 'organization_replacement_limit_reached'
               ? ui(
                 'Škola už v tomto fakturačním období vyčerpala povolenou kapacitu výměn členů. Pozvánku bude možné přijmout v dalším období.',
                 'The school has used its member replacement allowance for this billing period. The invitation can be accepted in the next period.',
