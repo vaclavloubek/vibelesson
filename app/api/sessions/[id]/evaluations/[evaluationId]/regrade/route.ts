@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { currentTrustedDeviceHash, requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 type RouteContext = { params: Promise<{ id: string; evaluationId: string }> };
 
 export async function POST(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+
+  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  if (!deviceGate.allowed) {
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+  }
 
   const { id: sessionId, evaluationId } = await params;
 
@@ -35,9 +42,20 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
   const aiGradingEnabled = Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled));
 
-  const { data: requeued, error } = await supabase.rpc('requeue_response_evaluation_for_teacher', {
+  const admin = createAdminClient();
+  const deviceHash = await currentTrustedDeviceHash();
+  const { data: requeued, error } = await admin.rpc('requeue_response_evaluation_server', {
+    p_user_id: userId,
     p_evaluation_id: evaluationId,
+    p_device_token_hash: deviceHash,
   });
+
+  if (error?.message?.includes('trusted_device_required')) {
+    return NextResponse.json({
+      error: trustedDeviceErrorMessage('trusted_device_required'),
+      code: 'trusted_device_required',
+    }, { status: 403 });
+  }
 
   if (error) {
     console.error('teacher evaluation refresh failed', error);
