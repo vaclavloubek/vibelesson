@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
+import { TERMS_VERSION } from '@/lib/legal';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -160,6 +161,7 @@ export default function AuthControls({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -169,6 +171,7 @@ export default function AuthControls({
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const termsConsentId = useId();
   const marketingConsentId = useId();
   const signupStartedRef = useRef(false);
 
@@ -406,6 +409,10 @@ export default function AuthControls({
       setMessage(english ? 'The passwords do not match.' : 'Hesla se neshodují.');
       return;
     }
+    if (!termsAccepted) {
+      setMessage(english ? 'To create an account, accept the Terms of Service.' : 'Pro vytvoření účtu je potřeba souhlasit s Obchodními podmínkami.');
+      return;
+    }
     if (!captchaToken) {
       setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
@@ -421,6 +428,8 @@ export default function AuthControls({
         emailRedirectTo: signupRedirectUrl(),
         captchaToken: token,
         data: {
+          terms_accepted: true,
+          terms_version: TERMS_VERSION,
           marketing_email_consent: marketingConsent,
           ui_locale: locale,
         },
@@ -568,6 +577,21 @@ export default function AuthControls({
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <PasswordField label={english ? 'Password again' : 'Heslo znovu'} value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <div className="auth-legal-consent">
+                  <input
+                    id={termsConsentId}
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(event) => setTermsAccepted(event.target.checked)}
+                    required
+                  />
+                  <label htmlFor={termsConsentId}>
+                    {english ? 'I agree to the ' : 'Souhlasím s '}
+                    <a href={`/${locale}/terms`} target="_blank" rel="noreferrer">{english ? 'Terms of Service' : 'Obchodními podmínkami'}</a>
+                    {english ? ' and acknowledge the ' : ' a beru na vědomí '}
+                    <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'Privacy Notice' : 'informace o ochraně osobních údajů'}</a>.
+                  </label>
+                </div>
                 <div className="auth-marketing-consent">
                   <input
                     id={marketingConsentId}
@@ -579,11 +603,11 @@ export default function AuthControls({
                     {english
                       ? 'I want to receive Syllonaut news, case studies and occasional offers by email. Consent is optional and can be withdrawn at any time. '
                       : 'Chci dostávat e-mailem novinky, případové studie a občasné nabídky Syllonautu. Souhlas je dobrovolný a můžu ho kdykoli odvolat. '}
-                    <a href="/gdpr" target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
+                    <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
                   </label>
                 </div>
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
+                <button className="primary" disabled={busy || !captchaToken || !termsAccepted}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'I already have an account' : 'Už mám účet' }</button>
             </>
