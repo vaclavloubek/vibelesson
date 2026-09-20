@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.58** uzavírá recovery-payment bypass po refundu / chargebacku: refund/dispute AI lock už neuvolní libovolná malá následná platba, ale až kumulativní potvrzené subscription platby, které v dané měně pokryjí celkovou dosud neuhrazenou ztrátu; během refund/dispute locku je zároveň serverově zakázaná změna tarifu. Předchozí 0.9.57 přidala full-refund ochranu, 0.9.56 chargeback/dispute ochranu a 0.9.54 AI-only režim pro `past_due`. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.59** zavádí anti-sharing ochranu pro aktivní školní členy: každý školní uživatelský účet má oddělený privacy-minimal trusted-device ledger s limitem 5 současně aktivních zařízení a 10 skutečně nových zařízení za klouzavých 30 dní; správce školy může aktivní zařízení člena resetovat bez vymazání 30denní historie a resetované tokeny se nesmějí tiše znovu aktivovat. Předchozí 0.9.58 uzavřela recovery-payment bypass po refundu / chargebacku. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -388,6 +388,19 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - autoritativní enforcement je v DB: generation/revision write boundary + grading dispatch/budget; aplikační kontroly slouží pro rychlé a srozumitelné UX;
 - regresní kontrakt: `scripts/verify-past-due-ai-pause.mjs`.
 
+### Organization-member trusted devices 0.9.59 — 2026-09-20
+
+- aktivní člen Team / School / Campus už není z device anti-sharing ochrany vyjmutý; používá **oddělený školní device ledger**, aby správce školy nikdy nemanipuloval s osobní historií zařízení mimo organizaci;
+- školní účet má limit **5 současně aktivních důvěryhodných zařízení** a **10 skutečně nových zařízení za klouzavých 30 dní**; vrácení přesně stejného známého tokenu po běžné self-service revokaci není nové zařízení;
+- interní Syllonaut admin zůstává z device limitu vyjmutý; běžný owner/admin/teacher organizace používá stejnou školní 5/10 politiku;
+- uživatel vidí vlastní aktivní zařízení, rolling 30-day usage a může odebrat starší zařízení; UI explicitně uvádí, že se neukládá IP, User-Agent, poloha ani browser/hardware fingerprint;
+- owner/admin školy vidí u každého aktivního člena počet aktivních zařízení a počet nových zařízení za 30 dní a může ne-owner členovi **resetovat aktivní zařízení**;
+- admin reset nemaže 30denní historii; aktivní tokeny dostanou `admin_revoked_at` a stejný token se nesmí znovu aktivovat. Browser dostane nový náhodný HttpOnly token a ten se započítá jako nové zařízení;
+- sjednocený serverový gate chrání stejné placené operace jako individuální 3/5 politika: AI generování/revize, start live session, worksheet export, placené lesson/folder operace a browser-driven grading/regrade;
+- po produkčním cutoveru `create_live_session_server` a `requeue_response_evaluation_server` používají DB validator `private.trusted_device_hash_valid`, takže school device policy není jen UI/Next.js ochrana;
+- private ledger ani service RPC nejsou dostupné `authenticated` klientovi; device token je stále pouze náhodný 256bit HttpOnly token a v DB se ukládá jen SHA-256 hash;
+- regresní kontrakt: `scripts/verify-organization-member-devices.mjs` + aktualizovaný `scripts/verify-trusted-devices.mjs`.
+
 ### Trusted-device write-boundary hardening 0.9.53 — 2026-09-20
 
 - založení nové live session používá service-role-only RPC a DB-authoritativně načítá snapshot vlastní lekce;
@@ -404,7 +417,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - Zařízení je identifikované pouze SHA-256 hashem náhodného 256bitového HttpOnly tokenu; Syllonaut pro tuto ochranu neukládá IP, User-Agent, polohu ani browser/hardware fingerprint.
 - Free účet lze dál normálně registrovat a přihlásit i po vyčerpání device budgetu; blokované jsou pouze nákladové Free operace. Neúspěšná operace rezervaci uvolní.
 - Free account + device quota se rezervují atomicky v jedné databázové transakci. Device hash přijímá pouze service-role serverová cesta; staré přímo volatelné Free quota RPC failují, aby klient nemohl hash zařízení podvrhnout.
-- Teacher / Teacher Pro mají samostatný anti-sharing model: max. **3 současně důvěryhodná zařízení** a **5 skutečně nových zařízení za klouzavých 30 dní**; aktivní školní členství a interní admin jsou vyjmuté.
+- Teacher / Teacher Pro mají samostatný anti-sharing model: max. **3 současně důvěryhodná zařízení** a **5 skutečně nových zařízení za klouzavých 30 dní**. Aktivní školní člen používá oddělenou organization-device politiku **5 aktivních / 10 nových za 30 dní**; interní Syllonaut admin je vyjmutý.
 - Organizace mají současně seat cap podle tarifu a per-billing-period limit unikátních lidí `seat_limit + max(1, ceil(10 %))`; návrat stejného člena se nepočítá znovu a čekající pozvánka pro nového člověka kapacitu dočasně rezervuje.
 - School/Campus školní obsah nese immutable `organization_origin_id`; po zániku členství zůstává uložený, ale přejde do read-only licenčního zámku a znovu se odemkne po obnovení přístupu.
 - AI grading má interní safety budget nezávislý na marketingových kvótách: Teacher Pro **$2 / 150 pokusů**, School **$10 / 700**, Campus **$25 / 1 750** za UTC kalendářní měsíc; při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
@@ -425,6 +438,7 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 - **Free session lifetime** — první účastník spustí čas; nové joiny max. 120 minut, hard lifetime 6 hodin, write-boundary enforcement + cron, ukončenou session nelze znovu otevřít;
 - **Free multi-account farming** — shared privacy-minimal device budget 6 AI lekcí / 20 AI úprav / 4 importy nebo kopie za klouzavých 30 dní napříč Free účty na jednom zařízení; limity se odvozují jako 2× aktuální Free plán a device hash je server-authoritative;
 - **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení; od 0.9.53 jsou vytvoření nové live session a ruční AI regrade navíc DB/server write-boundary chráněné a staré přímé authenticated cesty jsou uzamčené;
+- **Organization member account sharing** — od 0.9.59 má každý aktivní školní člen oddělený private device ledger s limitem 5 aktivních / 10 nových za klouzavých 30 dní, self-service správu a owner/admin reset aktivních zařízení bez mazání rolling historie; resetované tokeny se nesmějí znovu aktivovat a DB live/regrade boundary používá sjednocený validator;
 - **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
 - **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
 - **Individual payment failure / chargeback / full refund** — `past_due`, otevřený payment dispute i plně refundovaná subscription platba zachovávají uložené placené funkce a live teaching, ale zastavují nové AI generování/revize/grading. Částečný refund nic nezamyká. `past_due` se odemkne po potvrzení platby; vyhraný dispute po potvrzení výsledku/funds reinstated; prohraný dispute a full-refund lock až poté, co pozdější potvrzené subscription platby kumulativně pokryjí dosud neuhrazenou ztrátu;
@@ -435,12 +449,12 @@ Již známé a produkčně zavedené třídy ochrany, které se nemají znovu na
 Následující scénáře jsou po auditu 2026-09-20 považované za významnější zbytková ekonomická / tarifní rizika. Při pokračování se musí znovu ověřit aktuální `main` a produkční DB; tato klasifikace není náhradou skutečného testu.
 
 1. **Recovery-payment integrity po refundu / chargebacku — IMPLEMENTED 0.9.58.** Potvrzené subscription platby se účtují amount-aware po jednotlivých PaymentIntentech a refund/dispute lock se uvolní až při kumulativním pokrytí celkové otevřené ztráty v dané měně. Změna tarifu je během `refund` / `dispute` locku serverově zakázaná. Starý amount-less payment-sync RPC je po cutoveru uzamčený.
-2. **Sdílení jednoho školního uživatelského účtu mezi více reálnými učiteli — PARTIAL.** Organization seat accounting sleduje `user_id`, ale aktivní školní člen je vyjmutý z individuální trusted-device politiky. Před veřejným self-service prodejem Team/School/Campus zavést mírnější organization-device politiku s vyššími limity než individuálních 3/5 a bezpečným admin resetem.
+2. **Sdílení jednoho školního uživatelského účtu mezi více reálnými učiteli — IMPLEMENTED 0.9.59.** Aktivní školní člen používá oddělenou organization-device politiku 5 aktivních / 10 nových zařízení za klouzavých 30 dní. Owner/admin vidí device usage člena a může resetovat aktivní zařízení bez vymazání rolling historie; resetované tokeny se nesmějí znovu aktivovat. Kritické live/regrade DB boundary používají organization-aware validator.
 3. **Placené AI kvóty jsou ukotvené ke kalendářnímu měsíci místo billing period — MISSING.** Nákup těsně před UTC začátkem měsíce může dát dvě plné měsíční AI kvóty za jedinou měsíční platbu. Doporučení: individuální placené kvóty ukotvit k subscription billing anchoru; u annual plánu vytvářet měsíční quota windows odvozené od počátku subscription. Free může zůstat kalendářní.
 4. **Free device budget lze privacy-minimal modelu obejít smazáním device cookie + novými účty — KNOWN RESIDUAL.** Robustnější prevence by vyžadovala stabilnější cross-cookie signál. Bez dalšího rozhodnutí nezavádět browser/hardware fingerprinting. Pokud se riziko stane významné, preferovat krátkodobý privacy-preserving edge rate-limit před fingerprintingem a předem posoudit GDPR/privacy dopady a false positives.
 5. **Organization refund/dispute/payment-failure ochrana před veřejným školním billingem — MISSING / PRE-LAUNCH REQUIREMENT.** Než se Team/School/Campus stanou veřejně self-service prodejné, musí jejich refund/chargeback/past-due lifecycle zastavit další nákladové AI čerpání obdobně jako individuální plány, aniž by zbytečně zablokoval správu organizace a bezpečný billing recovery.
 
-Doporučené další pořadí po uzavření bodu 1: **2 → 3 → 5**. Bod 4 ponechat jako vědomé privacy/abuse trade-off riziko, dokud data neukážou, že skutečně způsobuje významnou ztrátu.
+Doporučené další pořadí po uzavření bodů 1–2: **3 → 5**. Bod 4 ponechat jako vědomé privacy/abuse trade-off riziko, dokud data neukážou, že skutečně způsobuje významnou ztrátu.
 
 Pravidla dalšího anti-abuse kola:
 
