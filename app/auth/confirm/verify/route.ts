@@ -1,5 +1,6 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { startMarketingOnboarding } from '@/lib/marketing-lifecycle';
 import { createClient } from '@/lib/supabase/server';
 
 const SUPPORTED_TYPES = new Set<EmailOtpType>(['email', 'signup', 'recovery']);
@@ -47,13 +48,26 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({
+  const { data, error } = await supabase.auth.verifyOtp({
     type,
     token_hash: tokenHash,
   });
 
   if (error) {
     return NextResponse.redirect(new URL('/auth/error?reason=invalid', request.url), 303);
+  }
+
+  if (type === 'signup' && data.user?.id) {
+    const userId = data.user.id;
+    after(async () => {
+      try {
+        await startMarketingOnboarding(userId);
+      } catch (marketingError) {
+        console.warn('marketing onboarding start failed', {
+          code: marketingError instanceof Error ? marketingError.message : 'unknown',
+        });
+      }
+    });
   }
 
   const requestedDestination = type === 'recovery' ? null : safeSignupDestination(next, request.url);
