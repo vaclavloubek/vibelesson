@@ -94,6 +94,12 @@ export async function POST(req: Request) {
       p_action: 'revise_lesson',
       p_device_token_hash: deviceHash,
     });
+    if (quotaError?.message?.includes(AI_BILLING_PAYMENT_REQUIRED_CODE)) {
+      return NextResponse.json({
+        error: aiBillingPausedMessage(requestLocale),
+        code: AI_BILLING_PAYMENT_REQUIRED_CODE,
+      }, { status: 402 });
+    }
     if (quotaError) {
       console.error('reserve revision quota failed', quotaError);
       return NextResponse.json({ error: 'Nepodařilo se ověřit limit AI úprav.' }, { status: 500 });
