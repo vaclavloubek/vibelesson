@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { currentTrustedDeviceHash, requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { currentTrustedDeviceHash, requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
@@ -10,9 +10,9 @@ export async function POST(_req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
-    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code }, { status: 403 });
   }
 
   let aiBillingPaused: boolean;
@@ -60,7 +60,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
   if (error?.message?.includes('trusted_device_required')) {
     return NextResponse.json({
-      error: trustedDeviceErrorMessage('trusted_device_required'),
+      error: trustedDeviceErrorMessage(deviceGate),
       code: 'trusted_device_required',
     }, { status: 403 });
   }
