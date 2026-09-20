@@ -352,3 +352,29 @@ if (organizationStripe.includes("line_items[0][price_data]")) {
 if (organizationStripe.includes("'syllonaut_org_checkout_' + input.orderId")) {
   throw new Error('School Stripe Checkout must not reuse the legacy v1 idempotency scope.');
 }
+
+
+const schoolBillingLaunch = fs.readFileSync('lib/school-billing-launch.ts', 'utf8');
+for (const needle of [
+  'STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED',
+  "return value !== 'false'",
+]) {
+  if (!schoolBillingLaunch.includes(needle)) {
+    throw new Error('Public school billing launch gate missing: ' + needle);
+  }
+}
+
+const schoolPage = fs.readFileSync('app/school/page.tsx', 'utf8');
+for (const needle of [
+  "import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';",
+  "billingEnvironment === 'live'",
+  'isPublicSchoolBillingEnabled()',
+  ": appRole === 'admin'",
+]) {
+  if (!schoolPage.includes(needle)) {
+    throw new Error('School page launch-gate contract missing: ' + needle);
+  }
+}
+if (schoolPage.includes("process.env.STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED")) {
+  throw new Error('School page must not bypass the shared launch-gate helper.');
+}
