@@ -313,7 +313,7 @@ Každý nález obsahuje konkrétní **Jak opravit** guidance. Jde o pomoc autora
 - **Pro učitele / Pro školy**;
 - **Měsíčně / Ročně**.
 
-Roční varianta komunikuje přibližně **2 měsíce zdarma**. Placené tarify zatím nejsou aktivně prodejné: CTA je neaktivní s textem **Připravujeme**. Aktivní je pouze Free CTA, které otevře existující zabezpečený signup bez platební karty.
+Roční varianta komunikuje přibližně **2 měsíce zdarma**. Individuální tarify **Teacher / Teacher Pro jsou produkčně veřejně prodejné přes LIVE Stripe Checkout**; Free CTA vede na registraci bez platební karty. Team / School / Campus zatím nejsou veřejně koupitelné přes self-service Checkout a jejich CTA zůstávají prezentační / připravované.
 
 Individuální plány:
 
@@ -333,6 +333,35 @@ Všechny individuální plány počítají s live hodinami bez tarifního limitu
 - Teacher / Teacher Pro mají samostatný anti-sharing model: max. **3 současně důvěryhodná zařízení** a **5 skutečně nových zařízení za klouzavých 30 dní**; aktivní školní členství a interní admin jsou vyjmuté.
 - Organizace mají současně seat cap podle tarifu a per-billing-period limit unikátních lidí `seat_limit + max(1, ceil(10 %))`; návrat stejného člena se nepočítá znovu a čekající pozvánka pro nového člověka kapacitu dočasně rezervuje.
 - School/Campus školní obsah nese immutable `organization_origin_id`; po zániku členství zůstává uložený, ale přejde do read-only licenčního zámku a znovu se odemkne po obnovení přístupu.
+- AI grading má interní safety budget nezávislý na marketingových kvótách: Teacher Pro **$8 / 1 000 pokusů**, School **$75 / 7 500**, Campus **$200 / 20 000** za UTC kalendářní měsíc; při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
+
+### Anti-abuse audit — zdroj pravdy a pokračovací protokol
+
+Tahle sekce je handoff pro další anti-abuse chat. **`PROJECT.md` je orientační souhrn, nikoli důkaz, že ochrana opravdu funguje.** Při každém dalším kole je nutné nejdřív načíst aktuální `main`, ověřit relevantní API/RPC/triggery/migrace a podle potřeby produkční DB stav v Supabase. Teprve potom klasifikovat scénář jako `IMPLEMENTED`, `PARTIAL` nebo `MISSING`.
+
+Již známé a produkčně zavedené třídy ochrany, které se nemají znovu navrhovat bez nalezení konkrétního bypassu:
+
+- **Free account quota** — 5 AI lekcí / 20 AI úprav / 3 importy nebo kopie za měsíc;
+- **Free lesson-family reuse** — jedna skutečná live výuka na logickou rodinu lekce; kopie/importy zachovávají immutable `reuse_family_id`, takže duplikace neresetuje oprávnění;
+- **Free session lifetime** — první účastník spustí čas; nové joiny max. 120 minut, hard lifetime 6 hodin, write-boundary enforcement + cron, ukončenou session nelze znovu otevřít;
+- **Free multi-account farming** — shared privacy-minimal device budget 10 AI lekcí / 40 AI úprav / 6 importů nebo kopií za klouzavých 30 dní napříč Free účty na jednom zařízení; device hash je server-authoritative;
+- **Teacher / Teacher Pro account sharing** — max. 3 současně důvěryhodná zařízení a max. 5 skutečně nových zařízení za klouzavých 30 dní; self-service revokace, účet není locknutý mimo správu zařízení;
+- **Organization seat sharing / rotation** — současný seat cap + limit unikátních lidí za billing period `seat_limit + max(1, ceil(10 %))`, čekající pozvánka rezervuje kapacitu;
+- **School/Campus content extraction** — školní knihovní obsah a jeho potomci nesou immutable `organization_origin_id`, nelze ho veřejně sdílet přes lesson share a po ztrátě členství se uzamkne read-only licenčním zámkem;
+- **AI grading cost abuse** — atomický interní safety budget a count ceiling, rezervace před AI callem, failed reservation se uvolní, browser i server-worker cesta jsou chráněné.
+
+Pravidla dalšího anti-abuse kola:
+
+1. Nejdřív vytvořit nové realistické scénáře zneužití **tarifní politiky a ekonomiky produktu** napříč Free, Teacher, Teacher Pro, Team, School a Campus. Zaměřit se na obcházení kvót, sdílení účtů, rotaci identit, kopírování/licencování obsahu, souběh, downgrade/upgrade, trial/payment lifecycle, veřejné share/import flow, AI grading a rozdíly browser/API/RPC cest.
+2. U každého scénáře před návrhem řešení ověřit skutečný projekt: aktuální `main`, relevantní Next.js route, Supabase funkce/triggery/RLS/granty/migrace, billing entitlementy a podle potřeby produkční data. **Neodvozovat stav pouze z názvu migrace nebo z tohoto markdownu.**
+3. Zřetelně uvést, zda je scénář už chráněný, částečně chráněný, nebo skutečně otevřený. Pokud ochrana existuje, pokusit se najít praktický bypass; bez bypassu ji neimplementovat znovu.
+4. Otevřené problémy řešit postupně. Pro každý významný problém nejdřív navrhnout několik variant se zásahy do UX, privacy, ekonomiky a technické složitosti a označit doporučenou variantu. Implementaci významné produktové politiky provést až po schválení vlastníkem projektu.
+5. Po schválení už nezůstávat u návrhu: změnu skutečně implementovat podle projektových pravidel, po malých krocích a s průběžnými heartbeat updates.
+6. Enforcement preferovat **serverově / databázově a atomicky**. Klientský stav ani klientem dodaný device/account identifikátor nesmí být autoritou pro kvótu nebo entitlement.
+7. Preferovat privacy-minimal řešení. Bez explicitní potřeby nezavádět IP-based identity, browser/hardware fingerprinting ani další invazivní identifikátory. Pokud ochrana může způsobit false positive, zachovat cestu k nápravě a neblokovat uživateli správu účtu nebo bezpečný cleanup.
+8. Každou DB změnu nejdřív dry-run / rollback test, potom relevantní abuse scénář v rollbackované transakci. Po DDL spustit Supabase security/performance advisors a posoudit nové nálezy věcně, ne mechanicky.
+9. Každou aplikační změnu ověřit přes existující `npm run check`, relevantní regresní verifier, Vercel Preview, Security headers a Accessibility/axe. Produkci měnit až po zeleném Preview/CI a merge do `main`.
+10. Po dokončení aktualizovat `PROJECT.md`, případně přidat nový regression verifier. Dokumentační-only změna sama o sobě neposouvá verzi; funkční produkční anti-abuse změna se verzováním řídí obecnými pravidly projektu.
 
 Školní/týmové plány:
 
@@ -342,7 +371,7 @@ Všechny individuální plány počítají s live hodinami bez tarifního limitu
 
 Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obsahují.
 
-Týmová administrace a skutečné organization membership zatím implementované nejsou. Billing foundation je připravený pouze pro individuální Free / Teacher / Teacher Pro; Team / School / Campus se zatím nesmí provisionovat.
+Organizační vrstva pro školní tarify je implementovaná: organizations, membership/role model, pozvánky, seat enforcement, sdílená knihovna pro School/Campus, billing/workflow základ a licenční ochrany obsahu. Team / School / Campus zatím nejsou veřejně samoobslužně prodejné přes LIVE Checkout; jejich provisioning a billing se nesmí vydávat za veřejně spuštěný self-service prodej.
 
 ### Server-authoritative profil a entitlementy
 
@@ -377,7 +406,7 @@ Od 0.8.04 je individuální billing zadrátovaný do DB provisioning modelu:
 - ostrý entitlement se počítá jen z live subscriptions ve stavech `trialing`, `active` nebo `past_due`; `unpaid`, `canceled`, `incomplete`, `incomplete_expired` a `paused` přístup neudělují;
 - admin zůstává vždy neomezený a ruční entitlement override se při změně tarifu zachovává.
 
-Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, u subscription lifecycle eventů vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Od 0.9.13 live subscription event před DB syncem navíc serverově vyhledá právě jeden dokončený Checkout Session podle subscription ID, ověří Customer/user vazbu a skutečnou `customer_details.address.country`; entitlement se fail-closed neprovisionuje, pokud skutečná země neodpovídá měně a Merchant-of-Record větvi. Do DB se ukládá skutečná Checkout country, nikoli pouze předvolená metadata. `invoice.payment_failed` a `invoice.paid` zůstávají pouze audit/recovery signál. Test-clock subscription eventy se dál ignorují. Production Vercel má oddělené test/live Stripe server-only credentials; veřejné placené CTA jsou stále vypnuté a live Checkout je do dokončení acceptance serverově admin-only.
+Webhook HTTP endpoint `/api/billing/stripe/webhook` je od 0.8.05 implementovaný. Ověřuje raw request body přes Stripe HMAC SHA-256 s pětiminutovou tolerancí, odděluje test/live signing secret, u subscription lifecycle eventů vyžaduje serverem zapsané `syllonaut_user_id` + `syllonaut_billing_country` metadata a kontroluje invariant `CZ→CZK+standard Stripe / eurozóna→EUR+Managed Payments / ostatní→USD+Managed Payments`. Od 0.9.13 live subscription event před DB syncem navíc serverově vyhledá právě jeden dokončený Checkout Session podle subscription ID, ověří Customer/user vazbu a skutečnou `customer_details.address.country`; entitlement se fail-closed neprovisionuje, pokud skutečná země neodpovídá měně a Merchant-of-Record větvi. Do DB se ukládá skutečná Checkout country, nikoli pouze předvolená metadata. `invoice.payment_failed` a `invoice.paid` zůstávají pouze audit/recovery signál. Test-clock subscription eventy se dál ignorují. Production Vercel má oddělené test/live Stripe server-only credentials. LIVE Checkout je veřejně aktivní pro Teacher / Teacher Pro; Team / School / Campus zůstávají mimo veřejný self-service prodej.
 
 
 ### Stripe sandbox — dokončený acceptance stav 2026-09-19
@@ -911,14 +940,14 @@ SEC-006 closed; SEC-007 accepted/deferred.
 
 ### Milník A.3 — Pricing / tarifní produktová vrstva
 
-**Veřejný Ceník je dokončen; Stripe + DB billing foundation a hlavní sandbox lifecycle jsou implementované a end-to-end otestované. Ostrý prodej zůstává záměrně vypnutý.**
+**Veřejný Ceník je dokončen; individuální Teacher / Teacher Pro LIVE billing je produkčně spuštěný a end-to-end ověřený. Team / School / Campus mají implementovanou organizační/billing foundation, ale veřejný self-service prodej zatím spuštěný není.**
 
 Hotovo:
 
 - teacher/school segment;
 - monthly/annual;
 - regionální pricing: CZK pro ČR, EUR pro eurozónu, USD pro ostatní;
-- Free signup CTA; placené CTA zůstává `Připravujeme`;
+- Free signup CTA; Teacher / Teacher Pro mají aktivní LIVE Checkout CTA; Team / School / Campus zůstávají bez veřejného self-service nákupu;
 - Teacher Pro premium features; School/Campus obsahují AI grading + folders;
 - Stripe sandbox katalog CZK/EUR/USD;
 - DB plan/price/customer/subscription/event model pro individuální plány;
@@ -933,14 +962,9 @@ Hotovo:
 - otestováno cancel-at-period-end, obnovení zrušení, upgrade/downgrade Teacher ↔ Teacher Pro, změna billing období a německá DPH;
 - sandbox nesmí měnit ostré entitlementy a ruční entitlement overrides se zachovávají.
 
-Zbývá před skutečným prodejem:
+Zbývá před veřejným self-service prodejem Team / School / Campus:
 
-- live Stripe Price IDs, live credentials a produkční onboarding;
-- finálně ověřovat skutečnou billing country ze Stripe dat; předem zvolená země nesmí sama rozhodnout live routing;
-- produkční acceptance testy webhooků, checkoutu, renewal/failure/cancel/upgrade/downgrade flow;
 - definovat bezpečný country/currency migration flow, pokud zákazník změní fakturační zemi/region;
-- organization membership/roles pro Team / School / Campus;
-- teprve potom aktivovat placené CTA a ostrý prodej.
 
 ### Milník A.4 — Privacy / GDPR / produktová analytika
 
