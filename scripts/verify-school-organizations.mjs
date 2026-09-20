@@ -25,6 +25,7 @@ const requiredFiles = [
   'supabase/migrations/20260919173000_harden_school_overdue_and_admin_quota.sql',
   'supabase/migrations/20260920064000_protect_school_owner_invites.sql',
   'supabase/migrations/20260920074000_add_organization_bank_invoices.sql',
+  'supabase/migrations/20260920074100_index_organization_bank_invoice_fks.sql',
   'lib/organization-bank-invoice.ts',
   'lib/organization-bank-match.ts',
   'lib/organization-invoice-pdf.ts',
@@ -280,6 +281,20 @@ for (const needle of [
 ]) {
   if (!schoolAdmin.includes(needle)) {
     throw new Error('School sandbox payment diagnostics UX missing: ' + needle);
+  }
+}
+
+const bankInvoiceIndexMigration = fs.readFileSync(
+  'supabase/migrations/20260920074100_index_organization_bank_invoice_fks.sql',
+  'utf8',
+);
+for (const needle of [
+  'organization_bank_payment_confirmations_organization_idx',
+  'organization_bank_payment_confirmations_actor_idx',
+  'organization_orders_payment_confirmed_by_idx',
+]) {
+  if (!bankInvoiceIndexMigration.includes(needle)) {
+    throw new Error('Organization bank invoice FK index contract missing: ' + needle);
   }
 }
 
