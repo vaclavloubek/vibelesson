@@ -42,16 +42,25 @@ Hlavní doména: `syllonaut.com`.
 
 Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; tento dokument nesmí nahrazovat kontrolu aktuálního `main`.
 
-### Přepočet školních tarifů a komunikace hodnoty — 2026-09-20
+### Přepočet tarifů, AI ekonomika a USP — 2026-09-20
 
-Školní ceny byly po konkurenčním benchmarku přepočítány tak, aby lépe odpovídaly českému trhu a současně zachovaly ekonomiku sdílených AI limitů:
+Tarify byly přepočítány podle skutečně uložených AI Gateway nákladů z produkčního provozu 16.–19. 9. 2026. Naměřený průměr: nová lekce **$0.142037** (n=28; p95 $0.243025), úprava celé lekce **$0.095525** (n=13; p95 $0.151851), úprava bloku **$0.032222** (n=8; p95 $0.048424) a AI hodnocení jedné odpovědi **$0.014362** (n=63; p95 $0.026176). Pozorovaný mix lesson/block revizí stojí v průměru **$0.071409 za AI úpravu**.
 
-- **Team:** 890 Kč/měsíc nebo 8 900 Kč/rok, až 10 učitelů, 200 AI lekcí + 800 AI úprav měsíčně společně;
-- **School:** 2 390 Kč/měsíc nebo 23 900 Kč/rok, až 30 učitelů, 600 AI lekcí + 2 400 AI úprav měsíčně společně;
-- **Campus:** 5 990 Kč/měsíc nebo 59 900 Kč/rok, až 100 učitelů, 2 000 AI lekcí + 8 000 AI úprav měsíčně společně.
+Finální měsíční AI kvóty:
+- **Free:** 5 nových AI lekcí + 10 AI úprav; 3 importy/kopie; každou lesson family lze živě použít jednou;
+- **Teacher:** 10 nových AI lekcí + 20 AI úprav; hotové lekce lze živě používat opakovaně bez omezení;
+- **Teacher Pro:** 20 nových AI lekcí + 25 AI úprav; navíc AI grading, pracovní listy/PDF a složky;
+- **Team:** 40 nových AI lekcí + 80 AI úprav společně / měsíc, až 10 učitelů;
+- **School:** 120 nových AI lekcí + 240 AI úprav společně / měsíc, až 30 učitelů;
+- **Campus:** 300 nových AI lekcí + 600 AI úprav společně / měsíc, až 100 učitelů.
 
-Roční cena nadále odpovídá zhruba 10 měsíčním platbám (2 měsíce zdarma). Hlavním prodejním argumentem školních tarifů není počet samotných AI generování, ale celý workflow **zadání → AI příprava → AI úpravy → živá hodina → sběr odpovědí → vyhodnocení**. Pricing stránka proto nově tento proces vizuálně ukazuje ve čtyřech krocích a používá benefitový headline **„Od nápadu až po odučenou hodinu. V jednom tarifu.“**
+Interní AI-grading safety budgety (nejsou customer-facing quota): **Teacher Pro $2 / 150 pokusů**, **School $10 / 700 pokusů**, **Campus $25 / 1 750 pokusů** za měsíc. Při dosažení safety budgetu systém bezpečně přechází na manual review.
 
+Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měs. nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měs. nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 53 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
+
+**USP pro Pricing a akvizici:** Syllonaut neprodává neomezené generování materiálů jako hlavní hodnotu. Jedna AI lekce je znovupoužitelný live výukový celek: **zadání → AI příprava → přirozené AI úpravy → živá hodina → studentské odpovědi → vyhodnocení → opakované použití**. AI limit se proto vztahuje pouze na novou AI tvorbu a AI úpravy. U placených tarifů spuštění, studentské připojení a opakované používání již vytvořených lekcí AI limit nespotřebovává. Pricing tuto logiku musí komunikovat výrazněji než samotné číselné kvóty.
+
+Konkurenční kontext: ScioBot veřejně komunikuje neomezený počet základních příprav zdarma a ve ScioBot+ neomezené prémiové přípravy / ScioChat; školní licence navíc neomezuje počet učitelů. Syllonaut proto nemá soutěžit tvrzením „více generování“, ale celým řízeným workflow skutečně odučené interaktivní hodiny a znovupoužitelností hotových lekcí.
 
 ### Versionování produktu
 
