@@ -55,7 +55,7 @@ export default async function LessonsPage({ searchParams }: Props) {
 
   const entitlement = await getLessonFolderEntitlement(supabase, userId);
   const reusableLessons = await getLessonReuseEntitlement(supabase);
-  let aiBillingPauseReason: 'past_due' | 'dispute' | null = null;
+  let aiBillingPauseReason: 'past_due' | 'dispute' | 'refund' | null = null;
   try {
     aiBillingPauseReason = await getIndividualAiBillingPauseReason(userId);
   } catch (billingError) {
