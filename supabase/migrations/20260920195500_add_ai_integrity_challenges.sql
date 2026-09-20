@@ -108,17 +108,38 @@ begin
         else p_ai_suspicion_reasons
       end,
       integrity_challenge_question = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null
+        when p_ai_suspicion = 'high'
+             and e.participant_id is not null
+             and exists (
+               select 1
+               from public.sessions s
+               where s.id = e.session_id
+                 and s.status = 'live'
+             )
           then btrim(p_integrity_challenge_question)
         else null
       end,
       integrity_challenge_answer = null,
       integrity_challenge_status = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null then 'pending'
+        when p_ai_suspicion = 'high'
+             and e.participant_id is not null
+             and exists (
+               select 1
+               from public.sessions s
+               where s.id = e.session_id
+                 and s.status = 'live'
+             ) then 'pending'
         else 'not_required'
       end,
       integrity_challenge_created_at = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null then now()
+        when p_ai_suspicion = 'high'
+             and e.participant_id is not null
+             and exists (
+               select 1
+               from public.sessions s
+               where s.id = e.session_id
+                 and s.status = 'live'
+             ) then now()
         else null
       end,
       integrity_challenge_presented_at = null,
@@ -211,17 +232,38 @@ begin
         else p_ai_suspicion_reasons
       end,
       integrity_challenge_question = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null
+        when p_ai_suspicion = 'high'
+             and e.participant_id is not null
+             and exists (
+               select 1
+               from public.sessions s
+               where s.id = e.session_id
+                 and s.status = 'live'
+             )
           then btrim(p_integrity_challenge_question)
         else null
       end,
       integrity_challenge_answer = null,
       integrity_challenge_status = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null then 'pending'
+        when p_ai_suspicion = 'high'
+             and e.participant_id is not null
+             and exists (
+               select 1
+               from public.sessions s
+               where s.id = e.session_id
+                 and s.status = 'live'
+             ) then 'pending'
         else 'not_required'
       end,
       integrity_challenge_created_at = case
-        when p_ai_suspicion = 'high' and e.participant_id is not null then now()
+        when p_ai_suspicion = 'high'
+             and e.participant_id is not null
+             and exists (
+               select 1
+               from public.sessions s
+               where s.id = e.session_id
+                 and s.status = 'live'
+             ) then now()
         else null
       end,
       integrity_challenge_presented_at = null,
