@@ -167,6 +167,7 @@ export default function SchoolAdmin({
   const [billingPeriod, setBillingPeriod] = useState<OrganizationBillingPeriod>(initialBilling);
   const [name, setName] = useState('');
   const [legalName, setLegalName] = useState('');
+  const [legalNameTouched, setLegalNameTouched] = useState(false);
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [vatId, setVatId] = useState('');
   const [billingEmail, setBillingEmail] = useState(initialUser?.email ?? '');
@@ -1134,17 +1135,37 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.field}>
-                <label>{ui('Název školy / týmu', 'School / team name')}</label>
-                <input required value={name} onChange={(event) => setName(event.target.value)} />
+                <label>{ui('Název školy / týmu *', 'School / team name *')}</label>
+                <input
+                  required
+                  value={name}
+                  onChange={(event) => {
+                    const nextName = event.target.value;
+                    setName(nextName);
+                    if (!legalNameTouched) setLegalName(nextName);
+                  }}
+                />
               </div>
 
               <div className={styles.field}>
-                <label>{ui('Oficiální název', 'Legal name')}</label>
-                <input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
+                <label>{ui('Oficiální název *', 'Legal name *')}</label>
+                <input
+                  required
+                  value={legalName}
+                  onChange={(event) => {
+                    setLegalNameTouched(true);
+                    setLegalName(event.target.value);
+                  }}
+                />
               </div>
 
               <div className={styles.field}>
-                <label>{ui('IČO / registrační číslo', 'Registration number')}</label>
+                <label>
+                  {ui(
+                    'IČO / registrační číslo (volitelné)',
+                    'Registration number (optional)',
+                  )}
+                </label>
                 <input
                   value={registrationNumber}
                   onChange={(event) => setRegistrationNumber(event.target.value)}
@@ -1152,12 +1173,12 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.field}>
-                <label>{ui('DIČ / VAT ID', 'VAT ID')}</label>
+                <label>{ui('DIČ / VAT ID (volitelné)', 'VAT ID (optional)')}</label>
                 <input value={vatId} onChange={(event) => setVatId(event.target.value)} />
               </div>
 
               <div className={styles.field}>
-                <label>{ui('Fakturační e-mail', 'Billing email')}</label>
+                <label>{ui('Fakturační e-mail *', 'Billing email *')}</label>
                 <input
                   type="email"
                   required
@@ -1167,7 +1188,7 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.field}>
-                <label>{ui('Fakturační země', 'Billing country')}</label>
+                <label>{ui('Fakturační země *', 'Billing country *')}</label>
                 <input
                   required
                   maxLength={2}
@@ -1177,21 +1198,23 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.field}>
-                <label>{ui('Ulice a číslo', 'Street address')}</label>
+                <label>{ui('Ulice a číslo *', 'Street address *')}</label>
                 <input
+                  required
                   value={addressLine1}
                   onChange={(event) => setAddressLine1(event.target.value)}
                 />
               </div>
 
               <div className={styles.field}>
-                <label>{ui('Město', 'City')}</label>
-                <input value={city} onChange={(event) => setCity(event.target.value)} />
+                <label>{ui('Město *', 'City *')}</label>
+                <input required value={city} onChange={(event) => setCity(event.target.value)} />
               </div>
 
               <div className={styles.field}>
-                <label>{ui('PSČ', 'Postal code')}</label>
+                <label>{ui('PSČ *', 'Postal code *')}</label>
                 <input
+                  required
                   value={postalCode}
                   onChange={(event) => setPostalCode(event.target.value)}
                 />

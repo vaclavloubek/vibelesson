@@ -206,6 +206,37 @@ for (const needle of [
   }
 }
 
+const organizationOrderRoute = fs.readFileSync(
+  'app/api/organizations/route.ts',
+  'utf8',
+);
+for (const needle of [
+  "legalName: z.string().trim().min(2).max(200)",
+  "line1: z.string().trim().min(2).max(160)",
+  "city: z.string().trim().min(2).max(120)",
+  "postalCode: z.string().trim().min(2).max(32)",
+]) {
+  if (!organizationOrderRoute.includes(needle)) {
+    throw new Error('School billing required-field contract missing: ' + needle);
+  }
+}
+
+for (const needle of [
+  'legalNameTouched',
+  "Oficiální název *",
+  "Fakturační e-mail *",
+  "Fakturační země *",
+  "Ulice a číslo *",
+  "Město *",
+  "PSČ *",
+  "IČO / registrační číslo (volitelné)",
+  "DIČ / VAT ID (volitelné)",
+]) {
+  if (!schoolAdmin.includes(needle)) {
+    throw new Error('School billing form required-field UX missing: ' + needle);
+  }
+}
+
 const currentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');
 if (!currentRoute.includes('canManageOrganization')) {
   throw new Error('School summary must enforce manager scope.');
