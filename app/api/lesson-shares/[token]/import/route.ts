@@ -1,7 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 
@@ -51,10 +51,10 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
   }
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
     return NextResponse.json({
-      error: trustedDeviceErrorMessage(deviceGate.code),
+      error: trustedDeviceErrorMessage(deviceGate),
       code: deviceGate.code,
     }, { status: 403 });
   }

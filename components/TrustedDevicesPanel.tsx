@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import styles from './SubscriptionManagement.module.css';
 
+type DeviceScope = 'none' | 'personal' | 'organization';
+
 type DeviceRow = {
   id: string;
   firstTrustedAt: string;
@@ -13,6 +15,8 @@ type DeviceRow = {
 
 type DeviceSummary = {
   required: boolean;
+  scope: DeviceScope;
+  organizationId: string | null;
   activeCount: number;
   maxActive: number;
   newIn30Days: number;
@@ -24,6 +28,7 @@ type DeviceSummary = {
 type Registration = {
   required: boolean;
   trusted: boolean;
+  scope: DeviceScope;
   code: string | null;
 };
 
@@ -100,34 +105,45 @@ export default function TrustedDevicesPanel() {
 
   if (!payload?.summary.required) return null;
 
+  const school = payload.summary.scope === 'organization';
   const blockedCode = payload.registration.code;
   const blockedMessage = blockedCode === 'trusted_device_limit_reached'
     ? ui(
-      'Toto zařízení zatím není důvěryhodné, protože už jsou aktivní 3 zařízení. Odeber některé jiné zařízení; aktuální se pak automaticky zkusí přidat.',
-      'This device is not trusted yet because 3 devices are already active. Remove another device and the current one will be registered automatically.',
+      `Toto zařízení zatím není důvěryhodné, protože už je aktivních ${payload.summary.maxActive} zařízení. Odeber některé jiné zařízení; aktuální se pak automaticky zkusí přidat.`,
+      `This device is not trusted yet because ${payload.summary.maxActive} devices are already active. Remove another device and the current one will be registered automatically.`,
     )
     : blockedCode === 'trusted_device_rotation_limit_reached'
       ? ui(
-        'Toto zařízení zatím nelze přidat: za posledních 30 dní už bylo přidáno 5 nových zařízení.',
-        'This device cannot be added yet: 5 new devices have already been added in the last 30 days.',
+        `Toto zařízení zatím nelze přidat: za posledních 30 dní už bylo přidáno ${payload.summary.maxNewIn30Days} nových zařízení.`,
+        `This device cannot be added yet: ${payload.summary.maxNewIn30Days} new devices have already been added in the last 30 days.`,
       )
-      : blockedCode === 'trusted_device_cookie_missing'
+      : blockedCode === 'trusted_device_reset_required'
         ? ui(
-          'Aktuální zařízení se zatím nepodařilo bezpečně identifikovat. Obnov stránku.',
-          'The current device could not be identified securely yet. Refresh the page.',
+          'Správce školy resetoval důvěryhodná zařízení. Obnov stránku; Syllonaut vytvoří nový náhodný device token a zařízení se znovu započítá do 30denního limitu.',
+          'A school administrator reset the trusted devices. Refresh the page; Syllonaut will create a new random device token and the device will count again toward the rolling 30-day limit.',
         )
-        : null;
+        : blockedCode === 'trusted_device_cookie_missing'
+          ? ui(
+            'Aktuální zařízení se zatím nepodařilo bezpečně identifikovat. Obnov stránku.',
+            'The current device could not be identified securely yet. Refresh the page.',
+          )
+          : null;
 
   return (
     <section className={styles.devicesCard}>
       <div className={styles.deviceHeading}>
         <div>
-          <span className={styles.kicker}>{ui('Zabezpečení tarifu', 'Plan security')}</span>
+          <span className={styles.kicker}>{ui('Zabezpečení účtu', 'Account security')}</span>
           <h2>{ui('Důvěryhodná zařízení', 'Trusted devices')}</h2>
-          <p>{ui(
-            'Teacher a Teacher Pro jsou určené pro jednoho učitele. Účet může používat nejvýše 3 důvěryhodná zařízení.',
-            'Teacher and Teacher Pro are intended for one teacher. The account can use up to 3 trusted devices.',
-          )}</p>
+          <p>{school
+            ? ui(
+              `Školní uživatelský účet je určený pro jednoho člověka. Může používat nejvýše ${payload.summary.maxActive} současně důvěryhodných zařízení a během 30 dní lze přidat nejvýše ${payload.summary.maxNewIn30Days} nových zařízení.`,
+              `A school user account is intended for one person. It can use up to ${payload.summary.maxActive} trusted devices at once and add at most ${payload.summary.maxNewIn30Days} new devices in a rolling 30-day period.`,
+            )
+            : ui(
+              `Teacher a Teacher Pro jsou určené pro jednoho učitele. Účet může používat nejvýše ${payload.summary.maxActive} důvěryhodných zařízení.`,
+              `Teacher and Teacher Pro are intended for one teacher. The account can use up to ${payload.summary.maxActive} trusted devices.`,
+            )}</p>
         </div>
       </div>
 

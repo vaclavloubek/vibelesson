@@ -34,6 +34,7 @@ export async function GET() {
   const admin = createAdminClient();
   const plan = ORGANIZATION_PLANS[organization.planCode];
   const manager = canManageOrganization(organization.role);
+  const devicePolicyActive = organization.status === 'active';
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
@@ -89,6 +90,13 @@ export async function GET() {
     p_organization_id: organization.id,
   });
 
+  const deviceUsageResult = manager && devicePolicyActive
+    ? await admin.rpc('get_organization_member_device_usage_server', {
+      p_actor_id: userId,
+      p_organization_id: organization.id,
+    })
+    : { data: [], error: null };
+
   const ordersResult = manager
     ? await admin
       .from('organization_orders')
@@ -106,6 +114,7 @@ export async function GET() {
     || libraryResult.error
     || ownLessonsResult.error
     || seatUsageResult.error
+    || deviceUsageResult.error
     || ordersResult.error
   ) {
     console.error('organization summary lookup failed', {
@@ -116,20 +125,43 @@ export async function GET() {
       library: libraryResult.error?.code,
       ownLessons: ownLessonsResult.error?.code,
       seats: seatUsageResult.error?.code,
+      devices: deviceUsageResult.error?.code,
       orders: ordersResult.error?.code,
     });
     return NextResponse.json({ error: 'organization_summary_failed' }, { status: 500 });
   }
 
   const memberRows = membersResult.data ?? [];
+  const deviceUsageRows = Array.isArray(deviceUsageResult.data)
+    ? deviceUsageResult.data as Array<{
+      userId?: string;
+      activeCount?: number;
+      maxActive?: number;
+      newIn30Days?: number;
+      maxNewIn30Days?: number;
+    }>
+    : [];
+  const deviceUsageByUser = new Map(
+    deviceUsageRows
+      .filter((row): row is typeof row & { userId: string } => typeof row.userId === 'string')
+      .map((row) => [row.userId, row]),
+  );
+
   const members = manager
     ? await Promise.all(memberRows.map(async (row) => {
       const { data } = await admin.auth.admin.getUserById(row.user_id);
+      const devices = deviceUsageByUser.get(row.user_id);
       return {
         userId: row.user_id,
         email: data.user?.email ?? null,
         role: row.role,
         joinedAt: row.joined_at,
+        devices: devicePolicyActive ? {
+          activeCount: devices?.activeCount ?? 0,
+          maxActive: devices?.maxActive ?? 5,
+          newIn30Days: devices?.newIn30Days ?? 0,
+          maxNewIn30Days: devices?.maxNewIn30Days ?? 10,
+        } : null,
       };
     }))
     : memberRows
@@ -139,6 +171,7 @@ export async function GET() {
         email: null,
         role: row.role,
         joinedAt: row.joined_at,
+        devices: null,
       }));
 
   const requestRows = requestsResult.data ?? [];

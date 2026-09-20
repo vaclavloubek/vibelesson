@@ -3,9 +3,13 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TRUSTED_DEVICE_COOKIE } from '@/lib/device-cookie';
 
+export type TrustedDeviceScope = 'none' | 'personal' | 'organization';
+
 export type TrustedDeviceGate = {
   required: boolean;
   trusted: boolean;
+  scope: TrustedDeviceScope;
+  organizationId: string | null;
   code: string | null;
   activeCount: number;
   maxActive: number;
@@ -14,39 +18,56 @@ export type TrustedDeviceGate = {
   deviceId?: string | null;
 };
 
-function normalizeGate(value: unknown): TrustedDeviceGate {
+function normalizeScope(value: unknown): TrustedDeviceScope {
+  return value === 'personal' || value === 'organization' ? value : 'none';
+}
+
+export function normalizeTrustedDeviceGate(value: unknown): TrustedDeviceGate {
   const row = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const scope = normalizeScope(row.scope);
   return {
     required: Boolean(row.required),
     trusted: Boolean(row.trusted),
+    scope,
+    organizationId: typeof row.organizationId === 'string' ? row.organizationId : null,
     code: typeof row.code === 'string' ? row.code : null,
     activeCount: typeof row.activeCount === 'number' ? row.activeCount : 0,
-    maxActive: typeof row.maxActive === 'number' ? row.maxActive : 3,
+    maxActive: typeof row.maxActive === 'number' ? row.maxActive : scope === 'organization' ? 5 : 3,
     newIn30Days: typeof row.newIn30Days === 'number' ? row.newIn30Days : 0,
-    maxNewIn30Days: typeof row.maxNewIn30Days === 'number' ? row.maxNewIn30Days : 5,
+    maxNewIn30Days: typeof row.maxNewIn30Days === 'number' ? row.maxNewIn30Days : scope === 'organization' ? 10 : 5,
     deviceId: typeof row.deviceId === 'string' ? row.deviceId : null,
   };
+}
+
+export function hashTrustedDeviceToken(token: string) {
+  return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
 export async function currentTrustedDeviceHash() {
   const cookieStore = await cookies();
   const token = cookieStore.get(TRUSTED_DEVICE_COOKIE)?.value ?? null;
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  return createHash('sha256').update(token, 'utf8').digest('hex');
+  return hashTrustedDeviceToken(token);
 }
 
-export async function registerCurrentTrustedDevice(userId: string): Promise<TrustedDeviceGate> {
+export async function registerTrustedDeviceHash(
+  userId: string,
+  tokenHash: string | null,
+): Promise<TrustedDeviceGate> {
   const admin = createAdminClient();
-  const tokenHash = await currentTrustedDeviceHash();
-  const { data, error } = await admin.rpc('register_personal_trusted_device', {
+  const { data, error } = await admin.rpc('register_trusted_device_server', {
     p_user_id: userId,
     p_token_hash: tokenHash,
   });
   if (error) throw new Error('trusted_device_registration_failed');
-  return normalizeGate(data);
+  return normalizeTrustedDeviceGate(data);
 }
 
-export async function requireTrustedDeviceForPaidIndividual(userId: string) {
+export async function registerCurrentTrustedDevice(userId: string): Promise<TrustedDeviceGate> {
+  return registerTrustedDeviceHash(userId, await currentTrustedDeviceHash());
+}
+
+export async function requireTrustedDeviceForPaidAccess(userId: string) {
   const gate = await registerCurrentTrustedDevice(userId);
   return {
     ...gate,
@@ -54,15 +75,36 @@ export async function requireTrustedDeviceForPaidIndividual(userId: string) {
   };
 }
 
-export function trustedDeviceErrorMessage(code: string | null) {
-  if (code === 'trusted_device_limit_reached') {
-    return 'Tento individuální účet už má 3 důvěryhodná zařízení. Odeber jedno starší zařízení ve správě předplatného.';
+// Backward-compatible export so every existing paid-operation route gets the
+// organization-member policy even before call sites are renamed.
+export async function requireTrustedDeviceForPaidIndividual(userId: string) {
+  return requireTrustedDeviceForPaidAccess(userId);
+}
+
+export function trustedDeviceErrorMessage(gate: Pick<TrustedDeviceGate, 'code' | 'scope' | 'maxActive' | 'maxNewIn30Days'>) {
+  const organization = gate.scope === 'organization';
+
+  if (gate.code === 'trusted_device_limit_reached') {
+    return organization
+      ? `Tento školní uživatelský účet už má ${gate.maxActive} důvěryhodných zařízení. Odeber starší zařízení ve správě školy nebo požádej správce školy o reset aktivních zařízení.`
+      : `Tento individuální účet už má ${gate.maxActive} důvěryhodných zařízení. Odeber jedno starší zařízení ve správě předplatného.`;
   }
-  if (code === 'trusted_device_rotation_limit_reached') {
-    return 'Za posledních 30 dní už bylo k tomuto individuálnímu účtu přidáno 5 nových zařízení. Další nové zařízení zatím nelze aktivovat.';
+
+  if (gate.code === 'trusted_device_rotation_limit_reached') {
+    return organization
+      ? `Za posledních 30 dní už bylo k tomuto školnímu uživatelskému účtu přidáno ${gate.maxNewIn30Days} nových zařízení. Další nové zařízení zatím nelze aktivovat.`
+      : `Za posledních 30 dní už bylo k tomuto individuálnímu účtu přidáno ${gate.maxNewIn30Days} nových zařízení. Další nové zařízení zatím nelze aktivovat.`;
   }
-  if (code === 'trusted_device_cookie_missing') {
+
+  if (gate.code === 'trusted_device_reset_required') {
+    return 'Správce školy resetoval důvěryhodná zařízení tohoto účtu. Obnov stránku; Syllonaut vytvoří nový náhodný device token a zařízení se znovu započítá do 30denního limitu.';
+  }
+
+  if (gate.code === 'trusted_device_cookie_missing') {
     return 'Zařízení se zatím nepodařilo bezpečně identifikovat. Obnov stránku a zkus akci znovu.';
   }
-  return 'Toto zařízení není pro placené funkce individuálního účtu důvěryhodné.';
+
+  return organization
+    ? 'Toto zařízení není pro placené funkce školního účtu důvěryhodné.'
+    : 'Toto zařízení není pro placené funkce individuálního účtu důvěryhodné.';
 }

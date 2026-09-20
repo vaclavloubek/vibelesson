@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 const RenameFolderSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -17,11 +17,11 @@ async function getEntitledAuth() {
   if (!auth.userId) {
     return { response: NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 }) } as const;
   }
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(auth.userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(auth.userId);
   if (!deviceGate.allowed) {
     return {
       response: NextResponse.json(
-        { error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code },
+        { error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code },
         { status: 403 },
       ),
     } as const;
