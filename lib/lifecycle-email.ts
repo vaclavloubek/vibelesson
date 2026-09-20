@@ -184,7 +184,7 @@ export async function sendFirstLiveLifecycleEvent(userId: string) {
 
 export async function sendLessonQuotaLifecycleEvent(
   userId: string,
-  supabase: { rpc: (name: string) => Promise<{ data: unknown; error: unknown }> },
+  supabase: { rpc: (name: 'get_ai_quota') => PromiseLike<{ data: unknown; error: unknown }> },
 ) {
   const { data, error } = await supabase.rpc('get_ai_quota');
   if (error) throw new Error('lifecycle_quota_lookup_failed');
