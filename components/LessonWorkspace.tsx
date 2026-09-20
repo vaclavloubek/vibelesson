@@ -119,6 +119,7 @@ export default function LessonWorkspace({
   const blockRevisionTextareaRef = useRef<HTMLTextAreaElement>(null);
   const blockEditorRef = useRef<HTMLDivElement>(null);
   const builderRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
   const authUserIdRef = useRef<string | null>(null);
   const lessonOwnerIdRef = useRef<string | null>(initialLesson ? initialOwnerId : null);
 
@@ -286,6 +287,24 @@ export default function LessonWorkspace({
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [saveStatus]);
+
+  useEffect(() => {
+    if (!generationStartedAt || generationStage !== 'requesting') return;
+    if (!window.matchMedia('(max-width: 900px)').matches) return;
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) activeElement.blur();
+
+    const frame = window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      stageRef.current?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [generationStartedAt, generationStage]);
 
   function markLessonCreationStarted() {
     if (!initialLessonId && authUser) maybeStartFirstSyllonautGuide(authUser.id);
@@ -932,7 +951,7 @@ export default function LessonWorkspace({
           {error ? <div className="error" role="alert">{error}</div> : null}
         </section>
 
-        <section className="stage" data-tour="lesson-review">
+        <section ref={stageRef} className="stage" data-tour="lesson-review">
           {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId && !licenseLocked ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId && !licenseLocked ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={licenseLocked ? undefined : setSelectedBlockId} onEditBlock={licenseLocked ? undefined : editBlock} readOnly={licenseLocked} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
