@@ -5,7 +5,7 @@ import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/
 import { gradeResponseWithAI } from '@/lib/grading';
 import { GradingCriterionSchema, LessonSchema } from '@/lib/schema';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
-import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
+import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
 
 export const maxDuration = 60;
 
@@ -41,9 +41,9 @@ export async function POST(req: Request, { params }: RouteContext) {
   }
 
   const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
-  let aiBillingPaused: boolean;
+  let aiBillingState: Awaited<ReturnType<typeof getEffectiveAiBillingPauseState>>;
   try {
-    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+    aiBillingState = await getEffectiveAiBillingPauseState(userId);
   } catch {
     return NextResponse.json({
       error: requestLocale === 'en'
@@ -51,9 +51,14 @@ export async function POST(req: Request, { params }: RouteContext) {
         : 'Stav platby se nepodařilo ověřit. Zkus to za chvíli znovu.',
     }, { status: 503 });
   }
-  if (aiBillingPaused) {
+  if (aiBillingState.reason) {
     return NextResponse.json({
-      error: aiBillingPausedMessage(requestLocale),
+      error: aiBillingPausedMessage(
+        requestLocale,
+        aiBillingState.reason,
+        aiBillingState.scope,
+        aiBillingState.manager,
+      ),
       code: AI_BILLING_PAYMENT_REQUIRED_CODE,
     }, { status: 402 });
   }
@@ -102,9 +107,15 @@ export async function POST(req: Request, { params }: RouteContext) {
   }
   if (!claimedRaw) {
     try {
-      if (await isIndividualAiBillingPaused(userId)) {
+      const latestBillingState = await getEffectiveAiBillingPauseState(userId);
+      if (latestBillingState.reason) {
         return NextResponse.json({
-          error: aiBillingPausedMessage(requestLocale),
+          error: aiBillingPausedMessage(
+            requestLocale,
+            latestBillingState.reason,
+            latestBillingState.scope,
+            latestBillingState.manager,
+          ),
           code: AI_BILLING_PAYMENT_REQUIRED_CODE,
         }, { status: 402 });
       }

@@ -45,6 +45,16 @@ export async function GET() {
     .eq('id', organization.id)
     .maybeSingle();
 
+  const billingPauseResult = await admin.rpc('get_organization_ai_billing_pause_reason_server', {
+    p_organization_id: organization.id,
+  });
+  if (billingPauseResult.error) {
+    console.warn('organization AI billing pause lookup unavailable', {
+      organizationId: organization.id,
+      code: billingPauseResult.error.code,
+    });
+  }
+
   const membersResult = await admin
     .from('organization_memberships')
     .select('user_id, role, joined_at')
@@ -215,6 +225,14 @@ export async function GET() {
       renewalMode: lifecycleResult.data.renewal_mode,
       cancelAtPeriodEnd: lifecycleResult.data.cancel_at_period_end,
       pastDueAt: lifecycleResult.data.past_due_at,
+      aiBillingPaused: billingPauseResult.data === 'past_due'
+        || billingPauseResult.data === 'dispute'
+        || billingPauseResult.data === 'refund',
+      aiBillingPauseReason: billingPauseResult.data === 'past_due'
+        || billingPauseResult.data === 'dispute'
+        || billingPauseResult.data === 'refund'
+        ? billingPauseResult.data
+        : null,
       seats: {
         active: seatUsage?.active ?? memberRows.length,
         pending: seatUsage?.pending ?? (invitesResult.data ?? []).length,

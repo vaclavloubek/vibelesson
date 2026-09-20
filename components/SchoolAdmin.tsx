@@ -42,6 +42,8 @@ type Summary = {
   isInternalTest: boolean;
   cancelAtPeriodEnd: boolean;
   pastDueAt: string | null;
+  aiBillingPaused: boolean;
+  aiBillingPauseReason: 'past_due' | 'dispute' | 'refund' | null;
   currentPeriodEnd: string | null;
   seats: {
     active: number;
@@ -1357,10 +1359,15 @@ export default function SchoolAdmin({
                     'The internal test Campus is permanently active and is not connected to billing. It is used to verify school features.',
                   )
                   : summary.status === 'active'
-                    ? ui(
-                      'Licence je zaplacená a školní entitlementy jsou aktivní.',
-                      'The licence is paid and school entitlements are active.',
-                    )
+                    ? summary.aiBillingPaused
+                      ? ui(
+                        'Školní licence zůstává aktivní. Kvůli stavu platby jsou dočasně pozastavené pouze nové AI náklady; uložené lekce, správa školy a živá výuka dál fungují.',
+                        'The school licence remains active. Only new AI costs are temporarily paused because of the billing state; saved lessons, school administration and live teaching continue to work.',
+                      )
+                      : ui(
+                        'Licence je zaplacená a školní entitlementy jsou aktivní.',
+                        'The licence is paid and school entitlements are active.',
+                      )
                     : ui(
                       'Placené školní entitlementy nejsou aktivní. AI se zatím čerpá pouze z osobního tarifu každého uživatele.',
                       'Paid school entitlements are not active. AI currently uses only each user’s personal plan.',
@@ -1390,7 +1397,37 @@ export default function SchoolAdmin({
                 </>
               ) : null}
 
-              {summary.status === 'past_due' || summary.status === 'suspended' ? (
+              {summary.aiBillingPaused ? (
+                <div className={styles.warning}>
+                  {summary.aiBillingPauseReason === 'dispute'
+                    ? ui(
+                      summary.manager
+                        ? 'Platba školního předplatného je reklamovaná. Nové AI operace jsou dočasně pozastavené; uložené lekce, správa školy a živá výuka dál fungují. Po vyřešení sporu se AI obnoví automaticky, případně až po recovery ztracené částky.'
+                        : 'Platba školního předplatného je reklamovaná. Nové AI operace jsou dočasně pozastavené; uložené lekce a živá výuka dál fungují. Stav musí vyřešit správce školy.',
+                      summary.manager
+                        ? 'A school subscription payment is disputed. New AI operations are temporarily paused; saved lessons, school administration and live teaching continue to work. AI restores automatically after the dispute is resolved or the lost amount is recovered.'
+                        : 'A school subscription payment is disputed. New AI operations are temporarily paused; saved lessons and live teaching continue to work. A school administrator needs to resolve the billing state.',
+                    )
+                    : summary.aiBillingPauseReason === 'refund'
+                      ? ui(
+                        summary.manager
+                          ? 'Platba školního předplatného byla plně vrácena. Nové AI operace jsou pozastavené, dokud potvrzené platby školy nepokryjí vrácenou částku.'
+                          : 'Platba školního předplatného byla plně vrácena. Nové AI operace jsou pozastavené; stav fakturace musí vyřešit správce školy.',
+                        summary.manager
+                          ? 'A school subscription payment was fully refunded. New AI operations are paused until confirmed school payments cover the refunded amount.'
+                          : 'A school subscription payment was fully refunded. New AI operations are paused; a school administrator needs to resolve the billing state.',
+                      )
+                      : ui(
+                        summary.manager
+                          ? 'Platba školního předplatného vyžaduje pozornost. Nové AI operace jsou pozastavené, ale licence, správa školy, uložené lekce a živá výuka zůstávají dostupné. Pokud se platba nevyřeší do 14 dnů, licence se pozastaví.'
+                          : 'Platba školního předplatného vyžaduje pozornost. Nové AI operace jsou pozastavené, ale uložené lekce a živá výuka zůstávají dostupné. Platbu musí vyřešit správce školy.'
+                        ,
+                        summary.manager
+                          ? 'The school subscription payment needs attention. New AI operations are paused, while the licence, school administration, saved lessons and live teaching remain available. If payment is not resolved within 14 days, the licence is suspended.'
+                          : 'The school subscription payment needs attention. New AI operations are paused, while saved lessons and live teaching remain available. A school administrator needs to resolve the payment.',
+                      )}
+                </div>
+              ) : summary.status === 'past_due' || summary.status === 'suspended' ? (
                 <div className={styles.warning}>
                   {ui(
                     'Platba není potvrzená. Nové placené školní AI operace jsou zablokované; existující obsah zůstává dostupný.',

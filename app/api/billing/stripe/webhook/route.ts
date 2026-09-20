@@ -118,9 +118,100 @@ export async function POST(request: Request) {
         return jsonError(500, 'organization_invoice_sync_failed');
       }
 
+      let paymentMappings = 0;
+      if (organizationInvoiceSync.eventType === 'invoice.paid' && !organizationInvoiceSync.testClock) {
+        const secretKey = organizationInvoiceSync.livemode
+          ? process.env.STRIPE_SECRET_KEY_LIVE
+          : process.env.STRIPE_SECRET_KEY_TEST;
+
+        try {
+          const payments = await listStripePaidInvoicePayments({
+            secretKey,
+            livemode: organizationInvoiceSync.livemode,
+            invoiceId: organizationInvoiceSync.invoiceId,
+          });
+
+          const mappedAmount = payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
+          if (mappedAmount !== organizationInvoiceSync.amountPaid) {
+            console.error('stripe organization invoice payment amount mismatch', {
+              eventId: organizationInvoiceSync.eventId,
+              invoiceId: organizationInvoiceSync.invoiceId,
+              organizationId: organizationInvoiceSync.organizationId,
+              livemode: organizationInvoiceSync.livemode,
+              invoiceAmountPaid: organizationInvoiceSync.amountPaid,
+              mappedAmount,
+            });
+            if (organizationInvoiceSync.livemode) {
+              return jsonError(500, 'organization_invoice_payment_amount_mismatch');
+            }
+          }
+
+          for (const payment of payments) {
+            if (payment.currency !== organizationInvoiceSync.currency) {
+              console.error('stripe organization invoice payment currency mismatch', {
+                eventId: organizationInvoiceSync.eventId,
+                invoiceId: organizationInvoiceSync.invoiceId,
+                organizationId: organizationInvoiceSync.organizationId,
+                livemode: organizationInvoiceSync.livemode,
+                invoiceCurrency: organizationInvoiceSync.currency,
+                paymentCurrency: payment.currency,
+              });
+              if (organizationInvoiceSync.livemode) {
+                return jsonError(500, 'organization_invoice_payment_currency_mismatch');
+              }
+              continue;
+            }
+
+            const { error: mappingError } = await supabase.rpc(
+              'sync_organization_invoice_payment_event_v2',
+              {
+                p_event_id: organizationInvoiceSync.eventId,
+                p_livemode: organizationInvoiceSync.livemode,
+                p_organization_id: organizationInvoiceSync.organizationId,
+                p_order_id: organizationInvoiceSync.orderId,
+                p_invoice_id: organizationInvoiceSync.invoiceId,
+                p_payment_intent_id: payment.paymentIntentId,
+                p_paid_at: payment.paidAt,
+                p_amount_paid: payment.amountPaid,
+                p_currency: payment.currency,
+                p_billing_reason: organizationInvoiceSync.billingReason,
+              },
+            );
+
+            if (mappingError) {
+              console.error('stripe organization invoice payment mapping failed', {
+                eventId: organizationInvoiceSync.eventId,
+                invoiceId: organizationInvoiceSync.invoiceId,
+                organizationId: organizationInvoiceSync.organizationId,
+                livemode: organizationInvoiceSync.livemode,
+                code: mappingError.code,
+              });
+              if (organizationInvoiceSync.livemode) {
+                return jsonError(500, 'organization_invoice_payment_mapping_failed');
+              }
+              continue;
+            }
+
+            paymentMappings += 1;
+          }
+        } catch (mappingLookupError) {
+          console.error('stripe organization invoice payment lookup failed', {
+            eventId: organizationInvoiceSync.eventId,
+            invoiceId: organizationInvoiceSync.invoiceId,
+            organizationId: organizationInvoiceSync.organizationId,
+            livemode: organizationInvoiceSync.livemode,
+            error: mappingLookupError instanceof Error ? mappingLookupError.message : 'unknown',
+          });
+          if (organizationInvoiceSync.livemode) {
+            return jsonError(503, 'organization_invoice_payment_lookup_failed');
+          }
+        }
+      }
+
       return NextResponse.json({
         received: true,
         organizationPaymentEvent: organizationInvoiceSync.eventType,
+        paymentMappings,
         result: data,
       }, {
         status: 200,
@@ -342,7 +433,7 @@ export async function POST(request: Request) {
   if (disputeSync) {
     try {
       const supabase = createAdminClient();
-      const { data, error } = await supabase.rpc('sync_stripe_dispute_event', {
+      const individualResult = await supabase.rpc('sync_stripe_dispute_event', {
         p_event_id: disputeSync.eventId,
         p_event_type: disputeSync.eventType,
         p_livemode: disputeSync.livemode,
@@ -352,22 +443,47 @@ export async function POST(request: Request) {
         p_event_at: disputeSync.eventAt,
       });
 
-      if (error?.message?.includes('stripe_dispute_payment_mapping_missing')) {
-        console.warn('stripe dispute payment mapping is not ready', {
-          eventId: disputeSync.eventId,
-          disputeId: disputeSync.disputeId,
-          paymentIntentId: disputeSync.paymentIntentId,
-          livemode: disputeSync.livemode,
+      let disputeResult = individualResult.data;
+      if (individualResult.error?.message?.includes('stripe_dispute_payment_mapping_missing')) {
+        const organizationResult = await supabase.rpc('sync_organization_stripe_dispute_event', {
+          p_event_id: disputeSync.eventId,
+          p_event_type: disputeSync.eventType,
+          p_livemode: disputeSync.livemode,
+          p_dispute_id: disputeSync.disputeId,
+          p_payment_intent_id: disputeSync.paymentIntentId,
+          p_status: disputeSync.status,
+          p_amount_disputed: disputeSync.amountDisputed,
+          p_currency: disputeSync.currency,
+          p_event_at: disputeSync.eventAt,
         });
-        return jsonError(503, 'dispute_payment_mapping_pending');
-      }
 
-      if (error) {
+        if (organizationResult.error?.message?.includes('organization_stripe_dispute_payment_mapping_missing')) {
+          console.warn('stripe dispute payment mapping is not ready', {
+            eventId: disputeSync.eventId,
+            disputeId: disputeSync.disputeId,
+            paymentIntentId: disputeSync.paymentIntentId,
+            livemode: disputeSync.livemode,
+          });
+          return jsonError(503, 'dispute_payment_mapping_pending');
+        }
+
+        if (organizationResult.error) {
+          console.error('stripe organization dispute sync failed', {
+            eventId: disputeSync.eventId,
+            disputeId: disputeSync.disputeId,
+            livemode: disputeSync.livemode,
+            code: organizationResult.error.code,
+          });
+          return jsonError(500, 'organization_dispute_sync_failed');
+        }
+
+        disputeResult = organizationResult.data;
+      } else if (individualResult.error) {
         console.error('stripe dispute sync failed', {
           eventId: disputeSync.eventId,
           disputeId: disputeSync.disputeId,
           livemode: disputeSync.livemode,
-          code: error.code,
+          code: individualResult.error.code,
         });
         return jsonError(500, 'dispute_sync_failed');
       }
@@ -375,7 +491,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         received: true,
         disputeEvent: disputeSync.eventType,
-        result: data,
+        result: disputeResult,
       }, {
         status: 200,
         headers: { 'Cache-Control': 'no-store' },
@@ -430,23 +546,46 @@ export async function POST(request: Request) {
         p_event_at: refundSync.eventAt,
       });
 
+      let refundResult = data;
       if (error?.message?.includes('stripe_refund_payment_mapping_missing')) {
-        // All individual subscription payments are mapped from invoice.paid before
-        // they can be refunded. A missing mapping therefore means this refund is
-        // outside the individual Syllonaut billing boundary (for example school billing).
-        console.info('stripe refund ignored outside individual billing mapping', {
-          eventId: refundSync.eventId,
-          chargeId: refundState.chargeId,
-          paymentIntentId: refundState.paymentIntentId,
-          livemode: refundSync.livemode,
+        const organizationResult = await supabase.rpc('sync_organization_stripe_refund_state', {
+          p_event_id: refundSync.eventId,
+          p_event_type: refundSync.eventType,
+          p_livemode: refundSync.livemode,
+          p_charge_id: refundState.chargeId,
+          p_payment_intent_id: refundState.paymentIntentId,
+          p_amount_total: refundState.amountTotal,
+          p_amount_refunded: refundState.amountRefunded,
+          p_fully_refunded: refundState.fullyRefunded,
+          p_event_at: refundSync.eventAt,
         });
-        return NextResponse.json({ received: true, ignored: true }, {
-          status: 200,
-          headers: { 'Cache-Control': 'no-store' },
-        });
-      }
 
-      if (error) {
+        if (organizationResult.error?.message?.includes('organization_stripe_refund_payment_mapping_missing')) {
+          console.warn('stripe refund payment mapping is not ready', {
+            eventId: refundSync.eventId,
+            chargeId: refundState.chargeId,
+            paymentIntentId: refundState.paymentIntentId,
+            livemode: refundSync.livemode,
+          });
+          if (refundSync.livemode) return jsonError(503, 'refund_payment_mapping_pending');
+          return NextResponse.json({ received: true, ignored: true }, {
+            status: 200,
+            headers: { 'Cache-Control': 'no-store' },
+          });
+        }
+
+        if (organizationResult.error) {
+          console.error('stripe organization refund sync failed', {
+            eventId: refundSync.eventId,
+            chargeId: refundState.chargeId,
+            livemode: refundSync.livemode,
+            code: organizationResult.error.code,
+          });
+          return jsonError(500, 'organization_refund_sync_failed');
+        }
+
+        refundResult = organizationResult.data;
+      } else if (error) {
         console.error('stripe refund sync failed', {
           eventId: refundSync.eventId,
           chargeId: refundState.chargeId,
@@ -460,7 +599,7 @@ export async function POST(request: Request) {
         received: true,
         refundEvent: refundSync.eventType,
         fullRefund: refundState.fullyRefunded,
-        result: data,
+        result: refundResult,
       }, {
         status: 200,
         headers: { 'Cache-Control': 'no-store' },

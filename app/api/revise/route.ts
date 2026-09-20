@@ -8,7 +8,7 @@ import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } fr
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
-import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
+import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
 
 // Full-lesson revisions can be almost as expensive as initial generation.
 export const maxDuration = 300;
@@ -31,9 +31,9 @@ export async function POST(req: Request) {
   }
 
   const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
-  let aiBillingPaused: boolean;
+  let aiBillingState: Awaited<ReturnType<typeof getEffectiveAiBillingPauseState>>;
   try {
-    aiBillingPaused = await isIndividualAiBillingPaused(userId);
+    aiBillingState = await getEffectiveAiBillingPauseState(userId);
   } catch {
     return NextResponse.json({
       error: requestLocale === 'en'
@@ -41,9 +41,14 @@ export async function POST(req: Request) {
         : 'Stav platby se nepodařilo ověřit. Zkus to za chvíli znovu.',
     }, { status: 503 });
   }
-  if (aiBillingPaused) {
+  if (aiBillingState.reason) {
     return NextResponse.json({
-      error: aiBillingPausedMessage(requestLocale),
+      error: aiBillingPausedMessage(
+          requestLocale,
+          aiBillingState.reason,
+          aiBillingState.scope,
+          aiBillingState.manager,
+        ),
       code: AI_BILLING_PAYMENT_REQUIRED_CODE,
     }, { status: 402 });
   }
@@ -96,7 +101,12 @@ export async function POST(req: Request) {
     });
     if (quotaError?.message?.includes(AI_BILLING_PAYMENT_REQUIRED_CODE)) {
       return NextResponse.json({
-        error: aiBillingPausedMessage(requestLocale),
+        error: aiBillingPausedMessage(
+          requestLocale,
+          aiBillingState.reason,
+          aiBillingState.scope,
+          aiBillingState.manager,
+        ),
         code: AI_BILLING_PAYMENT_REQUIRED_CODE,
       }, { status: 402 });
     }

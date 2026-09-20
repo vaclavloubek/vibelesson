@@ -95,6 +95,8 @@ export default function LessonWorkspace({
   const [worksheetExportEnabled, setWorksheetExportEnabled] = useState(false);
   const [aiBillingPaused, setAiBillingPaused] = useState(false);
   const [aiBillingPauseReason, setAiBillingPauseReason] = useState<'past_due' | 'dispute' | 'refund' | null>(null);
+  const [aiBillingPauseScope, setAiBillingPauseScope] = useState<'individual' | 'organization' | null>(null);
+  const [aiBillingPauseManager, setAiBillingPauseManager] = useState(false);
   const [entitlementsLoaded, setEntitlementsLoaded] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
@@ -167,6 +169,8 @@ export default function LessonWorkspace({
       setWorksheetExportEnabled(false);
       setAiBillingPaused(false);
       setAiBillingPauseReason(null);
+      setAiBillingPauseScope(null);
+      setAiBillingPauseManager(false);
       setEntitlementsLoaded(false);
       return;
     }
@@ -180,6 +184,8 @@ export default function LessonWorkspace({
           worksheetExportEnabled?: boolean;
           aiBillingPaused?: boolean;
           aiBillingPauseReason?: 'past_due' | 'dispute' | 'refund' | null;
+          aiBillingPauseScope?: 'individual' | 'organization' | null;
+          aiBillingPauseManager?: boolean;
         };
         if (!cancelled) {
           setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
@@ -191,6 +197,12 @@ export default function LessonWorkspace({
               ? data.aiBillingPauseReason
               : null,
           );
+          setAiBillingPauseScope(
+            response.ok && (data.aiBillingPauseScope === 'individual' || data.aiBillingPauseScope === 'organization')
+              ? data.aiBillingPauseScope
+              : null,
+          );
+          setAiBillingPauseManager(response.ok && data.aiBillingPauseManager === true);
           setEntitlementsLoaded(true);
         }
       })
@@ -291,6 +303,18 @@ export default function LessonWorkspace({
   function requireAiAccess() {
     if (!requireAuth()) return false;
     if (!aiBillingPaused) return true;
+    if (aiBillingPauseScope === 'organization') {
+      setError(aiBillingPauseManager
+        ? ui(
+            'AI funkce školy jsou dočasně pozastavené kvůli stavu školní platby. Uložené lekce a živá výuka dál fungují. Fakturaci můžeš vyřešit ve správě školy.',
+            'School AI features are temporarily paused because of the school billing state. Saved lessons and live teaching still work. You can resolve billing in School administration.',
+          )
+        : ui(
+            'AI funkce školy jsou dočasně pozastavené kvůli stavu školní platby. Uložené lekce a živá výuka dál fungují. Platbu musí vyřešit správce školy.',
+            'School AI features are temporarily paused because of the school billing state. Saved lessons and live teaching still work. A school administrator needs to resolve the payment.',
+          ));
+      return false;
+    }
     setError(aiBillingPauseReason === 'dispute'
       ? ui(
           'AI funkce jsou dočasně pozastavené kvůli reklamaci platby. Uložené lekce a živá výuka dál fungují; AI se odemkne po příznivém vyřešení sporu, případně až když pozdější potvrzené platby předplatného pokryjí ztracenou částku.',
@@ -705,7 +729,13 @@ export default function LessonWorkspace({
         </div>
       </header>
 
-      {aiBillingPaused ? <AiPaymentPauseBanner reason={aiBillingPauseReason} /> : null}
+      {aiBillingPaused ? (
+        <AiPaymentPauseBanner
+          reason={aiBillingPauseReason}
+          scope={aiBillingPauseScope}
+          manager={aiBillingPauseManager}
+        />
+      ) : null}
 
       {authUser && recovery && (!lessonId || recovery.lessonId !== lessonId) ? (
         <div className="recovery-banner">

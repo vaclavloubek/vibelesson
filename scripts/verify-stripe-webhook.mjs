@@ -3,6 +3,7 @@ import { billingRouteForCountry } from '../lib/billing-region.ts';
 import {
   normalizeStripeDisputeEvent,
   normalizeStripeInvoiceEvent,
+  normalizeStripeOrganizationInvoiceEvent,
   normalizeStripeRefundEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
@@ -173,6 +174,22 @@ const testClockInvoice = structuredClone(paidInvoice);
 testClockInvoice.data.object.test_clock = 'clock_regression001';
 assert(normalizeStripeInvoiceEvent(testClockInvoice)?.testClock === true, 'sandbox test-clock invoices must be detectable');
 
+const organizationInvoice = structuredClone(paidInvoice);
+organizationInvoice.id = 'evt_org_invoice_paid001';
+organizationInvoice.data.object.id = 'in_org_regression001';
+organizationInvoice.data.object.metadata = {
+  syllonaut_organization_id: '223e4567-e89b-42d3-a456-426614174000',
+  syllonaut_order_id: '323e4567-e89b-42d3-a456-426614174000',
+};
+organizationInvoice.data.object.customer_address = { country: 'CZ' };
+const normalizedOrganizationInvoice = normalizeStripeOrganizationInvoiceEvent(organizationInvoice);
+assert(normalizedOrganizationInvoice?.organizationId === '223e4567-e89b-42d3-a456-426614174000', 'organization invoice must retain organization ID');
+assert(normalizedOrganizationInvoice?.orderId === '323e4567-e89b-42d3-a456-426614174000', 'organization invoice must retain order ID');
+assert(normalizedOrganizationInvoice?.amountPaid === 19900, 'organization invoice must retain amount_paid');
+assert(normalizedOrganizationInvoice?.currency === 'czk', 'organization invoice must retain currency');
+assert(normalizedOrganizationInvoice?.billingReason === 'subscription_cycle', 'organization invoice must retain billing reason');
+assert(normalizedOrganizationInvoice?.testClock === false, 'ordinary organization invoice should not look like test clock');
+
 const disputeEvent = {
   id: 'evt_dispute001',
   type: 'charge.dispute.created',
@@ -184,6 +201,8 @@ const disputeEvent = {
       object: 'dispute',
       payment_intent: 'pi_regression001',
       status: 'needs_response',
+      amount: 5000,
+      currency: 'czk',
     },
   },
 };
@@ -191,6 +210,8 @@ const normalizedDispute = normalizeStripeDisputeEvent(disputeEvent);
 assert(normalizedDispute?.disputeId === 'dp_regression001', 'dispute ID should normalize');
 assert(normalizedDispute?.paymentIntentId === 'pi_regression001', 'dispute must retain the payment intent');
 assert(normalizedDispute?.status === 'needs_response', 'dispute status should normalize');
+assert(normalizedDispute?.amountDisputed === 5000, 'dispute amount should normalize');
+assert(normalizedDispute?.currency === 'czk', 'dispute currency should normalize');
 assert(normalizedDispute?.eventAt === new Date(now * 1000).toISOString(), 'dispute event timestamp should normalize');
 
 const wonDispute = structuredClone(disputeEvent);
