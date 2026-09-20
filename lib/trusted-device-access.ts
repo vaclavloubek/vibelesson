@@ -6,6 +6,9 @@ import { TRUSTED_DEVICE_COOKIE } from '@/lib/device-cookie';
 export type TrustedDeviceGate = {
   required: boolean;
   trusted: boolean;
+  scope: 'none' | 'individual' | 'organization';
+  organizationId?: string | null;
+  organizationName?: string | null;
   code: string | null;
   activeCount: number;
   maxActive: number;
@@ -19,6 +22,9 @@ function normalizeGate(value: unknown): TrustedDeviceGate {
   return {
     required: Boolean(row.required),
     trusted: Boolean(row.trusted),
+    scope: row.scope === 'organization' || row.scope === 'individual' ? row.scope : 'none',
+    organizationId: typeof row.organizationId === 'string' ? row.organizationId : null,
+    organizationName: typeof row.organizationName === 'string' ? row.organizationName : null,
     code: typeof row.code === 'string' ? row.code : null,
     activeCount: typeof row.activeCount === 'number' ? row.activeCount : 0,
     maxActive: typeof row.maxActive === 'number' ? row.maxActive : 3,
@@ -38,7 +44,7 @@ export async function currentTrustedDeviceHash() {
 export async function registerCurrentTrustedDevice(userId: string): Promise<TrustedDeviceGate> {
   const admin = createAdminClient();
   const tokenHash = await currentTrustedDeviceHash();
-  const { data, error } = await admin.rpc('register_personal_trusted_device', {
+  const { data, error } = await admin.rpc('register_trusted_device_access', {
     p_user_id: userId,
     p_token_hash: tokenHash,
   });
@@ -54,15 +60,17 @@ export async function requireTrustedDeviceForPaidIndividual(userId: string) {
   };
 }
 
-export function trustedDeviceErrorMessage(code: string | null) {
-  if (code === 'trusted_device_limit_reached') {
-    return 'Tento individuální účet už má 3 důvěryhodná zařízení. Odeber jedno starší zařízení ve správě předplatného.';
+export function trustedDeviceErrorMessage(gate: TrustedDeviceGate) {
+  if (gate.code === 'trusted_device_limit_reached') {
+    return `Tento účet už má maximální počet důvěryhodných zařízení (${gate.maxActive}). Odeber jedno starší zařízení.`;
   }
-  if (code === 'trusted_device_rotation_limit_reached') {
-    return 'Za posledních 30 dní už bylo k tomuto individuálnímu účtu přidáno 5 nových zařízení. Další nové zařízení zatím nelze aktivovat.';
+  if (gate.code === 'trusted_device_rotation_limit_reached') {
+    return `Za posledních 30 dní už bylo k tomuto účtu přidáno ${gate.maxNewIn30Days} nových zařízení. Další nové zařízení zatím nelze aktivovat.`;
   }
-  if (code === 'trusted_device_cookie_missing') {
+  if (gate.code === 'trusted_device_cookie_missing') {
     return 'Zařízení se zatím nepodařilo bezpečně identifikovat. Obnov stránku a zkus akci znovu.';
   }
-  return 'Toto zařízení není pro placené funkce individuálního účtu důvěryhodné.';
+  return gate.scope === 'organization'
+    ? 'Toto zařízení není důvěryhodné pro funkce školní licence.'
+    : 'Toto zařízení není pro placené funkce individuálního účtu důvěryhodné.';
 }
