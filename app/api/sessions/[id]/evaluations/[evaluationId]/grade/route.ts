@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { gradeResponseWithAI } from '@/lib/grading';
 import { GradingCriterionSchema, LessonSchema } from '@/lib/schema';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
@@ -35,9 +35,9 @@ export async function POST(req: Request, { params }: RouteContext) {
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
 
-  const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+  const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
   if (!deviceGate.allowed) {
-    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate.code), code: deviceGate.code }, { status: 403 });
+    return NextResponse.json({ error: trustedDeviceErrorMessage(deviceGate), code: deviceGate.code }, { status: 403 });
   }
 
   const requestLocale = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
