@@ -6,6 +6,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import {
   MATERIAL_MAX_FILES,
@@ -41,6 +42,9 @@ type ReservationRow = {
   allowed: boolean;
   used: number;
   monthly_limit: number | null;
+  denial_code?: string | null;
+  device_used?: number | null;
+  device_limit?: number | null;
 };
 
 type ProgressEvent =
@@ -119,13 +123,35 @@ export async function POST(req: Request) {
 
     const materialText = materialsToPrompt(input.materials);
 
-    const { data, error: reserveError } = await supabase.rpc('reserve_lesson_generation');
+    const admin = createAdminClient();
+    const deviceHash = await currentFreeDeviceBudgetHash();
+    const { data, error: reserveError } = await admin.rpc('reserve_lesson_generation_server', {
+      p_user_id: userId,
+      p_device_token_hash: deviceHash,
+    });
     if (reserveError) throw reserveError;
 
     const reservation = (Array.isArray(data) ? data[0] : data) as ReservationRow | null;
     if (!reservation) throw new Error('Quota reservation returned no data.');
 
     if (!reservation.allowed) {
+      const deviceMessage = freeDeviceBudgetMessage(
+        reservation.denial_code,
+        'lesson',
+        reservation.device_limit,
+      );
+      if (deviceMessage) {
+        return NextResponse.json({
+          error: deviceMessage,
+          code: reservation.denial_code,
+          deviceQuota: {
+            used: reservation.device_used ?? reservation.device_limit ?? 10,
+            limit: reservation.device_limit ?? 10,
+            remaining: 0,
+          },
+        }, { status: reservation.denial_code === 'free_device_cookie_required' ? 409 : 429 });
+      }
+
       return NextResponse.json({
         error: `Měsíční limit ${reservation.monthly_limit ?? 5} lekcí je vyčerpaný. Další lekci můžeš vytvořit příští měsíc.`,
         quota: {
@@ -182,7 +208,6 @@ export async function POST(req: Request) {
             costUsd = generated.costUsd;
 
             send({ type: 'progress', stage: 'saving' });
-            const admin = createAdminClient();
             const { data: savedLesson, error: saveError } = await admin
               .from('lessons')
               .insert({

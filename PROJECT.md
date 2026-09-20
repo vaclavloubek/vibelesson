@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-19 — kontextový průvodce „První let“ zůstává produkčně **COMPLETE / PASS**. Interní verze 0.9.42 připravuje privacy-safe growth měření: `shared_lesson_import_started` a `shared_lesson_imported` bez lesson ID/share tokenu/obsahu a ruční sanitizované GA4 pageviews, které anonymizují UUID, capability tokeny a join kódy. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.50** uzavírá další tarifní abuse-hardening vrstvu: Free účetní kvóty jsou doplněné o privacy-minimal společný device budget napříč Free účty, individuální Teacher / Teacher Pro mají důvěryhodná zařízení a školní plány mají ochrany proti rotaci míst i odnášení školního obsahu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -317,11 +317,22 @@ Roční varianta komunikuje přibližně **2 měsíce zdarma**. Placené tarify 
 
 Individuální plány:
 
-- **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně; nové lekce pouze v aktivním jazyce UI a AI úpravy bez změny hlavního jazyka; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
+- **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně + 3 importy/kopie měsíčně; nové lekce pouze v aktivním jazyce UI a AI úpravy bez změny hlavního jazyka; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
 - **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 25 AI lekcí + 100 AI úprav; **lekce v libovolném jazyce**; bez placeného AI gradingu a bez prémiových složek;
 - **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 60 AI lekcí + 250 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
 
 Všechny individuální plány počítají s live hodinami bez tarifního limitu a se studentským připojením bez plnohodnotného účtu.
+
+### Tarifní abuse hardening 0.9.50
+
+- Free účet má dál vlastní měsíční kvóty **5 AI lekcí / 20 AI úprav / 3 importy nebo kopie**.
+- Nad nimi je privacy-minimal společný budget zařízení napříč všemi Free účty na stejném browserovém zařízení: **10 AI lekcí / 40 AI úprav / 6 importů nebo kopií za klouzavých 30 dní**.
+- Zařízení je identifikované pouze SHA-256 hashem náhodného 256bitového HttpOnly tokenu; Syllonaut pro tuto ochranu neukládá IP, User-Agent, polohu ani browser/hardware fingerprint.
+- Free účet lze dál normálně registrovat a přihlásit i po vyčerpání device budgetu; blokované jsou pouze nákladové Free operace. Neúspěšná operace rezervaci uvolní.
+- Free account + device quota se rezervují atomicky v jedné databázové transakci. Device hash přijímá pouze service-role serverová cesta; staré přímo volatelné Free quota RPC failují, aby klient nemohl hash zařízení podvrhnout.
+- Teacher / Teacher Pro mají samostatný anti-sharing model: max. **3 současně důvěryhodná zařízení** a **5 skutečně nových zařízení za klouzavých 30 dní**; aktivní školní členství a interní admin jsou vyjmuté.
+- Organizace mají současně seat cap podle tarifu a per-billing-period limit unikátních lidí `seat_limit + max(1, ceil(10 %))`; návrat stejného člena se nepočítá znovu a čekající pozvánka pro nového člověka kapacitu dočasně rezervuje.
+- School/Campus školní obsah nese immutable `organization_origin_id`; po zániku členství zůstává uložený, ale přejde do read-only licenčního zámku a znovu se odemkne po obnovení přístupu.
 
 Školní/týmové plány:
 

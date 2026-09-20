@@ -18,7 +18,7 @@ requireText(sessionsRoute, 'free_lesson_replay_locked', 'session API maps the da
 
 const lessonRoute = read('app/api/lessons/[id]/route.ts');
 requireText(lessonRoute, 'getLessonReuseEntitlement', 'duplication charges a creation slot only on Free');
-requireText(lessonRoute, "supabase.rpc('reserve_lesson_import')", 'Free duplication reserves an import/copy slot');
+requireText(lessonRoute, "admin.rpc('reserve_lesson_import_server'", 'Free duplication reserves an import/copy slot through the server-authoritative device-aware path');
 requireText(lessonRoute, "createAdminClient", 'duplication uses a server-only insert path');
 requireText(lessonRoute, "p_status: 'succeeded'", 'successful duplication finishes its quota reservation');
 requireText(lessonRoute, "p_status: 'failed'", 'failed duplication releases its quota reservation');

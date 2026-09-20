@@ -6,6 +6,7 @@ import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -157,9 +158,14 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
     if (readError || !current) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
 
+    const admin = createAdminClient();
     const reusableLessons = await getLessonReuseEntitlement(supabase);
     if (!reusableLessons) {
-      const { data: quotaData, error: quotaError } = await supabase.rpc('reserve_lesson_import');
+      const deviceHash = await currentFreeDeviceBudgetHash();
+      const { data: quotaData, error: quotaError } = await admin.rpc('reserve_lesson_import_server', {
+        p_user_id: userId,
+        p_device_token_hash: deviceHash,
+      });
       if (quotaError) throw quotaError;
 
       const quota = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as {
@@ -167,9 +173,24 @@ export async function POST(_req: Request, { params }: RouteContext) {
         allowed?: boolean;
         used?: number;
         monthly_limit?: number | null;
+        denial_code?: string | null;
+        device_used?: number | null;
+        device_limit?: number | null;
       } | null;
 
       if (!quota?.allowed) {
+        const deviceMessage = freeDeviceBudgetMessage(
+          quota?.denial_code,
+          'import',
+          quota?.device_limit,
+        );
+        if (deviceMessage) {
+          return NextResponse.json({
+            error: deviceMessage,
+            code: quota?.denial_code,
+          }, { status: quota?.denial_code === 'free_device_cookie_required' ? 409 : 429 });
+        }
+
         return NextResponse.json({
           error: `Měsíční limit ${quota?.monthly_limit ?? 3} importů nebo kopií je vyčerpaný. Další import nebo kopii můžeš vytvořit příští měsíc.`,
           quota: {
@@ -188,7 +209,6 @@ export async function POST(_req: Request, { params }: RouteContext) {
     const copyTitle = `${current.title} – kopie`.slice(0, 200);
     const copiedLesson = LessonSchema.parse({ ...lesson, title: copyTitle });
 
-    const admin = createAdminClient();
     const { data: copy, error: insertError } = await admin
       .from('lessons')
       .insert({

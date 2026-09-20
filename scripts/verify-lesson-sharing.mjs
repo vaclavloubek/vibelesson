@@ -64,7 +64,7 @@ requirePattern(migration, /sessions_one_active_per_teacher_idx[\s\S]*where statu
 
 requirePattern(ownerRoute, /\.eq\('owner_id', userId\)/, 'share management must scope every share to the lesson owner.');
 requirePattern(ownerRoute, /LessonSchema\.parse\(lessonRow\.lesson\)/, 'public snapshots must be schema validated before storage.');
-requirePattern(importRoute, /supabase\.rpc\('import_lesson_share'/, 'imports must use the transactional database function.');
+requirePattern(importRoute, /admin\.rpc\('import_lesson_share_server'[\s\S]*p_device_token_hash/, 'imports must use the transactional server-only database function with a server-derived device hash.');
 requirePattern(importRoute, /headers:[\s\S]*Authorization:[\s\S]*Bearer[\s\S]*accessToken/, 'bearer-authenticated imports must forward the verified user JWT into the Supabase client context.');
 requirePattern(importRoute, /supabase\.auth\.getUser\(accessToken\)/, 'bearer tokens must be verified by Supabase before import.');
 requirePattern(importRoute, /if \(authorization\)[\s\S]*return \{ supabase, userId: data\.user\.id \}/, 'explicit bearer auth must resolve a concrete authenticated user.');
