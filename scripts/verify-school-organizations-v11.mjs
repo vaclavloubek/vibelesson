@@ -288,3 +288,19 @@ for (const needle of [
     throw new Error('School invitation UX regression: ' + needle);
   }
 }
+
+
+const schoolAdminAuthBoundary = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
+for (const needle of [
+  'authBoundaryTriggeredRef',
+  'supabase.auth.onAuthStateChange',
+  'supabase.auth.getUser()',
+  "window.addEventListener('focus'",
+  "document.addEventListener('visibilitychange'",
+  'setSummary(null)',
+  "window.location.replace(nextUserId ? '/school' : '/' + locale)",
+]) {
+  if (!schoolAdminAuthBoundary.includes(needle)) {
+    throw new Error('School admin auth-boundary regression: ' + needle);
+  }
+}
