@@ -42,6 +42,26 @@ Hlavní doména: `syllonaut.com`.
 
 Aktuální HEAD je vždy nutné načíst z GitHubu před zahájením práce; tento dokument nesmí nahrazovat kontrolu aktuálního `main`.
 
+### Přepočet tarifů, AI ekonomika a USP — 2026-09-20
+
+Tarify byly přepočítány podle skutečně uložených AI Gateway nákladů z produkčního provozu 16.–19. 9. 2026. Naměřený průměr: nová lekce **$0.142037** (n=28; p95 $0.243025), úprava celé lekce **$0.095525** (n=13; p95 $0.151851), úprava bloku **$0.032222** (n=8; p95 $0.048424) a AI hodnocení jedné odpovědi **$0.014362** (n=63; p95 $0.026176). Pozorovaný mix lesson/block revizí stojí v průměru **$0.071409 za AI úpravu**.
+
+Finální měsíční AI kvóty:
+- **Free:** 5 nových AI lekcí + 10 AI úprav; 3 importy/kopie; každou lesson family lze živě použít jednou;
+- **Teacher:** 10 nových AI lekcí + 20 AI úprav; hotové lekce lze živě používat opakovaně bez omezení;
+- **Teacher Pro:** 20 nových AI lekcí + 25 AI úprav; navíc AI grading, pracovní listy/PDF a složky;
+- **Team:** 40 nových AI lekcí + 80 AI úprav společně / měsíc, až 10 učitelů;
+- **School:** 120 nových AI lekcí + 240 AI úprav společně / měsíc, až 30 učitelů;
+- **Campus:** 300 nových AI lekcí + 600 AI úprav společně / měsíc, až 100 učitelů.
+
+Interní AI-grading safety budgety (nejsou customer-facing quota): **Teacher Pro $2 / 150 pokusů**, **School $10 / 700 pokusů**, **Campus $25 / 1 750 pokusů** za měsíc. Při dosažení safety budgetu systém bezpečně přechází na manual review.
+
+Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měsíc nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měsíc nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 53 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
+
+**USP pro Pricing a akvizici:** Syllonaut neprodává neomezené generování materiálů jako hlavní hodnotu. Jedna AI lekce je znovupoužitelný live výukový celek: **zadání → AI příprava → přirozené AI úpravy → živá hodina → studentské odpovědi → vyhodnocení → opakované použití**. AI limit se proto vztahuje pouze na novou AI tvorbu a AI úpravy. U placených tarifů spuštění, studentské připojení a opakované používání již vytvořených lekcí AI limit nespotřebovává. Pricing tuto logiku musí komunikovat výrazněji než samotné číselné kvóty.
+
+Konkurenční kontext: ScioBot veřejně komunikuje neomezený počet základních příprav zdarma a ve ScioBot+ neomezené prémiové přípravy / ScioChat; školní licence navíc neomezuje počet učitelů. Syllonaut proto nemá soutěžit tvrzením „více generování“, ale celým řízeným workflow skutečně odučené interaktivní hodiny a znovupoužitelností hotových lekcí.
+
 ### Versionování produktu
 
 Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravidlo:
@@ -318,10 +338,10 @@ Roční varianta komunikuje přibližně **2 měsíce zdarma**. Individuální t
 Individuální plány:
 
 - **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně + 3 importy/kopie měsíčně; nové lekce pouze v aktivním jazyce UI a AI úpravy bez změny hlavního jazyka; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
-- **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 25 AI lekcí + 100 AI úprav; **lekce v libovolném jazyce**; bez placeného AI gradingu a bez prémiových složek;
-- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 60 AI lekcí + 250 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
+- **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 10 AI lekcí + 20 AI úprav; **lekce v libovolném jazyce**; bez placeného AI gradingu a bez prémiových složek;
+- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 20 AI lekcí + 25 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
 
-Všechny individuální plány počítají s live hodinami bez tarifního limitu a se studentským připojením bez plnohodnotného účtu.
+U placených individuálních plánů jsou live hodiny a opakované používání již vytvořených lekcí bez tarifního limitu; AI kvóta se čerpá pouze při nové AI tvorbě a AI úpravách. Free může každou lesson family živě použít jednou. Studenti se připojují bez plnohodnotného účtu.
 
 ### Tarifní abuse hardening 0.9.50
 
@@ -365,9 +385,9 @@ Pravidla dalšího anti-abuse kola:
 
 Školní/týmové plány:
 
-- **Team** — až 10 učitelů; 200 AI lekcí + 800 AI úprav společně; lekce v libovolném jazyce; 1 290 Kč / €54.99 / $59.99 měsíčně nebo 12 900 Kč / €549.90 / $599 ročně;
-- **School** — až 30 učitelů; 600 AI lekcí + 2 400 AI úprav; lekce v libovolném jazyce; 3 190 Kč / €139.99 / $149.99 měsíčně nebo 31 900 Kč / €1,399.90 / $1,499 ročně; **AI grading + složky/podsložky**;
-- **Campus** — až 100 učitelů; 2 000 AI lekcí + 8 000 AI úprav; lekce v libovolném jazyce; 8 490 Kč / €369.99 / $399.99 měsíčně nebo 84 900 Kč / €3,699.90 / $3,999 ročně; **AI grading + složky/podsložky**.
+- **Team** — až 10 učitelů; 40 AI lekcí + 80 AI úprav společně; lekce v libovolném jazyce; 890 Kč / €37.99 / $39.99 měsíčně nebo 8 900 Kč / €379.90 / $399 ročně;
+- **School** — až 30 učitelů; 120 AI lekcí + 240 AI úprav společně; lekce v libovolném jazyce; 2 390 Kč / €99.99 / $109.99 měsíčně nebo 23 900 Kč / €999.90 / $1,099 ročně; **AI grading + složky/podsložky**;
+- **Campus** — až 100 učitelů; 300 AI lekcí + 600 AI úprav společně; lekce v libovolném jazyce; 5 990 Kč / €249.99 / $269.99 měsíčně nebo 59 900 Kč / €2,499.90 / $2,699 ročně; **AI grading + složky/podsložky**.
 
 Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obsahují.
 
@@ -381,7 +401,7 @@ Free default:
 
 - `role=user`
 - `monthly_lesson_limit=5`
-- `monthly_revision_limit=20`
+- `monthly_revision_limit=10`
 - `ai_grading_enabled=false`
 - `lesson_folders_enabled=false`
 - `multilingual_lessons_enabled=false`

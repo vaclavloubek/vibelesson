@@ -77,13 +77,13 @@ if (csHome.includes('From idea to live teaching. With AI.')) {
 
 await expectHtml('/en/pricing', [
   '<html lang="en"',
-  'Start free. Add more capacity when you need it.',
+  'From idea to a lesson taught live. In one plan.',
   'For teachers',
   'For schools',
 ]);
 await expectHtml('/cs/pricing', [
   '<html lang="cs"',
-  'Začněte zdarma. Přidejte výkon, až ho budete potřebovat.',
+  'Od nápadu až po odučenou hodinu. V jednom tarifu.',
   'Pro učitele',
   'Pro školy',
 ]);
