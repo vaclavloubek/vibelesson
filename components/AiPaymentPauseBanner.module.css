@@ -1,0 +1,56 @@
+.banner {
+  margin: 18px 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(176, 112, 19, .28);
+  border-radius: 16px;
+  background: #fff7e8;
+  color: #66470f;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.banner strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #5f3f09;
+  font-size: 15px;
+}
+
+.banner p {
+  margin: 0;
+  max-width: 820px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.action {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 10px;
+  background: #5b57e8;
+  color: white;
+  font-size: 13px;
+  font-weight: 760;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action:hover {
+  background: #4e49d4;
+}
+
+@media (max-width: 720px) {
+  .banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .action {
+    width: 100%;
+  }
+}
