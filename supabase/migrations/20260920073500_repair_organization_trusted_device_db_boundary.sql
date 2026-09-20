@@ -51,7 +51,7 @@ begin
   )
   values (
     p_lesson_id, p_user_id, p_join_code, 'lobby', null,
-    v_lesson.lesson, p_realtime_key, null, null
+    v_lesson.lesson, p_realtime_key::uuid, null, null
   )
   returning * into v_session;
 
