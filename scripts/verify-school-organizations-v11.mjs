@@ -293,14 +293,26 @@ for (const needle of [
 const schoolAdminAuthBoundary = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
 for (const needle of [
   'authBoundaryTriggeredRef',
-  'supabase.auth.onAuthStateChange',
-  'supabase.auth.getUser()',
+  "fetch('/api/auth/identity'",
   "window.addEventListener('focus'",
+  "window.addEventListener('pageshow'",
   "document.addEventListener('visibilitychange'",
+  'window.setInterval',
   'setSummary(null)',
-  "window.location.replace(nextUserId ? '/school' : '/' + locale)",
+  'window.location.reload()',
 ]) {
   if (!schoolAdminAuthBoundary.includes(needle)) {
     throw new Error('School admin auth-boundary regression: ' + needle);
+  }
+}
+
+const authIdentityRoute = fs.readFileSync('app/api/auth/identity/route.ts', 'utf8');
+for (const needle of [
+  'supabase.auth.getUser()',
+  "'Cache-Control': 'private, no-store, max-age=0'",
+  '{ userId: error ? null : (data.user?.id ?? null) }',
+]) {
+  if (!authIdentityRoute.includes(needle)) {
+    throw new Error('Server-authoritative auth identity contract missing: ' + needle);
   }
 }
