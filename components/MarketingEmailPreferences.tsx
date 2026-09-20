@@ -58,15 +58,41 @@ export default function MarketingEmailPreferences() {
     setBusy(true);
     setMessage('');
     const { error } = await supabase.rpc('set_marketing_email_consent', { p_granted: next });
-    setBusy(false);
 
     if (error) {
+      setBusy(false);
       console.error('update marketing consent failed', error);
       setMessage(ui('Změnu se nepodařilo uložit. Zkuste to prosím znovu.', 'The change could not be saved. Please try again.'));
       return;
     }
 
+    let deliverySynced = false;
+    try {
+      const response = await fetch('/api/marketing-email-preferences/sync', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      deliverySynced = response.ok;
+    } catch {
+      deliverySynced = false;
+    }
+
+    setBusy(false);
     setEnabled(next);
+
+    if (!deliverySynced) {
+      setMessage(next
+        ? ui(
+            'Souhlas je uložený. Synchronizaci e-mailového systému se teď nepodařilo potvrdit; zopakujeme ji při další aktivitě.',
+            'Your consent is saved. Email-system synchronization could not be confirmed now; it will be retried on your next activity.',
+          )
+        : ui(
+            'Souhlas je v Syllonautu odvolaný. Synchronizaci odhlášení se teď nepodařilo potvrdit; zkuste změnu za chvíli uložit znovu.',
+            'Your consent is withdrawn in Syllonaut. Unsubscribe synchronization could not be confirmed; please save the setting again shortly.',
+          ));
+      return;
+    }
+
     setMessage(next
       ? ui('Souhlas se zasíláním marketingových e-mailů je aktivní.', 'Marketing email consent is active.')
       : ui('Marketingové e-maily jsou odhlášené.', 'Marketing emails are disabled.'));
