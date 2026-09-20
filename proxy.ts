@@ -35,6 +35,24 @@ function ensureTrustedDeviceCookie(response: NextResponse, request: NextRequest)
   });
 }
 
+function localizedAppGatewayPath(pathname: string, locale: 'cs' | 'en') {
+  const prefix = `/${locale}`;
+  const unprefixed = pathname.slice(prefix.length);
+
+  if (
+    unprefixed === '/new'
+    || unprefixed === '/lessons'
+    || unprefixed.startsWith('/lessons/')
+    || unprefixed.startsWith('/s/')
+    || unprefixed === '/school'
+    || unprefixed.startsWith('/school/')
+  ) {
+    return unprefixed;
+  }
+
+  return null;
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const pathLocale = localeFromPathname(pathname);
@@ -64,20 +82,16 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (
-    pathLocale
-    && request.method === 'GET'
-    && (
-      pathname === `/${pathLocale}/school`
-      || pathname.startsWith(`/${pathLocale}/school/`)
-    )
-  ) {
-    const target = request.nextUrl.clone();
-    target.pathname = pathname.slice(pathLocale.length + 1);
-    const response = NextResponse.redirect(target);
-    persistLocale(response, request, pathLocale);
-    ensureTrustedDeviceCookie(response, request);
-    return response;
+  if (pathLocale && request.method === 'GET') {
+    const gatewayPath = localizedAppGatewayPath(pathname, pathLocale);
+    if (gatewayPath) {
+      const target = request.nextUrl.clone();
+      target.pathname = gatewayPath;
+      const response = NextResponse.redirect(target);
+      persistLocale(response, request, pathLocale);
+      ensureTrustedDeviceCookie(response, request);
+      return response;
+    }
   }
 
   const forwardedHeaders = new Headers(request.headers);

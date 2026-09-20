@@ -26,6 +26,30 @@ async function expectRedirect(path, expected, options = {}) {
   if (actual !== expected) fail(`${path}: expected redirect to ${expected}, got ${actual}`);
 }
 
+async function expectLocalizedGateway(path, expectedPath, locale) {
+  const res = await request(path, { redirect: 'manual' });
+  if (![301, 302, 303, 307, 308].includes(res.status)) {
+    fail(`${path}: expected localized gateway redirect, got HTTP ${res.status}`);
+  }
+
+  const location = res.headers.get('location');
+  if (!location) fail(`${path}: missing redirect location`);
+  const actual = new URL(location, baseUrl);
+  const requested = new URL(path, baseUrl);
+
+  if (actual.pathname !== expectedPath) {
+    fail(`${path}: expected redirect path ${expectedPath}, got ${actual.pathname}`);
+  }
+  if (actual.search !== requested.search) {
+    fail(`${path}: expected query ${requested.search}, got ${actual.search}`);
+  }
+
+  const setCookie = res.headers.get('set-cookie') || '';
+  if (!setCookie.includes(`syllonaut_locale=${locale}`)) {
+    fail(`${path}: localized gateway did not persist locale ${locale}`);
+  }
+}
+
 async function expectHtml(path, snippets, options = {}) {
   const res = await request(path, { ...options, redirect: 'follow' });
   if (!res.ok) fail(`${path}: expected HTTP 2xx, got ${res.status}`);
@@ -51,10 +75,17 @@ await expectRedirect('/pricing', '/en/pricing', { country: 'US' });
 await expectRedirect('/gdpr', '/cs/gdpr', { country: 'CZ' });
 await expectRedirect('/gdpr', '/en/gdpr', { country: 'US' });
 
+await expectLocalizedGateway('/en/new?utm_source=email&utm_medium=lifecycle', '/new', 'en');
+await expectLocalizedGateway('/en/lessons?utm_campaign=onboarding_en_2026_09', '/lessons', 'en');
+await expectLocalizedGateway('/en/s/example-share-token?utm_content=sample', '/s/example-share-token', 'en');
+await expectLocalizedGateway('/cs/new?utm_source=email', '/new', 'cs');
+
 const enHome = await expectHtml('/en', [
   '<html lang="en"',
   'From idea to live teaching. With AI.',
   'Write in the language you want to teach in.',
+  'Is there still a question beyond the radar?',
+  'Send the signal',
 ]);
 const enHomeLower = enHome.toLowerCase();
 for (const hreflang of ['cs', 'en', 'x-default']) {

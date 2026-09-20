@@ -69,9 +69,15 @@ requireOrder(i18n, [
 requireText(proxy, "pathname === '/'", 'root locale gateway is missing.');
 requireText(proxy, 'target.pathname = `/${locale}`', 'root gateway must redirect to the resolved locale URL.');
 requirePattern(proxy, /pathname === '\/pricing' \|\| pathname === '\/gdpr'/, 'public pricing/GDPR routes must remain locale-aware gateways.');
-requireText(proxy, "pathname === \`/${pathLocale}/school\`", 'localized school root must redirect to the unprefixed app route.');
-requireText(proxy, "pathname.startsWith(\`/${pathLocale}/school/\`)", 'localized school subroutes must redirect to the unprefixed app route.');
-requireText(proxy, "target.pathname = pathname.slice(pathLocale.length + 1)", 'localized school redirects must strip only the locale prefix and preserve the rest of the route.');
+requireText(proxy, "function localizedAppGatewayPath", 'localized acquisition gateway helper is missing.');
+requireText(proxy, "unprefixed === '/new'", 'localized new-lesson entry must redirect to the canonical app route.');
+requireText(proxy, "unprefixed === '/lessons'", 'localized lessons entry must redirect to the canonical app route.');
+requireText(proxy, "unprefixed.startsWith('/lessons/')", 'localized lesson subroutes must redirect to the canonical app route.');
+requireText(proxy, "unprefixed.startsWith('/s/')", 'localized shared-lesson entries must redirect to the canonical share route.');
+requireText(proxy, "unprefixed === '/school'", 'localized school root must redirect to the canonical app route.');
+requireText(proxy, "unprefixed.startsWith('/school/')", 'localized school subroutes must redirect to the canonical app route.');
+requireText(proxy, 'target.pathname = gatewayPath', 'localized app gateways must preserve the canonical app path.');
+requireText(proxy, 'persistLocale(response, request, pathLocale)', 'localized app gateways must persist the explicitly requested locale.');
 requireText(layout, '<html lang={locale}>', 'document language must follow the active UI locale.');
 requireText(localeSwitcher, 'document.cookie = `${LOCALE_COOKIE}=${nextLocale}', 'explicit locale choice must persist in the locale cookie.');
 requireText(localeSwitcher, "segments[0] === 'cs' || segments[0] === 'en'", 'locale switcher must preserve localized route structure.');
