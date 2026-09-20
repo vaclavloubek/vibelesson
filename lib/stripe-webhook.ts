@@ -6,6 +6,9 @@ const EVENT_ID_RE = /^evt_[A-Za-z0-9_]+$/;
 const SUBSCRIPTION_ID_RE = /^sub_[A-Za-z0-9_]+$/;
 const CUSTOMER_ID_RE = /^cus_[A-Za-z0-9_]+$/;
 const PRICE_ID_RE = /^price_[A-Za-z0-9_]+$/;
+const INVOICE_ID_RE = /^in_[A-Za-z0-9_]+$/;
+const PAYMENT_INTENT_ID_RE = /^pi_[A-Za-z0-9_]+$/;
+const DISPUTE_ID_RE = /^du_[A-Za-z0-9_]+$/;
 
 export const SUPPORTED_STRIPE_SUBSCRIPTION_EVENTS = new Set([
   'customer.subscription.created',
@@ -20,10 +23,18 @@ export const SUPPORTED_STRIPE_INVOICE_EVENTS = new Set([
   'invoice.paid',
 ]);
 
+export const SUPPORTED_STRIPE_DISPUTE_EVENTS = new Set([
+  'charge.dispute.created',
+  'charge.dispute.closed',
+  'charge.dispute.funds_withdrawn',
+  'charge.dispute.funds_reinstated',
+]);
+
 type StripeWebhookEvent = {
   id: string;
   type: string;
   livemode: boolean;
+  created?: number;
   data: {
     object: unknown;
     previous_attributes?: unknown;
@@ -41,6 +52,23 @@ export type StripeInvoiceEventSync = {
   livemode: boolean;
   userId: string;
   subscriptionId: string;
+  invoiceId: string;
+  paidAt: string | null;
+  testClock: boolean;
+};
+
+export type StripeDisputeEventSync = {
+  eventId: string;
+  eventType:
+    | 'charge.dispute.created'
+    | 'charge.dispute.closed'
+    | 'charge.dispute.funds_withdrawn'
+    | 'charge.dispute.funds_reinstated';
+  livemode: boolean;
+  disputeId: string;
+  paymentIntentId: string;
+  status: string;
+  eventAt: string;
 };
 
 export type StripeSubscriptionSync = {
@@ -326,6 +354,12 @@ export function normalizeStripeInvoiceEvent(
   const invoice = objectRecord(event.data.object);
   if (invoice.object !== 'invoice') throw new Error('stripe_invoice_object_invalid');
 
+  const invoiceId = stringField(
+    invoice.id,
+    INVOICE_ID_RE,
+    'stripe_invoice_id_invalid',
+  );
+
   const parent = invoice.parent;
   if (!parent || typeof parent !== 'object' || Array.isArray(parent)) return null;
   const parentRecord = parent as Record<string, unknown>;
@@ -350,12 +384,70 @@ export function normalizeStripeInvoiceEvent(
     return null;
   }
 
+  const testClock = (
+    event.livemode === false
+    && typeof invoice.test_clock === 'string'
+    && /^clock_[A-Za-z0-9_]+$/.test(invoice.test_clock)
+  );
+
+  let paidAt: string | null = null;
+  if (event.type === 'invoice.paid') {
+    const transitions = optionalObjectRecord(invoice.status_transitions);
+    if (transitions?.paid_at !== null && transitions?.paid_at !== undefined) {
+      paidAt = unixSecondsToIso(transitions.paid_at, 'stripe_invoice_paid_at_invalid');
+    } else if (event.created !== undefined) {
+      paidAt = unixSecondsToIso(event.created, 'stripe_invoice_event_created_invalid');
+    } else {
+      throw new Error('stripe_invoice_paid_at_missing');
+    }
+  }
+
   return {
     eventId: event.id,
     eventType: event.type,
     livemode: event.livemode,
     userId,
     subscriptionId,
+    invoiceId,
+    paidAt,
+    testClock,
+  };
+}
+
+export function normalizeStripeDisputeEvent(
+  event: StripeWebhookEvent,
+): StripeDisputeEventSync | null {
+  if (!SUPPORTED_STRIPE_DISPUTE_EVENTS.has(event.type)) return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const dispute = objectRecord(event.data.object);
+  if (dispute.object !== 'dispute') throw new Error('stripe_dispute_object_invalid');
+
+  const disputeId = stringField(dispute.id, DISPUTE_ID_RE, 'stripe_dispute_id_invalid');
+  const paymentIntentValue = dispute.payment_intent;
+  const paymentIntentId = typeof paymentIntentValue === 'string'
+    ? stringField(paymentIntentValue, PAYMENT_INTENT_ID_RE, 'stripe_dispute_payment_intent_invalid')
+    : stringField(
+        objectRecord(paymentIntentValue).id,
+        PAYMENT_INTENT_ID_RE,
+        'stripe_dispute_payment_intent_invalid',
+      );
+
+  const status = typeof dispute.status === 'string' ? dispute.status.trim() : '';
+  if (status.length < 1 || status.length > 64) {
+    throw new Error('stripe_dispute_status_invalid');
+  }
+
+  const eventAt = unixSecondsToIso(event.created, 'stripe_dispute_event_created_invalid');
+
+  return {
+    eventId: event.id,
+    eventType: event.type as StripeDisputeEventSync['eventType'],
+    livemode: event.livemode,
+    disputeId,
+    paymentIntentId,
+    status,
+    eventAt,
   };
 }
 
