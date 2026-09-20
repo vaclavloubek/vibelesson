@@ -9,6 +9,7 @@ const PRICE_ID_RE = /^price_[A-Za-z0-9_]+$/;
 const INVOICE_ID_RE = /^in_[A-Za-z0-9_]+$/;
 const PAYMENT_INTENT_ID_RE = /^pi_[A-Za-z0-9_]+$/;
 const DISPUTE_ID_RE = /^d[pu]_[A-Za-z0-9_]+$/;
+const CHARGE_ID_RE = /^ch_[A-Za-z0-9_]+$/;
 
 export const SUPPORTED_STRIPE_SUBSCRIPTION_EVENTS = new Set([
   'customer.subscription.created',
@@ -28,6 +29,13 @@ export const SUPPORTED_STRIPE_DISPUTE_EVENTS = new Set([
   'charge.dispute.closed',
   'charge.dispute.funds_withdrawn',
   'charge.dispute.funds_reinstated',
+]);
+
+export const SUPPORTED_STRIPE_REFUND_EVENTS = new Set([
+  'charge.refunded',
+  'refund.created',
+  'refund.updated',
+  'refund.failed',
 ]);
 
 type StripeWebhookEvent = {
@@ -68,6 +76,14 @@ export type StripeDisputeEventSync = {
   disputeId: string;
   paymentIntentId: string;
   status: string;
+  eventAt: string;
+};
+
+export type StripeRefundEventSync = {
+  eventId: string;
+  eventType: 'charge.refunded' | 'refund.created' | 'refund.updated' | 'refund.failed';
+  livemode: boolean;
+  chargeId: string;
   eventAt: string;
 };
 
@@ -447,6 +463,44 @@ export function normalizeStripeDisputeEvent(
     disputeId,
     paymentIntentId,
     status,
+    eventAt,
+  };
+}
+
+
+export function normalizeStripeRefundEvent(
+  event: StripeWebhookEvent,
+): StripeRefundEventSync | null {
+  if (!SUPPORTED_STRIPE_REFUND_EVENTS.has(event.type)) return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const value = objectRecord(event.data.object);
+  let chargeId: string;
+
+  if (event.type === 'charge.refunded') {
+    if (value.object !== 'charge') throw new Error('stripe_refund_charge_object_invalid');
+    chargeId = stringField(value.id, CHARGE_ID_RE, 'stripe_refund_charge_id_invalid');
+  } else {
+    if (value.object !== 'refund') throw new Error('stripe_refund_object_invalid');
+    const chargeValue = value.charge;
+    if (typeof chargeValue === 'string') {
+      chargeId = stringField(chargeValue, CHARGE_ID_RE, 'stripe_refund_charge_id_invalid');
+    } else {
+      chargeId = stringField(
+        objectRecord(chargeValue).id,
+        CHARGE_ID_RE,
+        'stripe_refund_charge_id_invalid',
+      );
+    }
+  }
+
+  const eventAt = unixSecondsToIso(event.created, 'stripe_refund_event_created_invalid');
+
+  return {
+    eventId: event.id,
+    eventType: event.type as StripeRefundEventSync['eventType'],
+    livemode: event.livemode,
+    chargeId,
     eventAt,
   };
 }

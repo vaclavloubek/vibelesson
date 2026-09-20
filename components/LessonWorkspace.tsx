@@ -94,7 +94,7 @@ export default function LessonWorkspace({
   const [multilingualLessonsEnabled, setMultilingualLessonsEnabled] = useState(false);
   const [worksheetExportEnabled, setWorksheetExportEnabled] = useState(false);
   const [aiBillingPaused, setAiBillingPaused] = useState(false);
-  const [aiBillingPauseReason, setAiBillingPauseReason] = useState<'past_due' | 'dispute' | null>(null);
+  const [aiBillingPauseReason, setAiBillingPauseReason] = useState<'past_due' | 'dispute' | 'refund' | null>(null);
   const [entitlementsLoaded, setEntitlementsLoaded] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(initialLesson);
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId);
@@ -179,7 +179,7 @@ export default function LessonWorkspace({
           multilingualLessonsEnabled?: boolean;
           worksheetExportEnabled?: boolean;
           aiBillingPaused?: boolean;
-          aiBillingPauseReason?: 'past_due' | 'dispute' | null;
+          aiBillingPauseReason?: 'past_due' | 'dispute' | 'refund' | null;
         };
         if (!cancelled) {
           setAiGradingEnabled(response.ok && Boolean(data.aiGradingEnabled));
@@ -187,7 +187,7 @@ export default function LessonWorkspace({
           setWorksheetExportEnabled(response.ok && Boolean(data.worksheetExportEnabled));
           setAiBillingPaused(response.ok && Boolean(data.aiBillingPaused));
           setAiBillingPauseReason(
-            response.ok && (data.aiBillingPauseReason === 'past_due' || data.aiBillingPauseReason === 'dispute')
+            response.ok && (data.aiBillingPauseReason === 'past_due' || data.aiBillingPauseReason === 'dispute' || data.aiBillingPauseReason === 'refund')
               ? data.aiBillingPauseReason
               : null,
           );
@@ -296,10 +296,15 @@ export default function LessonWorkspace({
           'AI funkce jsou dočasně pozastavené kvůli reklamaci platby. Uložené lekce a živá výuka dál fungují; AI se odemkne po příznivém vyřešení sporu, případně po další potvrzené platbě.',
           'AI features are temporarily paused because a subscription payment is disputed. Saved lessons and live teaching still work; AI unlocks when the dispute resolves in Syllonaut’s favour, or after the next confirmed payment if the dispute is lost.',
         )
-      : ui(
-          'AI funkce jsou dočasně pozastavené kvůli platbě předplatného. Po potvrzení platby Stripe se automaticky odemknou.',
-          'AI features are temporarily paused because of the subscription payment. They unlock automatically as soon as Stripe confirms the payment.',
-        ));
+      : aiBillingPauseReason === 'refund'
+        ? ui(
+            'AI funkce jsou dočasně pozastavené, protože platba za aktuální předplatné byla plně vrácena. Po další potvrzené platbě předplatného se automaticky odemknou.',
+            'AI features are temporarily paused because the current subscription payment was fully refunded. They unlock automatically after the next confirmed subscription payment.',
+          )
+        : ui(
+            'AI funkce jsou dočasně pozastavené kvůli platbě předplatného. Po potvrzení platby Stripe se automaticky odemknou.',
+            'AI features are temporarily paused because of the subscription payment. They unlock automatically as soon as Stripe confirms the payment.',
+          ));
     return false;
   }
 

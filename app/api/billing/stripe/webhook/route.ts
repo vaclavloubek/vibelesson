@@ -9,11 +9,13 @@ import { billingRouteForCountry } from '@/lib/billing-region';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { listStripePaidInvoicePaymentIntents } from '@/lib/stripe-invoice-payments';
+import { retrieveStripeChargeRefundState } from '@/lib/stripe-refunds';
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeDisputeEvent,
   normalizeStripeInvoiceEvent,
   normalizeStripeOrganizationInvoiceEvent,
+  normalizeStripeRefundEvent,
   normalizeStripeOrganizationSubscriptionEvent,
   normalizeStripeSubscriptionEvent,
   verifyStripeWebhook,
@@ -358,6 +360,91 @@ export async function POST(request: Request) {
         error: error instanceof Error ? error.message : 'unknown',
       });
       return jsonError(503, 'billing_not_configured');
+    }
+  }
+
+  let refundSync;
+  try {
+    refundSync = normalizeStripeRefundEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'refund_event_invalid';
+    console.warn('stripe refund event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_refund_event');
+  }
+
+  if (refundSync) {
+    const secretKey = refundSync.livemode
+      ? process.env.STRIPE_SECRET_KEY_LIVE
+      : process.env.STRIPE_SECRET_KEY_TEST;
+
+    try {
+      const refundState = await retrieveStripeChargeRefundState({
+        secretKey,
+        livemode: refundSync.livemode,
+        chargeId: refundSync.chargeId,
+      });
+
+      const supabase = createAdminClient();
+      const { data, error } = await supabase.rpc('sync_stripe_refund_state', {
+        p_event_id: refundSync.eventId,
+        p_event_type: refundSync.eventType,
+        p_livemode: refundSync.livemode,
+        p_charge_id: refundState.chargeId,
+        p_payment_intent_id: refundState.paymentIntentId,
+        p_amount_total: refundState.amountTotal,
+        p_amount_refunded: refundState.amountRefunded,
+        p_fully_refunded: refundState.fullyRefunded,
+        p_event_at: refundSync.eventAt,
+      });
+
+      if (error?.message?.includes('stripe_refund_payment_mapping_missing')) {
+        // All individual subscription payments are mapped from invoice.paid before
+        // they can be refunded. A missing mapping therefore means this refund is
+        // outside the individual Syllonaut billing boundary (for example school billing).
+        console.info('stripe refund ignored outside individual billing mapping', {
+          eventId: refundSync.eventId,
+          chargeId: refundState.chargeId,
+          paymentIntentId: refundState.paymentIntentId,
+          livemode: refundSync.livemode,
+        });
+        return NextResponse.json({ received: true, ignored: true }, {
+          status: 200,
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      }
+
+      if (error) {
+        console.error('stripe refund sync failed', {
+          eventId: refundSync.eventId,
+          chargeId: refundState.chargeId,
+          livemode: refundSync.livemode,
+          code: error.code,
+        });
+        return jsonError(500, 'refund_sync_failed');
+      }
+
+      return NextResponse.json({
+        received: true,
+        refundEvent: refundSync.eventType,
+        fullRefund: refundState.fullyRefunded,
+        result: data,
+      }, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      console.error('stripe refund event processing failed', {
+        eventId: refundSync.eventId,
+        chargeId: refundSync.chargeId,
+        livemode: refundSync.livemode,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(503, 'refund_state_lookup_failed');
     }
   }
 
