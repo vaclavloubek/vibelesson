@@ -134,7 +134,11 @@ export async function POST(request: Request) {
 
   let input: z.infer<typeof InquirySchema>;
   try {
-    input = InquirySchema.parse(await request.json());
+    const rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, 'utf8') > MAX_BODY_BYTES) {
+      return jsonError(413, 'payload_too_large');
+    }
+    input = InquirySchema.parse(JSON.parse(rawBody));
   } catch {
     return jsonError(400, 'invalid_inquiry');
   }
@@ -207,7 +211,7 @@ export async function POST(request: Request) {
   }
 
   // Keep only a short, privacy-minimal anti-abuse history.
-  void rateLimitTable
+  await rateLimitTable
     .delete()
     .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1_000).toISOString());
 
