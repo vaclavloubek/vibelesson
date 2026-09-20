@@ -999,7 +999,7 @@ export default function SchoolAdmin({
       return;
     }
 
-    setMessageKind('success');
+    setMessageKind('info');
     setMessage(ui(
       'Aktivní zařízení byla odpojena. Historie nových zařízení za 30 dní zůstala zachovaná.',
       'Active devices were disconnected. The 30-day new-device history was preserved.',
