@@ -49,14 +49,14 @@ Tarify byly přepočítány podle skutečně uložených AI Gateway nákladů z 
 Finální měsíční AI kvóty:
 - **Free:** 5 nových AI lekcí + 10 AI úprav; 3 importy/kopie; každou lesson family lze živě použít jednou;
 - **Teacher:** 10 nových AI lekcí + 20 AI úprav; hotové lekce lze živě používat opakovaně bez omezení;
-- **Teacher Pro:** 20 nových AI lekcí + 25 AI úprav; navíc AI grading, pracovní listy/PDF a složky;
+- **Teacher Pro:** 25 nových AI lekcí + 40 AI úprav; navíc AI grading, pracovní listy/PDF a složky;
 - **Team:** 40 nových AI lekcí + 80 AI úprav společně / měsíc, až 10 učitelů;
 - **School:** 120 nových AI lekcí + 240 AI úprav společně / měsíc, až 30 učitelů;
 - **Campus:** 300 nových AI lekcí + 600 AI úprav společně / měsíc, až 100 učitelů.
 
 Interní AI-grading safety budgety (nejsou customer-facing quota): **Teacher Pro $2 / 150 pokusů**, **School $10 / 700 pokusů**, **Campus $25 / 1 750 pokusů** za měsíc. Při dosažení safety budgetu systém bezpečně přechází na manual review.
 
-Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měsíc nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měsíc nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 53 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
+Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měsíc nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měsíc nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 68 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
 
 **USP pro Pricing a akvizici:** Syllonaut neprodává neomezené generování materiálů jako hlavní hodnotu. Jedna AI lekce je znovupoužitelný live výukový celek: **zadání → AI příprava → přirozené AI úpravy → živá hodina → studentské odpovědi → vyhodnocení → opakované použití**. AI limit se proto vztahuje pouze na novou AI tvorbu a AI úpravy. U placených tarifů spuštění, studentské připojení a opakované používání již vytvořených lekcí AI limit nespotřebovává. Pricing tuto logiku musí komunikovat výrazněji než samotné číselné kvóty.
 
@@ -339,13 +339,13 @@ Individuální plány:
 
 - **Free** — 0 Kč / €0 / $0; 5 nových AI lekcí + 20 AI úprav měsíčně + 3 importy/kopie měsíčně; nové lekce pouze v aktivním jazyce UI a AI úpravy bez změny hlavního jazyka; deterministický quiz; ruční hodnocení bodovaných otevřených/týmových odpovědí; bez prémiových složek;
 - **Teacher** — 199 Kč / €7.99 / $8.99 měsíčně nebo 1 990 Kč / €79.90 / $89 ročně; 10 AI lekcí + 20 AI úprav; **lekce v libovolném jazyce**; bez placeného AI gradingu a bez prémiových složek;
-- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 20 AI lekcí + 25 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
+- **Teacher Pro** — 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně; 25 AI lekcí + 40 AI úprav; **lekce v libovolném jazyce**; AI grading `open_text`, `exit_ticket`, `team_task`; složky a podsložky.
 
 U placených individuálních plánů jsou live hodiny a opakované používání již vytvořených lekcí bez tarifního limitu; AI kvóta se čerpá pouze při nové AI tvorbě a AI úpravách. Free může každou lesson family živě použít jednou. Studenti se připojují bez plnohodnotného účtu.
 
 ### Tarifní abuse hardening 0.9.50
 
-- Free účet má dál vlastní měsíční kvóty **5 AI lekcí / 20 AI úprav / 3 importy nebo kopie**.
+- Free účet má vlastní měsíční kvóty **5 AI lekcí / 10 AI úprav / 3 importy nebo kopie**.
 - Nad nimi je privacy-minimal společný budget zařízení napříč všemi Free účty na stejném browserovém zařízení: **10 AI lekcí / 40 AI úprav / 6 importů nebo kopií za klouzavých 30 dní**.
 - Zařízení je identifikované pouze SHA-256 hashem náhodného 256bitového HttpOnly tokenu; Syllonaut pro tuto ochranu neukládá IP, User-Agent, polohu ani browser/hardware fingerprint.
 - Free účet lze dál normálně registrovat a přihlásit i po vyčerpání device budgetu; blokované jsou pouze nákladové Free operace. Neúspěšná operace rezervaci uvolní.
@@ -354,6 +354,11 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - Organizace mají současně seat cap podle tarifu a per-billing-period limit unikátních lidí `seat_limit + max(1, ceil(10 %))`; návrat stejného člena se nepočítá znovu a čekající pozvánka pro nového člověka kapacitu dočasně rezervuje.
 - School/Campus školní obsah nese immutable `organization_origin_id`; po zániku členství zůstává uložený, ale přejde do read-only licenčního zámku a znovu se odemkne po obnovení přístupu.
 - AI grading má interní safety budget nezávislý na marketingových kvótách: Teacher Pro **$8 / 1 000 pokusů**, School **$75 / 7 500**, Campus **$200 / 20 000** za UTC kalendářní měsíc; při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
+
+### Teacher Pro AI kapacita 0.9.51 — 2026-09-20
+
+Teacher Pro byl po přepočtu unit economics rozšířen z **20 AI lekcí + 25 AI úprav** na **25 AI lekcí + 40 AI úprav měsíčně** při nezměněné ceně 329 Kč / €13.99 / $14.99 měsíčně nebo 3 290 Kč / €139.90 / $149 ročně. Při plném vyčerpání nové tvorby a úprav vychází podle dosavadních průměrných produkčních nákladů AI cost na cca **$6.41/měsíc**; se současným interním grading safety budgetem $2 je worst-case cca **$8.41/měsíc**, tedy přibližně **56 % měsíčního USD tarifu** nebo **68 % efektivního měsíčního výnosu ročního USD tarifu**. Změna je záměrně obchodní kompromis: Teacher Pro má působit výrazně štědřeji než Teacher a podporovat USP opakovaně použitelných live lekcí, přičemž hotové lekce lze dál učit bez čerpání AI kvóty.
+
 
 ### Anti-abuse audit — zdroj pravdy a pokračovací protokol
 

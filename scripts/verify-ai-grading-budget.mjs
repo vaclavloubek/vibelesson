@@ -15,6 +15,8 @@ const budget = migrations.find(({ content }) => content.includes('create table i
 if (!budget) throw new Error('Missing AI grading safety-budget migration.');
 const rebalance = migrations.find(({ content }) => content.includes('Measured unit economics baseline 2026-09-20'));
 if (!rebalance) throw new Error('Missing measured plan-economics rebalance migration.');
+const teacherProExpansion = migrations.find(({ content }) => content.includes('Teacher Pro allowance expansion 2026-09-20'));
+if (!teacherProExpansion) throw new Error('Missing Teacher Pro 25+40 allowance migration.');
 
 for (const [needle, label] of [
   ["v_reservation numeric(12,6) := 0.040000", 'conservative in-flight cost reservation'],
@@ -28,7 +30,7 @@ for (const [needle, label] of [
 for (const [needle, label] of [
   ["('free', 5, 10", 'Free measured-cost limits'],
   ["('teacher', 10, 20", 'Teacher measured-cost limits'],
-  ["('teacher_pro', 20, 25", 'Teacher Pro measured-cost limits'],
+  ["('teacher_pro', 20, 25", 'Teacher Pro measured-cost baseline'],
   ["('team', 40, 80", 'Team measured-cost limits'],
   ["('school', 120, 240", 'School measured-cost limits'],
   ["('campus', 300, 600", 'Campus measured-cost limits'],
@@ -40,6 +42,13 @@ for (const [needle, label] of [
   ["when 'campus' then 1750", 'Campus grading count ceiling'],
 ]) {
   requireText(rebalance.content, needle, label);
+}
+
+for (const [needle, label] of [
+  ["monthly_lesson_limit = 25", 'Teacher Pro expanded lesson allowance'],
+  ["monthly_revision_limit = 40", 'Teacher Pro expanded revision allowance'],
+]) {
+  requireText(teacherProExpansion.content, needle, label);
 }
 
 const joinLimits = migrations.find(({ content }) => content.includes('create or replace function public.enforce_participant_join_limits()'));

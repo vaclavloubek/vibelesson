@@ -81,8 +81,8 @@ const teacherPlansCs: Plan[] = [
     description: 'Pro intenzivní práci s lekcemi, AI hodnocením, pracovními listy a organizací výuky.',
     price: pricingPagePrice('teacher_pro'),
     features: [
-      '20 nových AI lekcí za měsíc',
-      '25 AI úprav za měsíc',
+      '25 nových AI lekcí za měsíc',
+      '40 AI úprav za měsíc',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
@@ -189,8 +189,8 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   'teacher-pro': {
     description: 'For intensive lesson work with AI grading, worksheets and organisation tools.',
     features: [
-      '20 new AI lessons per month',
-      '25 AI edits per month',
+      '25 new AI lessons per month',
+      '40 AI edits per month',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
