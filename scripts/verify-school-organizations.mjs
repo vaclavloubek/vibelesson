@@ -297,6 +297,7 @@ for (const needle of [
   "'superadmin_manual'",
   "'bank_match'",
   'organization_bank_payment_confirmations',
+  'oo.livemode = true',
   'from public, anon, authenticated',
   'to service_role',
 ]) {
