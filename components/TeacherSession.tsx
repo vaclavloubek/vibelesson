@@ -22,7 +22,7 @@ import SyllonautGuide from '@/components/SyllonautGuide';
 import GuideHelpButton from '@/components/GuideHelpButton';
 import TeacherResponses from '@/components/TeacherResponses';
 import type { LiveTimerState, SessionAction, SessionStatus, StudentAnswer } from '@/lib/live';
-import type { Lesson } from '@/lib/schema';
+import { resolveLessonCollaborationMode, type Lesson } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/client';
 import { localizedApiError } from '@/lib/i18n';
 import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
@@ -460,7 +460,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     return session.lessonSnapshot.blocks.findIndex((block) => block.id === session.activeBlockId);
   }, [session]);
   const activeBlock = activeIndex >= 0 && session ? session.lessonSnapshot.blocks[activeIndex] : null;
-  const hasTeamTasks = session?.lessonSnapshot.blocks.some((block) => block.type === 'team_task') ?? false;
+  const teamMode = session ? resolveLessonCollaborationMode(session.lessonSnapshot) === 'teams' : false;
 
   function teamMembers(teamId: string) {
     return session?.participants.filter((participant) => participant.teamId === teamId) ?? [];
@@ -512,13 +512,13 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               </div>
               {joinUrl ? <JoinQrCode value={joinUrl} /> : null}
             </div>
-            {hasTeamTasks && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>{ui('Tato lekce obsahuje týmový úkol. Před startem vytvoř alespoň 2 týmy.', 'This lesson contains a team task. Create at least 2 teams before starting.')}</p> : null}
+            {teamMode && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>{ui('Tato lekce je v týmovém režimu. Před startem vytvoř alespoň 2 týmy.', 'This lesson uses team mode. Create at least 2 teams before starting.')}</p> : null}
             <div className="actions">
-              <button className="primary" data-tour="live-start" disabled={busy || (hasTeamTasks && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
+              <button className="primary" data-tour="live-start" disabled={busy || (teamMode && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
             </div>
           </section>
 
-          {hasTeamTasks ? (
+          {teamMode ? (
             <section className="panel">
               <span className="eyebrow">{ui('Týmy', 'Teams')}</span>
               {!session.teams.length ? (

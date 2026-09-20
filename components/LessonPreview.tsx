@@ -6,7 +6,7 @@ import LessonDataTable from '@/components/LessonDataTable';
 import FormattedInstructions from '@/components/FormattedInstructions';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { getLessonAccessibilityAuthoringIssues } from '@/lib/accessibility-authoring';
-import type { Lesson, LessonBlock } from '@/lib/schema';
+import { resolveLessonCollaborationMode, type Lesson, type LessonBlock } from '@/lib/schema';
 
 function label(type: LessonBlock['type'], english: boolean) {
   const cs: Record<LessonBlock['type'], string> = {
@@ -91,6 +91,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId = null, re
   const starts = useMemo(() => lesson.blocks.map((_, index) => lesson.blocks.slice(0, index).reduce((total, block) => total + block.durationMinutes, 0)), [lesson.blocks]);
   const accessibilityIssues = useMemo(() => getLessonAccessibilityAuthoringIssues(lesson), [lesson]);
   const recentlyChangedBlocks = useMemo(() => new Set(recentlyChangedBlockIds), [recentlyChangedBlockIds]);
+  const collaborationMode = resolveLessonCollaborationMode(lesson);
 
   useEffect(() => {
     setStudentPreviewIndex((current) => Math.min(current, Math.max(0, lesson.blocks.length - 1)));
@@ -142,7 +143,7 @@ export default function LessonPreview({ lesson, mode, selectedBlockId = null, re
         <span className="eyebrow">{english ? 'Teacher preview' : 'Učitelský náhled'}</span>
         <h2 lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.title}</h2>
         {lesson.subtitle ? <p lang={lesson.language} dir={lesson.language ? 'auto' : undefined}>{lesson.subtitle}</p> : null}
-        <div className="meta"><span>{lesson.audience}</span><span>{lesson.groupSize}</span><span>{sum} min</span><span>{lesson.blocks.length} {english ? 'activities' : 'aktivit'}</span></div>
+        <div className="meta"><span>{lesson.audience}</span><span>{collaborationMode === 'individual' ? (english ? 'Individuals' : 'Jednotlivci') : (english ? `Teams · ${lesson.groupSize}` : `Týmy · ${lesson.groupSize}`)}</span><span>{sum} min</span><span>{lesson.blocks.length} {english ? 'activities' : 'aktivit'}</span></div>
       </div>
 
       <details className="reveal" style={{ marginTop: 14 }} open={accessibilityIssues.length > 0}>
