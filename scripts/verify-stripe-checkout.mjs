@@ -49,10 +49,18 @@ const firstPurchaseParams = buildStripeCheckoutParams({
   managedPayments: false,
   planCode: 'teacher',
   billingPeriod: 'monthly',
+  termsVersion: '1.0',
+  termsAcceptedAt: '2026-09-20T19:30:00.000Z',
+  immediateAccessRequested: true,
 });
 assert.equal(firstPurchaseParams.get('customer_email'), 'teacher@example.com');
 assert.equal(firstPurchaseParams.has('customer'), false);
 assert.match(firstPurchaseParams.get('success_url') ?? '', /billing_env=live/);
+assert.equal(firstPurchaseParams.get('metadata[syllonaut_terms_version]'), '1.0');
+assert.equal(firstPurchaseParams.get('metadata[syllonaut_terms_accepted_at]'), '2026-09-20T19:30:00.000Z');
+assert.equal(firstPurchaseParams.get('metadata[syllonaut_immediate_access_requested]'), 'true');
+assert.equal(firstPurchaseParams.get('subscription_data[metadata][syllonaut_terms_version]'), '1.0');
+assert.equal(firstPurchaseParams.get('subscription_data[metadata][syllonaut_immediate_access_requested]'), 'true');
 
 function checkoutListResponse(country, {
   currency = 'eur',
