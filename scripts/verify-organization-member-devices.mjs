@@ -29,6 +29,11 @@ requireText(enforcement, 'private.trusted_device_hash_valid', 'live/regrade DB b
 requireText(enforcement, 'create_live_session_server', 'live session server boundary updated');
 requireText(enforcement, 'requeue_response_evaluation_server', 'AI regrade server boundary updated');
 
+const repair = read('supabase/migrations/20260920073500_repair_organization_trusted_device_db_boundary.sql');
+requireText(repair, 'private.trusted_device_hash_valid', 'production DB-boundary drift repair uses unified validator');
+requireText(repair, 'create_live_session_server', 'production live-session boundary is explicitly repaired');
+requireText(repair, 'requeue_response_evaluation_server', 'production regrade boundary is explicitly repaired');
+
 const helper = read('lib/trusted-device-access.ts');
 for (const needle of [
   'register_trusted_device_server',
