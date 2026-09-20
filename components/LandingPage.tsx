@@ -17,9 +17,9 @@ import polish from './LandingPagePolish.module.css';
 const previewMutedText = { color: '#686b74' } as const;
 const previewPrimaryAction = { background: '#5b57e8' } as const;
 
-function SectionCue({ href, label }: { href: string; label: string }) {
+function SectionCue({ href, label, staticCue = false }: { href: string; label: string; staticCue?: boolean }) {
   return (
-    <a href={href} className={polish.sectionCue}>
+    <a href={href} className={`${polish.sectionCue} ${staticCue ? polish.sectionCueStatic : ''}`}>
       <span>{label}</span>
       <span className={polish.scrollArrow} aria-hidden="true">↓</span>
     </a>
@@ -304,7 +304,7 @@ export default function LandingPage() {
         <h2>{t.finalTitle}</h2>
         <p>{t.finalBody}</p>
         <Link href="/new" className={styles.primaryCta} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'other' })}>{t.prepare}</Link>
-        <SectionCue href="#kontakt" label={t.contactCue} />
+        <SectionCue href="#kontakt" label={t.contactCue} staticCue />
       </section>
 
       <LandingContactForm />
