@@ -424,19 +424,6 @@
     width: auto;
     flex: 0 0 auto;
   }
-  .headerActions :global(.auth-popover) {
-    position: fixed;
-    top: calc(72px + env(safe-area-inset-top));
-    left: 14px;
-    right: 14px;
-    width: auto;
-    max-width: 420px;
-    max-height: calc(100dvh - 88px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    margin: 0 auto;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    z-index: 100;
-  }
   .headerActions :global(.auth-account-trigger) {
     width: 40px;
     max-width: 40px;

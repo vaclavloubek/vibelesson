@@ -554,11 +554,14 @@ details { margin-top: 12px; color: var(--muted); }
 .auth-wrap { position: relative; }
 .auth-trigger { white-space: nowrap; }
 .auth-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 20;
-  width: min(340px,calc(100vw - 24px));
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: white;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -1164,7 +1167,6 @@ body:has(.teacher-live-shell) {
   .auth-account-label,
   .auth-account-caret { display: none; }
   .auth-account-popover { right: 0; }
-  .auth-popover { position: static; width: 100%; margin-top: 8px; }
   .auth-signed-in { width: 100%; justify-content: space-between; }
   .app-header-cta { width: 100%; justify-content: center; }
   .lessons-user { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
