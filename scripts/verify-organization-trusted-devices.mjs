@@ -1,3 +1,4 @@
+// Organization trusted-device anti-sharing regression contract.
 import fs from 'node:fs';
 import path from 'node:path';
 
