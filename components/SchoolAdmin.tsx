@@ -7,6 +7,7 @@ import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
+import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -83,6 +84,12 @@ type Summary = {
     email: string | null;
     role: 'owner' | 'admin' | 'teacher';
     joinedAt: string;
+    devices: {
+      activeCount: number;
+      maxActive: number;
+      newIn30Days: number;
+      maxNewIn30Days: number;
+    } | null;
   }>;
   invitations: Array<{
     id: string;
@@ -993,6 +1000,43 @@ export default function SchoolAdmin({
     await load();
   }
 
+  async function resetMemberDevices(userId: string, email: string | null) {
+    if (!window.confirm(ui(
+      'Resetovat všechna aktivní důvěryhodná zařízení uživatele ' + (email ?? '') + '? Staré device tokeny už nepůjde znovu aktivovat a 30denní historie nových zařízení se nesmaže.',
+      'Reset all active trusted devices for ' + (email ?? 'this user') + '? Old device tokens cannot be reactivated and the rolling 30-day new-device history will not be cleared.',
+    ))) return;
+
+    setBusy(true);
+    setMessage('');
+    const response = await fetch(
+      '/api/organizations/members/' + encodeURIComponent(userId) + '/devices',
+      { method: 'POST', cache: 'no-store' },
+    );
+    const payload = await response.json().catch(() => ({})) as {
+      revokedCount?: number;
+      newIn30Days?: number;
+      maxNewIn30Days?: number;
+      error?: string;
+    };
+    setBusy(false);
+
+    if (!response.ok) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Zařízení se nepodařilo resetovat.',
+        'The devices could not be reset.',
+      ));
+      return;
+    }
+
+    setMessageKind('success');
+    setMessage(ui(
+      `Aktivní zařízení byla resetována (${payload.revokedCount ?? 0}). Historie nových zařízení za 30 dní zůstala zachovaná (${payload.newIn30Days ?? 0}/${payload.maxNewIn30Days ?? 10}).`,
+      `Active devices were reset (${payload.revokedCount ?? 0}). The rolling 30-day new-device history was preserved (${payload.newIn30Days ?? 0}/${payload.maxNewIn30Days ?? 10}).`,
+    ));
+    await load();
+  }
+
   async function revokeInvitation(invitationId: string, email: string) {
     if (!window.confirm(ui(
       'Zrušit čekající pozvánku pro ' + email + '?',
@@ -1854,6 +1898,8 @@ export default function SchoolAdmin({
               </section>
             ) : null}
 
+            <TrustedDevicesPanel />
+
             <section className={styles.card + ' ' + styles.wide}>
               <h2>{ui('Uživatelé', 'Users')}</h2>
               <div className={styles.tableWrap}>
@@ -1862,6 +1908,7 @@ export default function SchoolAdmin({
                     <tr>
                       <th>E-mail</th>
                       <th>{ui('Role', 'Role')}</th>
+                      {summary.manager ? <th>{ui('Zařízení', 'Devices')}</th> : null}
                       {summary.manager ? <th>{ui('Akce', 'Actions')}</th> : null}
                     </tr>
                   </thead>
@@ -1873,6 +1920,19 @@ export default function SchoolAdmin({
                             ?? (member.userId === initialUser.id ? initialUser.email : '—')}
                         </td>
                         <td>{roleLabel(member.role, english)}</td>
+                        {summary.manager ? (
+                          <td>
+                            {member.devices ? (
+                              <>
+                                <strong>{member.devices.activeCount}/{member.devices.maxActive}</strong>
+                                <br />
+                                <small>
+                                  {ui('nová za 30 dní', 'new in 30 days')}: {member.devices.newIn30Days}/{member.devices.maxNewIn30Days}
+                                </small>
+                              </>
+                            ) : '—'}
+                          </td>
+                        ) : null}
                         {summary.manager ? (
                           <td>
                             <div className={styles.rowActions}>
@@ -1890,6 +1950,14 @@ export default function SchoolAdmin({
                                     {member.role === 'admin'
                                       ? ui('Změnit na učitele', 'Make teacher')
                                       : ui('Udělat admina', 'Make admin')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.secondary}
+                                    disabled={busy || !member.devices?.activeCount}
+                                    onClick={() => resetMemberDevices(member.userId, member.email)}
+                                  >
+                                    {ui('Resetovat zařízení', 'Reset devices')}
                                   </button>
                                   <button
                                     type="button"
