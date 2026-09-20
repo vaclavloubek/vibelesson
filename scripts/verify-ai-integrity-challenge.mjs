@@ -36,7 +36,7 @@ requireText(studentSession, '<IntegrityChallenge sessionId={sessionId} />', 'stu
 requireText(studentUi, 'Odpověz vlastními slovy jednou až dvěma větami.', 'student UX does not explain the short verification.');
 requireText(queue, 'integrity_challenge_answer', 'teacher queue does not load verification evidence.');
 requireText(teacherUi, 'Kontrolní otázka:', 'teacher UI does not show the verification question.');
-requireText(teacherUi, 'Potvrdit neoprávněné použití AI → 0 bodů', 'teacher UI lacks explicit human-confirmed zero-score action.');
+requireText(teacherUi, 'Potvrdit nepovolené využití AI → 0 bodů', 'teacher UI lacks explicit human-confirmed zero-score action.');
 
 requireText(migration, "integrity_challenge_status in ('not_required', 'pending', 'answered', 'expired')", 'challenge lifecycle constraint is missing.');
 requireText(migration, 'where integrity_challenge_status = \'pending\'', 'pending challenge index is missing.');
