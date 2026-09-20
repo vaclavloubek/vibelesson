@@ -69,6 +69,9 @@ requireOrder(i18n, [
 requireText(proxy, "pathname === '/'", 'root locale gateway is missing.');
 requireText(proxy, 'target.pathname = `/${locale}`', 'root gateway must redirect to the resolved locale URL.');
 requirePattern(proxy, /pathname === '\/pricing' \|\| pathname === '\/gdpr'/, 'public pricing/GDPR routes must remain locale-aware gateways.');
+requireText(proxy, "pathname === \`/${pathLocale}/school\`", 'localized school root must redirect to the unprefixed app route.');
+requireText(proxy, "pathname.startsWith(\`/${pathLocale}/school/\`)", 'localized school subroutes must redirect to the unprefixed app route.');
+requireText(proxy, "target.pathname = pathname.slice(pathLocale.length + 1)", 'localized school redirects must strip only the locale prefix and preserve the rest of the route.');
 requireText(layout, '<html lang={locale}>', 'document language must follow the active UI locale.');
 requireText(localeSwitcher, 'document.cookie = `${LOCALE_COOKIE}=${nextLocale}', 'explicit locale choice must persist in the locale cookie.');
 requireText(localeSwitcher, "segments[0] === 'cs' || segments[0] === 'en'", 'locale switcher must preserve localized route structure.');

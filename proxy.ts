@@ -64,6 +64,22 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  if (
+    pathLocale
+    && request.method === 'GET'
+    && (
+      pathname === `/${pathLocale}/school`
+      || pathname.startsWith(`/${pathLocale}/school/`)
+    )
+  ) {
+    const target = request.nextUrl.clone();
+    target.pathname = pathname.slice(pathLocale.length + 1);
+    const response = NextResponse.redirect(target);
+    persistLocale(response, request, pathLocale);
+    ensureTrustedDeviceCookie(response, request);
+    return response;
+  }
+
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set(LOCALE_REQUEST_HEADER, locale);
   const response = await updateSession(request, forwardedHeaders);
