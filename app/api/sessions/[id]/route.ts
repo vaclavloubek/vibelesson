@@ -5,7 +5,7 @@ import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 import { clearLiveResumeCookie } from '@/lib/live-resume';
 import { SessionActionSchema, StudentAnswerSchema, TeamAnswerSchema } from '@/lib/live';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
-import { requireTrustedDeviceForPaidIndividual, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { sendFirstLiveLifecycleEvent } from '@/lib/lifecycle-email';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -175,10 +175,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const { id } = await params;
     const action = SessionActionSchema.parse(await req.json());
     if (action.action !== 'end') {
-      const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
+      const deviceGate = await requireTrustedDeviceForPaidAccess(userId);
       if (!deviceGate.allowed) {
         return NextResponse.json({
-          error: trustedDeviceErrorMessage(deviceGate.code),
+          error: trustedDeviceErrorMessage(deviceGate),
           code: deviceGate.code,
         }, { status: 403 });
       }
