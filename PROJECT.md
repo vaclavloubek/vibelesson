@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.53** uzavírá trusted-device write-boundary hardening: založení nové live session a ruční znovuspuštění AI hodnocení jdou přes service-role-only RPC, které pro individuální Teacher / Teacher Pro znovu ověřují aktivní trusted-device hash; přímý authenticated INSERT session a legacy regrade RPC jsou po přepnutí aplikace uzamčené. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-20 — interní verze **0.9.54** uzavírá první produkční implementační a acceptance kolo školního workflow: organizační role a pozvánky, společný AI pool, školní knihovna, rotace členů, podmíněné zobrazení `Moje škola` a serverově autoritativní ochrana proti zastaralému privilegovanému UI při změně přihlášené identity. Předchozí 0.9.53 uzavřela trusted-device write-boundary hardening. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -407,6 +407,66 @@ Team zůstává bez těchto dvou premium benefitů; School a Campus je nově obs
 
 Organizační vrstva pro školní tarify je implementovaná: organizations, membership/role model, pozvánky, seat enforcement, sdílená knihovna pro School/Campus, billing/workflow základ a licenční ochrany obsahu. Team / School / Campus zatím nejsou veřejně samoobslužně prodejné přes LIVE Checkout; jejich provisioning a billing se nesmí vydávat za veřejně spuštěný self-service prodej.
 
+### Školní workflow V1 — implementace a acceptance 0.9.54 — 2026-09-20
+
+**Stav: produkčně nasazené a částečně E2E ověřené. Veřejný self-service nákup školních tarifů zůstává vypnutý.**
+
+Referenční testovací organizace:
+- interní organizace **Testovací škola**;
+- plán **Campus**, stav `active`, `is_internal_test=true`;
+- vlastník je interní Syllonaut admin; testovací organizace nemá expiraci ani fakturaci;
+- interní admin/owner účet se nezapočítává do komerčních míst ani do společného školního AI poolu.
+
+Aktuální školní tarifní politika:
+- Team: 10 aktivních míst, 40 AI lekcí + 80 AI úprav / měsíc společně;
+- School: 30 aktivních míst, 120 AI lekcí + 240 AI úprav / měsíc společně;
+- Campus: 100 aktivních míst, 300 AI lekcí + 600 AI úprav / měsíc společně;
+- rotace členů je omezená per billing period na `seat_limit + max(1, ceil(10 %))` unikátních lidí; Campus tedy používá **100 aktivních míst / 110 unikátních lidí v období**;
+- návrat stejného člověka v témže období se do unique limitu nezapočítá znovu;
+- čekající pozvánka pro nového člověka rezervuje místo v rotation budgetu;
+- interní admin účet Testovací školy je výjimka pouze pro interní test: nečerpá komerční místo, unique rotation ani školní AI pool.
+
+Produkčně ověřené acceptance scénáře:
+- **pozvánka e-mailem** dorazí;
+- invite flow nepřihlášeného uživatele používá login vpravo nahoře; po přihlášení stejným e-mailem se pozvánka automaticky přijme a uživatel je přesměrován do `/school`;
+- **Učitel** vidí školní licenci, AI pool a školní knihovnu, ale nevidí správu členů, pozvánky, usage po uživatelích ani billing/admin sekce;
+- **Učitel → Administrátor → Učitel**: administrační sekce se po změně role korektně objeví a zase zmizí;
+- owner/admin vidí druhého člena školy a jeho roli;
+- běžný člen vytvořil 1 AI lekci a provedl 1 AI úpravu; DB ověřila spotřebu **1/300 lekcí + 1/600 úprav** právě na tomto členovi, zatímco interní owner/admin zůstal na 0/0;
+- odebrání člena uvolní aktivní místo a účet přestane být členem školy;
+- po odebrání člena položka **Moje škola** z účtového menu zmizí; menu ji nyní zobrazuje jen při aktuálním aktivním členství;
+- znovupřidání stejného uživatele v témže období vrátí aktivní místo na 1/100, ale unique count zůstane **1/110**; předchozí školní AI usage zůstane zachovaný;
+- backend správně odmítl pokus o privilegovanou akci z běžného účtu i ve chvíli, kdy starý admin panel zůstal vizuálně otevřený.
+
+Školní knihovna:
+- School/Campus mají společnou školní knihovnu jako immutable snapshoty předaných lekcí;
+- člen předává škole samostatnou kopii; jeho původní osobní lekce se tím nemění;
+- člen si ze školní knihovny vytváří vlastní nezávislou kopii;
+- nové/revidované AI lekce nesou volitelný široký `subject`;
+- knihovna umožňuje filtr podle předmětu a fallback **Nezařazeno** pro starší lekce bez subject metadata;
+- při 10+ zobrazených lekcích se seznam přepne do rolovacího kontejneru se sticky hlavičkou;
+- produkční migrace `add_school_library_subject` je aplikovaná.
+
+Opravené chyby nalezené při acceptance:
+- invite login modal byl přesunut z nelogické pozice do pravého horního headeru;
+- po loginu už invite klient nezůstává v `idle`; přijetí pokračuje automaticky;
+- `Moje škola` už není v menu natvrdo a mizí po zániku členství;
+- kritický stale-auth UI problém: při změně Supabase session v jiném panelu mohl starý admin obsah a staré jméno účtu zůstat vykreslené, i když server už používal novou identitu. Backend oprávnění akci správně odmítl, ale UI bylo zavádějící;
+- první oprava přes browser `supabase.auth.getUser()` byla nedostatečná, protože klientský objekt mohl držet starou session;
+- finální oprava v produkčním commitu **`32ddca9` / PR #170** používá serverově autoritativní endpoint `/api/auth/identity` nad SSR cookies + `supabase.auth.getUser()`, `Cache-Control: private, no-store`; SchoolAdmin i společné account menu při nesouladu identity provedou hard reload;
+- identita se znovu kontroluje při focus/pageshow/visibility a na viditelné školní stránce periodicky; dočasný Auth outage se neinterpretuje jako logout;
+- uživatel ručně zopakoval původní multi-tab scénář a potvrdil **PASS**: po změně účtu se starý privilegovaný pohled už nezachová.
+
+Co ještě není uzavřené a patří do dalšího acceptance kola:
+- nový dosud nezapočítaný člověk má po přijetí zvýšit Campus unique count z 1/110 na **2/110**, při zachování 1 aktivního místa po výměně;
+- ověřit pending invite reservation a release při expiraci/zrušení;
+- ověřit bulk CSV pozvánky, včetně částečného failu na limitech;
+- ověřit pozvánku rovnou s rolí Administrátor;
+- ověřit seat cap a replacement cap fail-closed chování pomocí rollback/dry-run testů, ne 100 reálnými účty;
+- ověřit chování školních entitlementů po suspend/expired/cancelled stavu bez veřejného spuštění billing flow;
+- ověřit school-library licence lock po ztrátě členství a opětovné odemčení po návratu;
+- následně projít zbývající owner/admin edge cases a teprve potom rozhodnout, co je nutné pro veřejné spuštění Team/School/Campus.
+
 ### Server-authoritative profil a entitlementy
 
 Nový auth user dostane `profiles` řádek přes `on_auth_user_created → private.handle_new_user()`.
@@ -502,7 +562,7 @@ Fail-closed ochrana je v submit/queue, background processoru, `/grade` endpointu
 - Free: `multilingual_lessons_enabled=false`; nová lekce se vždy generuje v aktivním UI locale;
 - Teacher a Teacher Pro: `multilingual_lessons_enabled=true`;
 - admin: entitlement automaticky;
-- Team / School / Campus mají benefit produktově uvedený v Pricing; skutečné organization provisioning zatím není implementované;
+- Team / School / Campus mají multilingual benefit serverově napojený přes implementovanou organizační vrstvu; veřejný self-service školní billing zatím zůstává vypnutý;
 - UI pouze zpřístupňuje volbu, ale bezpečnostní hranice je na serveru;
 - `/api/generate` pro Free přepíše jazyk generování na serverově odvozený UI locale;
 - `/api/revise` a `/api/revise-block` načítají stejný entitlement a pro Free předávají AI vrstvě `allowLanguageChange=false`;
@@ -1178,11 +1238,10 @@ Bezprostřední growth krok:
 ### Další produktové položky
 
 - koš/verzování;
-- školní interní knihovna nad hotovým public read-only sdílením lekcí;
 - templates/favorites/search;
 - user export/delete;
-- skutečné školní/organizační účty, membership a správa rolí;
-- live billing activation po produkčním acceptance a organization membership;
+- dokončení školního acceptance kola, owner/admin edge cases a school entitlement lifecycle;
+- veřejný self-service billing Team / School / Campus až po dokončeném school acceptance a billing acceptance;
 - OCR;
 - produktová analytika GA4: measurement baseline je hotový; další práce je reporting nad reálnými daty, UTM atribuce a vyhodnocení activation / paid funnelu.
 
@@ -1359,7 +1418,7 @@ Nejbližší priority v tomto pořadí:
 6. **live billing je veřejný a lifecycle e-maily mají produkční E2E acceptance COMPLETE / PASS**; správa předplatného po 0.9.23/0.9.25 načítá produkční stav správně a admin UX je ručně ověřený PASS. LIVE restricted key permissions byly doplněny a read cesta je produkčně ověřená. Další billing acceptance krok je první skutečná změna tarifu, která ověří write/schedule cestu; změna země/měny zůstává řízená. Team / School / Campus zatím nezapínat;
 7. vytvořit **5–10 ukázkových lekcí** jako první distribuční balíček, publikovat je přes hotové přenositelné share linky, zvolit témata napříč věkem/předměty, připravit jasnou cestu k uložení vlastní kopie/registraci a UTM naming convention; nejprve je ověřit organicky, teprve potom pustit placené kampaně;
 8. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
-9. pokračovat ve sběru beta feedbacku, hybridním scoringu report/CSV a následně organization membership/roles pro Team/School/Campus;
+9. pokračovat v produkčním acceptance školního workflow: nový unikátní člen → 2/110, pending invite reservation/release, bulk CSV pozvánky, admin-role invitation, seat/replacement limity přes rollback testy, entitlement lifecycle a licenční zámek školního obsahu; membership/roles, AI pool a základ školní knihovny už jsou implementované a částečně PASS;
 10. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
 
 Security výjimky SEC-002/007 znovu otevřít při změně předpokladů. Případný odchod od Supabase by zároveň odstranil dnešní SEC-002 architektonický důvod pro sdílený Supabase trust boundary, ale nesmí se předjímat před pondělním rozhodovacím bodem.
