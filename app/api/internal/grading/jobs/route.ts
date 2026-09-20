@@ -103,12 +103,14 @@ export async function POST(req: Request) {
       strictness: lesson.gradingStrictness ?? 'neutral',
     });
 
-    const { data: finished, error: finishError } = await supabase.rpc('finish_grading_job', {
+    const { data: finished, error: finishError } = await supabase.rpc('finish_grading_job_v2', {
       p_token: token,
       p_ai_score: result.score,
       p_rationale: result.rationale,
       p_confidence: result.confidence,
       p_criterion_scores: result.criterionScores,
+      p_ai_use_suspicion: result.aiUseSuspicion,
+      p_ai_use_signals: result.aiUseSignals,
       p_model: result.model,
       p_cost_usd: result.costUsd,
     });
@@ -122,6 +124,7 @@ export async function POST(req: Request) {
     console.info('server grading job completed', {
       evaluationId,
       status: result.needsReview ? 'needs_review' : 'graded',
+      aiUseSuspicion: result.aiUseSuspicion,
     });
     return NextResponse.json({
       ok: true,
