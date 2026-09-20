@@ -13,6 +13,9 @@ export type CreateStripeCheckoutInput = {
   managedPayments: boolean;
   planCode: string;
   billingPeriod: 'monthly' | 'annual';
+  termsVersion?: string | null;
+  termsAcceptedAt?: string | null;
+  immediateAccessRequested?: boolean | null;
 };
 
 type StripeCheckoutSessionResponse = {
@@ -80,6 +83,14 @@ export function buildStripeCheckoutParams(input: Omit<CreateStripeCheckoutInput,
   params.set('subscription_data[metadata][syllonaut_billing_country]', input.billingCountry);
   params.set('subscription_data[metadata][syllonaut_plan_code]', input.planCode);
   params.set('subscription_data[metadata][syllonaut_billing_period]', input.billingPeriod);
+  if (input.termsVersion && input.termsAcceptedAt) {
+    params.set('metadata[syllonaut_terms_version]', input.termsVersion);
+    params.set('metadata[syllonaut_terms_accepted_at]', input.termsAcceptedAt);
+    params.set('metadata[syllonaut_immediate_access_requested]', input.immediateAccessRequested ? 'true' : 'false');
+    params.set('subscription_data[metadata][syllonaut_terms_version]', input.termsVersion);
+    params.set('subscription_data[metadata][syllonaut_terms_accepted_at]', input.termsAcceptedAt);
+    params.set('subscription_data[metadata][syllonaut_immediate_access_requested]', input.immediateAccessRequested ? 'true' : 'false');
+  }
 
   const environment = input.livemode ? 'live' : 'sandbox';
   params.set('success_url', 'https://www.syllonaut.com/pricing?checkout=success&billing_env=' + environment + '&session_id={CHECKOUT_SESSION_ID}');
