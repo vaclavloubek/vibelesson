@@ -68,6 +68,7 @@ for (const table of ['service_change_releases', 'service_change_deliveries', 'se
 assert.match(migration, /service_change_release_immutable/);
 assert.match(migration, /service_change_delivery_sent_evidence_immutable/);
 assert.match(migration, /service_change_termination_calculation_immutable/);
+assert.match(migration, /immediate_termination_confirmed boolean not null/);
 assert.match(migration, /effective_at >= created_at \+ interval '30 days'/);
 assert.match(migration, /greatest\(p_sent_at,r\.effective_at\)\+interval '30 days'/);
 assert.match(migration, /from public,anon,authenticated/);
@@ -77,6 +78,7 @@ assert.match(delivery, /Idempotency-Key/);
 assert.match(delivery, /noticeSha256/);
 assert.match(terminateApi, /authenticatedUserId/);
 assert.match(terminateApi, /confirmImmediateTermination:z\.literal\(true\)/);
+assert.match(read('lib/service-change-termination.ts'), /service_change_plan_history_review_required/);
 assert.match(notices, /Terminate because of this change/);
 assert.match(stripe, /syllonaut_service_change_termination_id/);
 assert.match(webhook, /reconcileServiceChangeRefundEvent/);
