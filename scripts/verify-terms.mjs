@@ -96,7 +96,8 @@ if (!termsPageGate.includes('hasCurrentTermsAcceptance') || !termsPageGate.inclu
 
 if (!proxy.includes('forwardedHeaders.delete(CURRENT_TERMS_REQUIRED_HEADER)') || !proxy.includes('requestRequiresCurrentTerms(pathname, request.method)')) fail('proxy must overwrite the internal Terms gate marker from trusted path/method data');
 if (!termsGate.includes("pathname === '/api/billing/stripe/checkout'")) fail('new individual checkout must require current Terms audit');
-if (!termsGate.includes("normalizedMethod === 'GET'") || !termsGate.includes('/live-control
+if (!termsGate.includes("normalizedMethod === 'GET'") || !termsGate.includes('/live-control$')) fail('live-control capability issuance must require current Terms even though it is a GET');
+if (termsGate.includes("pathname === '/api/billing/stripe/subscription/change'")) fail('subscription change endpoint must not be generically gated because cancellation of a scheduled change must remain available');
 if (!serverAuth.includes("requestHeaders.get(CURRENT_TERMS_REQUIRED_HEADER) === '1'") || !serverAuth.includes('termsAcceptanceRequired = !(await hasCurrentTermsAcceptance(authenticatedUserId))')) fail('shared server auth must enforce the proxy-marked Terms gate');
 if (!serverAuth.includes('userId: termsAcceptanceRequired ? null : authenticatedUserId')) fail('protected product mutations must fail closed when current Terms are missing');
 if (!individualApi.includes('termsAcceptanceRequired && authenticatedUserId') || !individualApi.includes("jsonError(428, 'terms_reconsent_required')")) fail('individual checkout must distinguish authenticated re-consent from ordinary authentication failure');
