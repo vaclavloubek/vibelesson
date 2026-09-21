@@ -17,6 +17,7 @@ const worker = source('app/api/internal/grading/jobs/route.ts');
 const queue = source('app/api/sessions/[id]/evaluations/queue/route.ts');
 const ui = source('components/EvaluationReviewQueue.tsx');
 const pricing = source('components/PricingPage.tsx');
+const copy = source('lib/ai-integrity-copy.ts');
 const migration = source('supabase/migrations/20260920180324_add_ai_integrity_alert.sql');
 
 requireText(grading, "aiUseSuspicion: z.enum(['none', 'low', 'high'])", 'grader output does not include a bounded suspicion signal.');
@@ -55,12 +56,24 @@ requireCount(pricing, enFeature, 3, 'EN pricing must advertise the feature only 
 if (pricing.includes('s detekcí podezřelého využití AI') || pricing.includes('with suspicious AI-use detection')) {
   throw new Error('AI integrity alert regression: AI grading copy must not duplicate the separate integrity-protection benefit.');
 }
-const csProtectionFeature = 'Ochrana proti nepovolenému využití AI ve studentských odpovědích';
-const enProtectionFeature = 'Protection against unauthorized AI use in student responses';
-requireCount(pricing, csProtectionFeature, 3, 'CZ pricing must show AI integrity protection only for Teacher Pro, School and Campus.');
-requireCount(pricing, enProtectionFeature, 3, 'EN pricing must show AI integrity protection only for Teacher Pro, School and Campus.');
-requireText(pricing, "feature.startsWith('Ochrana proti nepovolenému využití AI')", 'CZ AI integrity protection is not highlighted.');
-requireText(pricing, "feature.startsWith('Protection against unauthorized AI use')", 'EN AI integrity protection is not highlighted.');
+const csNoticeFeature = 'Upozornění na možné využití AI ve studentských odpovědích';
+const enNoticeFeature = 'Alerts about possible AI use in student responses';
+requireText(copy, csNoticeFeature, 'shared CZ copy must describe an alert, not protection or detection.');
+requireText(copy, enNoticeFeature, 'shared EN copy must describe an alert, not protection or detection.');
+requireText(copy, 'nikoli důkaz. Body se automaticky nemění.', 'CZ explanation must state the signal is not proof and cannot change scores.');
+requireText(copy, 'not proof. Scores do not change automatically.', 'EN explanation must state the signal is not proof and cannot change scores.');
+requireCount(pricing, 'AI_INTEGRITY_NOTICE.cs', 4, 'CZ notice must be shared by Teacher Pro, School, Campus and highlighting.');
+requireCount(pricing, 'AI_INTEGRITY_NOTICE.en', 4, 'EN notice must be shared by Teacher Pro, School, Campus and highlighting.');
+requireText(pricing, "AI_INTEGRITY_NOTICE[english ? 'en' : 'cs']", 'Pricing must visibly explain the integrity notice.');
+requireText(pricing, "AI_INTEGRITY_NOTICE_EXPLANATION[english ? 'en' : 'cs']", 'Pricing must visibly explain the signal limits.');
+for (const forbiddenClaim of [
+  'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
+  'Protection against unauthorized AI use in student responses',
+]) {
+  if (pricing.includes(forbiddenClaim) || copy.includes(forbiddenClaim)) {
+    throw new Error('AI integrity alert regression: customer-facing copy must not promise protection against AI use.');
+  }
+}
 const teamSection = pricing.slice(pricing.indexOf("id: 'team'"), pricing.indexOf("id: 'school'"));
 if (teamSection.includes('AI hodnocení') || teamSection.includes('AI grading')) {
   throw new Error('AI integrity alert regression: Team pricing must not advertise AI grading without the entitlement.');
