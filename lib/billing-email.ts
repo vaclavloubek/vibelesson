@@ -25,6 +25,22 @@ export class BillingEmailDeliveryError extends Error {
   }
 }
 
+type IndividualContractSnapshotForDelivery = {
+  snapshot_id: string;
+  plan_code: string;
+  billing_period: 'monthly' | 'annual';
+  currency: 'czk' | 'eur' | 'usd';
+  amount_minor: number;
+  terms_version: string;
+  locale: 'cs' | 'en';
+  immediate_performance_requested: boolean;
+  contract_html: string;
+  withdrawal_form_html: string;
+  content_sha256: string;
+  accepted_at: string;
+  external_checkout_session_id: string;
+};
+
 async function sendResendEmail({
   to,
   subject,
@@ -156,21 +172,7 @@ export async function deliverBillingLifecycleEmail(
   }
   const planCode: 'teacher' | 'teacher_pro' = subscription.plan_code;
 
-  let contractSnapshot: {
-    snapshot_id: string;
-    plan_code: string;
-    billing_period: 'monthly' | 'annual';
-    currency: 'czk' | 'eur' | 'usd';
-    amount_minor: number;
-    terms_version: string;
-    locale: 'cs' | 'en';
-    immediate_performance_requested: boolean;
-    contract_html: string;
-    withdrawal_form_html: string;
-    content_sha256: string;
-    accepted_at: string;
-    external_checkout_session_id: string;
-  } | null = null;
+  let contractSnapshot: IndividualContractSnapshotForDelivery | null = null;
 
   if (notification === 'subscription_activated' && sync.contractSnapshotId) {
     const { data: snapshotData, error: snapshotError } = await admin.rpc(
@@ -181,7 +183,7 @@ export async function deliverBillingLifecycleEmail(
         p_livemode: sync.livemode,
       },
     );
-    const row = (Array.isArray(snapshotData) ? snapshotData[0] : snapshotData) as typeof contractSnapshot;
+    const row = (Array.isArray(snapshotData) ? snapshotData[0] : snapshotData) as IndividualContractSnapshotForDelivery | null;
     if (snapshotError || !row) {
       await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_contract_snapshot_lookup_failed');
       throw new BillingEmailDeliveryError('billing_contract_snapshot_lookup_failed');
