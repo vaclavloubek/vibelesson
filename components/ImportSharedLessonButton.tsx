@@ -6,6 +6,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
 import { trackEvent } from '@/lib/analytics';
 import { createClient } from '@/lib/supabase/client';
+import { termsReconsentPath } from '@/lib/terms-gate';
 
 const IMPORT_INTENT_STORAGE_KEY = 'syllonaut_pending_share_import_v1';
 const IMPORT_ANALYTICS_STORAGE_PREFIX = 'syllonaut_shared_lesson_imported_v1:';
@@ -75,10 +76,12 @@ export default function ImportSharedLessonButton({
   token,
   importRequested = false,
   serverAuthenticated = false,
+  termsAcceptanceRequired = false,
 }: {
   token: string;
   importRequested?: boolean;
   serverAuthenticated?: boolean;
+  termsAcceptanceRequired?: boolean;
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -121,6 +124,11 @@ export default function ImportSharedLessonButton({
         importInFlightRef.current = false;
         setBusy(false);
 
+        if (termsAcceptanceRequired) {
+          window.location.assign(termsReconsentPath(`/s/${token}?import=1`));
+          return;
+        }
+
         if (resumeAfterAuth) {
           resumedImportRef.current = false;
           return;
@@ -152,7 +160,7 @@ export default function ImportSharedLessonButton({
         ? err.message
         : (english ? 'The lesson copy could not be saved.' : 'Kopii lekce se nepodařilo uložit.'));
     }
-  }, [english, locale, router, supabase, token]);
+  }, [english, locale, router, supabase, termsAcceptanceRequired, token]);
 
   useEffect(() => {
     const shouldResume = importRequested || hasRecentImportIntent(token);

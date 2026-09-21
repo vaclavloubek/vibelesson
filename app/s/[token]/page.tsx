@@ -11,6 +11,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
+import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 import styles from './SharedLessonPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,15 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
   const signin = query.signin === '1' || (Array.isArray(query.signin) && query.signin.includes('1'));
   const importRequested = query.import === '1' || (Array.isArray(query.import) && query.import.includes('1'));
   const serverAuthenticated = Boolean(authData.user);
+  let termsAcceptanceRequired = false;
+  if (authData.user) {
+    try {
+      termsAcceptanceRequired = !(await hasCurrentTermsAcceptance(authData.user.id));
+    } catch (termsError) {
+      console.error('shared lesson Terms acceptance lookup failed closed', termsError);
+      termsAcceptanceRequired = true;
+    }
+  }
 
   return (
     <main className={`shell ${styles.shell}`}>
@@ -92,6 +102,7 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
           token={token}
           importRequested={importRequested}
           serverAuthenticated={serverAuthenticated}
+          termsAcceptanceRequired={termsAcceptanceRequired}
         />
       </section>
 

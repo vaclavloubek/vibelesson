@@ -3,6 +3,7 @@ import SchoolAdmin from '@/components/SchoolAdmin';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createClient } from '@/lib/supabase/server';
+import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +47,7 @@ export default async function SchoolPage({
   const userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
   const email = typeof data?.claims?.email === 'string' ? data.claims.email : null;
   let appRole: string | null = null;
+  let termsAcceptanceRequired = false;
 
   if (userId) {
     const { data: profile } = await supabase
@@ -54,6 +56,12 @@ export default async function SchoolPage({
       .eq('id', userId)
       .maybeSingle();
     appRole = profile?.role ?? null;
+    try {
+      termsAcceptanceRequired = !(await hasCurrentTermsAcceptance(userId));
+    } catch (error) {
+      console.error('school Terms acceptance lookup failed closed', error);
+      termsAcceptanceRequired = true;
+    }
   }
 
   const schoolBillingAvailable = billingEnvironment === 'live'
@@ -69,6 +77,7 @@ export default async function SchoolPage({
       initialCheckoutResult={initialCheckoutResult}
       schoolBillingAvailable={schoolBillingAvailable}
       initialUser={userId ? { id: userId, email } : null}
+      termsAcceptanceRequired={termsAcceptanceRequired}
     />
   );
 }

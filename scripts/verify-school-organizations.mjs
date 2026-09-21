@@ -203,10 +203,13 @@ if (
 }
 
 const schoolAdminCheckout = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
+if (!schoolAdminCheckout.includes('async function schoolFetch') || !schoolAdminCheckout.includes('window.fetch(input, init)')) {
+  throw new Error('School admin request wrapper must delegate to window.fetch.');
+}
 for (const needle of [
   'initialCheckoutResult',
   'checkoutPollingStartedRef',
-  "fetch('/api/organizations/current'",
+  "schoolFetch('/api/organizations/current'",
   "payload.organization?.status === 'active'",
   'Stripe has not confirmed the payment yet',
 ]) {
