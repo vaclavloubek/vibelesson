@@ -18,6 +18,13 @@ if (!rebalance) throw new Error('Missing measured plan-economics rebalance migra
 const teacherProExpansion = migrations.find(({ content }) => content.includes('Teacher Pro allowance expansion 2026-09-20'));
 if (!teacherProExpansion) throw new Error('Missing Teacher Pro 25+40 allowance migration.');
 
+const allowanceCatalog = read('lib/ai-grading-allowances.ts');
+const pricing = read('components/PricingPage.tsx');
+const accountMenu = read('components/PublicHeaderAccountMenu.tsx');
+const subscriptionPage = read('app/subscription/page.tsx');
+const subscriptionManagement = read('components/SubscriptionManagement.tsx');
+const terms = read('app/terms/page.tsx');
+
 for (const [needle, label] of [
   ['for update of e', 'grading claims serialize on the evaluation row'],
   ['manual-budget-v1', 'budget exhaustion falls back to manual review'],
@@ -81,6 +88,40 @@ for (const [needle, label] of [
   ['before insert on public.participants', 'join limits enforced at the insert boundary'],
 ]) {
   requireText(joinLimits.content, needle, label);
+}
+
+
+for (const [needle, label] of [
+  ['teacher_pro: 60', 'shared Teacher Pro grading allowance'],
+  ['school: 300', 'shared School grading allowance'],
+  ['campus: 750', 'shared Campus grading allowance'],
+]) {
+  requireText(allowanceCatalog, needle, label);
+}
+
+for (const [needle, label] of [
+  ['INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiGradings', 'Teacher Pro Pricing uses shared grading allowance'],
+  ['AI_GRADING_ALLOWANCES.school', 'School Pricing uses shared grading allowance'],
+  ['AI_GRADING_ALLOWANCES.campus', 'Campus Pricing uses shared grading allowance'],
+  ['opakované AI přehodnocení čerpá další', 'Pricing explains re-grade consumption'],
+  ['After the allowance is used up, responses can still be graded manually.', 'Pricing explains manual fallback'],
+]) {
+  requireText(pricing, needle, label);
+}
+
+for (const [source, needle, label] of [
+  [accountMenu, 'grading_remaining', 'account menu shows remaining grading allowance'],
+  [subscriptionPage, 'quotaSnapshot', 'subscription page passes full quota snapshot'],
+  [subscriptionManagement, "ui('AI hodnocení', 'AI grading')", 'subscription UI shows grading allowance'],
+  [terms, 'Opakované AI přehodnocení stejné odpovědi čerpá další jednotku.', 'Terms define repeat grading consumption'],
+  [terms, 'ruční hodnocení', 'Terms preserve manual grading after AI allowance exhaustion'],
+]) {
+  requireText(source, needle, label);
+}
+
+if (pricing.includes('AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí\',')
+    || pricing.includes('AI grading of scored open, team and exit-ticket responses\',')) {
+  throw new Error('Pricing must publish a concrete AI grading count wherever AI grading is sold.');
 }
 
 console.log(`AI grading safety budget verified via ${budget.name}; published customer allowances verified via ${published.name}; participant hard caps remain enforced at INSERT.`);
