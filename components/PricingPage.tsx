@@ -13,6 +13,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import SyllonautMark from '@/components/SyllonautMark';
 import SiteFooter from '@/components/SiteFooter';
 import VisuallyHidden from '@/components/VisuallyHidden';
+import { AI_INTEGRITY_NOTICE, AI_INTEGRITY_NOTICE_EXPLANATION } from '@/lib/ai-integrity-copy';
 import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
@@ -91,7 +92,7 @@ const teacherPlansCs: Plan[] = [
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       `${AI_GRADING_ALLOWANCES.teacher_pro} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za období`,
-      'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
+      AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -132,7 +133,7 @@ const schoolPlansCs: Plan[] = [
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       `${AI_GRADING_ALLOWANCES.school} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
-      'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
+      AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -156,7 +157,7 @@ const schoolPlansCs: Plan[] = [
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       `${AI_GRADING_ALLOWANCES.campus} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
-      'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
+      AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -202,7 +203,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.teacher_pro} per allowance period`,
-      'Protection against unauthorized AI use in student responses',
+      AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -234,7 +235,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.school} per month shared`,
-      'Protection against unauthorized AI use in student responses',
+      AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -254,7 +255,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.campus} per month shared`,
-      'Protection against unauthorized AI use in student responses',
+      AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -346,11 +347,11 @@ function PlanCard({
             || worksheetHook
             || unlimitedReuseHook
             || feature.startsWith('AI hodnocení')
-            || feature.startsWith('Ochrana proti nepovolenému využití AI')
+            || feature === AI_INTEGRITY_NOTICE.cs
             || feature.startsWith('Složky a podsložky')
             || feature === 'Sdílená knihovna lekcí'
             || feature.startsWith('AI grading')
-            || feature.startsWith('Protection against unauthorized AI use')
+            || feature === AI_INTEGRITY_NOTICE.en
             || feature.startsWith('Folders and subfolders')
             || feature === 'Shared lesson library';
           return <li key={feature} className={premiumHook ? styles.premiumFeature : undefined}>{feature}{worksheetHook ? <span className={styles.newFeatureBadge}>{english ? 'NEW' : 'NOVĚ'}</span> : null}</li>;
@@ -850,6 +851,11 @@ export default function PricingPage({
           />
         ))}
       </section>
+
+      <p className={styles.usagePromise}>
+        <strong>{AI_INTEGRITY_NOTICE[english ? 'en' : 'cs']}:</strong>{' '}
+        {AI_INTEGRITY_NOTICE_EXPLANATION[english ? 'en' : 'cs']}
+      </p>
 
       {checkoutPlan && checkoutRoute ? (
         <div
