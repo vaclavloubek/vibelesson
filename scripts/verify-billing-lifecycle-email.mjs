@@ -159,8 +159,8 @@ const csPro = renderBillingLifecycleEmail({
   allowance: INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro,
 });
 assert(
-  csPro.text.includes(`${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} nových AI lekcí a ${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav`),
-  'Teacher Pro activation email must use the shared current AI allowance',
+  csPro.text.includes(`${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} nových AI lekcí, ${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav a ${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiGradings} AI hodnocení`),
+  'Teacher Pro activation email must confirm the shared lesson, edit and grading allowances',
 );
 
 const en = renderBillingLifecycleEmail({
