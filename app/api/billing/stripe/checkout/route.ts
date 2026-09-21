@@ -1,10 +1,13 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isSupportedCountryCode } from '@/lib/countries';
-import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { TERMS_ACCEPTANCE_KEY, TERMS_VERSION } from '@/lib/legal';
+import { buildIndividualContractSnapshotDocuments } from '@/lib/individual-contract-snapshot';
+import { individualMinorUnitPrice } from '@/lib/individual-billing-catalog';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -20,6 +23,7 @@ const InputSchema = z.object({
   termsAccepted: z.literal(true),
   immediatePerformanceRequested: z.literal(true),
   termsVersion: z.literal(TERMS_ACCEPTANCE_KEY),
+  locale: z.enum(['cs', 'en']),
 });
 
 function jsonError(status: number, error: string, diagnostics?: { stripeType?: string | null; stripeCode?: string | null; stripeMessage?: string | null }) {
@@ -109,6 +113,30 @@ export async function POST(request: Request) {
     }
   }
 
+  const snapshotId = randomUUID();
+  const amountMinor = individualMinorUnitPrice(planCode, input.billing, route.currency);
+  const capturedAt = new Date().toISOString();
+  let contractDocuments;
+  try {
+    contractDocuments = buildIndividualContractSnapshotDocuments({
+      locale: input.locale,
+      planCode,
+      billingPeriod: input.billing,
+      currency: route.currency,
+      amountMinor,
+      billingCountry: input.country,
+      capturedAt,
+    });
+  } catch (error) {
+    console.error('billing contract snapshot render failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+      userId,
+      planCode,
+      livemode,
+    });
+    return jsonError(500, 'contract_snapshot_render_failed');
+  }
+
   try {
     const session = await createStripeCheckout({
       secretKey,
@@ -123,7 +151,37 @@ export async function POST(request: Request) {
       billingPeriod: input.billing,
       termsVersion: input.termsVersion,
       immediatePerformanceRequested: input.immediatePerformanceRequested,
+      contractSnapshotId: snapshotId,
     });
+
+    const { error: snapshotError } = await admin.rpc('create_and_link_individual_contract_snapshot', {
+      p_snapshot_id: snapshotId,
+      p_user_id: userId,
+      p_livemode: livemode,
+      p_plan_code: planCode,
+      p_billing_period: input.billing,
+      p_currency: route.currency,
+      p_amount_minor: amountMinor,
+      p_terms_version: TERMS_VERSION,
+      p_terms_acceptance_key: input.termsVersion,
+      p_locale: input.locale,
+      p_immediate_performance_requested: input.immediatePerformanceRequested,
+      p_contract_html: contractDocuments.contractHtml,
+      p_withdrawal_form_html: contractDocuments.withdrawalFormHtml,
+      p_content_sha256: contractDocuments.contentSha256,
+      p_checkout_session_id: session.id,
+    });
+    if (snapshotError) {
+      console.error('billing contract snapshot store failed', {
+        code: snapshotError.code,
+        userId,
+        planCode,
+        livemode,
+        checkoutSessionId: session.id,
+      });
+      return jsonError(500, 'contract_snapshot_store_failed');
+    }
+
     return NextResponse.json({ url: session.url, environment: input.environment, currency: route.currency, managedPayments: route.managedPayments }, {
       status: 200, headers: { 'Cache-Control': 'no-store' },
     });

@@ -12,6 +12,9 @@ const terms = read('app/terms/page.tsx');
 const legal = read('lib/legal.ts');
 const gdpr = read('app/gdpr/page.tsx');
 const termsAuditMigration = read('supabase/migrations/20260921033344_add_terms_acceptance_audit.sql');
+const contractSnapshot = read('lib/individual-contract-snapshot.ts');
+const contractSnapshotMigration = read('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql');
+const contractLinkMigration = read('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -20,6 +23,10 @@ if (!proxy.includes("pathname === '/terms'")) fail('/terms must use locale gatew
 if (!auth.includes('termsAccepted') || !auth.includes('terms_acceptance_version')) fail('registration must require and record Terms acceptance');
 if (!pricing.includes('termsAccepted') || !pricing.includes('immediatePerformanceRequested')) fail('individual paid checkout must require Terms and immediate-service request');
 if (!individualApi.includes('termsAccepted: z.literal(true)') || !individualApi.includes('immediatePerformanceRequested: z.literal(true)')) fail('individual checkout server must fail closed without acceptance');
+if (!individualApi.includes("locale: z.enum(['cs', 'en'])")) fail('individual checkout must bind the contract snapshot language');
+if (!individualApi.includes('create_and_link_individual_contract_snapshot')) fail('individual checkout must persist immutable contract evidence before returning the payment URL');
+if (!individualApi.includes('contract_snapshot_store_failed')) fail('individual checkout must fail closed when immutable contract evidence cannot be stored');
+if (!individualApi.includes('contractSnapshotId: snapshotId')) fail('Stripe checkout must carry the immutable contract snapshot ID');
 if (!school.includes('termsAccepted') || !schoolApi.includes('termsAccepted: z.literal(true)')) fail('school ordering must require Terms on client and server');
 if (!legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v1'")) fail('shared Terms acceptance version key is missing');
 if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANCE_KEY') || !school.includes('TERMS_ACCEPTANCE_KEY')) fail('client flows must use the shared Terms acceptance key');
@@ -33,5 +40,17 @@ if (!termsAuditMigration.includes('revoke all on table private.terms_acceptance_
 if (!termsAuditMigration.includes('terms_acceptance_events_append_only') || !termsAuditMigration.includes("raise exception 'terms acceptance audit is append-only'")) fail('Terms audit must be append-only');
 if (!termsAuditMigration.includes("current_terms_version constant text := '1.0'") || !termsAuditMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('database Terms audit constants must match the active Terms version');
 if (!termsAuditMigration.includes('requested_terms_acceptance and requested_terms_acceptance_key = current_terms_acceptance_key')) fail('signup audit must only mirror explicit acceptance of the active Terms key');
+if (!contractSnapshot.includes("TERMS_VERSION !== '1.0'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-21-v1'")) fail('immutable contract builder must hard-pin the supported Terms version');
+if (!contractSnapshot.includes('88878431') || !contractSnapshot.includes('289 24 Milovice – Mladá') || !contractSnapshot.includes('Vzorový formulář pro odstoupení') || !contractSnapshot.includes('Model withdrawal form')) fail('immutable contract documents must include provider and withdrawal essentials');
+if (!contractSnapshot.includes("createHash('sha256')") || !contractSnapshot.includes('--syllonaut-withdrawal-form--')) fail('immutable contract documents must carry a deterministic integrity hash');
+const snapshotTableDefinition = contractSnapshotMigration.match(/create table private\.individual_contract_snapshots \(([\s\S]*?)\n\);/)?.[1] ?? '';
+if (!snapshotTableDefinition || snapshotTableDefinition.includes('references auth.users')) fail('paid contract evidence must survive account deletion and must not cascade through auth.users');
+if (!contractSnapshotMigration.includes('individual_contract_snapshots_append_only') || !contractSnapshotMigration.includes('individual contract evidence is append-only')) fail('paid contract evidence must be append-only');
+if (!contractSnapshotMigration.includes('enable row level security') || !contractSnapshotMigration.includes('revoke all on table private.individual_contract_snapshots from public, anon, authenticated')) fail('paid contract evidence must not be client-readable');
+if (!contractLinkMigration.includes('individual_contract_checkout_links_append_only')) fail('Stripe checkout linkage must be append-only');
+if (!contractLinkMigration.includes('create_and_link_individual_contract_snapshot')) fail('contract snapshot and checkout linkage must be atomic');
+if (!contractLinkMigration.includes('get_individual_contract_snapshot_for_delivery')) fail('activation email must have a scoped service-only evidence lookup');
+if (!contractLinkMigration.includes('grant execute on function public.get_individual_contract_snapshot_for_delivery') || !contractLinkMigration.includes('to service_role')) fail('contract evidence delivery lookup must remain service-role only');
+if (!gdpr.includes('Potvrzení placené individuální smlouvy:') || !gdpr.includes('Paid individual contract evidence:') || !gdpr.includes('Neměnný snapshot placené individuální smlouvy') || !gdpr.includes('immutable paid individual contract snapshot')) fail('privacy notice must disclose immutable paid-contract evidence and retention');
 if (!gdpr.includes('Souhlas s obchodními podmínkami:') || !gdpr.includes('Terms acceptance:') || !gdpr.includes('právních nároků') || !gdpr.includes('legal claims')) fail('privacy notice must disclose Terms acceptance audit and retention');
 console.log('Terms acceptance contract OK');
