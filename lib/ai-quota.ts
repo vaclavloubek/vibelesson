@@ -7,6 +7,11 @@ export type AiQuotaSnapshot = {
   revision_remaining: number | null;
   lesson_unlimited: boolean;
   revision_unlimited: boolean;
+  grading_used: number;
+  grading_limit: number | null;
+  grading_remaining: number | null;
+  grading_unlimited: boolean;
+  grading_enabled: boolean;
   quota_window_start: string | null;
   quota_window_end: string | null;
   quota_source: string | null;
