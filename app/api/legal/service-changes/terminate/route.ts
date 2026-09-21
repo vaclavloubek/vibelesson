@@ -18,6 +18,7 @@ export async function POST(request:Request) {
   const requestedAt=new Date().toISOString();
   const {data:id,error}=await createAdminClient().rpc('request_service_change_termination_for_service',{
     p_user_id:authenticatedUserId,p_delivery_id:parsed.data.deliveryId,p_requested_at:requestedAt,
+    p_immediate_termination_confirmed:parsed.data.confirmImmediateTermination,
   });
   if(error || typeof id!=='string') return json({error:'service_change_termination_not_available'},409);
   const key=process.env.STRIPE_SECRET_KEY_LIVE;
