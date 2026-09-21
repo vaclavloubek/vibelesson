@@ -38,7 +38,7 @@ export default async function SubscriptionPage() {
   if (!userId) redirect(`/${locale}`);
 
   let state;
-  let quotaWindow: { end: string; source: string | null } | null = null;
+  let quotaSnapshot: AiQuotaSnapshot | null = null;
   let loadError = false;
   try {
     state = await getLiveSubscriptionManagementState(userId);
@@ -58,13 +58,7 @@ export default async function SubscriptionPage() {
       userId,
     });
   } else {
-    const quotaRow = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as AiQuotaSnapshot | undefined;
-    if (quotaRow?.quota_window_end) {
-      quotaWindow = {
-        end: quotaRow.quota_window_end,
-        source: quotaRow.quota_source,
-      };
-    }
+    quotaSnapshot = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as AiQuotaSnapshot | null;
   }
 
   const accountUser = {
@@ -100,7 +94,7 @@ export default async function SubscriptionPage() {
         <section style={{ width: 'min(960px, calc(100% - 40px))', margin: '56px auto 0' }} className="error">
           {ui('Správu předplatného se nepodařilo načíst. Zkus stránku obnovit.', 'Subscription management could not be loaded. Refresh the page and try again.')}
         </section>
-      ) : <SubscriptionManagement state={state} quotaWindow={quotaWindow} />}
+      ) : <SubscriptionManagement state={state} quota={quotaSnapshot} />}
     </main>
   );
 }
