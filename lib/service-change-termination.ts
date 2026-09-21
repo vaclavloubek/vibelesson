@@ -29,7 +29,10 @@ const RequestState = z.object({
     currency: z.enum(['czk','eur','usd']).nullable(),
     subscription_cancelled_at: z.string().nullable(),
   }),
-  delivery: z.object({ subject_id: z.string().uuid(), external_subscription_id: z.string() }),
+  delivery: z.object({
+    subject_id: z.string().uuid(), external_subscription_id: z.string(), plan_code: z.string(),
+    billing_period: z.enum(['monthly','annual']),
+  }),
   release: z.object({ id: z.string().uuid(), strategy: z.literal('durable_notice'), classification: z.literal('material_adverse') }),
 });
 
@@ -70,6 +73,13 @@ export async function prepareServiceChangeTermination(id: string, key: string) {
   if(subscription.pending_update || subscription.schedule) throw new Error('service_change_subscription_history_review_required');
   const item=singleSubscriptionItem(subscription);
   if(!item.current_period_start || !item.current_period_end) throw new Error('service_change_subscription_period_missing');
+  const {data:price,error:priceError}=await createAdminClient().from('billing_prices')
+    .select('plan_code,billing_period,currency').eq('provider','stripe').eq('livemode',true)
+    .eq('external_price_id',item.price!.id!).maybeSingle();
+  if(priceError || !price || price.plan_code!==current.delivery.plan_code
+    || price.billing_period!==current.delivery.billing_period || price.currency!==item.price?.currency) {
+    throw new Error('service_change_plan_history_review_required');
+  }
   const invoiceId=subscriptionLatestInvoiceId(subscription);
   if(!invoiceId) throw new Error('service_change_invoice_missing');
   const invoice=await withdrawalStripeRequest(key,'invoices/'+encodeURIComponent(invoiceId),Invoice);
