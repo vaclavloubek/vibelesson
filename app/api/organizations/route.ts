@@ -46,6 +46,8 @@ const InputSchema = z.object({
   billingPeriod: z.enum(['monthly', 'annual']),
   paymentMethod: z.enum(['card', 'invoice']),
   environment: z.enum(['sandbox', 'live']).default('live'),
+  termsAccepted: z.literal(true),
+  termsVersion: z.literal('2026-09-21-v1'),
 });
 
 export async function POST(request: Request) {
@@ -138,9 +140,33 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: createdOrder, error: createdOrderError } = await admin
+    .from('organization_orders')
+    .select('billing_snapshot')
+    .eq('id', orderId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  if (createdOrderError || !createdOrder) {
+    return NextResponse.json({ error: 'organization_order_snapshot_failed', orderCreated: true, organizationId, orderId }, { status: 500 });
+  }
+
+  const existingSnapshot = createdOrder.billing_snapshot && typeof createdOrder.billing_snapshot === 'object'
+    ? createdOrder.billing_snapshot as Record<string, unknown>
+    : {};
   const { error: environmentError } = await admin
     .from('organization_orders')
-    .update({ livemode: input.environment === 'live' })
+    .update({
+      livemode: input.environment === 'live',
+      billing_snapshot: {
+        ...existingSnapshot,
+        legalAcceptance: {
+          termsAccepted: true,
+          termsVersion: input.termsVersion,
+          acceptedAt: new Date().toISOString(),
+        },
+      },
+    })
     .eq('id', orderId)
     .eq('organization_id', organizationId);
 
