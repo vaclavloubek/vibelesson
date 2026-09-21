@@ -210,7 +210,7 @@ NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS \
 
 Skript načte ze Supabase pouze UUID a stav ověření, importuje 3 řádky do `neon_auth.user`, porovná fingerprint a nainstaluje synchronizační trigger. Nekopíruje `encrypted_password`, OAuth tokeny ani sessions a neposílá žádný e-mail.
 
-3. Po úspěšném Preview buildu odstranit jednorázový `buildCommand` z `vercel.json` dříve, než bude větev sloučena nebo znovu nasazena mimo staging.
+3. Vercel Preview spouští `scripts/neon/remote-auth-import-build.sh`, který normalizuje prefixované Neon proměnné, dočasně připraví PostgreSQL nástroje a teprve potom zavolá import. Po úspěšném Preview buildu odstranit jednorázový `buildCommand` z `vercel.json` dříve, než bude větev sloučena nebo znovu nasazena mimo staging.
 4. Jeden vlastník testovacího účtu sám spustí „Zapomenuté heslo“, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu není součást automatického importu.
 5. Samostatně ověřit registraci, verifikaci e-mailu a případný budoucí OAuth callback.
 6. Diagnostiku lze zopakovat:

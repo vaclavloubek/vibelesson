@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET_DATABASE_URL="${NEON_DATABASE_URL_UNPOOLED:-${NEON_DATABASE_URL:-}}"
-: "${TARGET_DATABASE_URL:?NEON_DATABASE_URL_UNPOOLED or NEON_DATABASE_URL is required}"
+TARGET_DATABASE_URL="${DATABASE_URL_UNPOOLED:-${NEON_DATABASE_URL_UNPOOLED:-${NEON_DATABASE_DATABASE_URL_UNPOOLED:-${NEON_DATABASE_URL:-${DATABASE_URL:-}}}}}"
+: "${TARGET_DATABASE_URL:?An unpooled Neon database URL is required}"
 
 target_table="$(psql "$TARGET_DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atc "select coalesce(to_regclass('neon_auth.\"user\"')::text, '')")"
 

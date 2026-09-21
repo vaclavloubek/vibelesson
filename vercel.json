@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm ci",
-  "buildCommand": "NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS bash scripts/neon/auth-import.sh --execute && npm run build",
+  "buildCommand": "NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS bash scripts/neon/remote-auth-import-build.sh",
   "crons": [
     {
       "path": "/api/cron/organization-billing",
