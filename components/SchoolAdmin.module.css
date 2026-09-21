@@ -96,3 +96,25 @@
     max-height:420px;
   }
 }
+
+.termsConsent {
+  display:grid;
+  grid-template-columns:18px 1fr;
+  gap:9px;
+  align-items:start;
+  color:var(--muted,#686b74);
+  font-size:12px;
+  line-height:1.55;
+  font-weight:600;
+}
+.termsConsent input {
+  width:16px;
+  height:16px;
+  margin:2px 0 0;
+  accent-color:#5b57e8;
+}
+.termsConsent a {
+  color:#5b57e8;
+  font-weight:800;
+  text-underline-offset:2px;
+}

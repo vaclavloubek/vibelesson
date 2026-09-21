@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
+import { TERMS_VERSION } from '@/lib/legal';
 import {
   isOrganizationPlanCode,
   organizationMinorUnitPrice,
@@ -46,6 +47,8 @@ const InputSchema = z.object({
   billingPeriod: z.enum(['monthly', 'annual']),
   paymentMethod: z.enum(['card', 'invoice']),
   environment: z.enum(['sandbox', 'live']).default('live'),
+  termsAccepted: z.literal(true),
+  termsVersion: z.literal(TERMS_VERSION),
 });
 
 export async function POST(request: Request) {
@@ -138,9 +141,44 @@ export async function POST(request: Request) {
     );
   }
 
+  const acceptedAt = new Date().toISOString();
+  const { data: orderSnapshotRow, error: orderSnapshotError } = await admin
+    .from('organization_orders')
+    .select('billing_snapshot')
+    .eq('id', orderId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  if (orderSnapshotError || !orderSnapshotRow) {
+    console.error('organization terms snapshot lookup failed', {
+      organizationId,
+      orderId,
+      code: orderSnapshotError?.code,
+    });
+    return NextResponse.json({
+      error: 'organization_terms_persist_failed',
+      orderCreated: true,
+      organizationId,
+      orderId,
+    }, { status: 500 });
+  }
+
+  const currentBillingSnapshot = orderSnapshotRow.billing_snapshot
+    && typeof orderSnapshotRow.billing_snapshot === 'object'
+    ? orderSnapshotRow.billing_snapshot as Record<string, unknown>
+    : {};
+
   const { error: environmentError } = await admin
     .from('organization_orders')
-    .update({ livemode: input.environment === 'live' })
+    .update({
+      livemode: input.environment === 'live',
+      billing_snapshot: {
+        ...currentBillingSnapshot,
+        termsVersion: input.termsVersion,
+        termsAcceptedAt: acceptedAt,
+        termsAcceptedByUserId: userId,
+      },
+    })
     .eq('id', orderId)
     .eq('organization_id', organizationId);
 

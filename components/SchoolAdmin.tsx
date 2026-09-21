@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { type ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthControls from '@/components/AuthControls';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
@@ -9,6 +9,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
 import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
+import { TERMS_VERSION } from '@/lib/legal';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -213,6 +214,8 @@ export default function SchoolAdmin({
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'invoice' | 'card'>('invoice');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const termsConsentId = useId();
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'teacher' | 'admin'>('teacher');
@@ -497,6 +500,14 @@ export default function SchoolAdmin({
 
   async function createOrder(event: FormEvent) {
     event.preventDefault();
+    if (!termsAccepted) {
+      setMessageKind('error');
+      setMessage(ui(
+        'Před vytvořením objednávky je potřeba přijmout Obchodní podmínky.',
+        'Accept the Terms and Conditions before creating the order.',
+      ));
+      return;
+    }
     setBusy(true);
     setMessage('');
 
@@ -519,6 +530,8 @@ export default function SchoolAdmin({
         billingPeriod,
         paymentMethod,
         environment: billingEnvironment,
+        termsAccepted,
+        termsVersion: TERMS_VERSION,
       }),
     });
 
@@ -1324,8 +1337,33 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.full}>
+                <label className={styles.termsConsent} htmlFor={termsConsentId}>
+                  <input
+                    id={termsConsentId}
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(event) => setTermsAccepted(event.target.checked)}
+                    required
+                  />
+                  <span>
+                    {ui(
+                      'Souhlasím jménem školy / organizace s ',
+                      'On behalf of the school / organisation, I agree to the ',
+                    )}
+                    <Link href={`/${locale}/terms`} target="_blank">
+                      {ui('Obchodními podmínkami', 'Terms and Conditions')}
+                    </Link>
+                    {ui(
+                      ' a potvrzuji, že jsem oprávněn/a tuto objednávku učinit.',
+                      ' and confirm that I am authorised to place this order.',
+                    )}
+                  </span>
+                </label>
+              </div>
+
+              <div className={styles.full}>
                 <div className={styles.rowActions}>
-                  <button className={styles.primary} type="submit" disabled={busy}>
+                  <button className={styles.primary} type="submit" disabled={busy || !termsAccepted}>
                     {busy
                       ? ui('Zakládám…', 'Creating…')
                       : paymentMethod === 'invoice'
