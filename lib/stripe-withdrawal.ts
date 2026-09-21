@@ -87,6 +87,36 @@ export async function findWithdrawalStripeRefund(key: string, requestId: string,
   return matching[0] ?? null;
 }
 
+export async function createServiceChangeStripeRefund(key: string, input: {
+  requestId: string; releaseId: string; paymentIntentId: string; amountMinor: number; currency: string;
+}) {
+  if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) throw new Error('service_change_refund_amount_invalid');
+  const body = new URLSearchParams({
+    payment_intent: input.paymentIntentId,
+    amount: String(input.amountMinor),
+    reason: 'requested_by_customer',
+    'metadata[syllonaut_service_change_termination_id]': input.requestId,
+    'metadata[syllonaut_service_change_release_id]': input.releaseId,
+    'metadata[syllonaut_refund_method]': 'unused-period-v1',
+  });
+  const refund = await withdrawalStripeRequest(key, 'refunds', RefundSchema, 'POST', body,
+    'syllonaut-service-change-' + input.requestId);
+  if (stripeReference(refund.payment_intent) !== input.paymentIntentId
+    || refund.amount !== input.amountMinor || refund.currency !== input.currency
+    || refund.metadata.syllonaut_service_change_termination_id !== input.requestId) {
+    throw new Error('service_change_refund_response_mismatch');
+  }
+  return refund;
+}
+
+export async function findServiceChangeStripeRefund(key: string, requestId: string, paymentIntentId: string) {
+  const list = await withdrawalStripeRequest(key, 'refunds?payment_intent=' + encodeURIComponent(paymentIntentId) + '&limit=100',
+    z.object({ has_more: z.literal(false), data: z.array(RefundSchema) }));
+  const matching = list.data.filter(r => r.metadata.syllonaut_service_change_termination_id === requestId);
+  if (matching.length > 1) throw new Error('service_change_duplicate_refund_review_required');
+  return matching[0] ?? null;
+}
+
 export async function cancelWithdrawnSubscription(key: string, subscriptionId: string) {
   if (!/^sub_[A-Za-z0-9_]+$/.test(subscriptionId)) throw new Error('withdrawal_subscription_invalid');
   const canceled = await withdrawalStripeRequest(key, 'subscriptions/' + subscriptionId,
@@ -108,4 +138,18 @@ export async function reconcileWithdrawalRefundEvent(key: string, object: unknow
     p_amount:refund.amount,p_currency:refund.currency,p_status:refund.status,
   });
   if(error) throw new Error('withdrawal_refund_reconciliation_failed');
+}
+
+export async function reconcileServiceChangeRefundEvent(key: string, object: unknown) {
+  const eventObject = z.object({object:z.literal('refund'),id:z.string().regex(/^re_[A-Za-z0-9_]+$/)}).safeParse(object);
+  if (!eventObject.success) return;
+  const refund = await withdrawalStripeRequest(key,'refunds/'+eventObject.data.id,RefundSchema);
+  const id = refund.metadata.syllonaut_service_change_termination_id;
+  if (!id) return;
+  if (!z.string().uuid().safeParse(id).success) throw new Error('service_change_refund_metadata_invalid');
+  const {error}=await createAdminClient().rpc('reconcile_service_change_termination_refund_for_service',{
+    p_request_id:id,p_lease_token:null,p_refund_id:refund.id,p_payment_intent_id:stripeReference(refund.payment_intent),
+    p_amount:refund.amount,p_currency:refund.currency,p_status:refund.status,
+  });
+  if(error) throw new Error('service_change_refund_reconciliation_failed');
 }
