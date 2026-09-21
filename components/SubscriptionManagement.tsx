@@ -34,7 +34,7 @@ export default function SubscriptionManagement({
   quotaWindow,
 }: {
   state: LiveSubscriptionManagementState;
-  quotaWindow?: { end: string; source: string | null } | null;
+  quotaWindow?: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null;
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -208,6 +208,15 @@ export default function SubscriptionManagement({
 
         <dl className={styles.details}>
           <div><dt>{active.cancelAtPeriodEnd ? ui('Přístup do', 'Access until') : ui('Další obnovení', 'Next renewal')}</dt><dd>{renewalDate}</dd></div>
+          {quotaWindow?.gradingEnabled && quotaWindow.gradingLimit !== null ? (
+            <div>
+              <dt>{ui('AI hodnocení', 'AI grading')}</dt>
+              <dd>{ui(
+                `${quotaWindow.gradingRemaining ?? 0} z ${quotaWindow.gradingLimit} zbývá`,
+                `${quotaWindow.gradingRemaining ?? 0} of ${quotaWindow.gradingLimit} remaining`,
+              )}</dd>
+            </div>
+          ) : null}
           {quotaResetDate ? (
             <div>
               <dt>{ui('Obnovení AI limitu', 'AI allowance reset')}</dt>
