@@ -16,7 +16,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.81** uzavírá **LEGAL-003**
 - Ceník uvádí konkrétní počet AI hodnocení u Teacher Pro / School / Campus a vysvětluje, že grading má vlastní kvótu oddělenou od tvorby lekcí a AI úprav;
 - aktivační e-mail Teacher Pro potvrzuje i konkrétních **60 AI hodnocení za období**;
 - interní dolarový guard už není skrytým zákaznickým limitem: nouzové stropy jsou **$12 / $60 / $150** a in-flight reservation **$0,10**, tedy dvojnásobná nákladová rezerva proti zveřejněné kvótě při $0,10 za hodnocení;
-- v produkci zatím není žádný dokončený placený grading cost záznam; nebylo proto možné poctivě odvodit empirický p95 a tato verze ho nepředstírá;
+- nový `private.ai_grading_budget_requests` ledger zatím nemá dokončený placený záznam, ale historické `response_evaluations` obsahují **65 skutečných cost vzorků** na `openai/gpt-5.6-sol`: průměr **$0,01426648**, p95 **$0,02611340** a maximum **$0,03398000**; nouzový cost guard je proto proti dosud naměřeným nákladům výrazně nad zákaznickou kvótou;
 - produkční migrace: **20260921042019_publish_ai_grading_allowances**;
 - Security Advisor po změně nepřidal nový warning;
 - regresní kontrakty: **scripts/verify-ai-grading-budget.mjs** + **scripts/verify-billing-lifecycle-email.mjs**;
