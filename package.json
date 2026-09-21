@@ -20,6 +20,7 @@
     "ga4:setup:apply": "node scripts/setup-ga4.mjs --apply"
   },
   "dependencies": {
+    "@neondatabase/auth": "0.5.0-beta",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "ai": "^7.0.0",
