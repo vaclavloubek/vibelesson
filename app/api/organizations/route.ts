@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
+import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import {
   isOrganizationPlanCode,
   organizationMinorUnitPrice,
@@ -47,7 +48,7 @@ const InputSchema = z.object({
   paymentMethod: z.enum(['card', 'invoice']),
   environment: z.enum(['sandbox', 'live']).default('live'),
   termsAccepted: z.literal(true),
-  termsVersion: z.literal('2026-09-21-v1'),
+  termsVersion: z.literal(TERMS_ACCEPTANCE_KEY),
 });
 
 export async function POST(request: Request) {
@@ -164,6 +165,7 @@ export async function POST(request: Request) {
           termsAccepted: true,
           termsVersion: input.termsVersion,
           acceptedAt: new Date().toISOString(),
+          acceptedByUserId: userId,
         },
       },
     })

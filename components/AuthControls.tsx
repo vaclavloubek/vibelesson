@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
+import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -429,7 +430,7 @@ export default function AuthControls({
         captchaToken: token,
         data: {
           terms_accepted: true,
-          terms_acceptance_version: '2026-09-21-v1',
+          terms_acceptance_version: TERMS_ACCEPTANCE_KEY,
           terms_accepted_at: termsAcceptedAt,
           marketing_email_consent: marketingConsent,
           ui_locale: locale,
@@ -604,7 +605,7 @@ export default function AuthControls({
                     {english
                       ? 'I want to receive Syllonaut news, case studies and occasional offers by email. Consent is optional and can be withdrawn at any time. '
                       : 'Chci dostávat e-mailem novinky, případové studie a občasné nabídky Syllonautu. Souhlas je dobrovolný a můžu ho kdykoli odvolat. '}
-                    <a href="/gdpr" target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
+                    <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
                   </label>
                 </div>
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
