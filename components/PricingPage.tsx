@@ -14,7 +14,7 @@ import VisuallyHidden from '@/components/VisuallyHidden';
 import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
-import { pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } from '@/lib/individual-billing-catalog';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
@@ -65,8 +65,8 @@ const teacherPlansCs: Plan[] = [
     description: 'Pro pravidelnou výuku: nové lekce tvoříte s AI, hotové pak učíte opakovaně bez omezení.',
     price: pricingPagePrice('teacher'),
     features: [
-      '10 nových AI lekcí za měsíc',
-      '20 AI úprav za měsíc',
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.lessonGenerations} nových AI lekcí za měsíc`,
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.aiEdits} AI úprav za měsíc`,
       'Lekce v libovolném jazyce',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -82,8 +82,8 @@ const teacherPlansCs: Plan[] = [
     description: 'Pro intenzivní práci s lekcemi, AI hodnocením, pracovními listy a organizací výuky.',
     price: pricingPagePrice('teacher_pro'),
     features: [
-      '25 nových AI lekcí za měsíc',
-      '40 AI úprav za měsíc',
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} nových AI lekcí za měsíc`,
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav za měsíc`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
@@ -180,8 +180,8 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   teacher: {
     description: 'For regular teaching: create new lessons with AI, then teach the finished lessons again without limits.',
     features: [
-      '10 new AI lessons per month',
-      '20 AI edits per month',
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.lessonGenerations} new AI lessons per month`,
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.aiEdits} AI edits per month`,
       'Lessons in any language',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -193,8 +193,8 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
   'teacher-pro': {
     description: 'For intensive lesson work with AI grading, worksheets and organisation tools.',
     features: [
-      '25 new AI lessons per month',
-      '40 AI edits per month',
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} new AI lessons per month`,
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI edits per month`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       'AI grading of scored open, team and exit-ticket responses',
