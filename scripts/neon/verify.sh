@@ -6,8 +6,8 @@ set -euo pipefail
 
 tables=(
   profiles lessons sessions participants responses teams team_responses
-  lesson_folders lesson_live_usage lesson_shares subscriptions
-  billing_email_deliveries organization_memberships school_organizations
+  lesson_folders lesson_live_usage lesson_shares billing_subscriptions
+  billing_email_deliveries organization_memberships organizations
 )
 
 checksum() {
