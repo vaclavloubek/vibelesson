@@ -1,7 +1,12 @@
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
-import { AI_GRADING_ALLOWANCES } from '@/lib/ai-grading-allowances';
 
 export type IndividualBillingCurrency = 'czk' | 'eur' | 'usd';
+
+export const AI_GRADING_ALLOWANCES = {
+  teacher_pro: 60,
+  school: 300,
+  campus: 750,
+} as const;
 
 export const INDIVIDUAL_PLAN_ALLOWANCES: Record<
   IndividualPlanCode,
