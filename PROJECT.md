@@ -1,24 +1,24 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.82** uzavírá **LEGAL-004**: individuální placený checkout před odchodem do Stripe serverově zmrazí přesný obsah smlouvy a přijatých VOP, sváže snapshot s konkrétní Checkout Session a po aktivaci jej odešle zákazníkovi jako neměnnou HTML přílohu spolu se vzorovým formulářem pro odstoupení. Privacy Notice je aktualizovaná na 1.3. Předchozí změny 0.9.81 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.82** uzavírá **LEGAL-004**: individuální placený checkout připraví přesný obsah smlouvy a přijatých VOP, propíše jeho UUID do Stripe a po úspěšném vytvoření Checkout Session atomicky zmrazí snapshot i jeho vazbu na konkrétní Session a po aktivaci jej odešle zákazníkovi jako neměnnou HTML přílohu spolu se vzorovým formulářem pro odstoupení. Privacy Notice je aktualizovaná na 1.3. Předchozí změny 0.9.81 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
 ### Neměnná kopie smlouvy a VOP 0.9.82 — 2026-09-21
 
 - uzavřen právní auditní bod **LEGAL-004** pro individuální tarify Teacher / Teacher Pro;
-- před otevřením Stripe Checkout server vytvoří immutable smluvní snapshot se serverovým UUID, tarifem, cenou, měnou, fakturačním obdobím, verzi / acceptance key VOP, výslovnou žádostí o okamžité zahájení služby, plným zněním přijatých VOP a vzorovým formulářem pro odstoupení;
+- před otevřením Stripe Checkout server připraví immutable obsah smluvního snapshotu a UUID; samotný DB důkaz vznikne až po úspěšném vytvoření Stripe Checkout Session, aby neexistoval osiřelý smluvní záznam při selhání Stripe nebo dřívějším odmítnutí checkoutu;
 - smluvní HTML i formulář se ukládají spolu s kontrolním **SHA-256**; před odesláním aktivačního e-mailu se hash znovu přepočítá a při neshodě doručení fail-closed skončí chybou;
 - snapshot používá autoritativní cenu ze stejného `individual-billing-catalog.ts`, ze kterého čerpá veřejný Pricing;
 - veřejná stránka `/terms` i smluvní příloha nově používají společný versionovaný zdroj **`lib/terms-document.ts`**, takže není udržována druhá nezávislá kopie VOP;
-- UUID snapshotu je zapsané do Stripe Checkout metadata i subscription metadata jako `syllonaut_contract_snapshot_id`; po vytvoření Checkout Session se interně append-only sváže s přesným `cs_live_…` / `cs_test_…` identifikátorem;
+- UUID snapshotu je zapsané do Stripe Checkout metadata i subscription metadata jako `syllonaut_contract_snapshot_id`; po vytvoření Checkout Session jedna serverová DB transakce současně uloží snapshot i append-only vazbu na přesný `cs_live_…` / `cs_test_…` identifikátor;
 - produkční důkazní tabulky **`private.individual_contract_snapshots`** a **`private.individual_contract_checkout_links`** mají RLS, nulové klientské granty a blokují UPDATE / DELETE; záměrně nevážou `user_id` přes cascade FK na `auth.users`, aby se smluvní důkaz automaticky nesmazal spolu s účtem;
-- RPC pro vytvoření, svázání a načtení snapshotu jsou dostupná pouze `service_role`; produkční round-trip **create → link → get → rollback** byl ověřen;
+- veřejná API databáze ponechává jen `service_role` RPC **`create_and_link_individual_contract_snapshot`** pro atomické uložení snapshotu + Checkout vazby a `get_individual_contract_snapshot_for_delivery` pro doručení; původní dvě neatomická RPC byla odstraněna; produkční round-trip **create+link → get → rollback** byl ověřen;
 - při prvním aktivačním e-mailu nového individuálního předplatného se odešle stručné smluvní shrnutí a dvě Base64 přílohy přes Resend: **neměnná HTML kopie smlouvy + přijatých VOP** a **vzorový formulář pro odstoupení**;
 - nové checkouty jsou fail-closed: pokud Stripe metadata obsahují snapshot UUID, ale odpovídající immutable důkaz nelze načíst / neodpovídá tarifu / nesedí SHA-256, aktivační e-mail se neodešle a webhook požádá o retry;
 - starší existující Stripe subscriptions bez `syllonaut_contract_snapshot_id` zůstávají zpětně kompatibilní; lifecycle e-maily kvůli nasazení 0.9.82 nepřestanou fungovat;
-- produkční migrace: **20260921045117_add_individual_contract_snapshots**;
-- append-only trigger byl produkčně ověřen syntetickým INSERT + blokovaným UPDATE uvnitř rollbacknuté transakce; v tabulce před nasazením aplikace zůstalo **0 skutečných snapshotů**;
+- produkční migrace: **20260921045117_add_individual_contract_snapshots** + hardening **20260921045911_atomically_link_individual_contract_snapshot**;
+- append-only trigger byl produkčně ověřen syntetickým INSERT + blokovaným UPDATE uvnitř rollbacknuté transakce; aplikace ani `service_role` nemohou záznamy měnit / mazat, zatímco řízený retenční DELETE zůstává dostupný pouze databázovému vlastníkovi `postgres`; v tabulce před nasazením aplikace zůstalo **0 skutečných snapshotů**;
 - Privacy Notice je zvýšena na **1.3** a popisuje obsah, účel a omezenou retenční potřebu smluvního snapshotu; e-mail zákazníka se do snapshotu nekopíruje;
 - Security Advisor nepřidal nový WARN; nové privátní tabulky přidaly pouze očekávané INFO `rls_enabled_no_policy`, protože záměrně nemají klientské policy;
 - regresní kontrakty pokrývají Stripe metadata, webhook normalizaci, shared Terms source, immutable DB evidence, hash, privacy disclosure a e-mailové přílohy;
