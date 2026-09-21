@@ -54,6 +54,10 @@ if (!atomicContractSnapshotMigration.includes('create_and_link_individual_contra
 if (!atomicContractSnapshotMigration.includes('drop function public.create_individual_contract_snapshot') || !atomicContractSnapshotMigration.includes('drop function public.link_individual_contract_snapshot_checkout')) fail('superseded non-atomic contract RPCs must be dropped');
 if (!atomicContractSnapshotMigration.includes("tg_op = 'DELETE' and current_user = 'postgres'")) fail('contract evidence retention purge must remain restricted to the database owner');
 if (!individualApi.includes('create_and_link_individual_contract_snapshot')) fail('individual checkout must atomically create and bind the immutable contract snapshot after Stripe Session creation and before returning its URL');
+const stripeSessionCreationIndex = individualApi.indexOf('const session = await createStripeCheckout');
+const atomicSnapshotPersistenceIndex = individualApi.indexOf("admin.rpc(\n      'create_and_link_individual_contract_snapshot'");
+if (stripeSessionCreationIndex < 0 || atomicSnapshotPersistenceIndex <= stripeSessionCreationIndex) fail('contract evidence must be persisted only after Stripe creates the exact Checkout Session');
+if (!individualApi.includes("'contract_snapshot_persistence_failed'")) fail('checkout must fail closed when immutable contract persistence fails');
 if (individualApi.includes("admin.rpc('create_individual_contract_snapshot'") || individualApi.includes("admin.rpc('link_individual_contract_snapshot_checkout'")) fail('individual checkout must not use the superseded non-atomic snapshot RPCs');
 if (!stripeCheckout.includes('syllonaut_contract_snapshot_id')) fail('Stripe Checkout and subscription metadata must carry contract snapshot ID');
 if (!billingEmail.includes('get_individual_contract_snapshot_for_delivery') || !billingEmail.includes('hashIndividualContractSnapshot')) fail('activation email must fetch and verify the frozen contract snapshot');
