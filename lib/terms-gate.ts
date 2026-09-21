@@ -6,8 +6,6 @@ const ORGANIZATION_BILLING_EXEMPT_PREFIXES = [
   '/api/organizations/cancellation',
   '/api/organizations/subscription',
   '/api/organizations/payment',
-  '/api/organizations/renewal',
-  '/api/organizations/renew',
   '/api/organizations/quote',
   '/api/organizations/invoices/',
 ];
@@ -17,6 +15,7 @@ export function requestRequiresCurrentTerms(pathname: string, method: string) {
 
   if (
     pathname === '/api/generate'
+    || pathname === '/api/billing/stripe/subscription/change'
     || pathname === '/api/revise'
     || pathname === '/api/revise-block'
     || pathname.startsWith('/api/folders')
