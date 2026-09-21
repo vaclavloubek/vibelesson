@@ -65,6 +65,7 @@ assert(normalized?.billingCountry === 'DE', 'DE billing country should survive n
 assert(normalized?.merchantOfRecord === true, 'DE must require Managed Payments');
 assert(normalized?.priceId === 'price_regression001', 'price should normalize');
 assert(normalized?.currency === 'eur', 'subscription currency should normalize for live checkout-country verification');
+assert(normalized?.contractSnapshotId === '423e4567-e89b-42d3-a456-426614174000', 'contract snapshot ID must survive subscription normalization');
 
 let wrongSecretRejected = false;
 try {
