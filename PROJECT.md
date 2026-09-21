@@ -1,19 +1,19 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.83** uzavírá **LEGAL-005**: školní Team / School / Campus workflow má nyní závaznou verzovanou DPA podle čl. 28 GDPR, samostatné explicitní přijetí v objednávce, serverový fail-closed acceptance key a doložitelnou verzi/čas/přijímající účet v objednávkovém snapshotu. Privacy Notice popisuje skutečný produkční controller/processor model a aktuální subprocessory. Předchozí změny 0.9.82 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.84** hardenuje uzavřený **LEGAL-005**: školní Team / School / Campus workflow má závaznou verzovanou DPA podle čl. 28 GDPR a DPA **1.1** nově u každého subprocesora zveřejňuje právní entitu, adresu a privacy/DPO kontakt podle hardeningu navazujícího na stanovisko EDPB 22/2024. Nový `DPA_ACCEPTANCE_KEY` zajišťuje, že budoucí objednávky přijímají právě tuto verzi; v produkci před změnou nebyla žádná skutečná školní objednávka, takže není nutný zákaznický re-consent. Předchozí změny 0.9.83 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
-### Zpracovatelská smlouva organizací 0.9.83 — 2026-09-21
+### Zpracovatelská smlouva organizací 0.9.84 — 2026-09-21
 
 - uzavřen právní auditní bod **LEGAL-005**;
-- nový autoritativní zdroj **lib/dpa-document.ts** obsahuje českou a anglickou DPA verze **1.0**, účinnou od 21. 9. 2026, pro Team / School / Campus;
+- nový autoritativní zdroj **lib/dpa-document.ts** obsahuje českou a anglickou DPA verze **1.1**, účinnou od 21. 9. 2026, pro Team / School / Campus;
 - veřejné routy **/cs/dpa** a **/en/dpa** zobrazují stejný verzovaný dokument; `/dpa` používá locale gateway a DPA je trvale dostupná i z patičky;
 - DPA konkretizuje čl. 28 GDPR: role správce/zpracovatele, předmět a dobu zpracování, kategorie subjektů a údajů, dokumentované pokyny, důvěrnost, technická a organizační opatření, subprocessory, incidenty, práva subjektů, DPIA/úřady, výmaz/vrácení, audity a mezinárodní předávání;
-- aktuální seznam relevantních subprocesorů v DPA zahrnuje **Supabase, Vercel, Cloudflare, Resend, OpenAI, AWS Bedrock a Microsoft Azure** s popisem účelu a rozsahu dat;
+- aktuální seznam relevantních subprocesorů v DPA zahrnuje **Supabase, Vercel, Cloudflare, Resend, OpenAI, AWS Bedrock a Microsoft Azure**; vedle účelu, rozsahu dat a transfer režimu je u každého nově snadno dostupná i **právní entita, poštovní adresa a privacy/DPO kontakt**;
 - změny subprocesorů používají obecné předchozí povolení s oznámením plánované materiální změny standardně alespoň **15 dnů** předem a možností námitky Správce do **10 dnů** z doložených důvodů ochrany údajů;
 - školní objednávka má samostatný checkbox pro VOP/oprávnění objednat a samostatný checkbox pro DPA; finální objednávkové tlačítko je aktivní až po obou souhlasech;
-- klient posílá `dpaAccepted=true` a sdílený **DPA_ACCEPTANCE_KEY = 2026-09-21-dpa-v1**; server oba údaje fail-closed validuje přes Zod a přímé API volání bez aktuální DPA odmítne;
+- klient posílá `dpaAccepted=true` a sdílený **DPA_ACCEPTANCE_KEY = 2026-09-21-dpa-v2**; server oba údaje fail-closed validuje přes Zod a přímé API volání bez aktuální DPA odmítne;
 - `organization_orders.billing_snapshot.legalAcceptance` ukládá samostatně `dpaVersion`, `dpaAcceptedAt` a `dpaAcceptedByUserId` vedle evidence VOP;
 - Privacy Notice je povýšena na **1.4**: už nepopisuje školní účty jako budoucí, rozlišuje organizaci jako správce a Syllonaut jako zpracovatele pro školní data a samostatnou roli Syllonautu jako správce pro vlastní billing/security/legal účely;
 - VOP výslovně inkorporují DPA do smlouvy organizace v rozsahu zpracování prováděného jménem organizace;

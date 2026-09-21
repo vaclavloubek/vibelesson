@@ -14,8 +14,8 @@ const gdpr = read('app/gdpr/page.tsx');
 const school = read('components/SchoolAdmin.tsx');
 const schoolApi = read('app/api/organizations/route.ts');
 
-if (!legal.includes("DPA_VERSION = '1.0'")) fail('active DPA version is missing');
-if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-21-dpa-v1'")) fail('active DPA acceptance key is missing');
+if (!legal.includes("DPA_VERSION = '1.1'")) fail('active DPA version is missing');
+if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-21-dpa-v2'")) fail('active DPA acceptance key is missing');
 
 for (const needle of [
   'Dokumentované pokyny',
@@ -52,6 +52,34 @@ if (!dpa.includes('15 dnů předem') || !dpa.includes('10 dnů vznést námitku'
 }
 if (!dpa.includes('zero data retention') || !dpa.includes('zero-data-retention')) {
   fail('DPA must document current AI zero-data-retention control');
+}
+for (const identity of [
+  'Supabase, Inc.',
+  '970 Toa Payoh North #07-04, Singapore 318992',
+  'privacy@supabase.io',
+  'Vercel Inc.',
+  '440 N Barranca Avenue #4133, Covina, CA 91723, United States',
+  'privacy@vercel.com',
+  'Cloudflare, Inc.',
+  '101 Townsend St., San Francisco, CA 94107, United States',
+  'privacyquestions@cloudflare.com',
+  'Plus Five Five, Inc.',
+  '2261 Market Street #5039, San Francisco, CA 94114, United States',
+  'privacy@resend.com',
+  'OpenAI Ireland Limited',
+  '117–126 Sheriff Street Upper',
+  'privacy@openai.com',
+  'Amazon Web Services EMEA SARL',
+  '38 Avenue John F. Kennedy, L-1855 Luxembourg',
+  'aws-EU-privacy@amazon.com',
+  'Microsoft Ireland Operations Limited',
+  'One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Ireland',
+  'Data Protection Officer',
+]) {
+  if (!dpa.includes(identity)) fail('sub-processor identity/contact missing: ' + identity);
+}
+for (const field of ['subprocessor.legalEntity', 'subprocessor.address', 'subprocessor.contact']) {
+  if (!page.includes(field)) fail('public DPA must render sub-processor identity field: ' + field);
 }
 
 if (!page.includes('getDpaDocument(locale)')) fail('public DPA page must render the authoritative document');
