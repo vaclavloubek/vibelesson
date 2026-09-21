@@ -88,32 +88,6 @@ export async function POST(request: Request) {
     immediatePerformanceRequested: true,
   });
 
-  const { data: snapshotRows, error: snapshotError } = await admin.rpc('create_individual_contract_snapshot', {
-    p_snapshot_id: snapshotId,
-    p_user_id: userId,
-    p_livemode: livemode,
-    p_plan_code: planCode,
-    p_billing_period: input.billing,
-    p_currency: route.currency,
-    p_amount_minor: snapshot.amountMinor,
-    p_terms_version: snapshot.termsVersion,
-    p_terms_acceptance_key: snapshot.termsAcceptanceKey,
-    p_locale: snapshotLocale,
-    p_immediate_performance_requested: true,
-    p_contract_html: snapshot.contractHtml,
-    p_withdrawal_form_html: snapshot.withdrawalHtml,
-    p_content_sha256: snapshot.contentSha256,
-  });
-  if (snapshotError || !Array.isArray(snapshotRows) || !snapshotRows[0]?.snapshot_id) {
-    console.error('billing contract snapshot creation failed', {
-      code: snapshotError?.code ?? 'missing_snapshot_row',
-      userId,
-      planCode,
-      billingPeriod: input.billing,
-      livemode,
-    });
-    return jsonError(500, 'contract_snapshot_creation_failed');
-  }
   if (customerResult.error) {
     console.error('billing checkout customer lookup failed', { code: customerResult.error.code, livemode });
     return jsonError(500, 'billing_customer_lookup_failed');
@@ -169,21 +143,37 @@ export async function POST(request: Request) {
       contractSnapshotId: snapshotId,
     });
 
-    const { error: linkError } = await admin.rpc('link_individual_contract_snapshot_checkout', {
-      p_snapshot_id: snapshotId,
-      p_user_id: userId,
-      p_livemode: livemode,
-      p_checkout_session_id: session.id,
-    });
-    if (linkError) {
-      console.error('billing contract snapshot checkout link failed', {
-        code: linkError.code,
+    const { data: snapshotRows, error: snapshotError } = await admin.rpc(
+      'create_and_link_individual_contract_snapshot',
+      {
+        p_snapshot_id: snapshotId,
+        p_user_id: userId,
+        p_livemode: livemode,
+        p_plan_code: planCode,
+        p_billing_period: input.billing,
+        p_currency: route.currency,
+        p_amount_minor: snapshot.amountMinor,
+        p_terms_version: snapshot.termsVersion,
+        p_terms_acceptance_key: snapshot.termsAcceptanceKey,
+        p_locale: snapshotLocale,
+        p_immediate_performance_requested: true,
+        p_contract_html: snapshot.contractHtml,
+        p_withdrawal_form_html: snapshot.withdrawalHtml,
+        p_content_sha256: snapshot.contentSha256,
+        p_checkout_session_id: session.id,
+      },
+    );
+    if (snapshotError || !Array.isArray(snapshotRows) || !snapshotRows[0]?.snapshot_id) {
+      console.error('billing contract snapshot atomic persistence failed', {
+        code: snapshotError?.code ?? 'missing_snapshot_row',
         userId,
         snapshotId,
         checkoutSessionId: session.id,
+        planCode,
+        billingPeriod: input.billing,
         livemode,
       });
-      return jsonError(500, 'contract_snapshot_link_failed');
+      return jsonError(500, 'contract_snapshot_persistence_failed');
     }
 
     return NextResponse.json({ url: session.url, environment: input.environment, currency: route.currency, managedPayments: route.managedPayments }, {
