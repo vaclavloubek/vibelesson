@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { localeFromCountry, normalizeUiLocale } from '@/lib/i18n';
 import { INDIVIDUAL_PLAN_ALLOWANCES } from '@/lib/individual-billing-catalog';
+import { hashIndividualContractSnapshot } from '@/lib/individual-contract-snapshot';
 import type { StripeSubscriptionSync } from '@/lib/stripe-webhook';
 import {
   billingLifecycleNotification,
@@ -196,6 +197,23 @@ export async function deliverBillingLifecycleEmail(
     ) {
       await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'contract_snapshot_delivery_mismatch');
       throw new BillingEmailDeliveryError('contract_snapshot_delivery_mismatch');
+    }
+    const recomputedHash = hashIndividualContractSnapshot({
+      snapshotId: contractSnapshot.snapshot_id,
+      locale: contractSnapshot.locale,
+      planCode: contractSnapshot.plan_code,
+      billingPeriod: contractSnapshot.billing_period,
+      currency: contractSnapshot.currency,
+      amountMinor: Number(contractSnapshot.amount_minor),
+      termsVersion: contractSnapshot.terms_version,
+      termsAcceptanceKey: contractSnapshot.terms_acceptance_key,
+      immediatePerformanceRequested: contractSnapshot.immediate_performance_requested,
+      contractHtml: contractSnapshot.contract_html,
+      withdrawalHtml: contractSnapshot.withdrawal_form_html,
+    });
+    if (recomputedHash !== contractSnapshot.content_sha256) {
+      await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'contract_snapshot_hash_mismatch');
+      throw new BillingEmailDeliveryError('contract_snapshot_hash_mismatch');
     }
   } else if (notification === 'subscription_activated' && !sync.contractSnapshotId) {
     console.warn('legacy subscription activation has no immutable contract snapshot', {
