@@ -35,6 +35,10 @@ const sharedLessonPage = read('app/s/[token]/page.tsx');
 const sharedImportButton = read('components/ImportSharedLessonButton.tsx');
 const organizationSubscription = read('app/api/organizations/subscription/route.ts');
 const organizationCancellation = read('app/api/organizations/cancellation/route.ts');
+const sharedImportApi = read('app/api/lesson-shares/[token]/import/route.ts');
+const sharedImportButton = read('components/ImportSharedLessonButton.tsx');
+const individualSubscriptionChange = read('app/api/billing/stripe/subscription/change/route.ts');
+const subscriptionManagement = read('components/SubscriptionManagement.tsx');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -92,6 +96,52 @@ if (!reconsentPage.includes('if (alreadyAccepted) redirect(returnTo)')) fail('al
 if (!termsPageGate.includes('hasCurrentTermsAcceptance') || !termsPageGate.includes('termsReconsentPath(returnTo)')) fail('server pages must fail closed to the re-consent route');
 
 if (!proxy.includes('forwardedHeaders.delete(CURRENT_TERMS_REQUIRED_HEADER)') || !proxy.includes('requestRequiresCurrentTerms(pathname, request.method)')) fail('proxy must overwrite the internal Terms gate marker from trusted path/method data');
+if (!termsGate.includes("pathname === '/api/billing/stripe/checkout'")) fail('new individual checkout must require current Terms audit');
+if (!termsGate.includes("normalizedMethod === 'GET'") || !termsGate.includes('/live-control
+if (!serverAuth.includes("requestHeaders.get(CURRENT_TERMS_REQUIRED_HEADER) === '1'") || !serverAuth.includes('termsAcceptanceRequired = !(await hasCurrentTermsAcceptance(authenticatedUserId))')) fail('shared server auth must enforce the proxy-marked Terms gate');
+if (!serverAuth.includes('userId: termsAcceptanceRequired ? null : authenticatedUserId')) fail('protected product mutations must fail closed when current Terms are missing');
+if (!individualApi.includes('termsAcceptanceRequired && authenticatedUserId') || !individualApi.includes("jsonError(428, 'terms_reconsent_required')")) fail('individual checkout must distinguish authenticated re-consent from ordinary authentication failure');
+if (!pricing.includes("response.status === 428") || !pricing.includes('termsReconsentPath')) fail('Pricing checkout must route legacy accounts to Terms re-consent');
+if (!sharedImportApi.includes('hasCurrentTermsAcceptance(userId)') || !sharedImportApi.includes("terms_reconsent_required") || !sharedImportApi.includes('{ status: 428 }')) fail('Bearer share import must independently enforce current Terms');
+if (!sharedImportButton.includes('response.status === 428') || !sharedImportButton.includes('termsReconsentPath')) fail('share import UI must route 428 to Terms re-consent');
+if (!individualSubscriptionChange.includes("input.action === 'change'") || !individualSubscriptionChange.includes('hasCurrentTermsAcceptance(userId)') || !individualSubscriptionChange.includes("jsonError(428, 'terms_reconsent_required')")) fail('new individual plan changes must require current Terms');
+if (!individualSubscriptionChange.includes("action: z.literal('cancel_scheduled_change')")) fail('scheduled individual plan change cancellation must remain available');
+if (!subscriptionManagement.includes('response.status === 428') || !subscriptionManagement.includes("termsReconsentPath('/subscription')")) fail('subscription management must route a new plan change to re-consent when required');
+
+for (const [name, source] of [
+  ['new lesson', newLessonPage],
+  ['lesson library', lessonsPage],
+  ['lesson editor', lessonPage],
+  ['worksheet', worksheetPage],
+  ['teacher session', teacherSessionPage],
+  ['presenter', presenterPage],
+]) {
+  if (!source.includes('requireCurrentTermsForPage')) fail(name + ' page must require current Terms before working use');
+}
+if (!newLessonPage.includes('if (userId)')) fail('guest /new flow must remain available; Terms page gate is only for signed-in users');
+if (!schoolPage.includes('termsAcceptanceRequired') || !school.includes("termsReconsentPath('/school')")) fail('school admin must expose and handle Terms re-consent state');
+if (!school.includes('(response.status === 401 || response.status === 428)')) fail('school admin must redirect protected actions to re-consent without blocking billing reads');
+if (!schoolInvitePage.includes('requireCurrentTermsForPage')) fail('signed-in school invitation acceptance must require current Terms');
+if (!sharedLessonPage.includes('termsAcceptanceRequired') || !sharedImportButton.includes('termsReconsentPath')) fail('shared lesson preview must stay readable while import routes through re-consent');
+
+const organizationExemptBlock = termsGate.match(/const ORGANIZATION_BILLING_EXEMPT_PREFIXES = \[([\s\S]*?)\];/)?.[1] ?? '';
+for (const allowedPath of [
+  '/api/organizations/cancellation',
+  '/api/organizations/subscription',
+  '/api/organizations/payment',
+  '/api/organizations/invoices/',
+]) {
+  if (!organizationExemptBlock.includes(allowedPath)) fail('billing/cancellation exemption missing: ' + allowedPath);
+}
+if (organizationExemptBlock.includes('/api/organizations/renewal') || organizationExemptBlock.includes('/api/organizations/renew')) fail('new organization renewal must not bypass current Terms');
+if (!termsGate.includes("pathname === '/api/billing/stripe/subscription/change'")) fail('individual plan changes must require current Terms');
+for (const source of [organizationSubscription, organizationCancellation]) {
+  if (!source.includes('if (!input.cancelAtPeriodEnd)') || !source.includes("terms_reconsent_required") || !source.includes('{ status: 428 }')) fail('turning organization renewal back on must require current Terms while cancellation remains available');
+}
+
+console.log('Terms acceptance contract OK');
+)) fail('live-control capability issuance must require current Terms even though it is a GET');
+if (termsGate.includes("pathname === '/api/billing/stripe/subscription/change'")) fail('subscription change endpoint must not be generically gated because cancellation of a scheduled change must remain available');
 if (!serverAuth.includes("requestHeaders.get(CURRENT_TERMS_REQUIRED_HEADER) === '1'") || !serverAuth.includes('termsAcceptanceRequired = !(await hasCurrentTermsAcceptance(authenticatedUserId))')) fail('shared server auth must enforce the proxy-marked Terms gate');
 if (!serverAuth.includes('userId: termsAcceptanceRequired ? null : authenticatedUserId')) fail('protected product mutations must fail closed when current Terms are missing');
 

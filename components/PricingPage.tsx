@@ -16,6 +16,7 @@ import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-regi
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { AI_GRADING_ALLOWANCES, INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } from '@/lib/individual-billing-catalog';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { termsReconsentPath } from '@/lib/terms-gate';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -603,6 +604,11 @@ export default function PricingPage({
           stripeMessage?: string | null;
         };
       };
+
+      if (response.status === 428 || payload.error === 'terms_reconsent_required') {
+        window.location.assign(termsReconsentPath(`/${locale}/pricing`));
+        return;
+      }
 
       if (!response.ok || !payload.url) {
         const diagnosticParts = [

@@ -1,8 +1,20 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.85** uzavírá **LEGAL-006**: starší přihlášené účty bez doloženého přijetí aktuálních VOP mají jednorázový serverově vynucený re-consent před dalším používáním pracovních funkcí; přijetí se zapisuje serverovým časem do existující append-only auditní evidence. Právní dokumenty, faktury, billing a skutečné zrušení služby zůstávají dostupné i bez nového souhlasu. Hardening DPA 1.1 z 0.9.84 zůstává zachovaný. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.86** hardenuje uzavřený **LEGAL-006**: jednorázový serverově vynucený re-consent aktuálních VOP nyní kryje i Bearer import sdílené lekce, nový individuální checkout a vydání live-control capability. Změna individuálního tarifu VOP vyžaduje, ale zrušení už naplánované změny zůstává dostupné bez nuceného přijetí nových podmínek. Předchozí 0.9.85 a DPA 1.1 z 0.9.84 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### LEGAL-006 enforcement hardening 0.9.86 — 2026-09-21
+
+- uzavřený LEGAL-006 byl po serverovém bypass auditu ještě zpřísněn bez změny VOP nebo DB schématu;
+- Bearer-token cesta importu sdílené lekce už nemůže obejít společný cookie/auth helper: před importem samostatně ověřuje autoritativní append-only Terms audit a při chybě failuje stavem 428;
+- GET `/api/sessions/<id>/live-control` je výslovně považován za chráněnou pracovní akci, protože mintuje teacher/presenter capability pro externí live-control plane; bez aktuálních VOP se capability nevydá;
+- nový individuální Stripe checkout vyžaduje vedle svého checkoutového checkboxu také existenci serverového current-Terms auditu a legacy účet je veden na `/terms/accept`;
+- endpoint změny individuálního tarifu už není plošně gateovaný podle HTTP POST: akce `change` vyžaduje current Terms, zatímco `cancel_scheduled_change` zůstává dostupná bez nového souhlasu, aby uživatel mohl zrušit budoucí závazek;
+- Ceník, import sdílené lekce a správa předplatného zpracují `428 terms_reconsent_required` přesměrováním do existujícího bezpečného re-consent flow;
+- `normalizeTermsReturnTo` nově bezpečně povoluje také Pricing a `/subscription` jako návratový cíl;
+- regresní `scripts/verify-terms.mjs` výslovně hlídá všechny tři nalezené bypass hranice i zachování cancellation výjimky;
+- veřejně zobrazovaná verze dashboardu zůstává **0.9.30**.
 
 ### Jednorázový re-consent aktuálních VOP 0.9.85 — 2026-09-21
 
