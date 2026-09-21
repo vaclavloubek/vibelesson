@@ -19,7 +19,6 @@ const teacherProExpansion = migrations.find(({ content }) => content.includes('T
 if (!teacherProExpansion) throw new Error('Missing Teacher Pro 25+40 allowance migration.');
 
 for (const [needle, label] of [
-  ["v_reservation numeric(12,6) := 0.040000", 'conservative in-flight cost reservation'],
   ['for update of e', 'grading claims serialize on the evaluation row'],
   ['manual-budget-v1', 'budget exhaustion falls back to manual review'],
   ['private.complete_ai_grading_budget', 'finished/failed attempts settle reservations'],
@@ -34,14 +33,36 @@ for (const [needle, label] of [
   ["('team', 40, 80", 'Team measured-cost limits'],
   ["('school', 120, 240", 'School measured-cost limits'],
   ["('campus', 300, 600", 'Campus measured-cost limits'],
-  ["when 'teacher_pro' then 2.00", 'Teacher Pro monthly grading budget'],
-  ["when 'school' then 10.00", 'School monthly grading budget'],
-  ["when 'campus' then 25.00", 'Campus monthly grading budget'],
-  ["when 'teacher_pro' then 150", 'Teacher Pro grading count ceiling'],
-  ["when 'school' then 700", 'School grading count ceiling'],
-  ["when 'campus' then 1750", 'Campus grading count ceiling'],
 ]) {
   requireText(rebalance.content, needle, label);
+}
+
+const published = migrations.find(({ content }) => content.includes('Publish clear customer-facing AI grading allowances'));
+if (!published) throw new Error('Missing published AI grading allowance migration.');
+
+for (const [needle, label] of [
+  ['monthly_ai_grading_count_limit = 60', 'Teacher Pro public grading allowance'],
+  ['monthly_ai_grading_budget_usd = 12.00', 'Teacher Pro internal circuit breaker'],
+  ['monthly_ai_grading_count_limit = 300', 'School public grading allowance'],
+  ['monthly_ai_grading_budget_usd = 60.00', 'School internal circuit breaker'],
+  ['monthly_ai_grading_count_limit = 750', 'Campus public grading allowance'],
+  ['monthly_ai_grading_budget_usd = 150.00', 'Campus internal circuit breaker'],
+  ['v_reservation numeric(12,6) := 0.100000', 'conservative in-flight grading reservation'],
+  ['grading_used integer', 'quota RPC exposes grading usage'],
+  ['grading_limit integer', 'quota RPC exposes grading allowance'],
+  ['grading_remaining integer', 'quota RPC exposes remaining grading allowance'],
+]) {
+  requireText(published.content, needle, label);
+}
+
+for (const [budget, count, label] of [
+  [12, 60, 'Teacher Pro'],
+  [60, 300, 'School'],
+  [150, 750, 'Campus'],
+]) {
+  if (budget < count * 0.1 * 2) {
+    throw new Error(`${label} internal grading circuit breaker must retain at least 2x headroom over reserved public allowance.`);
+  }
 }
 
 for (const [needle, label] of [
@@ -62,4 +83,4 @@ for (const [needle, label] of [
   requireText(joinLimits.content, needle, label);
 }
 
-console.log(`AI grading safety budget verified via ${budget.name}; measured plan limits verified via ${rebalance.name}; participant hard caps remain enforced at INSERT.`);
+console.log(`AI grading safety budget verified via ${budget.name}; published customer allowances verified via ${published.name}; participant hard caps remain enforced at INSERT.`);
