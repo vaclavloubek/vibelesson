@@ -1,8 +1,23 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**: čl. 5 VOP už nepřipouští, aby pozdější faktura nebo platební doklad jednostranně přepsaly předsmluvní příslib; webová VOP a neměnný smluvní snapshot používají stejnou sdílenou klauzuli. VOP jsou verze 1.1 / acceptance key `2026-09-21-v2`; signup audit a re-consent používají backward-compatible verzovanou DB vrstvu, která eviduje přesně key skutečně přijatý uživatelem. Pricing nyní čte i Team / School / Campus ceny, seat limity a AI lesson/revision kvóty ze sdíleného organizačního katalogu a regresní kontrakt hlídá cestu nabídka → checkout → smluvní snapshot → aktivační e-mail. Hardening LEGAL-006 z 0.9.86 zůstává zachovaný. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.88** uzavírá **LEGAL-008**: spotřebitelské odstoupení po výslovně požadovaném okamžitém zahájení služby používá reprodukovatelnou časovou poměrnou úhradu z původní sjednané ceny a skutečné délky zaplaceného období. Lhůtu určuje doložený čas odeslání a výpočet čas doručení; AI spotřeba částku nemění. Neměnná evidence je svázaná s původním smluvním snapshotem, platbou a aktivačním dokladem a refund používá bezpečný Stripe postup se stabilní idempotencí a souběhovým zámkem. VOP jsou verze 1.2 / acceptance key `2026-09-21-v3`. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Poměrná úhrada při odstoupení 0.9.88 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-008**;
+- autoritativní metoda `time-pro-rata-v1` počítá zadrženou částku jako jediné zaokrouhlení dolů: původní sjednaná cena v nejmenších měnových jednotkách × skutečně poskytnutý čas / skutečná délka zaplaceného období; zbytek se vrací;
+- AI spotřeba nevstupuje do částky a může sloužit pouze oddělenému fraud monitoringu;
+- včasnost odstoupení se ověřuje podle doloženého času odeslání, zatímco výpočet poskytnuté služby končí časem doručení poskytovateli; oba časy a SHA-256 původního oznámení jsou neměnnou evidencí;
+- výpočet používá původní smluvní snapshot, Checkout Session, počáteční fakturu, PaymentIntent, Charge a serverový aktivační záznam. Upgrade, další platba, schedule, pending update, cenový rozpor nebo chybějící evidence zastaví automatizaci k individuálnímu posouzení;
+- refund běží proti původní Stripe platbě se stabilním idempotency key, nejprve vyhledá již existující refund a používá service-only execution lease; stav refundu se znovu načítá a smiřuje také ze signed webhooku;
+- původní paralelně nasazené mutační RPC bez důkazu oznámení a lease jsou odebrané `service_role`; nový zápis, výpočet, claim, refund reconciliation, cancellation a failure workflow jsou dostupné pouze `service_role`;
+- VOP, checkout a neměnný smluvní snapshot sdílejí CZ/EN metodiku; VOP jsou **1.2** a `TERMS_ACCEPTANCE_KEY = 2026-09-21-v3`, přičemž v1/v2 zůstávají během rollout kompatibility podporované a historická evidence se nepřepisuje;
+- produkční Supabase migrace **20260921092334_add_withdrawal_refund_evidence** a **20260921092346_update_terms_1_2_legal_008** jsou aplikované. Obě privátní tabulky mají RLS bez přímých grantů; Security Advisor nepřidal nový WARN ani nové privileged-RPC upozornění, pouze očekávané INFO `rls_enabled_no_policy` pro novou privátní receipt tabulku;
+- regresní testy pokrývají měsíční i roční/leap období, odstoupení ve stejný den, přesné zaokrouhlení, nulový retained amount bez výslovné žádosti/poučení, předchozí refund, nezávislost na AI spotřebě, změnu tarifu, retry recovery, včasné odeslání s pozdějším doručením, neměnnost důkazů, granty, RLS a Terms v1/v2/v3;
+- PR **#272** prošel full check/build, Security headers, Accessibility, Vercel Preview a izolovaným PostgreSQL testem; produkční merge commit **73aab962** má Vercel **success**. V produkční evidenci při ověření zůstalo **0 receipts / 0 requests** a žádný živý refund ani syntetický nákup nebyl proveden;
+- veřejně zobrazovaná verze dashboardu zůstává **0.9.30**.
 
 
 ### Konzistence nabídky a smlouvy 0.9.87 — 2026-09-21
@@ -156,8 +171,6 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**
 
 **Stav: OPEN.** Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
 
-Pracovní implementace LEGAL-008: časová metodika, oddělená evidence odstoupení/výpočtu/provedení, interní refund workflow a VOP 1.2 jsou připravené na pracovní větvi. Stav není RESOLVED; čeká na dokončení integračního, DB, Preview a produkčního ověření. Postup a okrajové případy: `WITHDRAWAL.md`.
-
 #### Blokátory 1.0
 
 - **[LEGAL-001 — RESOLVED 0.9.78] Aktivační e-mail potvrzoval zastaralé a vyšší AI kvóty.** Opraveno: `INDIVIDUAL_PLAN_ALLOWANCES` v `lib/individual-billing-catalog.ts` je společný zdroj pro Pricing i transakční aktivační e-mail. Teacher se potvrzuje jako **10 nových AI lekcí + 20 AI úprav / měsíc**, Teacher Pro jako **25 + 40**. Regresní kontrola vykreslí oba tarify ze sdílených hodnot a zakazuje návrat starých textů **25/100** a **60/250**.
@@ -170,7 +183,7 @@ Pracovní implementace LEGAL-008: časová metodika, oddělená evidence odstoup
 
 - **[LEGAL-006 — RESOLVED 0.9.85] Starší účty neměly doložené přijetí aktuálních VOP.** Opraveno: přihlášený účet bez append-only evidence aktuálního key je před další tvorbou, editací, live výukou nebo správou organizace veden na explicitní `/terms/accept`; server zároveň blokuje relevantní mutace i při přímém API volání. Přijetí se zapisuje serverovým časem do `private.terms_acceptance_events` se zdrojem `reconsent`. Billingové doklady a skutečné ukončení/omezení renewal zůstávají dostupné bez nuceného přijetí nové verze.
 - **[LEGAL-007 — RESOLVED 0.9.87] Čl. 5 VOP se pokoušel při rozporu dát přednost údajům těsně před objednávkou a následnému platebnímu dokladu.** Opraveno: pozdější potvrzení/faktura už nemůže jednostranně přepsat sjednané podmínky; veřejné VOP a archivní snapshot sdílejí totožnou klauzuli. Pricing a backend jsou navíc regresně svázané se sdílenými cenovými a kvótovými katalogy a nový test hlídá cestu nabídka → checkout → snapshot → aktivační e-mail.
-- **[LEGAL-008 — IN PROGRESS] Není definovaná obhajitelná metodika poměrné úhrady při spotřebitelském odstoupení po okamžitém zahájení služby.** Rizikový scénář: zákazník v prvních dnech vyčerpá většinu měsíční AI kvóty a odstoupí. **Náprava:** vytvořit jasnou interní refund metodiku odpovídající skutečně poskytnutému plnění a zákonu; neodvozovat automaticky 100% spotřebu ceny pouze z vyčerpání kvóty.
+- **[LEGAL-008 — RESOLVED 0.9.88] Není definovaná obhajitelná metodika poměrné úhrady při spotřebitelském odstoupení po okamžitém zahájení služby.** Vyřešeno čistým časovým poměrem z původní sjednané ceny a skutečné délky období, se zaokrouhlením zadržené částky dolů ve prospěch spotřebitele. AI spotřeba částku nemění. Neměnná evidence rozlišuje čas odeslání pro zachování lhůty a čas doručení pro výpočet; bezpečný Stripe refund je vázaný na původní platbu a chráněný proti souběhu a duplicitě.
 - **[LEGAL-009] Claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ je silnější než skutečný produkt.** Implementace poskytuje pouze AI/heuristický integrity signál `none / low / high`; signál není důkaz a nulu může po kontrole potvrdit učitel. **Náprava:** přepsat benefit např. na **„Upozornění na možné využití AI ve studentských odpovědích“** a stejnou formulaci držet ve všech kanálech.
 - **[LEGAL-010] VOP řeší změny průběžné digitální služby příliš obecně.** Formulace „v souladu se zákonem / přiměřeně informován“ nestačí jako provozní postup pro nepříznivou změnu placeného tarifu během zaplaceného období. **Náprava:** definovat version/change workflow: důvod změny, textová notifikace předem, datum účinnosti, zachování původní verze kde možné a právo zákazníka ukončit smlouvu tam, kde ho zákon vyžaduje.
 - **[LEGAL-011] VOP neuvádějí telefonní číslo poskytovatele.** U spotřebitelské distanční smlouvy patří telefon mezi předsmluvní kontaktní informace. **Náprava:** doplnit funkční telefon do VOP a checkout/legal kontaktních údajů.
@@ -194,7 +207,7 @@ Pracovní implementace LEGAL-008: časová metodika, oddělená evidence odstoup
 #### Rozhodnutí pro release
 
 - body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
-- body **LEGAL-008 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
+- body **LEGAL-009 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
 - body **LEGAL-020 až LEGAL-021** mají vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
 - po opravách provést nový **legal offer-vs-contract-vs-runtime audit**: Homepage → Pricing → Signup → Checkout → Stripe → potvrzovací e-mail → Subscription/School UI → VOP → GDPR → skutečné DB/backend entitlementy.
