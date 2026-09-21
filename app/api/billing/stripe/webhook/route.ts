@@ -637,6 +637,7 @@ export async function POST(request: Request) {
   }
 
   let verifiedBillingCountry = sync.billingCountry;
+  let verifiedCheckoutSessionId: string | null = null;
   if (sync.livemode) {
     const liveSecretKey = process.env.STRIPE_SECRET_KEY_LIVE;
     if (!isStripeLiveSecretKey(liveSecretKey)) {
@@ -657,8 +658,10 @@ export async function POST(request: Request) {
         declaredBillingCountry: sync.billingCountry,
         expectedCurrency: sync.currency,
         expectedManagedPayments: sync.merchantOfRecord,
+        expectedContractSnapshotId: sync.contractSnapshotId,
       }, billingRouteForCountry);
       verifiedBillingCountry = verification.billingCountry;
+      verifiedCheckoutSessionId = verification.checkoutSessionId;
 
       const currentSubscription = await retrieveStripeSubscription(liveSecretKey, sync.subscriptionId);
       const canonical = canonicalStripeSubscriptionState(currentSubscription);
@@ -690,6 +693,7 @@ export async function POST(request: Request) {
         currentPeriodEnd: canonical.currentPeriodEnd,
         canceledAt: canonical.canceledAt,
         billingCountry: canonical.billingCountry,
+        checkoutSessionId: verifiedCheckoutSessionId,
       };
     } catch (error) {
       console.warn('live Stripe billing-country verification rejected subscription event', {
