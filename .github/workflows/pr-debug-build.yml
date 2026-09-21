@@ -1,0 +1,17 @@
+name: Temporary PR build debug
+on:
+  push:
+    branches:
+      - fix/legal-004-contract-snapshot-confirmation-v2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
