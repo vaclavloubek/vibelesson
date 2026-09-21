@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { classifySubscriptionChange, type BillingPeriod } from '@/lib/subscription-change-policy';
 import type { LiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
-import { quotaSourceLabel } from '@/lib/ai-quota';
+import { quotaSourceLabel, type AiQuotaSnapshot } from '@/lib/ai-quota';
 import styles from './SubscriptionManagement.module.css';
 import TrustedDevicesPanel from './TrustedDevicesPanel';
 
@@ -31,10 +31,10 @@ function formatMoney(amount: number, currency: 'czk' | 'eur' | 'usd', english: b
 
 export default function SubscriptionManagement({
   state,
-  quotaWindow,
+  quota,
 }: {
   state: LiveSubscriptionManagementState;
-  quotaWindow?: { end: string; source: string | null } | null;
+  quota?: AiQuotaSnapshot | null;
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -88,8 +88,8 @@ export default function SubscriptionManagement({
   const refundedPayment = active.aiBillingPauseReason === 'refund';
   const blocked = active.cancelAtPeriodEnd || active.paymentIssue || disputedPayment || refundedPayment || active.pendingUpdate;
   const renewalDate = formatDate(active.currentPeriodEnd, english);
-  const quotaResetDate = quotaWindow?.end ? formatDate(quotaWindow.end, english) : null;
-  const quotaResetSource = quotaSourceLabel(quotaWindow?.source, english);
+  const quotaResetDate = quota?.quota_window_end ? formatDate(quota.quota_window_end, english) : null;
+  const quotaResetSource = quotaSourceLabel(quota?.quota_source, english);
   const targetPlanName = targetPlan === 'teacher-pro' ? 'Teacher Pro' : 'Teacher';
 
   async function openPortal() {
@@ -212,6 +212,12 @@ export default function SubscriptionManagement({
             <div>
               <dt>{ui('Obnovení AI limitu', 'AI allowance reset')}</dt>
               <dd>{quotaResetDate}{quotaResetSource ? ` · ${quotaResetSource}` : ''}</dd>
+            </div>
+          ) : null}
+          {quota?.grading_enabled && quota.grading_limit !== null ? (
+            <div>
+              <dt>{ui('AI hodnocení', 'AI grading')}</dt>
+              <dd>{quota.grading_remaining ?? 0} / {quota.grading_limit} {ui('zbývá', 'remaining')}</dd>
             </div>
           ) : null}
           <div><dt>{ui('Fakturační země', 'Billing country')}</dt><dd>{active.billingCountry ?? '—'}</dd></div>
