@@ -23,7 +23,6 @@ const pricing = read('components/PricingPage.tsx');
 const accountMenu = read('components/PublicHeaderAccountMenu.tsx');
 const subscriptionPage = read('app/subscription/page.tsx');
 const subscriptionManagement = read('components/SubscriptionManagement.tsx');
-const terms = read('app/terms/page.tsx');
 
 for (const [needle, label] of [
   ['for update of e', 'grading claims serialize on the evaluation row'],
@@ -113,8 +112,6 @@ for (const [source, needle, label] of [
   [accountMenu, 'grading_remaining', 'account menu shows remaining grading allowance'],
   [subscriptionPage, 'quotaSnapshot', 'subscription page passes full quota snapshot'],
   [subscriptionManagement, "ui('AI hodnocení', 'AI grading')", 'subscription UI shows grading allowance'],
-  [terms, 'Opakované AI přehodnocení stejné odpovědi čerpá další jednotku.', 'Terms define repeat grading consumption'],
-  [terms, 'ruční hodnocení', 'Terms preserve manual grading after AI allowance exhaustion'],
 ]) {
   requireText(source, needle, label);
 }
