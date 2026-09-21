@@ -223,7 +223,9 @@ NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS \
 Skript načte ze Supabase pouze UUID a stav ověření, importuje 3 řádky do `neon_auth.user`, porovná fingerprint a nainstaluje synchronizační trigger. Nekopíruje `encrypted_password`, OAuth tokeny ani sessions a neposílá žádný e-mail.
 
 3. [Hotovo] Vercel Preview spustil `scripts/neon/remote-auth-import-build.sh`, který normalizoval prefixované Neon proměnné, dočasně připravil PostgreSQL nástroje a provedl import. Deployment `4FocukAu9w5woHnRgvL9a25h6j7M` z commitu `a0a67ba` potvrdil 3 identity, 0 credential účtů a `PASS`; jednorázový `buildCommand` byl následně odstraněn.
-4. [Čeká] Jeden vlastník testovacího účtu sám spustí „Zapomenuté heslo“, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu nebylo součástí automatického importu.
+4. [Připraveno] Preview-only stránka `/auth/neon-staging` používá oficiální Next.js proxy Neon Auth, neobsahuje registraci ani Turnstile a v Production vrací 404. Jeden vlastník testovacího účtu na ní sám spustí obnovu hesla, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu nebylo součástí automatického importu.
+
+Pro aktivaci testovací stránky musí Preview obsahovat serverové proměnné `NEON_AUTH_BASE_URL` a citlivou `NEON_AUTH_COOKIE_SECRET` o délce alespoň 32 znaků. Cookie secret se nesmí prefixovat `NEXT_PUBLIC_`, zapisovat do repozitáře ani sdílet s Production. Klient komunikuje pouze se stejným originem přes `/api/auth/[...path]`.
 5. Samostatně ověřit registraci, verifikaci e-mailu a případný budoucí OAuth callback.
 6. Diagnostiku lze zopakovat:
 
