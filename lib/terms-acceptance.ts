@@ -5,8 +5,9 @@ export const TERMS_RECONSENT_SOURCE = 'reconsent';
 
 export async function hasCurrentTermsAcceptance(userId: string) {
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc('has_current_terms_acceptance_for_service', {
+  const { data, error } = await admin.rpc('has_terms_acceptance_for_service', {
     p_user_id: userId,
+    p_acceptance_key: TERMS_ACCEPTANCE_KEY,
   });
 
   if (error) {
@@ -24,8 +25,9 @@ export async function hasCurrentTermsAcceptance(userId: string) {
 
 export async function recordCurrentTermsReconsent(userId: string) {
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc('record_current_terms_reconsent_for_service', {
+  const { data, error } = await admin.rpc('record_terms_reconsent_for_service', {
     p_user_id: userId,
+    p_acceptance_key: TERMS_ACCEPTANCE_KEY,
   });
 
   if (error || typeof data !== 'string') {

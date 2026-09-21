@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import { TERMS_PLAN_PRICING_CLAUSE } from '@/lib/terms-content';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
 
@@ -52,7 +53,7 @@ hr{border:0;border-top:1px solid #ddd;margin:34px 0}a{color:#4f46c8}
 </html>`;
 }
 
-const TERMS_V1_CS = `
+const TERMS_CURRENT_CS = `
 <section>
 <h2>1. Poskytovatel služby</h2>
 <p><strong>Václav Loubek</strong><br>IČO: 88878431<br>Slepá 868<br>289 24 Milovice – Mladá<br>Česká republika</p>
@@ -80,7 +81,7 @@ const TERMS_V1_CS = `
 </section>
 <section>
 <h2>5. Tarify, ceny a AI limity</h2>
-<p>Aktuální obsah tarifů, jejich ceny, měna, fakturační období a limity jsou uvedeny v Ceníku a znovu v objednávkovém procesu před vznikem povinnosti platit. Pokud se údaje liší, pro konkrétní objednávku rozhodují údaje výslovně zobrazené bezprostředně před jejím potvrzením a na následném platebním dokladu.</p>
+<p>${escapeHtml(TERMS_PLAN_PRICING_CLAUSE.cs)}</p>
 <p>AI limity se vztahují na operace uvedené u daného tarifu. Nevyčerpané měsíční kvóty se nepřevádějí, není-li výslovně uvedeno jinak. Poskytovatel může zavést přiměřené technické a bezpečnostní limity bránící zneužití služby.</p>
 </section>
 <section>
@@ -129,10 +130,10 @@ const TERMS_V1_CS = `
 <section>
 <h2>14. Ochrana osobních údajů a závěrečná ustanovení</h2>
 <p>Zpracování osobních údajů upravuje samostatná stránka Ochrana osobních údajů (GDPR) na syllonaut.com.</p>
-<p>Aktuální verze těchto podmínek je 1.0 a je účinná od 21. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
+<p>Aktuální verze těchto podmínek je 1.1 a je účinná od 21. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
 </section>`;
 
-const TERMS_V1_EN = `
+const TERMS_CURRENT_EN = `
 <section>
 <h2>1. Service provider</h2>
 <p><strong>Václav Loubek</strong><br>Business ID: 88878431<br>Slepá 868<br>289 24 Milovice – Mladá<br>Czech Republic</p>
@@ -160,7 +161,7 @@ const TERMS_V1_EN = `
 </section>
 <section>
 <h2>5. Plans, prices and AI allowances</h2>
-<p>Current plan features, prices, currency, billing period and allowances are shown on the Pricing page and again in the ordering flow before the user incurs an obligation to pay. If information differs, the details expressly shown immediately before confirmation of a specific order and on the resulting payment document govern that order.</p>
+<p>${escapeHtml(TERMS_PLAN_PRICING_CLAUSE.en)}</p>
 <p>AI allowances apply to the operations listed for the relevant plan. Unused monthly allowances do not roll over unless expressly stated otherwise. The provider may apply reasonable technical and security limits to prevent abuse.</p>
 </section>
 <section>
@@ -209,18 +210,18 @@ const TERMS_V1_EN = `
 <section>
 <h2>14. Privacy and final provisions</h2>
 <p>Personal-data processing is described in the separate Privacy Notice on syllonaut.com.</p>
-<p>The current version of these Terms is 1.0, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
+<p>The current version of these Terms is 1.1, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
 </section>`;
 
-function termsV1(locale: IndividualContractLocale) {
+function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.0'
+    TERMS_VERSION !== '1.1'
     || TERMS_EFFECTIVE_DATE !== '2026-09-21'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v1'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v2'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
-  return locale === 'cs' ? TERMS_V1_CS : TERMS_V1_EN;
+  return locale === 'cs' ? TERMS_CURRENT_CS : TERMS_CURRENT_EN;
 }
 
 function buildWithdrawalForm(locale: IndividualContractLocale) {
@@ -289,7 +290,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 </table>
 <hr>
 <h1>Obchodní podmínky Syllonaut</h1>
-<p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 21. 9. 2026</p>${termsV1(locale)}`
+<p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 21. 9. 2026</p>${termsCurrent(locale)}`
     : `<h1>Syllonaut contract information confirmation</h1>
 <p class="muted">Immutable snapshot prepared before redirecting to Stripe Checkout: ${escapeHtml(capturedAt)}.</p>
 <div class="box"><strong>This document records the offer and Terms accepted before the order.</strong> Paid entitlements activate after payment is confirmed.</div>
@@ -307,7 +308,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 </table>
 <hr>
 <h1>Syllonaut Terms of Service</h1>
-<p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 21 September 2026</p>${termsV1(locale)}`;
+<p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 21 September 2026</p>${termsCurrent(locale)}`;
 
   const contractHtml = documentShell(locale, locale === 'cs' ? 'Potvrzení smluvních informací Syllonaut' : 'Syllonaut contract information confirmation', summary);
   const withdrawalFormHtml = buildWithdrawalForm(locale);

@@ -15,6 +15,7 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { AI_GRADING_ALLOWANCES, INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { ORGANIZATION_PLANS, organizationPricingPagePrice } from '@/lib/organization-billing-catalog';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { termsReconsentPath } from '@/lib/terms-gate';
 import landing from './LandingPage.module.css';
@@ -102,13 +103,13 @@ const schoolPlansCs: Plan[] = [
     id: 'team',
     name: 'Team',
     description: 'Pro menší tým, který chce připravovat, učit i vyhodnocovat v jednom nástroji.',
-    price: { monthlyCzk: 890, annualCzk: 8900, monthlyEur: 37.99, annualEur: 379.9, monthlyUsd: 39.99, annualUsd: 399 },
+    price: organizationPricingPagePrice('team'),
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
-      'Až 10 učitelů',
+      `Až ${ORGANIZATION_PLANS.team.seatLimit} učitelů`,
       'Samostatný účet pro každého učitele',
-      '40 nových AI lekcí za měsíc společně',
-      '80 AI úprav za měsíc společně',
+      `${ORGANIZATION_PLANS.team.monthlyLessonLimit} nových AI lekcí za měsíc společně`,
+      `${ORGANIZATION_PLANS.team.monthlyRevisionLimit} AI úprav za měsíc společně`,
       'Lekce v libovolném jazyce',
       'Opakované používání lekcí bez omezení',
       'Živé spuštění hotové lekce nespotřebovává AI limit',
@@ -119,13 +120,13 @@ const schoolPlansCs: Plan[] = [
     id: 'school',
     name: 'School',
     description: 'Pro školu, která chce sjednotit AI přípravu, živou výuku a vyhodnocení napříč sborem.',
-    price: { monthlyCzk: 2390, annualCzk: 23900, monthlyEur: 99.99, annualEur: 999.9, monthlyUsd: 109.99, annualUsd: 1099 },
+    price: organizationPricingPagePrice('school'),
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
-      'Až 30 učitelů',
+      `Až ${ORGANIZATION_PLANS.school.seatLimit} učitelů`,
       'Samostatný účet pro každého učitele',
-      '120 nových AI lekcí za měsíc společně',
-      '240 AI úprav za měsíc společně',
+      `${ORGANIZATION_PLANS.school.monthlyLessonLimit} nových AI lekcí za měsíc společně`,
+      `${ORGANIZATION_PLANS.school.monthlyRevisionLimit} AI úprav za měsíc společně`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       `${AI_GRADING_ALLOWANCES.school} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
@@ -143,13 +144,13 @@ const schoolPlansCs: Plan[] = [
     id: 'campus',
     name: 'Campus',
     description: 'Pro velkou školu nebo instituci, která chce jeden společný workflow pro více týmů a pracovišť.',
-    price: { monthlyCzk: 5990, annualCzk: 59900, monthlyEur: 249.99, annualEur: 2499.9, monthlyUsd: 269.99, annualUsd: 2699 },
+    price: organizationPricingPagePrice('campus'),
     features: [
       'Celý tok: AI příprava → živá hodina → vyhodnocení',
-      'Až 100 učitelů',
+      `Až ${ORGANIZATION_PLANS.campus.seatLimit} učitelů`,
       'Samostatný účet pro každého učitele',
-      '300 nových AI lekcí za měsíc společně',
-      '600 AI úprav za měsíc společně',
+      `${ORGANIZATION_PLANS.campus.monthlyLessonLimit} nových AI lekcí za měsíc společně`,
+      `${ORGANIZATION_PLANS.campus.monthlyRevisionLimit} AI úprav za měsíc společně`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
       `${AI_GRADING_ALLOWANCES.campus} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
@@ -210,10 +211,10 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     description: 'For a small team that wants to prepare, teach and evaluate in one tool.',
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
-      'Up to 10 teachers',
+      `Up to ${ORGANIZATION_PLANS.team.seatLimit} teachers`,
       'A separate account for every teacher',
-      '40 new AI lessons per month shared',
-      '80 AI edits per month shared',
+      `${ORGANIZATION_PLANS.team.monthlyLessonLimit} new AI lessons per month shared`,
+      `${ORGANIZATION_PLANS.team.monthlyRevisionLimit} AI edits per month shared`,
       'Lessons in any language',
       'Unlimited repeated use of lessons',
       'Running a finished lesson live does not use the AI allowance',
@@ -224,10 +225,10 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     description: 'For schools that want one workflow for AI preparation, live teaching and evaluation across staff.',
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
-      'Up to 30 teachers',
+      `Up to ${ORGANIZATION_PLANS.school.seatLimit} teachers`,
       'A separate account for every teacher',
-      '120 new AI lessons per month shared',
-      '240 AI edits per month shared',
+      `${ORGANIZATION_PLANS.school.monthlyLessonLimit} new AI lessons per month shared`,
+      `${ORGANIZATION_PLANS.school.monthlyRevisionLimit} AI edits per month shared`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.school} per month shared`,
@@ -244,10 +245,10 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     description: 'For large schools or institutions that want one shared workflow across teams and sites.',
     features: [
       'Full workflow: AI preparation → live lesson → evaluation',
-      'Up to 100 teachers',
+      `Up to ${ORGANIZATION_PLANS.campus.seatLimit} teachers`,
       'A separate account for every teacher',
-      '300 new AI lessons per month shared',
-      '600 AI edits per month shared',
+      `${ORGANIZATION_PLANS.campus.monthlyLessonLimit} new AI lessons per month shared`,
+      `${ORGANIZATION_PLANS.campus.monthlyRevisionLimit} AI edits per month shared`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.campus} per month shared`,

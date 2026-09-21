@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { billingRouteForCountry } from '../lib/billing-region.ts';
+import { TERMS_ACCEPTANCE_KEY } from '../lib/legal.ts';
 import {
   buildStripeCheckoutParams,
   isStripeLiveSecretKey,
@@ -25,7 +26,7 @@ const params = buildStripeCheckoutParams({
   managedPayments: true,
   planCode: 'teacher',
   billingPeriod: 'monthly',
-  termsVersion: '2026-09-21-v1',
+  termsVersion: TERMS_ACCEPTANCE_KEY,
   immediatePerformanceRequested: true,
   contractSnapshotId: '223e4567-e89b-42d3-a456-426614174001',
 });
@@ -37,7 +38,7 @@ assert.equal(params.has('customer_email'), false);
 assert.equal(params.get('managed_payments[enabled]'), 'true');
 assert.equal(params.get('subscription_data[metadata][syllonaut_user_id]'), '123e4567-e89b-42d3-a456-426614174000');
 assert.equal(params.get('subscription_data[metadata][syllonaut_billing_country]'), 'DE');
-assert.equal(params.get('metadata[syllonaut_terms_version]'), '2026-09-21-v1');
+assert.equal(params.get('metadata[syllonaut_terms_version]'), TERMS_ACCEPTANCE_KEY);
 assert.equal(params.get('metadata[syllonaut_immediate_service]'), 'true');
 assert.equal(params.get('metadata[syllonaut_contract_snapshot_id]'), '223e4567-e89b-42d3-a456-426614174001');
 assert.equal(params.get('subscription_data[metadata][syllonaut_contract_snapshot_id]'), '223e4567-e89b-42d3-a456-426614174001');
@@ -56,7 +57,7 @@ const firstPurchaseParams = buildStripeCheckoutParams({
   managedPayments: false,
   planCode: 'teacher',
   billingPeriod: 'monthly',
-  termsVersion: '2026-09-21-v1',
+  termsVersion: TERMS_ACCEPTANCE_KEY,
   immediatePerformanceRequested: true,
   contractSnapshotId: '223e4567-e89b-42d3-a456-426614174001',
 });
