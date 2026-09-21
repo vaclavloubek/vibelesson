@@ -110,6 +110,8 @@ export type StripeSubscriptionSync = {
   billingCountry: string;
   previousStatus: string | null;
   previousCancelAtPeriodEnd: boolean | null;
+  contractSnapshotId: string | null;
+  checkoutSessionId: string | null;
 };
 
 function splitSecrets(value: string | undefined) {
@@ -298,6 +300,10 @@ export function normalizeStripeSubscriptionEvent(
     : '';
   if (!/^[A-Z]{2}$/.test(billingCountry)) throw new Error('stripe_billing_country_metadata_invalid');
 
+  const contractSnapshotId = metadata.syllonaut_contract_snapshot_id === undefined
+    ? null
+    : stringField(metadata.syllonaut_contract_snapshot_id, UUID_RE, 'stripe_contract_snapshot_metadata_invalid');
+
   const items = objectRecord(subscription.items);
   const itemData = items.data;
   if (!Array.isArray(itemData) || itemData.length !== 1) {
@@ -362,6 +368,8 @@ export function normalizeStripeSubscriptionEvent(
     billingCountry,
     previousStatus,
     previousCancelAtPeriodEnd,
+    contractSnapshotId,
+    checkoutSessionId: null,
   };
 }
 
