@@ -10,6 +10,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 import { DPA_ACCEPTANCE_KEY, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { termsReconsentPath } from '@/lib/terms-gate';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -180,6 +181,7 @@ export default function SchoolAdmin({
   initialCheckoutResult,
   schoolBillingAvailable,
   initialUser,
+  termsAcceptanceRequired,
 }: {
   locale: 'cs' | 'en';
   initialPlan: OrganizationPlanCode;
@@ -188,6 +190,7 @@ export default function SchoolAdmin({
   initialCheckoutResult: 'success' | 'cancelled' | null;
   schoolBillingAvailable: boolean;
   initialUser: InitialUser | null;
+  termsAcceptanceRequired: boolean;
 }) {
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
@@ -195,6 +198,18 @@ export default function SchoolAdmin({
   const renderedUserId = initialUser?.id ?? null;
   const authBoundaryTriggeredRef = useRef(false);
   const checkoutPollingStartedRef = useRef(false);
+
+  async function schoolFetch(input: RequestInfo | URL, init?: RequestInit) {
+    const response = await window.fetch(input, init);
+    if (
+      termsAcceptanceRequired
+      && response.status === 401
+      && !authBoundaryTriggeredRef.current
+    ) {
+      window.location.assign(termsReconsentPath('/school'));
+    }
+    return response;
+  }
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState('');
@@ -257,7 +272,7 @@ export default function SchoolAdmin({
 
     async function verifyRenderedIdentity() {
       try {
-        const response = await fetch('/api/auth/identity', {
+        const response = await schoolFetch('/api/auth/identity', {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
         });
@@ -305,7 +320,7 @@ export default function SchoolAdmin({
       return;
     }
 
-    const response = await fetch('/api/organizations/current', { cache: 'no-store' });
+    const response = await schoolFetch('/api/organizations/current', { cache: 'no-store' });
     if (!response.ok) {
       setMessageKind('error');
       setMessage(ui(
@@ -355,7 +370,7 @@ export default function SchoolAdmin({
       attempts += 1;
 
       try {
-        const response = await fetch('/api/organizations/current', {
+        const response = await schoolFetch('/api/organizations/current', {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
         });
@@ -456,7 +471,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations/quote', {
+    const response = await schoolFetch('/api/organizations/quote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -511,7 +526,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations', {
+    const response = await schoolFetch('/api/organizations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -588,7 +603,7 @@ export default function SchoolAdmin({
   async function retryPayment() {
     setBusy(true);
     setMessage('');
-    const response = await fetch('/api/organizations/payment', {
+    const response = await schoolFetch('/api/organizations/payment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ environment: billingEnvironment }),
@@ -618,7 +633,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations/subscription', {
+    const response = await schoolFetch('/api/organizations/subscription', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cancelAtPeriodEnd }),
@@ -652,7 +667,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations/renewal', {
+    const response = await schoolFetch('/api/organizations/renewal', {
       method: 'POST',
     });
     const payload = await response.json().catch(() => ({})) as {
@@ -702,7 +717,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations/invitations', {
+    const response = await schoolFetch('/api/organizations/invitations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
@@ -822,7 +837,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations/invitations/bulk', {
+    const response = await schoolFetch('/api/organizations/invitations/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entries: normalizedEntries }),
@@ -882,7 +897,7 @@ export default function SchoolAdmin({
     ))) return;
 
     setBusy(true);
-    const response = await fetch('/api/organizations/owner', {
+    const response = await schoolFetch('/api/organizations/owner', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newOwnerUserId }),
@@ -908,7 +923,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch('/api/organizations/library', {
+    const response = await schoolFetch('/api/organizations/library', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lessonId: libraryLessonId }),
@@ -932,7 +947,7 @@ export default function SchoolAdmin({
 
   async function importLibraryLesson(entryId: string) {
     setBusy(true);
-    const response = await fetch(
+    const response = await schoolFetch(
       '/api/organizations/library/' + encodeURIComponent(entryId) + '/import',
       { method: 'POST' },
     );
@@ -961,7 +976,7 @@ export default function SchoolAdmin({
     ))) return;
 
     setBusy(true);
-    const response = await fetch(
+    const response = await schoolFetch(
       '/api/organizations/library/' + encodeURIComponent(entryId),
       { method: 'DELETE' },
     );
@@ -981,7 +996,7 @@ export default function SchoolAdmin({
 
   async function updateMember(userId: string, role: 'admin' | 'teacher') {
     setBusy(true);
-    const response = await fetch(
+    const response = await schoolFetch(
       '/api/organizations/members/' + encodeURIComponent(userId),
       {
         method: 'PATCH',
@@ -1006,7 +1021,7 @@ export default function SchoolAdmin({
     ))) return;
 
     setBusy(true);
-    const response = await fetch(
+    const response = await schoolFetch(
       '/api/organizations/members/' + encodeURIComponent(userId),
       { method: 'DELETE' },
     );
@@ -1031,7 +1046,7 @@ export default function SchoolAdmin({
 
     setBusy(true);
     setMessage('');
-    const response = await fetch(
+    const response = await schoolFetch(
       '/api/organizations/members/' + encodeURIComponent(userId) + '/devices',
       { method: 'POST', cache: 'no-store' },
     );
@@ -1069,7 +1084,7 @@ export default function SchoolAdmin({
     setBusy(true);
     setMessage('');
 
-    const response = await fetch(
+    const response = await schoolFetch(
       '/api/organizations/invitations/' + encodeURIComponent(invitationId),
       { method: 'DELETE' },
     );
@@ -1147,6 +1162,35 @@ export default function SchoolAdmin({
               )}
           </p>
         </section>
+
+        {initialUser && termsAcceptanceRequired ? (
+          <section
+            role="status"
+            style={{
+              margin: '0 0 20px',
+              padding: 18,
+              border: '1px solid var(--border)',
+              borderRadius: 18,
+              background: 'var(--surface)',
+            }}
+          >
+            <strong>
+              {ui(
+                'Než budeš dál spravovat školu, potvrď aktuální obchodní podmínky.',
+                'Accept the current Terms before continuing organisation administration.',
+              )}
+            </strong>
+            <p style={{ margin: '8px 0 14px', lineHeight: 1.5 }}>
+              {ui(
+                'Faktury, platby a vypnutí automatického obnovení zůstávají dostupné i bez nového souhlasu. Pozvánky, členové, knihovna a další správní akce vyžadují jednorázové potvrzení aktuálních VOP.',
+                'Invoices, payments and turning off automatic renewal remain available without renewed acceptance. Invitations, members, library and other administration require one-time acceptance of the current Terms.',
+              )}
+            </p>
+            <Link className={styles.primary} href={termsReconsentPath('/school')}>
+              {ui('Přečíst a přijmout VOP', 'Review and accept Terms')}
+            </Link>
+          </section>
+        ) : null}
 
         {message ? (
           <div className={messageKind === 'error' ? styles.error : styles.warning}>
