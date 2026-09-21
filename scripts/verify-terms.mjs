@@ -9,9 +9,14 @@ const schoolApi = read('app/api/organizations/route.ts');
 const footer = read('components/SiteFooter.tsx');
 const proxy = read('proxy.ts');
 const terms = read('app/terms/page.tsx');
+const termsDocument = read('lib/terms-document.ts');
+const contractSnapshot = read('lib/individual-contract-snapshot.ts');
+const billingEmail = read('lib/billing-email.ts');
+const stripeCheckout = read('lib/stripe-checkout.ts');
 const legal = read('lib/legal.ts');
 const gdpr = read('app/gdpr/page.tsx');
 const termsAuditMigration = read('supabase/migrations/20260921033344_add_terms_acceptance_audit.sql');
+const contractSnapshotMigration = read('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -25,7 +30,9 @@ if (!legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v1'")) fail('shared Term
 if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANCE_KEY') || !school.includes('TERMS_ACCEPTANCE_KEY')) fail('client flows must use the shared Terms acceptance key');
 if (!individualApi.includes('TERMS_ACCEPTANCE_KEY') || !schoolApi.includes('TERMS_ACCEPTANCE_KEY')) fail('server flows must use the shared Terms acceptance key');
 if (!schoolApi.includes('acceptedByUserId: userId')) fail('school Terms acceptance must record the accepting account');
-if (!terms.includes('88878431') || !terms.includes('289 24 Milovice – Mladá') || !terms.includes('14') || !terms.includes('coi.gov.cz')) fail('Terms page is missing provider or consumer-rights essentials');
+if (!terms.includes('renderTermsDocumentBodyHtml')) fail('public Terms page must render from the shared versioned Terms source');
+if (!termsDocument.includes('88878431') || !termsDocument.includes('289 24 Milovice – Mladá') || !termsDocument.includes('14-day') || !termsDocument.includes('coi.gov.cz')) fail('shared Terms document is missing provider or consumer-rights essentials');
+if (!termsDocument.includes('renderWithdrawalFormHtml') || !termsDocument.includes('nařízení vlády č. 29/2023 Sb.')) fail('shared legal document must include the statutory-form withdrawal template');
 const auditTableDefinition = termsAuditMigration.match(/create table private\.terms_acceptance_events \(([\s\S]*?)\n\);/)?.[1] ?? '';
 if (!auditTableDefinition || auditTableDefinition.includes('references auth.users')) fail('Terms audit must survive account deletion and must not cascade through auth.users');
 if (!termsAuditMigration.includes('alter table private.terms_acceptance_events enable row level security')) fail('Terms audit table must have RLS enabled');
@@ -34,4 +41,18 @@ if (!termsAuditMigration.includes('terms_acceptance_events_append_only') || !ter
 if (!termsAuditMigration.includes("current_terms_version constant text := '1.0'") || !termsAuditMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('database Terms audit constants must match the active Terms version');
 if (!termsAuditMigration.includes('requested_terms_acceptance and requested_terms_acceptance_key = current_terms_acceptance_key')) fail('signup audit must only mirror explicit acceptance of the active Terms key');
 if (!gdpr.includes('Souhlas s obchodními podmínkami:') || !gdpr.includes('Terms acceptance:') || !gdpr.includes('právních nároků') || !gdpr.includes('legal claims')) fail('privacy notice must disclose Terms acceptance audit and retention');
+if (!contractSnapshot.includes('renderTermsDocumentAttachmentHtml') || !contractSnapshot.includes('renderWithdrawalFormHtml')) fail('paid-contract snapshot must freeze both accepted Terms and withdrawal form');
+if (!contractSnapshot.includes('hashIndividualContractSnapshot')) fail('paid-contract snapshot must be integrity hashed');
+const contractSnapshotTable = contractSnapshotMigration.match(/create table private\.individual_contract_snapshots \(([\s\S]*?)\n\);/)?.[1] ?? '';
+if (!contractSnapshotTable || contractSnapshotTable.includes('references auth.users')) fail('paid-contract evidence must survive account deletion and must not cascade through auth.users');
+if (!contractSnapshotMigration.includes('alter table private.individual_contract_snapshots enable row level security')) fail('paid-contract snapshot table must have RLS enabled');
+if (!contractSnapshotMigration.includes('revoke all on table private.individual_contract_snapshots from public, anon, authenticated')) fail('paid-contract snapshot table must not be client-readable');
+if (!contractSnapshotMigration.includes('individual_contract_snapshots_append_only') || !contractSnapshotMigration.includes('individual_contract_checkout_links_append_only')) fail('paid-contract snapshot and Checkout linkage must be append-only');
+if (!contractSnapshotMigration.includes('grant execute on function public.create_individual_contract_snapshot') || !contractSnapshotMigration.includes('to service_role')) fail('paid-contract snapshot RPCs must be service-role-only');
+if (!individualApi.includes('create_individual_contract_snapshot') || !individualApi.includes('link_individual_contract_snapshot_checkout')) fail('individual checkout must create and bind the immutable contract snapshot before returning Stripe URL');
+if (!stripeCheckout.includes('syllonaut_contract_snapshot_id')) fail('Stripe Checkout and subscription metadata must carry contract snapshot ID');
+if (!billingEmail.includes('get_individual_contract_snapshot_for_delivery') || !billingEmail.includes('hashIndividualContractSnapshot')) fail('activation email must fetch and verify the frozen contract snapshot');
+if (!billingEmail.includes('withdrawal_form_html') || !billingEmail.includes('contract_html')) fail('activation email must attach the frozen contract and withdrawal form');
+if (!gdpr.includes('Potvrzení placené smlouvy:') || !gdpr.includes('Paid-contract confirmation:') || !gdpr.includes('kontrolní SHA-256 hash') || !gdpr.includes('verification SHA-256 hash')) fail('privacy notice must disclose immutable paid-contract evidence');
+if (!gdpr.includes('Verze 1.3') || !gdpr.includes('Version 1.3')) fail('Privacy Notice version must reflect paid-contract evidence processing');
 console.log('Terms acceptance contract OK');
