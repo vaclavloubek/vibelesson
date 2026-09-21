@@ -64,7 +64,7 @@ for (const [needle, label] of [
   ['U Free se AI limity obnovují na začátku každého kalendářního měsíce.', 'Pricing identifies Free calendar-month reset'],
   ['U Teacher a Teacher Pro se měsíční AI kvóta obnovuje podle fakturačního cyklu', 'Pricing identifies paid individual billing-cycle reset'],
   ['u ročního předplatného po měsíčních intervalech od data začátku předplatného', 'Pricing explains annual monthly subwindows'],
-  ['U Team, School a Campus se společné AI limity pracovního prostoru obnovují na začátku každého kalendářního měsíce.', 'Pricing identifies organization calendar-month reset'],
+  ['U Team, School a Campus se společné AI limity pracovního prostoru školy / organizace obnovují na začátku každého kalendářního měsíce.', 'Pricing identifies organization calendar-month reset'],
 ]) {
   if (!pricing.includes(needle)) throw new Error('Missing Pricing reset copy: ' + label);
 }
