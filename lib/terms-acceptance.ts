@@ -1,26 +1,34 @@
-import { TERMS_ACCEPTANCE_KEY, TERMS_VERSION } from '@/lib/legal';
+import {
+  TERMS_ACCEPTANCE_KEY,
+  TERMS_PRODUCT_ACCESS_KEYS,
+  TERMS_VERSION,
+} from '@/lib/legal';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const TERMS_RECONSENT_SOURCE = 'reconsent';
 
 export async function hasCurrentTermsAcceptance(userId: string) {
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc('has_terms_acceptance_for_service', {
-    p_user_id: userId,
-    p_acceptance_key: TERMS_ACCEPTANCE_KEY,
-  });
-
-  if (error) {
-    console.error('current Terms acceptance lookup failed', {
-      userId,
-      error: error.message,
-      termsVersion: TERMS_VERSION,
-      acceptanceKey: TERMS_ACCEPTANCE_KEY,
+  for (const acceptanceKey of TERMS_PRODUCT_ACCESS_KEYS) {
+    const { data, error } = await admin.rpc('has_terms_acceptance_for_service', {
+      p_user_id: userId,
+      p_acceptance_key: acceptanceKey,
     });
-    throw new Error('terms_acceptance_lookup_failed');
+
+    if (error) {
+      console.error('current Terms acceptance lookup failed', {
+        userId,
+        error: error.message,
+        termsVersion: TERMS_VERSION,
+        acceptanceKey,
+      });
+      throw new Error('terms_acceptance_lookup_failed');
+    }
+
+    if (data === true) return true;
   }
 
-  return data === true;
+  return false;
 }
 
 export async function recordCurrentTermsReconsent(userId: string) {
