@@ -110,6 +110,7 @@ export type StripeSubscriptionSync = {
   billingCountry: string;
   previousStatus: string | null;
   previousCancelAtPeriodEnd: boolean | null;
+  contractSnapshotId: string | null;
 };
 
 function splitSecrets(value: string | undefined) {
@@ -293,6 +294,9 @@ export function normalizeStripeSubscriptionEvent(
 
   const metadata = objectRecord(subscription.metadata ?? {});
   const userId = stringField(metadata.syllonaut_user_id, UUID_RE, 'stripe_user_metadata_invalid');
+  const contractSnapshotId = typeof metadata.syllonaut_contract_snapshot_id === 'string'
+    ? stringField(metadata.syllonaut_contract_snapshot_id, UUID_RE, 'stripe_contract_snapshot_metadata_invalid')
+    : null;
   const billingCountry = typeof metadata.syllonaut_billing_country === 'string'
     ? metadata.syllonaut_billing_country.trim().toUpperCase()
     : '';
@@ -362,6 +366,7 @@ export function normalizeStripeSubscriptionEvent(
     billingCountry,
     previousStatus,
     previousCancelAtPeriodEnd,
+    contractSnapshotId,
   };
 }
 
