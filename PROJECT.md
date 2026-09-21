@@ -1873,6 +1873,9 @@ Další významné změny 2026-09-18:
 - **TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ**;
 - security findings řešit jednotlivě, ne hromadným refaktorem;
 - malé logické celky;
+- komplexní úkoly vždy rozdělit na **malé samostatné kroky**; neimplementovat celý balík opatření v jednom dlouhém běhu bez viditelných checkpointů;
+- každý krok před zahájením stručně **oznámit**, po dokončení **ověřit**, výslovně napsat, že je **hotový**, a teprve potom oznámit **přechod na další krok**;
+- mezi jednotlivými kroky není nutný souhlas uživatele, pokud si jej výslovně nevyžádal; povinná je ale průběžná viditelnost postupu a jasné oddělení jednotlivých kroků;
 - commitovat funkční celky, ne jednotlivé soubory;
 - před finálním commitem/merge znovu načíst HEAD `main`;
 - zachovat paralelní změny;
