@@ -30,12 +30,14 @@ async function sendResendEmail({
   text,
   html,
   idempotencyKey,
+  attachments = [],
 }: {
   to: string;
   subject: string;
   text: string;
   html: string;
   idempotencyKey: string;
+  attachments?: Array<{ filename: string; content: string; content_type: string }>;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey || !apiKey.startsWith('re_')) {
@@ -58,6 +60,7 @@ async function sendResendEmail({
         subject,
         text,
         html,
+        attachments: attachments.length > 0 ? attachments : undefined,
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -113,6 +116,9 @@ export async function deliverBillingLifecycleEmail(
       user_id: sync.userId,
       external_subscription_id: sync.subscriptionId,
       status: 'pending',
+      contract_snapshot_id: notification === 'subscription_activated'
+        ? (sync.contractSnapshotId ?? null)
+        : null,
     }, {
       onConflict: 'provider,livemode,external_event_id,notification_type',
       ignoreDuplicates: true,
@@ -151,6 +157,54 @@ export async function deliverBillingLifecycleEmail(
   }
   const planCode: 'teacher' | 'teacher_pro' = subscription.plan_code;
 
+  type ContractSnapshotRow = {
+    snapshot_id: string;
+    plan_code: 'teacher' | 'teacher_pro';
+    billing_period: 'monthly' | 'annual';
+    currency: 'czk' | 'eur' | 'usd';
+    amount_minor: number;
+    terms_version: string;
+    terms_acceptance_key: string;
+    locale: 'cs' | 'en';
+    immediate_performance_requested: boolean;
+    contract_html: string;
+    withdrawal_form_html: string;
+    content_sha256: string;
+    accepted_at: string;
+    external_checkout_session_id: string;
+  };
+
+  let contractSnapshot: ContractSnapshotRow | null = null;
+  if (notification === 'subscription_activated' && sync.contractSnapshotId) {
+    const { data: snapshotRows, error: snapshotError } = await admin.rpc(
+      'get_individual_contract_snapshot_for_delivery',
+      {
+        p_snapshot_id: sync.contractSnapshotId,
+        p_user_id: sync.userId,
+        p_livemode: sync.livemode,
+      },
+    );
+    const snapshotRow = Array.isArray(snapshotRows) ? snapshotRows[0] : null;
+    if (snapshotError || !snapshotRow) {
+      await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'contract_snapshot_delivery_lookup_failed');
+      throw new BillingEmailDeliveryError('contract_snapshot_delivery_lookup_failed');
+    }
+    contractSnapshot = snapshotRow as ContractSnapshotRow;
+    if (
+      contractSnapshot.plan_code !== planCode
+      || contractSnapshot.immediate_performance_requested !== true
+    ) {
+      await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'contract_snapshot_delivery_mismatch');
+      throw new BillingEmailDeliveryError('contract_snapshot_delivery_mismatch');
+    }
+  } else if (notification === 'subscription_activated' && !sync.contractSnapshotId) {
+    console.warn('legacy subscription activation has no immutable contract snapshot', {
+      eventId: sync.eventId,
+      subscriptionId: sync.subscriptionId,
+      userId: sync.userId,
+    });
+  }
+
   const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('ui_locale')
@@ -172,7 +226,8 @@ export async function deliverBillingLifecycleEmail(
   const metadataLocale = typeof authUser.user?.user_metadata?.ui_locale === 'string'
     ? normalizeUiLocale(authUser.user.user_metadata.ui_locale)
     : null;
-  const locale = normalizeUiLocale(profile?.ui_locale)
+  const locale = contractSnapshot?.locale
+    ?? normalizeUiLocale(profile?.ui_locale)
     ?? metadataLocale
     ?? localeFromCountry(sync.billingCountry)
     ?? 'en';
@@ -183,16 +238,40 @@ export async function deliverBillingLifecycleEmail(
     planCode,
     currentPeriodEnd: subscription.current_period_end ?? sync.currentPeriodEnd,
     allowance: INDIVIDUAL_PLAN_ALLOWANCES[planCode],
+    contractConfirmation: contractSnapshot ? {
+      snapshotId: contractSnapshot.snapshot_id,
+      billingPeriod: contractSnapshot.billing_period,
+      currency: contractSnapshot.currency,
+      amountMinor: Number(contractSnapshot.amount_minor),
+      acceptedAt: contractSnapshot.accepted_at,
+      termsVersion: contractSnapshot.terms_version,
+      termsAcceptanceKey: contractSnapshot.terms_acceptance_key,
+      immediatePerformanceRequested: contractSnapshot.immediate_performance_requested,
+    } : null,
   });
 
   let resendEmailId: string;
   try {
+    const attachments = contractSnapshot ? [
+      {
+        filename: `syllonaut-contract-${contractSnapshot.snapshot_id}.html`,
+        content: Buffer.from(contractSnapshot.contract_html, 'utf8').toString('base64'),
+        content_type: 'text/html; charset=utf-8',
+      },
+      {
+        filename: locale === 'cs' ? 'syllonaut-vzor-odstoupeni.html' : 'syllonaut-withdrawal-form.html',
+        content: Buffer.from(contractSnapshot.withdrawal_form_html, 'utf8').toString('base64'),
+        content_type: 'text/html; charset=utf-8',
+      },
+    ] : [];
+
     resendEmailId = await sendResendEmail({
       to: recipient,
       subject: rendered.subject,
       text: rendered.text,
       html: rendered.html,
       idempotencyKey: `syllonaut:${sync.eventId}:${notification}`,
+      attachments,
     });
   } catch (error) {
     const code = error instanceof BillingEmailDeliveryError ? error.code : 'billing_email_unknown_error';
