@@ -1,8 +1,20 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.72** doplňuje do sekce **Stavebnice aktivit** na landing page responzivní wordcloud přímo v HTML/CSS. Uprostřed dominuje Syllonaut, kolem něj jsou klíčové produktové pojmy v odstínech fialové a jemné orbitální/vesmírné prvky. Wordcloud vyplňuje dříve prázdnou horní část celé viewportové sekce, zachovává spodní claim i activity chips a má českou i anglickou variantu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.73** doplňuje produkční Obchodní podmínky / Terms of Service, jejich trvalý odkaz v patičce a povinný souhlas při registraci i při objednávce placených individuálních a školních tarifů.nice aktivit** na landing page responzivní wordcloud přímo v HTML/CSS. Uprostřed dominuje Syllonaut, kolem něj jsou klíčové produktové pojmy v odstínech fialové a jemné orbitální/vesmírné prvky. Wordcloud vyplňuje dříve prázdnou horní část celé viewportové sekce, zachovává spodní claim i activity chips a má českou i anglickou variantu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Obchodní podmínky a objednávkové souhlasy 0.9.73 — 2026-09-21
+
+- nová veřejná lokalizovaná stránka **/cs/terms** / **/en/terms** obsahuje obchodní podmínky Syllonautu pro Free, individuální i školní tarify, včetně AI, plateb, obnovení, reklamací, odstoupení spotřebitele a ADR;
+- patička na hlavních veřejných stránkách trvale odkazuje na Obchodní podmínky vedle GDPR a nastavení cookies;
+- registrace Free účtu vyžaduje nezaškrtnutý souhlas s obchodními podmínkami, zachovává oddělený dobrovolný marketingový souhlas a ukládá verzi + čas přijetí do auth metadata;
+- současně opravena zastaralá registrační informace Free tarifu z 5/20 na aktuální **3 nové AI lekce + 10 AI úprav / měsíc**;
+- individuální Teacher / Teacher Pro checkout vyžaduje samostatný souhlas s podmínkami a samostatnou výslovnou žádost o okamžité zahájení služby před uplynutím 14denní lhůty; server obě potvrzení fail-closed validuje a zapisuje verzi souhlasu do Stripe Checkout / subscription metadata;
+- školní Team / School / Campus objednávka vyžaduje souhlas s podmínkami na klientu i serveru; verze a serverový čas přijetí se ukládají do billing snapshotu objednávky;
+- objednávková tlačítka byla zpřesněna tak, aby jednoznačně signalizovala povinnost platby;
+- regresní kontrakt: **scripts/verify-terms.mjs** + rozšířený Stripe checkout verifier;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Landing wordcloud 0.9.72 — 2026-09-20
 
