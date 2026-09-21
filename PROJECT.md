@@ -1,8 +1,20 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.76** zpřehledňuje start týmové hodiny: pokud ještě nejsou vytvořené alespoň dva týmy, startovní zóna nyní ukazuje jasný dvoukrokový postup **1. Vytvořit týmy → 2. Odstartovat hodinu** a první krok učitele přímo posune na nastavení týmů. Současně byl doplněn přísný právní / ČOI launch audit s otevřenými blokátory před 1.0. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.77** uzavírá **LEGAL-001**: Pricing i transakční aktivační e-mail individuálních tarifů nyní používají jeden sdílený zdroj AI kvót, takže e-mail po zaplacení nemůže dál potvrzovat zastaralé 25/100 nebo 60/250. Právní / ČOI launch audit zůstává otevřený pro další body. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Sjednocení kvót Pricing ↔ aktivační e-mail 0.9.77 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-001**;
+- `lib/individual-billing-catalog.ts` nově obsahuje sdílený `INDIVIDUAL_PLAN_ALLOWANCES` pro individuální placené tarify;
+- český i anglický Pricing skládá číselné AI kvóty Teacher / Teacher Pro z tohoto katalogu místo vlastních čísel;
+- transakční aktivační e-mail po úspěšné Stripe platbě dostává stejnou kvótu z katalogu přes serverovou billing vrstvu;
+- aktuální hodnoty jsou **Teacher 10 nových AI lekcí + 20 AI úprav / měsíc** a **Teacher Pro 25 + 40**;
+- odstraněny zastaralé potvrzované hodnoty **Teacher 25 + 100** a **Teacher Pro 60 + 250**;
+- `scripts/verify-billing-lifecycle-email.mjs` regresně hlídá sdílený zdroj i zákaz návratu starých hodnot;
+- databázové entitlementy, ceny ani fakturační období se touto opravou nemění;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Právní / ČOI launch audit před 1.0 — 2026-09-21
 
@@ -10,7 +22,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.76** zpřehledňuje start t�
 
 #### Blokátory 1.0
 
-- **[LEGAL-001] Aktivační e-mail potvrzuje zastaralé a vyšší AI kvóty.** Aktuální Ceník nabízí Teacher **10 nových AI lekcí + 20 AI úprav / měsíc** a Teacher Pro **25 + 40**, ale `lib/billing-email-core.ts` po úspěšné platbě stále potvrzuje Teacher **25 + 100** a Teacher Pro **60 + 250**. To je zvlášť rizikové, protože jde o transakční potvrzení zaslané po uzavření smlouvy. **Náprava:** jediný sdílený zdroj plan benefitů pro Pricing i billing e-mail; regresní test musí zakázat rozdíl.
+- **[LEGAL-001 — RESOLVED 0.9.77] Aktivační e-mail potvrzoval zastaralé a vyšší AI kvóty.** Opraveno: `INDIVIDUAL_PLAN_ALLOWANCES` v `lib/individual-billing-catalog.ts` je společný zdroj pro Pricing i transakční aktivační e-mail. Teacher se potvrzuje jako **10 nových AI lekcí + 20 AI úprav / měsíc**, Teacher Pro jako **25 + 40**. Regresní kontrola vykreslí oba tarify ze sdílených hodnot a zakazuje návrat starých textů **25/100** a **60/250**.
 - **[LEGAL-002] Ceník nepravdivě říká „Limity se obnovují každý kalendářní měsíc“.** Placené individuální tarify jsou ve skutečnosti ukotvené na Stripe billing period; u ročního tarifu se používá 12 měsíčních podoken odvozených od data předplatného. **Náprava:** změnit veřejný text na přesný billing-anchored reset a sjednotit s VOP / Subscription UI.
 - **[LEGAL-003] AI grading má skryté safety stropy, které mohou změnit slíbenou funkci na ruční review.** Interní limity jsou Teacher Pro **$2 / 150 pokusů**, School **$10 / 700**, Campus **$25 / 1 750** za období. Po dosažení budgetu systém bezpečně přechází na manual review, zatímco Ceník komunikuje AI hodnocení bez tohoto omezení a současně tvrdí, že AI limit se čerpá jen při nové tvorbě a AI úpravách. **Náprava:** rozhodnout customer-facing pravidlo; buď garantovat AI grading v rozumném deklarovaném rozsahu, nebo limit transparentně komunikovat a zahrnout do smluvního modelu.
 - **[LEGAL-004] Po individuálním elektronickém nákupu není z repozitáře doloženo předání neměnné kopie smluvních informací a VOP v textové podobě.** Aktivační e-mail potvrzuje aktivaci a benefity, nikoli plné znění / snapshot přijatých VOP a zákonné informace. **Náprava:** po objednávce odeslat potvrzení obsahující nebo přikládající přesný snapshot přijatých VOP, cenu, tarif, období, obnovování, datum objednávky, odstoupení a zákonný vzorový formulář; archivovat stejnou verzi serverově.
