@@ -1,5 +1,7 @@
 'use client';
 
+import { TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
+
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -947,6 +949,7 @@ export default function PricingPage({
                 'I expressly request that the service start immediately, before the 14-day withdrawal period expires. I understand that if I withdraw, I may have to pay a proportionate amount for the service supplied before withdrawal.'
               )}</span>
             </label>
+            <p>{ui(TERMS_WITHDRAWAL_CLAUSE.cs, TERMS_WITHDRAWAL_CLAUSE.en)}</p>
 
             {checkoutError ? <div className={styles.checkoutError} role="alert">{checkoutError}</div> : null}
 

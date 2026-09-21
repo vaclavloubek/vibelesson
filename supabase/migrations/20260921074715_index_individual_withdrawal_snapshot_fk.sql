@@ -1,0 +1,2 @@
+create index individual_withdrawal_requests_snapshot_id_idx
+on private.individual_withdrawal_requests(snapshot_id);

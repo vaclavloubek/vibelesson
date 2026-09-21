@@ -8,7 +8,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
-import { TERMS_PLAN_PRICING_CLAUSE } from '@/lib/terms-content';
+import { TERMS_PLAN_PRICING_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from '@/app/gdpr/GdprPage.module.css';
@@ -157,8 +157,8 @@ export default async function TermsPage() {
             'If you are a consumer, you generally have 14 days from conclusion of a distance contract to withdraw without giving a reason. It is sufficient to send an unequivocal withdrawal statement within that period to vaclav@syllonaut.com.'
           )}</p>
           <p>{ui(
-            'Požádáte-li při objednávce výslovně o zahájení služby ještě před uplynutím 14denní lhůty a následně odstoupíte, může být účtována poměrná část ceny za plnění skutečně poskytnuté do okamžiku odstoupení. Pokud byla služba na základě vašeho předchozího výslovného souhlasu plně poskytnuta a vzali jste na vědomí zánik práva odstoupit, právo může zaniknout v případech stanovených zákonem.',
-            'If you expressly request that the service begin before the 14-day period ends and later withdraw, you may be charged a proportionate amount for the service actually supplied before withdrawal. Where a service has been fully performed with your prior express consent and your acknowledgement that the withdrawal right will be lost, that right may be lost in the cases provided by law.'
+            TERMS_WITHDRAWAL_CLAUSE.cs,
+            TERMS_WITHDRAWAL_CLAUSE.en
           )}</p>
           <h3>{ui('Vzor oznámení o odstoupení', 'Model withdrawal notice')}</h3>
           <p>{ui(
