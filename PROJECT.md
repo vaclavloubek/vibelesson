@@ -1,8 +1,22 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.79** doplňuje do startovní zóny live hodiny bezpečné ukončení bez spuštění. Učitel může po pouhém prohlédnutí rozhraní uzavřít připravenou session, zneplatnit její připojovací kód a příště spustit čistou novou session bez nejasnosti, že předchozí hodina stále běží. Předchozí opravy 0.9.78 a právní / ČOI audit zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.80** uzavírá **LEGAL-002**: veřejná komunikace nyní rozlišuje kalendářní reset Free/školních kvót a billing-anchored reset Teacher / Teacher Pro, přičemž účet i stránka Předplatné zobrazují autoritativní datum příští obnovy AI limitu přímo z databázového quota window. Předchozí změny 0.9.79 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Přesné obnovení AI kvót 0.9.80 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-002**;
+- Ceník už netvrdí, že všechny tarify resetují AI limity každý kalendářní měsíc;
+- **Free** a sdílené **Team / School / Campus** kvóty jsou nadále UTC-kalendářní a veřejně jsou takto popsány;
+- **Teacher / Teacher Pro** používají skutečný Stripe billing anchor; měsíční předplatné resetuje kvótu s fakturačním cyklem a roční předplatné používá 12 měsíčních podoken odvozených od data začátku ročního období;
+- stávající `public.get_ai_quota()` byl zpětně kompatibilně rozšířen o `quota_window_start`, `quota_window_end` a `quota_source`; nevznikl nový trvalý veřejný RPC endpoint;
+- účtové menu vedle zbývajícího počtu AI lekcí / úprav zobrazuje **konkrétní datum další obnovy** a zda jde o kalendářní měsíc nebo fakturační cyklus; unlimited admin účtu se falešný reset nezobrazuje;
+- stránka **Předplatné** u Teacher / Teacher Pro zobrazuje stejné autoritativní datum příští obnovy AI limitu;
+- produkční migrace: **20260921040552_add_ai_quota_window_metadata** a následná konsolidace **20260921040634_expose_ai_quota_window_on_primary_rpc**; dočasný `get_ai_quota_v2()` byl po konsolidaci odstraněn;
+- Security Advisor po konsolidaci zůstal na předchozím počtu privileged-RPC upozornění; nevznikla nová trvalá `SECURITY DEFINER` surface;
+- `scripts/verify-billing-anchored-ai-quotas.mjs` nově hlídá backendový zdroj okna, veřejný Pricing text i zobrazení resetu v účtu a předplatném;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Ukončení připravené hodiny bez spuštění 0.9.79 — 2026-09-21
 
@@ -43,7 +57,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.79** doplňuje do startovní
 #### Blokátory 1.0
 
 - **[LEGAL-001 — RESOLVED 0.9.78] Aktivační e-mail potvrzoval zastaralé a vyšší AI kvóty.** Opraveno: `INDIVIDUAL_PLAN_ALLOWANCES` v `lib/individual-billing-catalog.ts` je společný zdroj pro Pricing i transakční aktivační e-mail. Teacher se potvrzuje jako **10 nových AI lekcí + 20 AI úprav / měsíc**, Teacher Pro jako **25 + 40**. Regresní kontrola vykreslí oba tarify ze sdílených hodnot a zakazuje návrat starých textů **25/100** a **60/250**.
-- **[LEGAL-002] Ceník nepravdivě říká „Limity se obnovují každý kalendářní měsíc“.** Placené individuální tarify jsou ve skutečnosti ukotvené na Stripe billing period; u ročního tarifu se používá 12 měsíčních podoken odvozených od data předplatného. **Náprava:** změnit veřejný text na přesný billing-anchored reset a sjednotit s VOP / Subscription UI.
+- **[LEGAL-002 — RESOLVED 0.9.80] Ceník nepravdivě tvrdil, že všechny AI limity se obnovují každý kalendářní měsíc.** Opraveno: Free a sdílené Team / School / Campus kvóty jsou veřejně popsány jako kalendářní; Teacher / Teacher Pro jako kvóty podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. `get_ai_quota()` nyní vrací i autoritativní `quota_window_start`, `quota_window_end` a `quota_source`; přesné datum další obnovy se zobrazuje v účtovém menu a na stránce Předplatné. Regresní test zakazuje návrat původního plošného tvrzení.
 - **[LEGAL-003] AI grading má skryté safety stropy, které mohou změnit slíbenou funkci na ruční review.** Interní limity jsou Teacher Pro **$2 / 150 pokusů**, School **$10 / 700**, Campus **$25 / 1 750** za období. Po dosažení budgetu systém bezpečně přechází na manual review, zatímco Ceník komunikuje AI hodnocení bez tohoto omezení a současně tvrdí, že AI limit se čerpá jen při nové tvorbě a AI úpravách. **Náprava:** rozhodnout customer-facing pravidlo; buď garantovat AI grading v rozumném deklarovaném rozsahu, nebo limit transparentně komunikovat a zahrnout do smluvního modelu.
 - **[LEGAL-004] Po individuálním elektronickém nákupu není z repozitáře doloženo předání neměnné kopie smluvních informací a VOP v textové podobě.** Aktivační e-mail potvrzuje aktivaci a benefity, nikoli plné znění / snapshot přijatých VOP a zákonné informace. **Náprava:** po objednávce odeslat potvrzení obsahující nebo přikládající přesný snapshot přijatých VOP, cenu, tarif, období, obnovování, datum objednávky, odstoupení a zákonný vzorový formulář; archivovat stejnou verzi serverově.
 - **[LEGAL-005] GDPR stránka stále popisuje školní účty jako budoucí a DPA jako věc před budoucím komerčním nasazením, přestože Team / School / Campus jsou již prodávané.** U školního použití navíc reálně zpracováváme studentská jména, odpovědi a výsledky. **Náprava:** okamžitě přepsat Privacy Notice na skutečný produkční stav a připravit / začlenit smlouvu o zpracování osobních údajů dle čl. 28 GDPR pro organizace, včetně rolí, předmětu, doby, kategorií údajů, subprocesorů, bezpečnosti, incidentů, asistence a mazání/vrácení dat.

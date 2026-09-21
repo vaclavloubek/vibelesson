@@ -7,23 +7,15 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
 import { restartSyllonautGuideForCurrentContext } from '@/lib/onboarding-guide';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
+import { quotaSourceLabel, type AiQuotaSnapshot } from '@/lib/ai-quota';
 
 export type HeaderAccountUser = Pick<User, 'id' | 'email' | 'user_metadata'>;
 
 type Props = {
   user: HeaderAccountUser;
-  quota?: Quota | null;
+  quota?: AiQuotaSnapshot | null;
   quotaRefreshKey?: number;
   onSignOut?: () => Promise<void> | void;
-};
-
-type Quota = {
-  lesson_limit: number | null;
-  lesson_remaining: number | null;
-  revision_limit: number | null;
-  revision_remaining: number | null;
-  lesson_unlimited: boolean;
-  revision_unlimited: boolean;
 };
 
 const ACCOUNT_MENU_ID = 'public-header-account-menu';
@@ -32,7 +24,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
   const locale = useUiLocale();
   const english = locale === 'en';
   const supabase = useMemo(() => createClient(), []);
-  const [loadedQuota, setLoadedQuota] = useState<Quota | null>(null);
+  const [loadedQuota, setLoadedQuota] = useState<AiQuotaSnapshot | null>(null);
   const quota = controlledQuota === undefined ? loadedQuota : controlledQuota;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -143,7 +135,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
         return;
       }
       const row = Array.isArray(data) ? data[0] : data;
-      setLoadedQuota((row as Quota | undefined) ?? null);
+      setLoadedQuota((row as AiQuotaSnapshot | undefined) ?? null);
     });
     return () => {
       active = false;
@@ -210,6 +202,19 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
       ? (english ? `edits ${quota.revision_remaining ?? 0}/${quota.revision_limit}` : `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`)
       : (english ? 'edits loading' : 'úpravy načítám');
 
+  const quotaResetDate = quota?.quota_window_end && !(quota.lesson_unlimited && quota.revision_unlimited)
+    ? new Intl.DateTimeFormat(english ? 'en-GB' : 'cs-CZ', {
+        dateStyle: 'medium',
+        timeZone: 'Europe/Prague',
+      }).format(new Date(quota.quota_window_end))
+    : null;
+  const quotaResetSource = quotaSourceLabel(quota?.quota_source, english);
+  const quotaResetText = quotaResetDate
+    ? (english
+      ? `AI allowance resets: ${quotaResetDate}${quotaResetSource ? ` · ${quotaResetSource}` : ''}`
+      : `Obnova AI limitu: ${quotaResetDate}${quotaResetSource ? ` · ${quotaResetSource}` : ''}`)
+    : null;
+
   return (
     <div className="auth-account-wrap" ref={wrapRef}>
       <button
@@ -239,6 +244,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
           <div className="auth-account-summary">
             <strong title={user.email ?? ''}>{user.email ?? accountName}</strong>
             <span>AI: {lessonText} · {revisionText}</span>
+            {quotaResetText ? <span>{quotaResetText}</span> : null}
           </div>
 
           <div className="auth-account-menu">

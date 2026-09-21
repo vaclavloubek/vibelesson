@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -45,17 +46,6 @@ type Props = {
   initialOpen?: boolean;
   initialMode?: 'signin' | 'signup';
   signupRedirectPath?: string;
-};
-
-type Quota = {
-  lesson_used: number;
-  lesson_limit: number | null;
-  lesson_remaining: number | null;
-  revision_used: number;
-  revision_limit: number | null;
-  revision_remaining: number | null;
-  lesson_unlimited: boolean;
-  revision_unlimited: boolean;
 };
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email';
@@ -155,7 +145,7 @@ export default function AuthControls({
   const english = locale === 'en';
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
-  const [quota, setQuota] = useState<Quota | null>(null);
+  const [quota, setQuota] = useState<AiQuotaSnapshot | null>(null);
   const [open, setOpen] = useState(initialOpen);
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
@@ -189,7 +179,7 @@ export default function AuthControls({
     }
 
     const row = Array.isArray(data) ? data[0] : data;
-    setQuota((row as Quota | undefined) ?? null);
+    setQuota((row as AiQuotaSnapshot | undefined) ?? null);
   }
 
   useEffect(() => {
