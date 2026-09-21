@@ -48,7 +48,11 @@ requireText(reviseBlock, "collaborationMode === 'individual' && hasTeamTask", 'b
 
 requireText(teacher, 'resolveLessonCollaborationMode(session.lessonSnapshot)', 'live UI is not driven by explicit collaboration mode.');
 requireText(teacher, '{teamMode ? (', 'team setup panel is not conditioned on team mode.');
-requireText(teacher, 'busy || (teamMode && session.teams.length < 2)', 'team mode can start without creating teams.');
+requireText(teacher, "teamMode && session.teams.length < 2 ? (", 'team-mode lobby does not expose the pre-start prerequisite state.');
+requireText(teacher, "Nejdřív vytvoř týmy", 'team-mode lobby does not clearly tell the teacher what to do first.');
+requireText(teacher, 'onClick={focusTeamSetup}', 'team setup prerequisite does not navigate the teacher to team creation.');
+requireText(teacher, 'ref={teamCountInputRef}', 'team setup shortcut does not focus the team-count control.');
+requireText(styles, '.live-start-prerequisite {', 'team setup prerequisite is not visually distinguished.');
 requireText(sessionRoute, "resolveLessonCollaborationMode(lesson) === 'teams'", 'server live-start boundary is not driven by collaboration mode.');
 
 requireText(preview, 'resolveLessonCollaborationMode(lesson)', 'lesson preview does not surface collaboration mode.');
