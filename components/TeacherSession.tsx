@@ -81,6 +81,8 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const hasSessionRef = useRef(false);
   const sessionRef = useRef<TeacherSessionData | null>(null);
   const reconciliationRef = useRef<Promise<void> | null>(null);
+  const teamSetupRef = useRef<HTMLElement | null>(null);
+  const teamCountInputRef = useRef<HTMLInputElement | null>(null);
 
   const refresh = useCallback(async () => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
@@ -455,6 +457,11 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     }
   }
 
+  function focusTeamSetup() {
+    teamSetupRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    teamCountInputRef.current?.focus({ preventScroll: true });
+  }
+
   const activeIndex = useMemo(() => {
     if (!session?.activeBlockId) return -1;
     return session.lessonSnapshot.blocks.findIndex((block) => block.id === session.activeBlockId);
@@ -512,14 +519,26 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               </div>
               {joinUrl ? <JoinQrCode value={joinUrl} /> : null}
             </div>
-            {teamMode && !session.teams.length ? <p className="muted-copy" style={{ marginTop: 12 }}>{ui('Tato lekce je v týmovém režimu. Před startem vytvoř alespoň 2 týmy.', 'This lesson uses team mode. Create at least 2 teams before starting.')}</p> : null}
-            <div className="actions">
-              <button className="primary" data-tour="live-start" disabled={busy || (teamMode && session.teams.length < 2)} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
-            </div>
+            {teamMode && session.teams.length < 2 ? (
+              <div className="live-start-prerequisite" role="status">
+                <div className="live-start-prerequisite-copy">
+                  <strong>{ui('Nejdřív vytvoř týmy', 'Create teams first')}</strong>
+                  <span>{ui('Je to poslední krok před spuštěním hodiny.', 'This is the last step before you can start the lesson.')}</span>
+                </div>
+                <div className="live-start-steps" aria-label={ui('Kroky před spuštěním hodiny', 'Steps before starting the lesson')}>
+                  <button className="primary" type="button" onClick={focusTeamSetup}>1. {ui('Vytvořit týmy', 'Create teams')} ↓</button>
+                  <button className="secondary" type="button" disabled>2. {ui('Odstartovat hodinu', 'Start lesson')}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="actions">
+                <button className="primary" data-tour="live-start" disabled={busy} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
+              </div>
+            )}
           </section>
 
           {teamMode ? (
-            <section className="panel">
+            <section className="panel" ref={teamSetupRef}>
               <span className="eyebrow">{ui('Týmy', 'Teams')}</span>
               {!session.teams.length ? (
                 <div data-tour="live-team-create">
@@ -531,7 +550,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                   <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 14, flexWrap: 'wrap' }}>
                     <label style={{ maxWidth: 160 }}>
                       {ui('Počet týmů', 'Number of teams')}
-                      <input type="number" min={2} max={12} value={teamCount} onChange={(event) => setTeamCount(Math.max(2, Math.min(12, Number(event.target.value) || 2)))} />
+                      <input ref={teamCountInputRef} type="number" min={2} max={12} value={teamCount} onChange={(event) => setTeamCount(Math.max(2, Math.min(12, Number(event.target.value) || 2)))} />
                     </label>
                     <button className="primary" disabled={busy} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
                   </div>

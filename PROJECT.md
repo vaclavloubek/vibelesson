@@ -1,8 +1,19 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.75** opravuje viewportový scroll levého authoring panelu: na desktopu se jeho vlastní scroll nově řídí skutečně dostupnou výškou od aktuální horní hrany panelu po spodní okraj viewportu, takže poslední ovládací prvky zůstávají dosažitelné bez rolování celé stránky. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.76** zpřehledňuje start týmové hodiny: pokud ještě nejsou vytvořené alespoň dva týmy, startovní zóna nyní ukazuje jasný dvoukrokový postup **1. Vytvořit týmy → 2. Odstartovat hodinu** a první krok učitele přímo posune na nastavení týmů. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Intuitivní start týmové hodiny 0.9.76 — 2026-09-21
+
+- při týmové lekci bez vytvořených týmů už horní startovní zóna neukazuje jen nenápadné upozornění a deaktivovaný start;
+- místo toho zobrazuje výrazný dvoukrokový postup **1. Vytvořit týmy → 2. Odstartovat hodinu**, takže důvod blokace i další akce jsou zřejmé bez rolování níž;
+- kliknutí na **Vytvořit týmy** plynule posune učitele k týmovému panelu a zaměří pole **Počet týmů**;
+- po vytvoření alespoň dvou týmů se prerequisite blok skryje a zobrazí se běžné aktivní tlačítko **Odstartovat hodinu**;
+- mobilní rozložení skládá instrukci a oba kroky pod sebe / přes celou dostupnou šířku;
+- regresní kontrakt je součástí **scripts/verify-collaboration-mode.mjs**;
+- serverový guard z 0.9.64 zůstává beze změny: týmovou hodinu nelze spustit bez alespoň dvou týmů;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Viewport-safe scroll levého authoring panelu 0.9.75 — 2026-09-21
 

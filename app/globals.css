@@ -117,6 +117,39 @@ a { color: inherit; }
   color: var(--ink);
   font-size: 11px;
 }
+.live-start-prerequisite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px solid rgba(91,87,232,.24);
+  border-radius: 14px;
+  background: var(--accent-soft);
+}
+.live-start-prerequisite-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.live-start-prerequisite-copy strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.live-start-prerequisite-copy span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.live-start-steps {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
 
 .recovery-banner {
   display: flex;
@@ -1187,4 +1220,7 @@ body:has(.teacher-live-shell) {
   .teacher-live-shell { padding: 12px; }
   .live-control-actions { width: 100%; }
   .live-control-actions button { flex: 1; }
+  .live-start-prerequisite { align-items: stretch; flex-direction: column; }
+  .live-start-steps { width: 100%; justify-content: stretch; }
+  .live-start-steps button { flex: 1 1 170px; }
 }
