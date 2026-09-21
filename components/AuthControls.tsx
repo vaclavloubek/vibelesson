@@ -160,6 +160,7 @@ export default function AuthControls({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -169,6 +170,7 @@ export default function AuthControls({
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const termsAcceptedId = useId();
   const marketingConsentId = useId();
   const signupStartedRef = useRef(false);
 
@@ -406,6 +408,10 @@ export default function AuthControls({
       setMessage(english ? 'The passwords do not match.' : 'Hesla se neshodují.');
       return;
     }
+    if (!termsAccepted) {
+      setMessage(english ? 'Accept the Terms of Service to create an account.' : 'Pro vytvoření účtu je potřeba odsouhlasit obchodní podmínky.');
+      return;
+    }
     if (!captchaToken) {
       setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
@@ -414,6 +420,7 @@ export default function AuthControls({
     const token = captchaToken;
     setBusy(true);
     setMessage('');
+    const termsAcceptedAt = new Date().toISOString();
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
@@ -421,6 +428,9 @@ export default function AuthControls({
         emailRedirectTo: signupRedirectUrl(),
         captchaToken: token,
         data: {
+          terms_accepted: true,
+          terms_acceptance_version: '2026-09-21-v1',
+          terms_accepted_at: termsAcceptedAt,
           marketing_email_consent: marketingConsent,
           ui_locale: locale,
         },
@@ -563,11 +573,26 @@ export default function AuthControls({
           {mode === 'signup' ? (
             <>
               <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</strong>
-              <p>{english ? 'The Free account includes 5 new AI lessons and 20 AI edits per calendar month. No plan selection and no payment card required.' : 'Free účet obsahuje 5 nových AI lekcí a 20 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.' }</p>
+              <p>{english ? 'The Free account includes 3 new AI lessons and 10 AI edits per month. No plan selection and no payment card required.' : 'Free účet obsahuje 3 nové AI lekce a 10 AI úprav za měsíc. Bez výběru tarifu a bez platební karty.' }</p>
               <form onSubmit={signUp}>
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <PasswordField label={english ? 'Password again' : 'Heslo znovu'} value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <div className="auth-marketing-consent">
+                  <input
+                    id={termsAcceptedId}
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(event) => setTermsAccepted(event.target.checked)}
+                    required
+                  />
+                  <label htmlFor={termsAcceptedId}>
+                    {english ? 'I agree to the ' : 'Souhlasím s '}
+                    <a href={`/${locale}/terms`} target="_blank" rel="noreferrer">{english ? 'Terms of Service' : 'obchodními podmínkami'}</a>
+                    {english ? ' and have read the ' : ' a seznámil(a) jsem se s '}
+                    <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'Privacy Notice' : 'ochranou osobních údajů'}</a>.
+                  </label>
+                </div>
                 <div className="auth-marketing-consent">
                   <input
                     id={marketingConsentId}
@@ -583,7 +608,7 @@ export default function AuthControls({
                   </label>
                 </div>
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
+                <button className="primary" disabled={busy || !captchaToken || !termsAccepted}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'I already have an account' : 'Už mám účet' }</button>
             </>
