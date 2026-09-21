@@ -130,6 +130,10 @@ export default async function TermsPage() {
             'AI limity se vztahují na operace uvedené u daného tarifu. Nevyčerpané měsíční kvóty se nepřevádějí, není-li výslovně uvedeno jinak. Poskytovatel může zavést přiměřené technické a bezpečnostní limity bránící zneužití služby.',
             'AI allowances apply to the operations listed for the relevant plan. Unused monthly allowances do not roll over unless expressly stated otherwise. The provider may apply reasonable technical and security limits to prevent abuse.'
           )}</p>
+          <p>{ui(
+            'Je-li u tarifu uvedena kvóta AI hodnocení, jedna jednotka znamená jedno spuštěné AI vyhodnocení jedné bodované studentské nebo týmové odpovědi. Opakované AI přehodnocení stejné odpovědi čerpá další jednotku. Po vyčerpání kvóty AI hodnocení zůstává dostupné ruční hodnocení; nevyčerpané jednotky se do dalšího období nepřevádějí.',
+            'Where a plan includes an AI grading allowance, one unit means one AI evaluation of one scored student or team response. Running an AI re-grade of the same response uses another unit. Once the AI grading allowance is exhausted, manual grading remains available; unused units do not roll over to the next period.'
+          )}</p>
         </section>
 
         <section>
