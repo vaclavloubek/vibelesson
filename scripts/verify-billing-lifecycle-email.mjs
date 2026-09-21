@@ -213,11 +213,14 @@ assert(emailSource.includes('attachments'), 'activation email must carry durable
 assert(emailSource.includes('contract_html') && emailSource.includes('withdrawal_form_html'), 'activation delivery must attach the contract and withdrawal form');
 assert(emailSource.includes("content_type: 'text/html; charset=utf-8'"), 'contract attachments must use explicit HTML content type');
 assert(emailSource.includes('contract_snapshot_id'), 'delivery ledger must retain the contract snapshot reference');
-assert(checkoutRouteSource.includes('create_individual_contract_snapshot'), 'checkout must freeze contract content before opening Stripe');
-assert(checkoutRouteSource.includes('link_individual_contract_snapshot_checkout'), 'checkout must bind the snapshot to the exact Stripe Checkout Session');
+assert(checkoutRouteSource.includes('create_and_link_individual_contract_snapshot'), 'checkout must atomically freeze contract content and bind it to the exact Stripe Checkout Session after Stripe creates the session');
 assert(contractMigrationSource.includes('individual_contract_snapshots_append_only'), 'contract snapshot evidence must be append-only');
 assert(contractMigrationSource.includes('individual_contract_checkout_links_append_only'), 'checkout linkage evidence must be append-only');
 assert(contractMigrationSource.includes('grant execute on function public.get_individual_contract_snapshot_for_delivery'), 'delivery lookup must be service-role gated');
+const atomicContractMigrationSource = await source('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql');
+assert(atomicContractMigrationSource.includes('create_and_link_individual_contract_snapshot'), 'contract evidence persistence must be atomic');
+assert(atomicContractMigrationSource.includes('drop function public.create_individual_contract_snapshot'), 'non-atomic snapshot creation RPC must be retired');
+assert(atomicContractMigrationSource.includes("tg_op = 'DELETE' and current_user = 'postgres'"), 'retention purge must remain restricted to the database owner');
 assert(pricingSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'Pricing must read individual AI allowances from the shared catalog');
 assert(!emailCoreSource.includes('60 new AI lessons and 250 AI edits'), 'stale Teacher Pro activation allowance must not return');
 assert(!emailCoreSource.includes('25 new AI lessons and 100 AI edits'), 'stale Teacher activation allowance must not return');
