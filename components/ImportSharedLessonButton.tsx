@@ -120,6 +120,13 @@ export default function ImportSharedLessonButton({
       });
       const data = await response.json() as { lessonId?: string; error?: string };
 
+      if (response.status === 428 || data.error === 'terms_reconsent_required') {
+        importInFlightRef.current = false;
+        setBusy(false);
+        window.location.assign(termsReconsentPath(`/s/${token}?import=1`));
+        return;
+      }
+
       if (response.status === 401) {
         importInFlightRef.current = false;
         setBusy(false);

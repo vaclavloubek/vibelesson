@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { termsReconsentPath } from '@/lib/terms-gate';
 import { classifySubscriptionChange, type BillingPeriod } from '@/lib/subscription-change-policy';
 import type { LiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
 import { quotaSourceLabel } from '@/lib/ai-quota';
@@ -132,6 +133,11 @@ export default function SubscriptionManagement({
         paymentUrl?: string | null;
         error?: string;
       };
+
+      if (response.status === 428 || payload.error === 'terms_reconsent_required') {
+        window.location.assign(termsReconsentPath('/subscription'));
+        return;
+      }
 
       if (!response.ok) {
         const known = payload.error;

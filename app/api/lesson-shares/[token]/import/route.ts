@@ -5,6 +5,7 @@ import { emitFirstLessonCreatedIfNeeded } from '@/lib/marketing-lifecycle';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 
 type RouteContext = {
   params: Promise<{ token: string }>;
@@ -50,6 +51,18 @@ export async function POST(request: Request, { params }: RouteContext) {
   const { supabase, userId } = await authenticatedRequestClient(request);
   if (!supabase || !userId) {
     return NextResponse.json({ error: 'Nejdřív se přihlas.' }, { status: 401 });
+  }
+
+  // Bearer-token imports authenticate independently of the cookie-backed
+  // getAuthenticatedUserId() helper, so enforce the append-only Terms audit
+  // explicitly here as well.
+  try {
+    if (!(await hasCurrentTermsAcceptance(userId))) {
+      return NextResponse.json({ error: 'terms_reconsent_required' }, { status: 428 });
+    }
+  } catch (error) {
+    console.error('shared lesson import Terms lookup failed closed', error);
+    return NextResponse.json({ error: 'terms_reconsent_required' }, { status: 428 });
   }
 
   const deviceGate = await requireTrustedDeviceForPaidAccess(userId);

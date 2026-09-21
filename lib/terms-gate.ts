@@ -11,11 +11,23 @@ const ORGANIZATION_BILLING_EXEMPT_PREFIXES = [
 ];
 
 export function requestRequiresCurrentTerms(pathname: string, method: string) {
-  if (!MUTATING_METHODS.has(method.toUpperCase())) return false;
+  const normalizedMethod = method.toUpperCase();
+
+  // This GET mints a teacher/presenter capability that can authorize live-control
+  // actions outside the primary Next.js API, so treat capability issuance as a
+  // protected working action even though the transport method itself is GET.
+  if (
+    normalizedMethod === 'GET'
+    && /^\/api\/sessions\/[^/]+\/live-control$/.test(pathname)
+  ) {
+    return true;
+  }
+
+  if (!MUTATING_METHODS.has(normalizedMethod)) return false;
 
   if (
     pathname === '/api/generate'
-    || pathname === '/api/billing/stripe/subscription/change'
+    || pathname === '/api/billing/stripe/checkout'
     || pathname === '/api/revise'
     || pathname === '/api/revise-block'
     || pathname.startsWith('/api/folders')
@@ -40,6 +52,10 @@ export function normalizeTermsReturnTo(value: string | null | undefined) {
   const pathname = value.split('?', 1)[0] ?? '';
   const allowed = (
     pathname === '/new'
+    || pathname === '/pricing'
+    || pathname === '/cs/pricing'
+    || pathname === '/en/pricing'
+    || pathname === '/subscription'
     || pathname === '/lessons'
     || pathname.startsWith('/lessons/')
     || pathname === '/school'

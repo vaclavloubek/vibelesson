@@ -43,7 +43,10 @@ export async function POST(request: Request) {
     return jsonError(503, 'sandbox_checkout_not_configured');
   }
 
-  const { supabase, userId } = await getAuthenticatedUserId();
+  const { supabase, userId, authenticatedUserId, termsAcceptanceRequired } = await getAuthenticatedUserId();
+  if (termsAcceptanceRequired && authenticatedUserId) {
+    return jsonError(428, 'terms_reconsent_required');
+  }
   if (!userId) return jsonError(401, 'authentication_required');
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user || authData.user.id !== userId || !authData.user.email) return jsonError(401, 'authentication_required');

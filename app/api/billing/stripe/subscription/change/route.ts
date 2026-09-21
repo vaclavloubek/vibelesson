@@ -20,6 +20,7 @@ import {
 } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getIndividualAiBillingPauseReason } from '@/lib/individual-ai-billing';
+import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -67,6 +68,20 @@ export async function POST(request: Request) {
 
   const { supabase, userId } = await getAuthenticatedUserId();
   if (!userId) return jsonError(401, 'authentication_required');
+
+  // A new plan change is a fresh contractual action and requires the current
+  // Terms. Cancelling an already scheduled change remains available so a user
+  // can reduce/undo a future commitment without accepting new Terms.
+  if (input.action === 'change') {
+    try {
+      if (!(await hasCurrentTermsAcceptance(userId))) {
+        return jsonError(428, 'terms_reconsent_required');
+      }
+    } catch (error) {
+      console.error('subscription change Terms lookup failed closed', error);
+      return jsonError(428, 'terms_reconsent_required');
+    }
+  }
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
