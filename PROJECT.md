@@ -1857,6 +1857,11 @@ Další významné změny 2026-09-18:
 - větší produktový/funkční release dostane nejbližší vyšší volnou desítkovou hranici v řadě `0.9.x` a zároveň aktualizuje veřejně zobrazovanou verzi;
 - řada `0.9.x` zůstává až do ostrého startu; `1.0.0` je vyhrazeno pro produkt považovaný za připravený k ostrému provozu, přičemž při neshodě má konečné rozhodnutí vlastník projektu;
 - čistě interní/docs/test/CI změna bez změny chování verzi neposouvá;
+- při každé delší nebo vícekrokové práci (typicky >10 s nebo více nástrojových kroků) poslat hned na začátku stručný **heartbeat/plán** s tím, co se právě bude dělat;
+- během delší práce posílat **průběžné heartbeaty po významných dokončených krocích**; nesmí se čekat až na finální odpověď a heartbeaty mají popisovat skutečný stav/progres, ne obecné fráze;
+- před nástrojovým voláním, které může běžet déle nebo blokovat odpověď, předem napsat, **jaká konkrétní operace se právě spouští**, aby případná systémová hláška o delší odpovědi nebyla bez kontextu;
+- pokud jedno konkrétní volání nástroje blokuje průběžné zprávy, po jeho návratu bez prodlení oznámit výsledek a pokračovat v heartbeat režimu; mezi samostatnými voláními nástrojů heartbeat nevynechávat;
+- heartbeat neposílat jako nízkoúrovňový log každého kliknutí: cílem je průběžná orientace uživatele v **reálných významných krocích, nálezech, problémech a dokončených částech**;
 - `PROJECT.md` jinak měnit pouze na výslovný pokyn uživatele.
 
 ## 22. Bezprostřední další krok
