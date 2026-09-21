@@ -1,8 +1,19 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.78** uzavírá **LEGAL-001**: Pricing i transakční aktivační e-mail individuálních tarifů nyní používají jeden sdílený zdroj AI kvót, takže e-mail po zaplacení nemůže dál potvrzovat zastaralé 25/100 nebo 60/250. Předchozí oprava editace počtu týmů 0.9.77 zůstává zachovaná. Právní / ČOI launch audit pokračuje dalšími body. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.79** doplňuje do startovní zóny live hodiny bezpečné ukončení bez spuštění. Učitel může po pouhém prohlédnutí rozhraní uzavřít připravenou session, zneplatnit její připojovací kód a příště spustit čistou novou session bez nejasnosti, že předchozí hodina stále běží. Předchozí opravy 0.9.78 a právní / ČOI audit zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Ukončení připravené hodiny bez spuštění 0.9.79 — 2026-09-21
+
+- startovní zóna live hodiny nově vždy nabízí sekundární akci **Ukončit bez spuštění** / **End without starting**;
+- akce používá existující serverový `end` přechod, takže nevzniká paralelní typ session ani nový speciální endpoint;
+- v lobby má ukončení vlastní potvrzovací text, který výslovně upozorňuje, že připojovací kód přestane fungovat a případní připojení studenti se už do této session nevrátí;
+- tlačítko je dostupné i tehdy, když týmová lekce ještě čeká na vytvoření týmů;
+- ukončení z lobby se nezapočítává do analytiky jako `live_session_ended`; tento event zůstává vyhrazený skutečně zahájeným live hodinám;
+- po ukončení se používá stejný stav `ended` a stejný návrat k lekci jako po běžném ukončení hodiny;
+- regresní kontrakt je doplněný v **scripts/verify-live-resilience.mjs**;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Sjednocení kvót Pricing ↔ aktivační e-mail 0.9.78 — 2026-09-21
 
