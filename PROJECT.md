@@ -11,7 +11,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.83** uzavírá **LEGAL-005**
 - nová veřejná lokalizovaná stránka **/cs/dpa** / **/en/dpa** obsahuje verzovanou **DPA 1.0** podle čl. 28 GDPR pro Team / School / Campus;
 - DPA rozlišuje role podle konkrétního zpracování: organizace je správcem studentských a výukových dat zpracovávaných pro její vlastní výuku a Syllonaut je v tomto rozsahu zpracovatelem; u vlastní fakturace, zabezpečení, smluvní evidence a dalších vlastních účelů je provozovatel Syllonautu samostatným správcem;
 - DPA konkretizuje předmět, dobu, povahu a účel zpracování, kategorie subjektů a údajů, doložené pokyny, důvěrnost, TOMs, pomoc správci, incidenty, výmaz/vrácení dat a audit;
-- DPA obsahuje aktuální seznam subprocesorů **Supabase, Vercel, Cloudflare, Resend, OpenAI, Amazon Web Services / Bedrock a Microsoft / Azure AI** a obecné oprávnění s plánovaným oznámením změny alespoň 15 dnů předem, pokud nejde o naléhavou bezpečnostní nebo zákonnou změnu;
+- DPA obsahuje aktuální seznam subprocesorů **Supabase, Vercel, Cloudflare, Resend, OpenAI, Amazon Web Services / Bedrock a Microsoft / Azure AI**, jejich zveřejněnou právní identitu / adresu / privacy kontakt a obecné oprávnění s plánovaným oznámením změny alespoň 15 dnů předem, pokud nejde o naléhavou bezpečnostní nebo zákonnou změnu;
 - lib/legal.ts je společný zdroj **DPA_VERSION 1.0** a **DPA_ACCEPTANCE_KEY 2026-09-21-dpa-v1**;
 - školní objednávkový checkbox nyní výslovně odkazuje na **VOP i DPA** a potvrzuje jejich přijetí jménem organizace;
 - serverový /api/organizations failuje zavřeně bez dpaAccepted=true a přesně aktuálního DPA acceptance key;
