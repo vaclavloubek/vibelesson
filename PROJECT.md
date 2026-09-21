@@ -1873,6 +1873,9 @@ Další významné změny 2026-09-18:
 - **TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ**;
 - security findings řešit jednotlivě, ne hromadným refaktorem;
 - malé logické celky;
+- komplexní úkoly a implementace rozdělovat na **malé samostatné kroky / checkpointy**, neřešit celý balík opatření v jednom dlouhém běhu;
+- po dokončení každého významnějšího malého kroku stručně **zobrazit, co bylo právě provedeno a ověřeno**, a teprve potom pokračovat na další krok;
+- jednotlivé malé kroky **nevyžadují samostatné odsouhlasení uživatele**, pokud už byl celkový směr zadán; souhlas vyžadovat jen tam, kde uživatel skutečně vybírá variantu, mění směr nebo jde o významné rozhodnutí;
 - commitovat funkční celky, ne jednotlivé soubory;
 - před finálním commitem/merge znovu načíst HEAD `main`;
 - zachovat paralelní změny;
