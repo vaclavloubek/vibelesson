@@ -977,7 +977,7 @@ export default function PricingPage({
               'On Free, AI allowances reset at the start of each calendar month. On Teacher and Teacher Pro, the monthly AI allowance resets with the billing cycle; annual subscriptions use monthly intervals anchored to the subscription start date. Your account shows the exact next reset date. Launching and reusing finished lessons does not use the AI allowance.',
             )
             : ui(
-              'U Team, School a Campus se společné AI limity pracovního prostoru obnovují na začátku každého kalendářního měsíce. Nová tvorba a AI úpravy se čerpají ze společného limitu organizace; spuštění a opakované použití hotových lekcí jej nespotřebovává.',
+              'U Team, School a Campus se společné AI limity pracovního prostoru školy / organizace obnovují na začátku každého kalendářního měsíce. Nová tvorba a AI úpravy se čerpají ze společného limitu organizace; spuštění a opakované použití hotových lekcí jej nespotřebovává.',
               'On Team, School and Campus, the shared workspace AI allowances reset at the start of each calendar month. New creation and AI edits use the organisation’s shared allowance; launching and reusing finished lessons does not consume it.',
             )}</p>
         </div>
