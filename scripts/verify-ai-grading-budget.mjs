@@ -72,7 +72,7 @@ for (const [needle, label] of [
   requireText(publishedAllowance.content, needle, label);
 }
 
-const allowanceSource = read('lib/ai-grading-allowances.ts');
+const allowanceSource = read('lib/individual-billing-catalog.ts');
 const pricingSource = read('components/PricingPage.tsx');
 const accountMenuSource = read('components/PublicHeaderAccountMenu.tsx');
 const emailCoreSource = read('lib/billing-email-core.ts');
