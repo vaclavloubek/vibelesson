@@ -202,6 +202,14 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
       ? (english ? `edits ${quota.revision_remaining ?? 0}/${quota.revision_limit}` : `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`)
       : (english ? 'edits loading' : 'úpravy načítám');
 
+  const gradingText = quota?.grading_enabled
+    ? quota.grading_unlimited
+      ? (english ? 'grading unlimited' : 'hodnocení neomezeně')
+      : quota.grading_limit !== null && quota.grading_limit !== undefined
+        ? (english ? `grading ${quota.grading_remaining ?? 0}/${quota.grading_limit}` : `hodnocení ${quota.grading_remaining ?? 0}/${quota.grading_limit}`)
+        : null
+    : null;
+
   const quotaResetDate = quota?.quota_window_end && !(quota.lesson_unlimited && quota.revision_unlimited)
     ? new Intl.DateTimeFormat(english ? 'en-GB' : 'cs-CZ', {
         dateStyle: 'medium',
@@ -243,7 +251,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
         <div id={ACCOUNT_MENU_ID} className="auth-account-popover" role="menu" aria-label={english ? 'Account menu' : 'Nabídka účtu'}>
           <div className="auth-account-summary">
             <strong title={user.email ?? ''}>{user.email ?? accountName}</strong>
-            <span>AI: {lessonText} · {revisionText}</span>
+            <span>AI: {lessonText} · {revisionText}{gradingText ? ` · ${gradingText}` : ''}</span>
             {quotaResetText ? <span>{quotaResetText}</span> : null}
           </div>
 
