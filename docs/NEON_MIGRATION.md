@@ -8,7 +8,7 @@ Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
 Příprava je implementovaná jako bezpečný, opakovatelný migrační balík. Produkční Supabase ani produkční prostředí Vercelu nebyly změněny. Výchozí `DATABASE_BACKEND` zůstává `supabase`; zapnutí Neonu vyžaduje explicitní runtime gate `NEON_CUTOVER_APPROVED=true`.
 
-Databázová stagingová kopie byla vytvořena a validována. Auth import je připravený jako jednorázový Preview build se zachováním UUID a povinným resetem hesla; po jeho ověření následuje aplikační refaktor. **Není povolen produkční cutover**, dokud neprojdou všechny stop podmínky v tomto dokumentu.
+Databázová stagingová kopie i bezpečný Auth import byly vytvořeny a validovány. Tři účty mají v Neon Auth zachovaná UUID a e-maily, ale záměrně nemají přenesená hesla ani sessions; před aplikačním refaktorem ještě musí jeden vlastník testovacího účtu dokončit reset hesla a stagingový Auth smoke test. **Není povolen produkční cutover**, dokud neprojdou všechny stop podmínky v tomto dokumentu.
 
 ### Zřízený stagingový cíl
 
@@ -34,6 +34,18 @@ Dne 2026-09-21 byl do nové izolované Preview branch proveden kompletní dump/r
 - Supabase byl po celou dobu pouze čten a produkční Vercel prostředí zůstalo beze změny.
 
 Jednorázový zapisující `buildCommand` byl po úspěchu odstraněn z `vercel.json`, aby další Preview deploymenty migraci automaticky neopakovaly. Úspěšný staging snapshot je dostupný na `https://edupilot2-2267f49n9-vaclavloubek1.vercel.app`; nejde o produkční cutover.
+
+### Ověřený Auth import
+
+Dne 2026-09-21 proběhl na stejné izolované Preview větvi jednorázový import identit. Úspěšný Vercel deployment `4FocukAu9w5woHnRgvL9a25h6j7M` běžel z commitu `a0a67ba` a skončil stavem `Ready` za 50 sekund:
+
+- do `neon_auth.user` byly vloženy přesně 3 identity a jejich UUID/e-mail fingerprint se shoduje se Supabase zdrojem;
+- 0 účtů vyžadovalo změnu stavu ověření e-mailu;
+- do `neon_auth.account` nebyl importován žádný credential účet;
+- nebyla přenesena hesla, session tokeny ani OAuth tokeny a nebyl odeslán žádný e-mail;
+- synchronizační trigger pro `app_identity.users` byl nainstalován a následný Next.js build prošel.
+
+Jednorázový Auth `buildCommand` byl po ověření odstraněn. Další krok je ručně vyvolaný reset hesla jednoho testovacího účtu a ověření loginu, logout, refresh a revokace session.
 
 ## Incident 2026-09-21
 
@@ -186,22 +198,22 @@ Skript odmítne cíl, který už obsahuje aplikační tabulky v `public`, `priva
 
 Aktuální Neon Auth je Better Auth v `neon_auth.*`. Starší Neon návod pro Stack Auth a `users_sync` není pro tuto architekturu autoritativní.
 
-Read-only kontrola 2026-09-21 ověřila:
+Read-only kontrola před importem 2026-09-21 ověřila:
 
 - Supabase má 3 aktivní uživatele, všichni 3 mají potvrzený e-mail a heslovou identitu; jediný provider je `email`;
-- stagingová tabulka `neon_auth.user` je prázdná a používá UUID primární klíč;
+- stagingová tabulka `neon_auth.user` byla prázdná a používá UUID primární klíč;
 - heslo se v Better Auth ukládá do `neon_auth.account` s providerem `credential`;
 - Supabase hashe jsou bcrypt, zatímco spravovaný Better Auth používá scrypt. Hashe se proto nekopírují a existující uživatelé musí jednou projít bezpečným resetem hesla.
 
-Povinný postup:
+Povinný postup a stav:
 
-1. Spustit dry-run; nesmí nic změnit:
+1. [Hotovo] Spustit dry-run; nesmí nic změnit:
 
 ```bash
 bash scripts/neon/auth-import.sh
 ```
 
-2. Na izolované Preview branch spustit zápis pouze s explicitní pojistkou:
+2. [Hotovo] Na izolované Preview branch spustit zápis pouze s explicitní pojistkou:
 
 ```bash
 NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS \
@@ -210,8 +222,8 @@ NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS \
 
 Skript načte ze Supabase pouze UUID a stav ověření, importuje 3 řádky do `neon_auth.user`, porovná fingerprint a nainstaluje synchronizační trigger. Nekopíruje `encrypted_password`, OAuth tokeny ani sessions a neposílá žádný e-mail.
 
-3. Vercel Preview spouští `scripts/neon/remote-auth-import-build.sh`, který normalizuje prefixované Neon proměnné, dočasně připraví PostgreSQL nástroje a teprve potom zavolá import. Po úspěšném Preview buildu odstranit jednorázový `buildCommand` z `vercel.json` dříve, než bude větev sloučena nebo znovu nasazena mimo staging.
-4. Jeden vlastník testovacího účtu sám spustí „Zapomenuté heslo“, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu není součást automatického importu.
+3. [Hotovo] Vercel Preview spustil `scripts/neon/remote-auth-import-build.sh`, který normalizoval prefixované Neon proměnné, dočasně připravil PostgreSQL nástroje a provedl import. Deployment `4FocukAu9w5woHnRgvL9a25h6j7M` z commitu `a0a67ba` potvrdil 3 identity, 0 credential účtů a `PASS`; jednorázový `buildCommand` byl následně odstraněn.
+4. [Čeká] Jeden vlastník testovacího účtu sám spustí „Zapomenuté heslo“, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu nebylo součástí automatického importu.
 5. Samostatně ověřit registraci, verifikaci e-mailu a případný budoucí OAuth callback.
 6. Diagnostiku lze zopakovat:
 
