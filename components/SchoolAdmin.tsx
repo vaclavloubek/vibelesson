@@ -9,7 +9,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
 import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
-import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { DPA_ACCEPTANCE_KEY, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -215,6 +215,7 @@ export default function SchoolAdmin({
   const [postalCode, setPostalCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'invoice' | 'card'>('invoice');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [dpaAccepted, setDpaAccepted] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'teacher' | 'admin'>('teacher');
@@ -499,9 +500,12 @@ export default function SchoolAdmin({
 
   async function createOrder(event: FormEvent) {
     event.preventDefault();
-    if (!termsAccepted) {
+    if (!termsAccepted || !dpaAccepted) {
       setMessageKind('error');
-      setMessage(ui('Před objednáním je potřeba odsouhlasit obchodní podmínky.', 'Accept the Terms of Service before placing the order.'));
+      setMessage(ui(
+        'Před objednáním je potřeba odsouhlasit obchodní podmínky i zpracovatelskou smlouvu (DPA).',
+        'Accept both the Terms of Service and the Data Processing Agreement (DPA) before placing the order.',
+      ));
       return;
     }
     setBusy(true);
@@ -528,6 +532,8 @@ export default function SchoolAdmin({
         environment: billingEnvironment,
         termsAccepted: true,
         termsVersion: TERMS_ACCEPTANCE_KEY,
+        dpaAccepted: true,
+        dpaVersion: DPA_ACCEPTANCE_KEY,
       }),
     });
 
@@ -1346,8 +1352,27 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.full}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, lineHeight: 1.45 }}>
+                  <input
+                    type="checkbox"
+                    checked={dpaAccepted}
+                    onChange={(event) => { setDpaAccepted(event.target.checked); setMessage(''); }}
+                    required
+                    style={{ marginTop: 3, width: 'auto' }}
+                  />
+                  <span>{ui(
+                    'Jménem školy / organizace přijímám ',
+                    'On behalf of the school / organisation, I accept the ',
+                  )}<Link href={`/${locale}/dpa`} target="_blank">{ui('zpracovatelskou smlouvu (DPA)', 'Data Processing Agreement (DPA)')}</Link>{ui(
+                    ' pro zpracování osobních údajů, které Syllonaut provádí jménem organizace.',
+                    ' for personal data that Syllonaut processes on behalf of the organisation.',
+                  )}</span>
+                </label>
+              </div>
+
+              <div className={styles.full}>
                 <div className={styles.rowActions}>
-                  <button className={styles.primary} type="submit" disabled={busy || !termsAccepted}>
+                  <button className={styles.primary} type="submit" disabled={busy || !termsAccepted || !dpaAccepted}>
                     {busy
                       ? ui('Zakládám…', 'Creating…')
                       : paymentMethod === 'invoice'
