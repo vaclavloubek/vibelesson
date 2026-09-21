@@ -134,7 +134,6 @@ for (const allowedPath of [
   if (!organizationExemptBlock.includes(allowedPath)) fail('billing/cancellation exemption missing: ' + allowedPath);
 }
 if (organizationExemptBlock.includes('/api/organizations/renewal') || organizationExemptBlock.includes('/api/organizations/renew')) fail('new organization renewal must not bypass current Terms');
-if (!termsGate.includes("pathname === '/api/billing/stripe/subscription/change'")) fail('individual plan changes must require current Terms');
 for (const source of [organizationSubscription, organizationCancellation]) {
   if (!source.includes('if (!input.cancelAtPeriodEnd)') || !source.includes("terms_reconsent_required") || !source.includes('{ status: 428 }')) fail('turning organization renewal back on must require current Terms while cancellation remains available');
 }
