@@ -77,6 +77,7 @@ create table private.service_change_termination_requests (
   external_subscription_id text not null check (external_subscription_id ~ '^sub_[A-Za-z0-9_]+$'),
   requested_at timestamptz not null,
   legal_deadline timestamptz not null,
+  immediate_termination_confirmed boolean not null check (immediate_termination_confirmed),
   status text not null default 'requested' check (status in ('requested','processing','refund_pending','refund_succeeded','completed','needs_attention')),
   external_invoice_id text check (external_invoice_id is null or external_invoice_id ~ '^in_[A-Za-z0-9_]+$'),
   external_payment_intent_id text check (external_payment_intent_id is null or external_payment_intent_id ~ '^pi_[A-Za-z0-9_]+$'),
@@ -149,8 +150,10 @@ create function private.guard_service_change_termination_evidence()
 returns trigger language plpgsql set search_path = '' as $$
 begin
   if tg_op = 'DELETE' then raise exception 'service_change_termination_immutable'; end if;
-  if row(new.release_id,new.delivery_id,new.user_id,new.external_subscription_id,new.requested_at,new.legal_deadline,new.created_at)
-    is distinct from row(old.release_id,old.delivery_id,old.user_id,old.external_subscription_id,old.requested_at,old.legal_deadline,old.created_at)
+  if row(new.release_id,new.delivery_id,new.user_id,new.external_subscription_id,new.requested_at,new.legal_deadline,
+    new.immediate_termination_confirmed,new.created_at)
+    is distinct from row(old.release_id,old.delivery_id,old.user_id,old.external_subscription_id,old.requested_at,
+    old.legal_deadline,old.immediate_termination_confirmed,old.created_at)
   then raise exception 'service_change_termination_legal_fields_immutable'; end if;
   if old.calculation_evidence is not null and row(new.external_invoice_id,new.external_payment_intent_id,new.external_charge_id,
     new.currency,new.payment_amount_minor,new.prior_refunded_minor,new.retained_amount_minor,new.target_total_refund_minor,
@@ -283,7 +286,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
 $$;
 
 create function public.request_service_change_termination_for_service(
-  p_user_id uuid,p_delivery_id uuid,p_requested_at timestamptz
+  p_user_id uuid,p_delivery_id uuid,p_requested_at timestamptz,p_immediate_termination_confirmed boolean
 ) returns uuid language plpgsql security definer set search_path = '' as $$
 declare v_delivery private.service_change_deliveries%rowtype; v_release private.service_change_releases%rowtype; v_id uuid;
 begin
@@ -294,10 +297,11 @@ begin
     or v_release.classification<>'material_adverse' or v_release.strategy<>'durable_notice'
     or v_delivery.termination_deadline is null or p_requested_at>v_delivery.termination_deadline
     or p_requested_at<v_delivery.sent_at or v_delivery.external_subscription_id is null
+    or p_immediate_termination_confirmed is distinct from true
   then raise exception 'service_change_termination_not_available'; end if;
   insert into private.service_change_termination_requests(release_id,delivery_id,user_id,external_subscription_id,
-    requested_at,legal_deadline)
-  values(v_release.id,v_delivery.id,p_user_id,v_delivery.external_subscription_id,p_requested_at,v_delivery.termination_deadline)
+    requested_at,legal_deadline,immediate_termination_confirmed)
+  values(v_release.id,v_delivery.id,p_user_id,v_delivery.external_subscription_id,p_requested_at,v_delivery.termination_deadline,true)
   on conflict(delivery_id) do nothing returning id into v_id;
   if v_id is null then select id into strict v_id from private.service_change_termination_requests where delivery_id=p_delivery_id; end if;
   return v_id;
@@ -398,7 +402,7 @@ revoke all on function public.publish_service_change_for_service(text,text,text,
   public.record_service_change_delivery_sent_for_service(uuid,uuid,text,text,text,timestamptz),
   public.fail_service_change_delivery_for_service(uuid,uuid,text),
   public.get_service_change_notices_for_user_service(uuid),
-  public.request_service_change_termination_for_service(uuid,uuid,timestamptz),
+  public.request_service_change_termination_for_service(uuid,uuid,timestamptz,boolean),
   public.get_service_change_termination_for_service(uuid),
   public.reserve_service_change_termination_refund_for_service(uuid,text,text,text,text,bigint,bigint,bigint,bigint,bigint,timestamptz,timestamptz,jsonb),
   public.claim_service_change_termination_for_service(uuid),
@@ -411,7 +415,7 @@ grant execute on function public.publish_service_change_for_service(text,text,te
   public.record_service_change_delivery_sent_for_service(uuid,uuid,text,text,text,timestamptz),
   public.fail_service_change_delivery_for_service(uuid,uuid,text),
   public.get_service_change_notices_for_user_service(uuid),
-  public.request_service_change_termination_for_service(uuid,uuid,timestamptz),
+  public.request_service_change_termination_for_service(uuid,uuid,timestamptz,boolean),
   public.get_service_change_termination_for_service(uuid),
   public.reserve_service_change_termination_refund_for_service(uuid,text,text,text,text,bigint,bigint,bigint,bigint,bigint,timestamptz,timestamptz,jsonb),
   public.claim_service_change_termination_for_service(uuid),
