@@ -7,7 +7,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
-import { TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from '@/app/gdpr/GdprPage.module.css';
@@ -96,6 +96,10 @@ export default async function TermsPage() {
             'Jedná-li osoba za školu, firmu nebo jinou organizaci, potvrzuje, že je oprávněna organizaci zavázat. U školních tarifů je vlastníkem organizace účet, který objednávku vytvořil, dokud nedojde k platnému převodu role.',
             'A person acting for a school, company or other organization confirms that they are authorized to bind that organization. For school plans, the account creating the order is the organization owner until the role is validly transferred.'
           )}</p>
+          <p>{ui(
+            'Pokud organizace používá Syllonaut ke zpracování osobních údajů studentů nebo pracovníků a Syllonaut v tomto rozsahu vystupuje jako zpracovatel, je součástí smlouvy také samostatná zpracovatelská smlouva (DPA). Organizace ji při objednávce výslovně přijímá vedle těchto VOP.',
+            'Where an organisation uses Syllonaut to process personal data of students or staff and Syllonaut acts as processor for that processing, the separate Data Processing Agreement (DPA) also forms part of the contract. The organisation expressly accepts it alongside these Terms when placing the order.'
+          )} <Link href={`/${locale}/dpa`}>{ui(`DPA verze ${DPA_VERSION}`, `DPA version ${DPA_VERSION}`)}</Link>.</p>
         </section>
 
         <section>
@@ -239,6 +243,10 @@ export default async function TermsPage() {
         <section>
           <h2>{ui('14. Ochrana osobních údajů a závěrečná ustanovení', '14. Privacy and final provisions')}</h2>
           <p>{ui('Zpracování osobních údajů upravuje samostatná', 'Personal-data processing is described in the separate')} <Link href={`/${locale}/gdpr`}>{ui('stránka Ochrana osobních údajů (GDPR)', 'Privacy Notice')}</Link>.</p>
+          <p>{ui(
+            'Pro organizace Team / School / Campus je v rozsahu zpracování osobních údajů jménem organizace závaznou součástí smlouvy také',
+            'For Team / School / Campus organisations, processing of personal data on the organisation’s behalf is additionally governed by the binding'
+          )} <Link href={`/${locale}/dpa`}>{ui('zpracovatelskou smlouvou (DPA)', 'Data Processing Agreement (DPA)')}</Link>.</p>
           <p>{ui(
             `Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od ${new Intl.DateTimeFormat('cs-CZ').format(new Date(TERMS_EFFECTIVE_DATE + 'T12:00:00Z'))}. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.`,
             `The current version of these Terms is ${TERMS_VERSION}, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.`
