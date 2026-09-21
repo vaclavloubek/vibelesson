@@ -27,6 +27,7 @@ const params = buildStripeCheckoutParams({
   billingPeriod: 'monthly',
   termsVersion: '2026-09-21-v1',
   immediatePerformanceRequested: true,
+  contractSnapshotId: '423e4567-e89b-42d3-a456-426614174000',
 });
 assert.equal(params.get('mode'), 'subscription');
 assert.equal(params.get('line_items[0][price]'), 'price_test123');
@@ -38,6 +39,8 @@ assert.equal(params.get('subscription_data[metadata][syllonaut_user_id]'), '123e
 assert.equal(params.get('subscription_data[metadata][syllonaut_billing_country]'), 'DE');
 assert.equal(params.get('metadata[syllonaut_terms_version]'), '2026-09-21-v1');
 assert.equal(params.get('metadata[syllonaut_immediate_service]'), 'true');
+assert.equal(params.get('metadata[syllonaut_contract_snapshot_id]'), '423e4567-e89b-42d3-a456-426614174000');
+assert.equal(params.get('subscription_data[metadata][syllonaut_contract_snapshot_id]'), '423e4567-e89b-42d3-a456-426614174000');
 assert.match(params.get('integration_identifier') ?? '', /^syllonaut_web_[a-z]{8}$/);
 assert.match(params.get('success_url') ?? '', /billing_env=sandbox/);
 assert.ok(!params.has('automatic_tax[enabled]'));
@@ -55,6 +58,7 @@ const firstPurchaseParams = buildStripeCheckoutParams({
   billingPeriod: 'monthly',
   termsVersion: '2026-09-21-v1',
   immediatePerformanceRequested: true,
+  contractSnapshotId: '423e4567-e89b-42d3-a456-426614174000',
 });
 assert.equal(firstPurchaseParams.get('customer_email'), 'teacher@example.com');
 assert.equal(firstPurchaseParams.has('customer'), false);
