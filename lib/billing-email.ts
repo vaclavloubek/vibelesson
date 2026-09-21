@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { localeFromCountry, normalizeUiLocale } from '@/lib/i18n';
+import { INDIVIDUAL_PLAN_ALLOWANCES } from '@/lib/individual-billing-catalog';
 import type { StripeSubscriptionSync } from '@/lib/stripe-webhook';
 import {
   billingLifecycleNotification,
@@ -180,6 +181,7 @@ export async function deliverBillingLifecycleEmail(
     locale,
     planCode: subscription.plan_code,
     currentPeriodEnd: subscription.current_period_end ?? sync.currentPeriodEnd,
+    allowance: INDIVIDUAL_PLAN_ALLOWANCES[subscription.plan_code],
   });
 
   let resendEmailId: string;
