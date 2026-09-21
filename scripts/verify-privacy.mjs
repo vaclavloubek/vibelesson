@@ -41,6 +41,11 @@ requirePattern(auth, /marketing_email_consent:\s*marketingConsent/, 'signup mark
 requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'marketing opt-in checkbox is missing or not explicit.');
 requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
+requirePattern(gdpr, /Verze 1\.3/, 'Privacy Notice version must cover immutable paid-contract evidence.');
+requirePattern(gdpr, /Potvrzení placené smlouvy:/, 'Privacy Notice must disclose paid-contract snapshots.');
+requirePattern(gdpr, /kontrolní SHA-256 hash/, 'Privacy Notice must disclose contract snapshot integrity hash.');
+requirePattern(gdpr, /Do tohoto smluvního snapshotu nekopírujeme e-mail zákazníka/, 'Privacy Notice must state that contract snapshots do not duplicate customer email.');
+requirePattern(gdpr, /Neměnný snapshot individuální placené smlouvy/, 'Privacy Notice must disclose contract-evidence retention.');
 requirePattern(nextConfig, /https:\/\/www\.googletagmanager\.com/, 'CSP does not allow the consent-gated GA4 script.');
 requirePattern(nextConfig, /https:\/\/\*\.google-analytics\.com/, 'CSP does not allow consent-gated GA4 collection.');
 
