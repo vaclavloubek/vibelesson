@@ -285,6 +285,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     }
 
     if (action === 'end') {
+      if (current.status !== 'live') return;
       trackEvent('live_session_ended', {
         participant_count_bucket: bucketParticipantCount(current.participants.length),
         completed_activity_count_bucket: bucketBlockCount(Math.max(0, index + 1)),
@@ -328,7 +329,15 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
   async function act(action: SessionAction['action']) {
     if (busy) return;
-    if (action === 'end' && !window.confirm(ui('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.', 'End the lesson? Students will not be able to reconnect.'))) return;
+    if (action === 'end') {
+      const confirmation = session?.status === 'lobby'
+        ? ui(
+            'Ukončit tuto připravenou hodinu bez spuštění? Připojovací kód přestane fungovat a případní připojení studenti se už do této hodiny nevrátí.',
+            'End this prepared lesson without starting it? The join code will stop working and any connected students will no longer be able to return to this lesson.',
+          )
+        : ui('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.', 'End the lesson? Students will not be able to reconnect.');
+      if (!window.confirm(confirmation)) return;
+    }
     if (action === 'reveal_results' && !window.confirm(ui('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.', 'Reveal results to students? After revealing them, students will no longer be able to change their answer for this block.'))) return;
 
     const operationId = crypto.randomUUID();
@@ -532,11 +541,13 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                   <button className="secondary" type="button" disabled>2. {ui('Odstartovat hodinu', 'Start lesson')}</button>
                 </div>
               </div>
-            ) : (
-              <div className="actions">
+            ) : null}
+            <div className="actions">
+              {teamMode && session.teams.length < 2 ? null : (
                 <button className="primary" data-tour="live-start" disabled={busy} onClick={() => void act('start')}>{busy ? ui('Připravuji start…', 'Preparing start…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
-              </div>
-            )}
+              )}
+              <button className="secondary live-end" type="button" disabled={busy} onClick={() => void act('end')}>{ui('Ukončit bez spuštění', 'End without starting')}</button>
+            </div>
           </section>
 
           {teamMode ? (
