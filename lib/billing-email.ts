@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { localeFromCountry, normalizeUiLocale } from '@/lib/i18n';
 import { INDIVIDUAL_PLAN_ALLOWANCES } from '@/lib/individual-billing-catalog';
@@ -30,12 +31,14 @@ async function sendResendEmail({
   text,
   html,
   idempotencyKey,
+  attachments,
 }: {
   to: string;
   subject: string;
   text: string;
   html: string;
   idempotencyKey: string;
+  attachments?: Array<{ filename: string; content: string; content_type: string }>;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey || !apiKey.startsWith('re_')) {
@@ -58,6 +61,7 @@ async function sendResendEmail({
         subject,
         text,
         html,
+        ...(attachments?.length ? { attachments } : {}),
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -112,6 +116,7 @@ export async function deliverBillingLifecycleEmail(
       notification_type: notification,
       user_id: sync.userId,
       external_subscription_id: sync.subscriptionId,
+      contract_snapshot_id: sync.contractSnapshotId,
       status: 'pending',
     }, {
       onConflict: 'provider,livemode,external_event_id,notification_type',
@@ -151,6 +156,56 @@ export async function deliverBillingLifecycleEmail(
   }
   const planCode: 'teacher' | 'teacher_pro' = subscription.plan_code;
 
+  let contractSnapshot: {
+    snapshot_id: string;
+    plan_code: string;
+    billing_period: 'monthly' | 'annual';
+    currency: 'czk' | 'eur' | 'usd';
+    amount_minor: number;
+    terms_version: string;
+    locale: 'cs' | 'en';
+    immediate_performance_requested: boolean;
+    contract_html: string;
+    withdrawal_form_html: string;
+    content_sha256: string;
+    accepted_at: string;
+    external_checkout_session_id: string;
+  } | null = null;
+
+  if (notification === 'subscription_activated' && sync.contractSnapshotId) {
+    const { data: snapshotData, error: snapshotError } = await admin.rpc(
+      'get_individual_contract_snapshot_for_delivery',
+      {
+        p_snapshot_id: sync.contractSnapshotId,
+        p_user_id: sync.userId,
+        p_livemode: sync.livemode,
+      },
+    );
+    const row = (Array.isArray(snapshotData) ? snapshotData[0] : snapshotData) as typeof contractSnapshot;
+    if (snapshotError || !row) {
+      await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_contract_snapshot_lookup_failed');
+      throw new BillingEmailDeliveryError('billing_contract_snapshot_lookup_failed');
+    }
+    if (
+      row.plan_code !== planCode
+      || !row.immediate_performance_requested
+      || (sync.checkoutSessionId && row.external_checkout_session_id !== sync.checkoutSessionId)
+    ) {
+      await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_contract_snapshot_mismatch');
+      throw new BillingEmailDeliveryError('billing_contract_snapshot_mismatch');
+    }
+    const digest = createHash('sha256')
+      .update(row.contract_html, 'utf8')
+      .update('\n--syllonaut-withdrawal-form--\n', 'utf8')
+      .update(row.withdrawal_form_html, 'utf8')
+      .digest('hex');
+    if (digest !== row.content_sha256) {
+      await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_contract_snapshot_hash_mismatch');
+      throw new BillingEmailDeliveryError('billing_contract_snapshot_hash_mismatch');
+    }
+    contractSnapshot = row;
+  }
+
   const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('ui_locale')
@@ -172,18 +227,55 @@ export async function deliverBillingLifecycleEmail(
   const metadataLocale = typeof authUser.user?.user_metadata?.ui_locale === 'string'
     ? normalizeUiLocale(authUser.user.user_metadata.ui_locale)
     : null;
-  const locale = normalizeUiLocale(profile?.ui_locale)
+  const locale = contractSnapshot?.locale
+    ?? normalizeUiLocale(profile?.ui_locale)
     ?? metadataLocale
     ?? localeFromCountry(sync.billingCountry)
     ?? 'en';
 
-  const rendered = renderBillingLifecycleEmail({
+  let rendered = renderBillingLifecycleEmail({
     notification,
     locale,
     planCode,
     currentPeriodEnd: subscription.current_period_end ?? sync.currentPeriodEnd,
     allowance: INDIVIDUAL_PLAN_ALLOWANCES[planCode],
   });
+
+  let attachments: Array<{ filename: string; content: string; content_type: string }> | undefined;
+  if (contractSnapshot) {
+    const price = new Intl.NumberFormat(locale === 'cs' ? 'cs-CZ' : 'en-US', {
+      style: 'currency',
+      currency: contractSnapshot.currency.toUpperCase(),
+      minimumFractionDigits: contractSnapshot.currency === 'czk' ? 0 : 2,
+      maximumFractionDigits: contractSnapshot.currency === 'czk' ? 0 : 2,
+    }).format(contractSnapshot.amount_minor / 100);
+    const period = contractSnapshot.billing_period === 'annual'
+      ? (locale === 'cs' ? 'roční' : 'annual')
+      : (locale === 'cs' ? 'měsíční' : 'monthly');
+    const summaryText = locale === 'cs'
+      ? `\n\nSmluvní potvrzení: ${price} · ${period} období · automatické obnovení · VOP ${contractSnapshot.terms_version}. Neměnná kopie smluvních informací a vzorový formulář pro odstoupení jsou v příloze.`
+      : `\n\nContract confirmation: ${price} · ${period} billing · automatic renewal · Terms ${contractSnapshot.terms_version}. An immutable copy of the contract information and a model withdrawal form are attached.`;
+    const summaryHtml = locale === 'cs'
+      ? `<p style="margin:18px 28px;color:#39368f;font-size:13px;line-height:1.55;"><strong>Smluvní potvrzení:</strong> ${price} · ${period} období · automatické obnovení · VOP ${contractSnapshot.terms_version}. Neměnná kopie smluvních informací a vzorový formulář pro odstoupení jsou v příloze.</p>`
+      : `<p style="margin:18px 28px;color:#39368f;font-size:13px;line-height:1.55;"><strong>Contract confirmation:</strong> ${price} · ${period} billing · automatic renewal · Terms ${contractSnapshot.terms_version}. An immutable copy of the contract information and a model withdrawal form are attached.</p>`;
+    rendered = {
+      ...rendered,
+      text: rendered.text + summaryText,
+      html: rendered.html.replace('</body>', `${summaryHtml}</body>`),
+    };
+    attachments = [
+      {
+        filename: `syllonaut-contract-${contractSnapshot.snapshot_id}.html`,
+        content: Buffer.from(contractSnapshot.contract_html, 'utf8').toString('base64'),
+        content_type: 'text/html; charset=utf-8',
+      },
+      {
+        filename: 'syllonaut-withdrawal-form.html',
+        content: Buffer.from(contractSnapshot.withdrawal_form_html, 'utf8').toString('base64'),
+        content_type: 'text/html; charset=utf-8',
+      },
+    ];
+  }
 
   let resendEmailId: string;
   try {
@@ -193,6 +285,7 @@ export async function deliverBillingLifecycleEmail(
       text: rendered.text,
       html: rendered.html,
       idempotencyKey: `syllonaut:${sync.eventId}:${notification}`,
+      attachments,
     });
   } catch (error) {
     const code = error instanceof BillingEmailDeliveryError ? error.code : 'billing_email_unknown_error';
