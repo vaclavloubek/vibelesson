@@ -10,6 +10,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 import { DPA_ACCEPTANCE_KEY, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { termsReconsentPath } from '@/lib/terms-gate';
 import {
   ORGANIZATION_PLANS,
@@ -1380,6 +1381,13 @@ export default function SchoolAdmin({
                     {ui('Platební karta', 'Payment card')}
                   </option>
                 </select>
+              </div>
+
+              <div className={styles.full}>
+                <p style={{ margin: 0, lineHeight: 1.55 }}>
+                  <strong>{ui('Poskytovatel:', 'Provider:')}</strong> {PROVIDER_CONTACT.legalName}, {ui('IČO', 'Business ID')} {PROVIDER_CONTACT.businessId}<br />
+                  {ui('Telefon:', 'Phone:')} <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a> · <a href={PROVIDER_CONTACT.emailHref}>{PROVIDER_CONTACT.email}</a>
+                </p>
               </div>
 
               <div className={styles.full}>

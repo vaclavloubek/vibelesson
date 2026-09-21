@@ -9,6 +9,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import landing from '@/components/LandingPage.module.css';
 import styles from './GdprPage.module.css';
 
@@ -79,8 +80,8 @@ export default async function GdprPage() {
 
         <section>
           <h2>{ui('1. Správce osobních údajů', '1. Data controller')}</h2>
-          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice – Mladá<br />{ui('Česká republika', 'Czech Republic')}</p>
-          <p>{ui('Správce provozuje službu Syllonaut na doméně', 'The controller operates Syllonaut at')} <strong>syllonaut.com</strong>. {ui('Pro dotazy k ochraně soukromí nás můžete kontaktovat na', 'For privacy-related questions, contact')} <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a>.</p>
+          <p><strong>{PROVIDER_CONTACT.legalName}</strong><br />{ui('IČO', 'Business ID')}: {PROVIDER_CONTACT.businessId}<br />{PROVIDER_CONTACT.addressLine1}<br />{PROVIDER_CONTACT.postalCity}<br />{ui(PROVIDER_CONTACT.countryCs, PROVIDER_CONTACT.countryEn)}</p>
+          <p>{ui('Správce provozuje službu Syllonaut na doméně', 'The controller operates Syllonaut at')} <strong>{PROVIDER_CONTACT.website}</strong>. {ui('Pro dotazy k ochraně soukromí nás můžete kontaktovat na', 'For privacy-related questions, contact')} <a href={PROVIDER_CONTACT.emailHref}>{PROVIDER_CONTACT.email}</a> {ui('nebo telefonu', 'or by phone at')} <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a>.</p>
         </section>
 
         <section>

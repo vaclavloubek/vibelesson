@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { COOKIE_SETTINGS_EVENT } from '@/components/CookieConsent';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import styles from './SiteFooter.module.css';
 
 export default function SiteFooter() {
@@ -14,6 +15,7 @@ export default function SiteFooter() {
       <div className={styles.identity}>
         <span>© 2026 Syllonaut</span>
         <span>{english ? 'AI navigator for interactive teaching.' : 'AI navigátor pro interaktivní výuku.'}</span>
+        <span>{english ? 'Phone' : 'Telefon'}: <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a></span>
       </div>
       <nav className={styles.links} aria-label={english ? 'Legal and privacy' : 'Právní a soukromí'}>
         <Link href={`/${locale}/terms`}>{english ? 'Terms of Service' : 'Obchodní podmínky'}</Link>

@@ -44,6 +44,24 @@
   line-height: 1.6;
 }
 
+.directContact {
+  margin-top: 24px;
+  display: grid;
+  gap: 5px;
+  color: #4d505a;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.directContact strong {
+  color: #151721;
+}
+
+.directContact a {
+  color: #4f46c8;
+  text-underline-offset: 3px;
+}
+
 .signalLine {
   width: min(300px, 78%);
   margin-top: 34px;

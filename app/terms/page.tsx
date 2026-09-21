@@ -8,6 +8,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
@@ -79,8 +80,12 @@ export default async function TermsPage() {
 
         <section>
           <h2>{ui('1. Poskytovatel služby', '1. Service provider')}</h2>
-          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice – Mladá<br />{ui('Česká republika', 'Czech Republic')}</p>
-          <p>{ui('E-mail:', 'Email:')} <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a><br />{ui('Web:', 'Website:')} <strong>syllonaut.com</strong></p>
+          <p><strong>{PROVIDER_CONTACT.legalName}</strong><br />{ui('IČO', 'Business ID')}: {PROVIDER_CONTACT.businessId}<br />{PROVIDER_CONTACT.addressLine1}<br />{PROVIDER_CONTACT.postalCity}<br />{ui(PROVIDER_CONTACT.countryCs, PROVIDER_CONTACT.countryEn)}</p>
+          <p>
+            {ui('Telefon:', 'Phone:')} <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a><br />
+            {ui('E-mail:', 'Email:')} <a href={PROVIDER_CONTACT.emailHref}>{PROVIDER_CONTACT.email}</a><br />
+            {ui('Web:', 'Website:')} <strong>{PROVIDER_CONTACT.website}</strong>
+          </p>
           <p>{ui(
             'Tyto obchodní podmínky tvoří součást smlouvy mezi poskytovatelem a uživatelem služby Syllonaut.',
             'These Terms form part of the contract between the provider and each Syllonaut user.'
