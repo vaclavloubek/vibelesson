@@ -149,6 +149,7 @@ export async function deliverBillingLifecycleEmail(
     await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_email_plan_invalid');
     throw new BillingEmailDeliveryError('billing_email_plan_invalid');
   }
+  const planCode: 'teacher' | 'teacher_pro' = subscription.plan_code;
 
   const { data: profile, error: profileError } = await admin
     .from('profiles')
@@ -179,9 +180,9 @@ export async function deliverBillingLifecycleEmail(
   const rendered = renderBillingLifecycleEmail({
     notification,
     locale,
-    planCode: subscription.plan_code,
+    planCode,
     currentPeriodEnd: subscription.current_period_end ?? sync.currentPeriodEnd,
-    allowance: INDIVIDUAL_PLAN_ALLOWANCES[subscription.plan_code],
+    allowance: INDIVIDUAL_PLAN_ALLOWANCES[planCode],
   });
 
   let resendEmailId: string;
