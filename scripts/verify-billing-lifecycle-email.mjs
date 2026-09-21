@@ -140,6 +140,7 @@ const cs = renderBillingLifecycleEmail({
   locale: 'cs',
   planCode: 'teacher',
   currentPeriodEnd: '2026-10-19T12:00:00.000Z',
+  allowance: INDIVIDUAL_PLAN_ALLOWANCES.teacher,
 });
 assert(cs.subject.includes('Teacher je aktivní'), 'Czech activation subject must be localized');
 assert(cs.html.includes('#5b57e8'), 'email HTML must use the Syllonaut accent');
@@ -155,6 +156,7 @@ const csPro = renderBillingLifecycleEmail({
   locale: 'cs',
   planCode: 'teacher_pro',
   currentPeriodEnd: '2026-10-19T12:00:00.000Z',
+  allowance: INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro,
 });
 assert(
   csPro.text.includes(`${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} nových AI lekcí a ${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav`),
@@ -166,6 +168,7 @@ const en = renderBillingLifecycleEmail({
   locale: 'en',
   planCode: 'teacher_pro',
   currentPeriodEnd: '2026-10-19T12:00:00.000Z',
+  allowance: INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro,
 });
 assert(en.subject.includes('cancellation is scheduled'), 'English cancellation subject must be localized');
 assert(en.text.includes('Teacher Pro'), 'plan name must be included');
@@ -186,7 +189,7 @@ assert(!emailSource.includes('NEXT_PUBLIC_RESEND'), 'Resend secret must never be
 assert(emailSource.includes('Idempotency-Key'), 'Resend sends must use an idempotency key');
 assert(emailSource.includes('billing_email_deliveries'), 'delivery ledger must guard retries');
 assert(!emailSource.includes('marketing_email_consent'), 'transactional billing email must not depend on marketing consent');
-assert(emailCoreSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'activation email must read AI allowances from the shared catalog');
+assert(emailSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'billing delivery must feed the shared AI allowance into the activation email');
 assert(pricingSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'Pricing must read individual AI allowances from the shared catalog');
 assert(!emailCoreSource.includes('60 new AI lessons and 250 AI edits'), 'stale Teacher Pro activation allowance must not return');
 assert(!emailCoreSource.includes('25 new AI lessons and 100 AI edits'), 'stale Teacher activation allowance must not return');
