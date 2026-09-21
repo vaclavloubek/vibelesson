@@ -1,8 +1,17 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.74** hardenuje registrační souhlas s Obchodními podmínkami: přijetí aktivní verze se při vzniku účtu zrcadlí do privátní append-only auditní tabulky se serverovým časem, bez přímých identifikátorů a bez klientského přístupu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.75** opravuje viewportový scroll levého authoring panelu: na desktopu se jeho vlastní scroll nově řídí skutečně dostupnou výškou od aktuální horní hrany panelu po spodní okraj viewportu, takže poslední ovládací prvky zůstávají dosažitelné bez rolování celé stránky. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Viewport-safe scroll levého authoring panelu 0.9.75 — 2026-09-21
+
+- desktopový levý panel s tvorbou a AI úpravami lekce dál používá vlastní scroll, ale jeho maximální výška se už nepočítá, jako by panel začínal u horní hrany okna;
+- dostupná výška se dynamicky odvozuje od skutečné pozice panelu ve viewportu a od spodního okraje aktuálního `visualViewport`, takže poslední tlačítko / editor lze dorolovat přímo v levém sloupci bez nutnosti posouvat celou stránku;
+- výpočet se obnovuje při scrollu stránky, resize a změnách `visualViewport`; změny přihlášení, billing banneru nebo recovery banneru znovu přepočítají výšku panelu;
+- na šířkách do 900 px zůstává záměrně standardní stránkové rolování bez vnořeného scrollu;
+- regresní kontrakt: **scripts/verify-lesson-workspace-scroll.mjs**;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Serverový audit registračního souhlasu 0.9.74 — 2026-09-21
 
