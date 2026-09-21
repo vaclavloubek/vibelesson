@@ -76,6 +76,7 @@ const allowanceSource = read('lib/ai-grading-allowances.ts');
 const pricingSource = read('components/PricingPage.tsx');
 const accountMenuSource = read('components/PublicHeaderAccountMenu.tsx');
 const emailCoreSource = read('lib/billing-email-core.ts');
+const subscriptionSource = read('components/SubscriptionManagement.tsx');
 
 for (const [needle, label] of [
   ['teacher_pro: 60', 'shared Teacher Pro grading allowance'],
@@ -90,6 +91,7 @@ requireText(pricingSource, 'AI_GRADING_ALLOWANCES.school', 'Pricing uses shared 
 requireText(pricingSource, 'AI_GRADING_ALLOWANCES.campus', 'Pricing uses shared Campus grading allowance');
 requireText(accountMenuSource, 'grading_remaining', 'account menu displays remaining grading quota');
 requireText(emailCoreSource, 'allowance.aiGradings', 'activation email confirms grading allowance');
+requireText(subscriptionSource, "ui('AI hodnocení', 'AI grading')", 'Subscription UI displays grading allowance');
 
 const joinLimits = migrations.find(({ content }) => content.includes('create or replace function public.enforce_participant_join_limits()'));
 if (!joinLimits) throw new Error('Missing participant join-limit migration.');
