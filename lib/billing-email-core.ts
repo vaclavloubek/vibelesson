@@ -1,5 +1,3 @@
-import { INDIVIDUAL_PLAN_ALLOWANCES } from '@/lib/individual-billing-catalog';
-
 export type BillingLifecycleNotification =
   | 'subscription_activated'
   | 'cancellation_scheduled'
@@ -23,6 +21,10 @@ type RenderInput = {
   locale: UiLocale;
   planCode: IndividualPlanCode;
   currentPeriodEnd: string;
+  allowance: {
+    lessonGenerations: number;
+    aiEdits: number;
+  };
 };
 
 export function billingLifecycleNotification(
@@ -139,7 +141,7 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
   const baseUrl = `https://www.syllonaut.com/${input.locale}`;
   const pricingUrl = `${baseUrl}/pricing`;
   const subscriptionUrl = `${baseUrl}/subscription`;
-  const allowance = INDIVIDUAL_PLAN_ALLOWANCES[input.planCode];
+  const allowance = input.allowance;
 
   if (input.locale === 'cs') {
     if (input.notification === 'subscription_activated') {
