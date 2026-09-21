@@ -44,6 +44,8 @@ if (/budoucích školních účtů|future school accounts/.test(gdpr)) throw new
 requirePattern(dpa, /čl\. 28 GDPR|Article 28 GDPR/, 'DPA must expressly implement Article 28 GDPR.');
 requirePattern(dpa, /Supabase[\s\S]*Vercel[\s\S]*Cloudflare[\s\S]*Resend[\s\S]*OpenAI[\s\S]*Amazon Web Services[\s\S]*Microsoft/, 'DPA sub-processor list is incomplete.');
 requirePattern(dpa, /15 dnů|15 days/, 'DPA must define advance notice for planned sub-processor changes.');
+requirePattern(dpa, /Supabase, Inc\.[\s\S]*privacy@supabase\.io[\s\S]*Vercel Inc\.[\s\S]*privacy@vercel\.com[\s\S]*Cloudflare, Inc\.[\s\S]*privacyquestions@cloudflare\.com[\s\S]*Plus Five Five, Inc\.[\s\S]*privacy@resend\.com/, 'DPA must keep key sub-processor identities and privacy contacts readily available.');
+requirePattern(dpa, /OpenAI Ireland Limited[\s\S]*Amazon Web Services EMEA SARL[\s\S]*Microsoft Ireland Operations Limited/, 'DPA must identify the current AI processing chain entities.');
 requirePattern(footer, /COOKIE_SETTINGS_EVENT/, 'cookie settings action is missing from the shared footer.');
 requirePattern(gdpr, /Ochrana osobních údajů \(GDPR\)/, 'GDPR page content is missing.');
 requirePattern(gdpr, /Google Analytics 4 se načte pouze po aktivním/, 'GA4 opt-in explanation is missing.');

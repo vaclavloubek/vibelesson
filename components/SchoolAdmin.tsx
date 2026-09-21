@@ -1343,7 +1343,7 @@ export default function SchoolAdmin({
                     required
                     style={{ marginTop: 3, width: 'auto' }}
                   />
-                  <span>{ui('Souhlasím jménem školy / organizace s ', 'On behalf of the school / organisation, I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a se ', ' and the ')}<Link href={`/${locale}/dpa`} target="_blank">{ui('zpracovatelskou smlouvou (DPA)', 'Data Processing Addendum (DPA)')}</Link>{ui(' a potvrzuji objednávku zvoleného tarifu a fakturačního období i své oprávnění tuto objednávku učinit.', ' and confirm the order for the selected plan and billing period and my authority to place this order.')}</span>
+                  <span>{ui('Jménem školy / organizace přijímám ', 'On behalf of the school / organisation, I accept the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodní podmínky', 'Terms of Service')}</Link>{ui(' a ', ' and the ')}<Link href={`/${locale}/dpa`} target="_blank">{ui('zpracovatelskou smlouvu (DPA)', 'Data Processing Addendum (DPA)')}</Link>{ui(' a potvrzuji objednávku zvoleného tarifu a fakturačního období i své oprávnění tuto objednávku učinit.', ' and confirm the order for the selected plan and billing period and my authority to place this order.')}</span>
                 </label>
               </div>
 

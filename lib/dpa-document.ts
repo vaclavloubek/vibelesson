@@ -52,7 +52,7 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
         title: '3. Pokyny Správce a odpovědnost Správce',
         paragraphs: [
           'Zpracovatel zpracovává osobní údaje pouze na doložené pokyny Správce, ledaže zpracování vyžaduje právo Evropské unie nebo členského státu. Za doložené pokyny se považuje zejména konfigurace služby, akce oprávněných uživatelů Správce a písemné pokyny zaslané na vaclav@syllonaut.com.',
-          'Pokud má Zpracovatel za to, že pokyn porušuje GDPR nebo jiný použitelný předpis o ochraně osobních údajů, bez zbytečného odkladu na to Správce upozorní a může provedení dotčeného pokynu pozastavit do vyjasnění.',
+          'Pokud má Zpracovatel za to, že pokyn porušuje GDPR nebo jiný použitelný předpis o ochraně osobních údajů, neprodleně na to Správce upozorní a může provedení dotčeného pokynu pozastavit do vyjasnění.',
           'Správce odpovídá zejména za zákonnost svých pokynů, právní titul zpracování, informační povinnosti vůči subjektům údajů, minimalizaci dat a správu oprávnění svých uživatelů.',
         ],
       },
@@ -79,7 +79,7 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
         title: '6. Pomoc Správci',
         paragraphs: [
           'S ohledem na povahu zpracování bude Zpracovatel Správci přiměřeně nápomocen při vyřizování žádostí subjektů údajů, zabezpečení zpracování, posouzení vlivu na ochranu osobních údajů, předchozí konzultaci s dozorovým úřadem a při plnění oznamovacích povinností při porušení zabezpečení.',
-          'Žádosti o tuto součinnost lze zaslat na vaclav@syllonaut.com. Zpracovatel poskytne informace a technickou součinnost v rozsahu, který má k dispozici a který odpovídá povaze poskytované služby.',
+          'Žádosti o tuto součinnost lze zaslat na vaclav@syllonaut.com. Zpracovatel poskytne informace a technickou součinnost v rozsahu, který má k dispozici a který odpovídá povaze poskytované služby. Pokud Zpracovatel obdrží přímo žádost subjektu údajů týkající se dat Správce, předá ji Správci bez zbytečného odkladu a bez jeho pokynu nebude sám rozhodovat o jejím věcném vyřízení, nevyžaduje-li právní předpis jinak.',
         ],
       },
       {
@@ -97,13 +97,13 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
         table: {
           headers: ['Subprocesor', 'Účel', 'Typicky dotčená data'],
           rows: [
-            ['Supabase', 'Autentizace a databázová infrastruktura', 'účty organizace, lekce, live session data, odpovědi a výsledky'],
-            ['Vercel', 'Hosting aplikace, serverový runtime a AI Gateway', 'data požadavků potřebná pro provoz a příslušné AI operace'],
-            ['Cloudflare', 'Turnstile a live-resilience/control-plane infrastruktura', 'technické a relační údaje potřebné pro ochranu a live provoz'],
-            ['Resend', 'Transakční e-maily a organizační pozvánky', 'e-mailové adresy příjemců a obsah provozních zpráv'],
-            ['OpenAI', 'Vybrané AI inference operace', 'obsah předaný do konkrétní AI operace, pokud je tato cesta použita'],
-            ['Amazon Web Services (Amazon Bedrock)', 'Vybrané AI inference cesty pro práci s podklady', 'obsah předaný do konkrétní AI operace, pokud je tato cesta použita'],
-            ['Microsoft (Azure AI)', 'Vybrané AI inference cesty pro práci s podklady', 'obsah předaný do konkrétní AI operace, pokud je tato cesta použita'],
+            ['Supabase, Inc. · 970 Toa Payoh North #07-04, Singapore 318992 · privacy@supabase.io', 'Autentizace a databázová infrastruktura', 'účty organizace, lekce, live session data, odpovědi a výsledky'],
+            ['Vercel Inc. · 440 N Barranca Ave #4133, Covina, CA 91723, USA · privacy@vercel.com', 'Hosting aplikace, serverový runtime a AI Gateway', 'data požadavků potřebná pro provoz a příslušné AI operace'],
+            ['Cloudflare, Inc. · 101 Townsend St., San Francisco, CA 94107, USA · privacyquestions@cloudflare.com', 'Turnstile a live-resilience/control-plane infrastruktura', 'technické a relační údaje potřebné pro ochranu a live provoz'],
+            ['Plus Five Five, Inc. (Resend) · 2261 Market Street #5039, San Francisco, CA 94114, USA · privacy@resend.com', 'Transakční e-maily a organizační pozvánky', 'e-mailové adresy příjemců a obsah provozních zpráv'],
+            ['OpenAI Ireland Limited · 1st Floor, The Liffey Trust Centre, 117-126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland · privacy@openai.com', 'Vybrané AI inference operace', 'obsah předaný do konkrétní AI operace, pokud je tato cesta použita'],
+            ['Amazon Web Services EMEA SARL · 38 Avenue John F. Kennedy, L-1855 Luxembourg · aws-EU-privacy@amazon.com', 'Amazon Bedrock — vybrané AI inference cesty pro práci s podklady', 'obsah předaný do konkrétní AI operace, pokud je tato cesta použita'],
+            ['Microsoft Ireland Operations Limited · One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, D18 P521, Ireland · Attn: Data Protection Officer', 'Azure AI — vybrané AI inference cesty pro práci s podklady', 'obsah předaný do konkrétní AI operace, pokud je tato cesta použita'],
           ],
         },
       },
@@ -116,7 +116,7 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
       {
         title: '10. Výmaz nebo vrácení dat',
         paragraphs: [
-          'Po skončení poskytování služeb souvisejících se zpracováním osobních údajů Zpracovatel podle volby Správce osobní údaje zpracovávané jménem Správce vymaže nebo je v přiměřeném běžně použitelném elektronickém formátu vrátí a následně vymaže existující kopie, ledaže další uchování vyžaduje právní předpis.',
+          'Po skončení poskytování služeb souvisejících se zpracováním osobních údajů Zpracovatel podle volby Správce osobní údaje zpracovávané jménem Správce vymaže nebo je v přiměřeném běžně použitelném elektronickém formátu vrátí a následně vymaže existující kopie, ledaže další uchování vyžaduje právní předpis. Volbu výmazu nebo vrácení může Správce sdělit na vaclav@syllonaut.com před ukončením služby nebo bez zbytečného odkladu po něm.',
           'Výmaz z technických záloh může probíhat v rámci běžného retenčního cyklu záloh; do té doby nesmějí být taková data znovu použita pro běžné aktivní zpracování. Zákonné záznamy, které Syllonaut uchovává jako samostatný správce, tím nejsou dotčeny.',
         ],
       },
@@ -166,7 +166,7 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
         title: '3. Controller instructions and responsibilities',
         paragraphs: [
           'The Processor processes personal data only on documented Controller instructions unless Union or Member State law requires otherwise. Documented instructions include service configuration, actions by authorised Controller users and written instructions sent to vaclav@syllonaut.com.',
-          'If the Processor believes an instruction infringes the GDPR or other applicable data-protection law, it will inform the Controller without undue delay and may suspend the affected instruction until the issue is clarified.',
+          'If the Processor believes an instruction infringes the GDPR or other applicable data-protection law, it will inform the Controller immediately and may suspend the affected instruction until the issue is clarified.',
           'The Controller remains responsible for the lawfulness of its instructions, the legal basis for processing, transparency obligations, data minimisation and management of its users’ permissions.',
         ],
       },
@@ -193,7 +193,7 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
         title: '6. Assistance to the Controller',
         paragraphs: [
           'Taking account of the nature of processing, the Processor will reasonably assist the Controller with data-subject requests, security obligations, data-protection impact assessments, prior consultation and personal-data-breach obligations.',
-          'Requests for such assistance may be sent to vaclav@syllonaut.com. The Processor will provide information and technical assistance available to it and appropriate to the nature of the service.',
+          'Requests for such assistance may be sent to vaclav@syllonaut.com. The Processor will provide information and technical assistance available to it and appropriate to the nature of the service. If the Processor receives a data-subject request directly concerning Controller data, it will forward the request to the Controller without undue delay and will not independently decide its substantive outcome without Controller instructions unless applicable law requires otherwise.',
         ],
       },
       {
@@ -211,13 +211,13 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
         table: {
           headers: ['Sub-processor', 'Purpose', 'Typical affected data'],
           rows: [
-            ['Supabase', 'Authentication and database infrastructure', 'organisation accounts, lessons, live-session data, responses and results'],
-            ['Vercel', 'Application hosting, server runtime and AI Gateway', 'request data required for operation and the relevant AI operation'],
-            ['Cloudflare', 'Turnstile and live-resilience/control-plane infrastructure', 'technical and relational data required for protection and live operation'],
-            ['Resend', 'Transactional email and organisation invitations', 'recipient email addresses and operational message content'],
-            ['OpenAI', 'Selected AI inference operations', 'content supplied to the specific AI operation when that route is used'],
-            ['Amazon Web Services (Amazon Bedrock)', 'Selected AI inference paths for source-material workflows', 'content supplied to the specific AI operation when that route is used'],
-            ['Microsoft (Azure AI)', 'Selected AI inference paths for source-material workflows', 'content supplied to the specific AI operation when that route is used'],
+            ['Supabase, Inc. · 970 Toa Payoh North #07-04, Singapore 318992 · privacy@supabase.io', 'Authentication and database infrastructure', 'organisation accounts, lessons, live-session data, responses and results'],
+            ['Vercel Inc. · 440 N Barranca Ave #4133, Covina, CA 91723, USA · privacy@vercel.com', 'Application hosting, server runtime and AI Gateway', 'request data required for operation and the relevant AI operation'],
+            ['Cloudflare, Inc. · 101 Townsend St., San Francisco, CA 94107, USA · privacyquestions@cloudflare.com', 'Turnstile and live-resilience/control-plane infrastructure', 'technical and relational data required for protection and live operation'],
+            ['Plus Five Five, Inc. (Resend) · 2261 Market Street #5039, San Francisco, CA 94114, USA · privacy@resend.com', 'Transactional email and organisation invitations', 'recipient email addresses and operational message content'],
+            ['OpenAI Ireland Limited · 1st Floor, The Liffey Trust Centre, 117-126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland · privacy@openai.com', 'Selected AI inference operations', 'content supplied to the specific AI operation when that route is used'],
+            ['Amazon Web Services EMEA SARL · 38 Avenue John F. Kennedy, L-1855 Luxembourg · aws-EU-privacy@amazon.com', 'Amazon Bedrock — selected AI inference paths for source-material workflows', 'content supplied to the specific AI operation when that route is used'],
+            ['Microsoft Ireland Operations Limited · One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, D18 P521, Ireland · Attn: Data Protection Officer', 'Azure AI — selected AI inference paths for source-material workflows', 'content supplied to the specific AI operation when that route is used'],
           ],
         },
       },
@@ -230,7 +230,7 @@ export const DPA_DOCUMENT: Record<DpaLocale, DpaDocument> = {
       {
         title: '10. Deletion or return of data',
         paragraphs: [
-          'After the end of services involving personal-data processing, the Processor will, at the Controller’s choice, delete personal data processed on its behalf or return it in a reasonable commonly used electronic format and then delete existing copies, unless applicable law requires further retention.',
+          'After the end of services involving personal-data processing, the Processor will, at the Controller’s choice, delete personal data processed on its behalf or return it in a reasonable commonly used electronic format and then delete existing copies, unless applicable law requires further retention. The Controller may communicate its deletion or return choice to vaclav@syllonaut.com before termination or without undue delay afterwards.',
           'Deletion from technical backups may follow the normal backup-retention cycle; until then the data must not be restored for ordinary active processing. Statutory records that Syllonaut retains as an independent controller are not affected.',
         ],
       },
