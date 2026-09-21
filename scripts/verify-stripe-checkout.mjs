@@ -27,6 +27,7 @@ const params = buildStripeCheckoutParams({
   billingPeriod: 'monthly',
   termsVersion: '2026-09-21-v1',
   immediatePerformanceRequested: true,
+  contractSnapshotId: '223e4567-e89b-42d3-a456-426614174001',
 });
 assert.equal(params.get('mode'), 'subscription');
 assert.equal(params.get('line_items[0][price]'), 'price_test123');
@@ -38,6 +39,8 @@ assert.equal(params.get('subscription_data[metadata][syllonaut_user_id]'), '123e
 assert.equal(params.get('subscription_data[metadata][syllonaut_billing_country]'), 'DE');
 assert.equal(params.get('metadata[syllonaut_terms_version]'), '2026-09-21-v1');
 assert.equal(params.get('metadata[syllonaut_immediate_service]'), 'true');
+assert.equal(params.get('metadata[syllonaut_contract_snapshot_id]'), '223e4567-e89b-42d3-a456-426614174001');
+assert.equal(params.get('subscription_data[metadata][syllonaut_contract_snapshot_id]'), '223e4567-e89b-42d3-a456-426614174001');
 assert.match(params.get('integration_identifier') ?? '', /^syllonaut_web_[a-z]{8}$/);
 assert.match(params.get('success_url') ?? '', /billing_env=sandbox/);
 assert.ok(!params.has('automatic_tax[enabled]'));
@@ -55,6 +58,7 @@ const firstPurchaseParams = buildStripeCheckoutParams({
   billingPeriod: 'monthly',
   termsVersion: '2026-09-21-v1',
   immediatePerformanceRequested: true,
+  contractSnapshotId: '223e4567-e89b-42d3-a456-426614174001',
 });
 assert.equal(firstPurchaseParams.get('customer_email'), 'teacher@example.com');
 assert.equal(firstPurchaseParams.has('customer'), false);
@@ -81,6 +85,7 @@ function checkoutListResponse(country, {
       metadata: {
         syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000',
         syllonaut_billing_country: declaredCountry,
+        syllonaut_contract_snapshot_id: '223e4567-e89b-42d3-a456-426614174001',
       },
     }],
   }), { status: 200, headers: { 'content-type': 'application/json' } });
@@ -96,11 +101,13 @@ const verifiedSameRoute = await verifyStripeCheckoutBillingCountry({
   declaredBillingCountry: 'DE',
   expectedCurrency: 'eur',
   expectedManagedPayments: true,
+  expectedContractSnapshotId: '223e4567-e89b-42d3-a456-426614174001',
 }, billingRouteForCountry, async (url) => {
   successfulLookupUrl = String(url);
   return checkoutListResponse('FR');
 });
 assert.equal(verifiedSameRoute.billingCountry, 'FR');
+assert.equal(verifiedSameRoute.checkoutSessionId, 'cs_live_regression001');
 assert.match(successfulLookupUrl, /customer=cus_regression001/);
 assert.doesNotMatch(successfulLookupUrl, /subscription=/);
 
@@ -142,6 +149,7 @@ const verifiedAfterRace = await verifyStripeCheckoutBillingCountry({
   declaredBillingCountry: 'DE',
   expectedCurrency: 'eur',
   expectedManagedPayments: true,
+  expectedContractSnapshotId: '223e4567-e89b-42d3-a456-426614174001',
 }, billingRouteForCountry, async () => {
   attempts += 1;
   if (attempts === 1) {
