@@ -1,9 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { buildIndividualContractSnapshot } from '@/lib/individual-contract-snapshot';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isSupportedCountryCode } from '@/lib/countries';
+import { localeFromCountry, normalizeUiLocale } from '@/lib/i18n';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user || authData.user.id !== userId || !authData.user.email) return jsonError(401, 'authentication_required');
 
-  const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+  const { data: profile, error: profileError } = await supabase.from('profiles').select('role, ui_locale').eq('id', userId).maybeSingle();
   if (profileError) {
     console.error('billing checkout profile lookup failed', { code: profileError.code, livemode });
     return jsonError(500, 'profile_lookup_failed');
@@ -71,6 +74,46 @@ export async function POST(request: Request) {
     return jsonError(500, 'billing_price_lookup_failed');
   }
   if (!priceResult.data?.external_price_id) return jsonError(409, 'billing_price_not_configured');
+
+  const snapshotId = randomUUID();
+  const snapshotLocale = normalizeUiLocale(profile?.ui_locale)
+    ?? localeFromCountry(input.country)
+    ?? 'en';
+  const snapshot = buildIndividualContractSnapshot({
+    snapshotId,
+    locale: snapshotLocale,
+    planCode,
+    billingPeriod: input.billing,
+    currency: route.currency,
+    immediatePerformanceRequested: true,
+  });
+
+  const { data: snapshotRows, error: snapshotError } = await admin.rpc('create_individual_contract_snapshot', {
+    p_snapshot_id: snapshotId,
+    p_user_id: userId,
+    p_livemode: livemode,
+    p_plan_code: planCode,
+    p_billing_period: input.billing,
+    p_currency: route.currency,
+    p_amount_minor: snapshot.amountMinor,
+    p_terms_version: snapshot.termsVersion,
+    p_terms_acceptance_key: snapshot.termsAcceptanceKey,
+    p_locale: snapshotLocale,
+    p_immediate_performance_requested: true,
+    p_contract_html: snapshot.contractHtml,
+    p_withdrawal_form_html: snapshot.withdrawalHtml,
+    p_content_sha256: snapshot.contentSha256,
+  });
+  if (snapshotError || !Array.isArray(snapshotRows) || !snapshotRows[0]?.snapshot_id) {
+    console.error('billing contract snapshot creation failed', {
+      code: snapshotError?.code ?? 'missing_snapshot_row',
+      userId,
+      planCode,
+      billingPeriod: input.billing,
+      livemode,
+    });
+    return jsonError(500, 'contract_snapshot_creation_failed');
+  }
   if (customerResult.error) {
     console.error('billing checkout customer lookup failed', { code: customerResult.error.code, livemode });
     return jsonError(500, 'billing_customer_lookup_failed');
@@ -123,7 +166,26 @@ export async function POST(request: Request) {
       billingPeriod: input.billing,
       termsVersion: input.termsVersion,
       immediatePerformanceRequested: input.immediatePerformanceRequested,
+      contractSnapshotId: snapshotId,
     });
+
+    const { error: linkError } = await admin.rpc('link_individual_contract_snapshot_checkout', {
+      p_snapshot_id: snapshotId,
+      p_user_id: userId,
+      p_livemode: livemode,
+      p_checkout_session_id: session.id,
+    });
+    if (linkError) {
+      console.error('billing contract snapshot checkout link failed', {
+        code: linkError.code,
+        userId,
+        snapshotId,
+        checkoutSessionId: session.id,
+        livemode,
+      });
+      return jsonError(500, 'contract_snapshot_link_failed');
+    }
+
     return NextResponse.json({ url: session.url, environment: input.environment, currency: route.currency, managedPayments: route.managedPayments }, {
       status: 200, headers: { 'Cache-Control': 'no-store' },
     });
