@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import SchoolInviteClient from '@/components/SchoolInviteClient';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,13 @@ export default async function SchoolInvitePage({
   const { data } = await supabase.auth.getClaims();
   const userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
   const email = typeof data?.claims?.email === 'string' ? data.claims.email : null;
+
+  if (userId && safeToken) {
+    await requireCurrentTermsForPage(
+      userId,
+      '/school/invite?token=' + encodeURIComponent(safeToken),
+    );
+  }
 
   return (
     <SchoolInviteClient

@@ -5,6 +5,7 @@ import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/orga
 import { updateOrganizationSubscriptionCancellation } from '@/lib/organization-stripe';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 
 const InputSchema = z.object({
   cancelAtPeriodEnd: z.boolean(),
@@ -19,6 +20,17 @@ export async function POST(request: Request) {
     input = InputSchema.parse(await request.json());
   } catch {
     return NextResponse.json({ error: 'invalid_cancellation_request' }, { status: 400 });
+  }
+
+  if (!input.cancelAtPeriodEnd) {
+    try {
+      if (!(await hasCurrentTermsAcceptance(userId))) {
+        return NextResponse.json({ error: 'terms_reconsent_required' }, { status: 428 });
+      }
+    } catch (error) {
+      console.error('organization cancellation restore Terms lookup failed closed', error);
+      return NextResponse.json({ error: 'terms_reconsent_required' }, { status: 428 });
+    }
   }
 
   const organization = await getCurrentOrganizationForUser(userId);

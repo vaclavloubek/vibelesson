@@ -293,7 +293,7 @@ for (const needle of [
 const schoolAdminAuthBoundary = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
 for (const needle of [
   'authBoundaryTriggeredRef',
-  "fetch('/api/auth/identity'",
+  "schoolFetch('/api/auth/identity'",
   "window.addEventListener('focus'",
   "window.addEventListener('pageshow'",
   "document.addEventListener('visibilitychange'",

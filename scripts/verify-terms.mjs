@@ -15,6 +15,26 @@ const termsAuditMigration = read('supabase/migrations/20260921033344_add_terms_a
 const contractSnapshot = read('lib/individual-contract-snapshot.ts');
 const contractSnapshotMigration = read('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql');
 const contractLinkMigration = read('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql');
+const reconsentMigration = read('supabase/migrations/20260921063215_add_terms_reconsent_rpcs.sql');
+const serverAuth = read('lib/auth.ts');
+const termsAcceptance = read('lib/terms-acceptance.ts');
+const termsGate = read('lib/terms-gate.ts');
+const termsPageGate = read('lib/terms-page-gate.ts');
+const reconsentApi = read('app/api/legal/terms/reconsent/route.ts');
+const reconsentPage = read('app/terms/accept/page.tsx');
+const reconsentForm = read('components/TermsReconsentForm.tsx');
+const newLessonPage = read('app/new/page.tsx');
+const lessonsPage = read('app/lessons/page.tsx');
+const lessonPage = read('app/lessons/[id]/page.tsx');
+const worksheetPage = read('app/lessons/[id]/worksheet/page.tsx');
+const teacherSessionPage = read('app/sessions/[id]/page.tsx');
+const presenterPage = read('app/sessions/[id]/presenter/page.tsx');
+const schoolPage = read('app/school/page.tsx');
+const schoolInvitePage = read('app/school/invite/page.tsx');
+const sharedLessonPage = read('app/s/[token]/page.tsx');
+const sharedImportButton = read('components/ImportSharedLessonButton.tsx');
+const organizationSubscription = read('app/api/organizations/subscription/route.ts');
+const organizationCancellation = read('app/api/organizations/cancellation/route.ts');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -53,4 +73,57 @@ if (!contractLinkMigration.includes('get_individual_contract_snapshot_for_delive
 if (!contractLinkMigration.includes('grant execute on function public.get_individual_contract_snapshot_for_delivery') || !contractLinkMigration.includes('to service_role')) fail('contract evidence delivery lookup must remain service-role only');
 if (!gdpr.includes('Potvrzení placené individuální smlouvy:') || !gdpr.includes('Paid individual contract evidence:') || !gdpr.includes('Neměnný snapshot placené individuální smlouvy') || !gdpr.includes('immutable paid individual contract snapshot')) fail('privacy notice must disclose immutable paid-contract evidence and retention');
 if (!gdpr.includes('Souhlas s obchodními podmínkami:') || !gdpr.includes('Terms acceptance:') || !gdpr.includes('právních nároků') || !gdpr.includes('legal claims')) fail('privacy notice must disclose Terms acceptance audit and retention');
+
+for (const functionName of [
+  'has_current_terms_acceptance_for_service',
+  'record_current_terms_reconsent_for_service',
+]) {
+  if (!reconsentMigration.includes(`function public.${functionName}`)) fail('Terms re-consent RPC missing: ' + functionName);
+  if (!reconsentMigration.includes(`revoke execute on function public.${functionName}(uuid) from public, anon, authenticated`)) fail('Terms re-consent RPC must revoke client execution: ' + functionName);
+  if (!reconsentMigration.includes(`grant execute on function public.${functionName}(uuid) to service_role`)) fail('Terms re-consent RPC must be service-role only: ' + functionName);
+}
+if (!reconsentMigration.includes("acceptance_key = '2026-09-21-v1'") || !reconsentMigration.includes("'1.0'") || !reconsentMigration.includes("'reconsent'")) fail('Terms re-consent DB constants must match active Terms');
+if (!reconsentMigration.includes("and tae.source = 'reconsent'")) fail('re-consent API must return the re-consent event timestamp');
+if (!termsAcceptance.includes("admin.rpc('has_current_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('record_current_terms_reconsent_for_service'")) fail('server Terms helper must use service-only RPCs');
+if (!reconsentApi.includes('termsAccepted: z.literal(true)') || !reconsentApi.includes('termsVersion: z.literal(TERMS_ACCEPTANCE_KEY)')) fail('re-consent API must fail closed on explicit current Terms acceptance');
+if (!reconsentApi.includes('recordCurrentTermsReconsent(userId)')) fail('re-consent API must persist server audit');
+if (!reconsentForm.includes('useState(false)') || !reconsentForm.includes('TERMS_ACCEPTANCE_KEY') || !reconsentForm.includes('/api/legal/terms/reconsent')) fail('re-consent form must be explicit, versioned and server-recorded');
+if (!reconsentPage.includes('if (alreadyAccepted) redirect(returnTo)')) fail('already accepted users must leave the re-consent page without re-accepting');
+if (!termsPageGate.includes('hasCurrentTermsAcceptance') || !termsPageGate.includes('termsReconsentPath(returnTo)')) fail('server pages must fail closed to the re-consent route');
+
+if (!proxy.includes('forwardedHeaders.delete(CURRENT_TERMS_REQUIRED_HEADER)') || !proxy.includes('requestRequiresCurrentTerms(pathname, request.method)')) fail('proxy must overwrite the internal Terms gate marker from trusted path/method data');
+if (!serverAuth.includes("requestHeaders.get(CURRENT_TERMS_REQUIRED_HEADER) === '1'") || !serverAuth.includes('termsAcceptanceRequired = !(await hasCurrentTermsAcceptance(authenticatedUserId))')) fail('shared server auth must enforce the proxy-marked Terms gate');
+if (!serverAuth.includes('userId: termsAcceptanceRequired ? null : authenticatedUserId')) fail('protected product mutations must fail closed when current Terms are missing');
+
+for (const [name, source] of [
+  ['new lesson', newLessonPage],
+  ['lesson library', lessonsPage],
+  ['lesson editor', lessonPage],
+  ['worksheet', worksheetPage],
+  ['teacher session', teacherSessionPage],
+  ['presenter', presenterPage],
+]) {
+  if (!source.includes('requireCurrentTermsForPage')) fail(name + ' page must require current Terms before working use');
+}
+if (!newLessonPage.includes('if (userId)')) fail('guest /new flow must remain available; Terms page gate is only for signed-in users');
+if (!schoolPage.includes('termsAcceptanceRequired') || !school.includes("termsReconsentPath('/school')")) fail('school admin must expose and handle Terms re-consent state');
+if (!school.includes('(response.status === 401 || response.status === 428)')) fail('school admin must redirect protected actions to re-consent without blocking billing reads');
+if (!schoolInvitePage.includes('requireCurrentTermsForPage')) fail('signed-in school invitation acceptance must require current Terms');
+if (!sharedLessonPage.includes('termsAcceptanceRequired') || !sharedImportButton.includes('termsReconsentPath')) fail('shared lesson preview must stay readable while import routes through re-consent');
+
+const organizationExemptBlock = termsGate.match(/const ORGANIZATION_BILLING_EXEMPT_PREFIXES = \[([\s\S]*?)\];/)?.[1] ?? '';
+for (const allowedPath of [
+  '/api/organizations/cancellation',
+  '/api/organizations/subscription',
+  '/api/organizations/payment',
+  '/api/organizations/invoices/',
+]) {
+  if (!organizationExemptBlock.includes(allowedPath)) fail('billing/cancellation exemption missing: ' + allowedPath);
+}
+if (organizationExemptBlock.includes('/api/organizations/renewal') || organizationExemptBlock.includes('/api/organizations/renew')) fail('new organization renewal must not bypass current Terms');
+if (!termsGate.includes("pathname === '/api/billing/stripe/subscription/change'")) fail('individual plan changes must require current Terms');
+for (const source of [organizationSubscription, organizationCancellation]) {
+  if (!source.includes('if (!input.cancelAtPeriodEnd)') || !source.includes("terms_reconsent_required") || !source.includes('{ status: 428 }')) fail('turning organization renewal back on must require current Terms while cancellation remains available');
+}
+
 console.log('Terms acceptance contract OK');

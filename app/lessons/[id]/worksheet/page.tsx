@@ -10,6 +10,7 @@ import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockI
 import WorksheetPrintToolbar from './WorksheetPrintToolbar';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { requireTrustedDeviceForPaidIndividual } from '@/lib/trusted-device-access';
+import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 import styles from './WorksheetPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,7 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
   if (!userId) redirect('/');
+  await requireCurrentTermsForPage(userId, `/lessons/${id}/worksheet`);
   const deviceGate = await requireTrustedDeviceForPaidIndividual(userId);
   if (!deviceGate.allowed) redirect(`/${locale}/subscription`);
 

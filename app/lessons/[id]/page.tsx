@@ -5,6 +5,7 @@ import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createClient } from '@/lib/supabase/server';
+import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function LessonPage({ params }: Props) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
   if (!userId) redirect('/');
+  await requireCurrentTermsForPage(userId, `/lessons/${id}`);
 
   const { data: row, error } = await supabase
     .from('lessons')

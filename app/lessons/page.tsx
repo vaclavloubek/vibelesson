@@ -16,6 +16,7 @@ import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
 import { getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
+import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function LessonsPage({ searchParams }: Props) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
   if (!userId) redirect(`/${locale}`);
+  await requireCurrentTermsForPage(userId, '/lessons');
 
   const entitlement = await getLessonFolderEntitlement(supabase, userId);
   const reusableLessons = await getLessonReuseEntitlement(supabase);

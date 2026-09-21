@@ -10,6 +10,7 @@ import { readLiveResume } from '@/lib/live-resume';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { getEffectiveAiBillingPauseState, type EffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
+import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,6 +119,8 @@ export default async function TeacherSessionPage({ params }: Props) {
     const resumedUserId = resume?.userId ?? null;
     return teacherSurface(id, resumedUserId, await loadAiBillingPauseState(resumedUserId));
   }
+
+  await requireCurrentTermsForPage(userId, `/sessions/${id}`);
 
   let session: { id: string } | null = null;
   try {

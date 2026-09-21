@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/proxy';
+import { CURRENT_TERMS_REQUIRED_HEADER, requestRequiresCurrentTerms } from '@/lib/terms-gate';
 import {
   TRUSTED_DEVICE_COOKIE,
   TRUSTED_DEVICE_COOKIE_MAX_AGE,
@@ -96,6 +97,10 @@ export async function proxy(request: NextRequest) {
 
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set(LOCALE_REQUEST_HEADER, locale);
+  forwardedHeaders.delete(CURRENT_TERMS_REQUIRED_HEADER);
+  if (requestRequiresCurrentTerms(pathname, request.method)) {
+    forwardedHeaders.set(CURRENT_TERMS_REQUIRED_HEADER, '1');
+  }
   const response = await updateSession(request, forwardedHeaders);
 
   if (pathLocale && cookieLocale !== pathLocale) {

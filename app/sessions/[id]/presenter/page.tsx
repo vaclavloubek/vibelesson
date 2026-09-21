@@ -5,6 +5,7 @@ import PresenterMode from '@/components/PresenterMode';
 import { readLiveResume } from '@/lib/live-resume';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,8 @@ export default async function PresenterPage({ params }: Props) {
     });
     return <PresenterMode sessionId={id} userId={resume.userId} />;
   }
+
+  await requireCurrentTermsForPage(userId, `/sessions/${id}/presenter`);
 
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
