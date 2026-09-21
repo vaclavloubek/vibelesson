@@ -74,7 +74,7 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if ((pathname === '/pricing' || pathname === '/gdpr' || pathname === '/terms' || pathname === '/dpa') && request.method === 'GET') {
+  if ((pathname === '/pricing' || pathname === '/gdpr' || pathname === '/terms' || pathname === '/dpa' || pathname === '/withdrawal') && request.method === 'GET') {
     const target = request.nextUrl.clone();
     target.pathname = `/${locale}${pathname}`;
     const response = NextResponse.redirect(target);
