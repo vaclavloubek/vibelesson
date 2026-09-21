@@ -6,7 +6,7 @@ set -euo pipefail
 
 tables=(
   profiles lessons sessions participants responses teams team_responses
-  lesson_folders lesson_live_usage lesson_share_links subscriptions
+  lesson_folders lesson_live_usage lesson_shares subscriptions
   billing_email_deliveries organization_memberships school_organizations
 )
 
