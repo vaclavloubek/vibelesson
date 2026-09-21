@@ -11,7 +11,7 @@ import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { listStripePaidInvoicePayments } from '@/lib/stripe-invoice-payments';
 import { retrieveStripeChargeRefundState } from '@/lib/stripe-refunds';
-import { reconcileWithdrawalRefundEvent } from '@/lib/stripe-withdrawal';
+import { reconcileServiceChangeRefundEvent, reconcileWithdrawalRefundEvent } from '@/lib/stripe-withdrawal';
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeDisputeEvent,
@@ -596,7 +596,10 @@ export async function POST(request: Request) {
         return jsonError(500, 'refund_sync_failed');
       }
 
-      if (refundSync.livemode && secretKey) await reconcileWithdrawalRefundEvent(secretKey, event.data.object);
+      if (refundSync.livemode && secretKey) {
+        await reconcileWithdrawalRefundEvent(secretKey, event.data.object);
+        await reconcileServiceChangeRefundEvent(secretKey, event.data.object);
+      }
 
       return NextResponse.json({
         received: true,
