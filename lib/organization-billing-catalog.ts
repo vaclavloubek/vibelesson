@@ -63,3 +63,15 @@ export function organizationMinorUnitPrice(
 ) {
   return Math.round(ORGANIZATION_PLANS[plan].prices[period][currency] * 100);
 }
+
+export function organizationPricingPagePrice(planCode: OrganizationPlanCode) {
+  const prices = ORGANIZATION_PLANS[planCode].prices;
+  return {
+    monthlyCzk: prices.monthly.czk,
+    annualCzk: prices.annual.czk,
+    monthlyEur: prices.monthly.eur,
+    annualEur: prices.annual.eur,
+    monthlyUsd: prices.monthly.usd,
+    annualUsd: prices.annual.usd,
+  };
+}

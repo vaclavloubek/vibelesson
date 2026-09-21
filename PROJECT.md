@@ -1,8 +1,26 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.86** hardenuje uzavřený **LEGAL-006**: jednorázový serverově vynucený re-consent aktuálních VOP nyní kryje i Bearer import sdílené lekce, nový individuální checkout a vydání live-control capability. Změna individuálního tarifu VOP vyžaduje, ale zrušení už naplánované změny zůstává dostupné bez nuceného přijetí nových podmínek. Předchozí 0.9.85 a DPA 1.1 z 0.9.84 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**: čl. 5 VOP už nepřipouští, aby pozdější faktura nebo platební doklad jednostranně přepsaly předsmluvní příslib; webová VOP a neměnný smluvní snapshot používají stejnou sdílenou klauzuli. VOP jsou verze 1.1 / acceptance key `2026-09-21-v2`; signup audit a re-consent používají backward-compatible verzovanou DB vrstvu, která eviduje přesně key skutečně přijatý uživatelem. Pricing nyní čte i Team / School / Campus ceny, seat limity a AI lesson/revision kvóty ze sdíleného organizačního katalogu a regresní kontrakt hlídá cestu nabídka → checkout → smluvní snapshot → aktivační e-mail. Hardening LEGAL-006 z 0.9.86 zůstává zachovaný. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+
+### Konzistence nabídky a smlouvy 0.9.87 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-007**;
+- VOP jsou povýšeny na **1.1** s **TERMS_ACCEPTANCE_KEY = 2026-09-21-v2**; změna se promítá do registrace, placených checkoutů, školních objednávek, re-consentu i neměnného individuálního smluvního snapshotu;
+- čl. 5 už nepoužívá jednostrannou prioritní klauzuli pro pozdější doklad; výslovně říká, že Ceník a objednávkové údaje mají být konzistentní, pozdější potvrzení/faktura sjednané podmínky jednostranně nemění a u spotřebitele se při neodsouhlaseném rozporu použije příznivější předsmluvní údaj;
+- text této klauzule má jeden autoritativní zdroj **lib/terms-content.ts**, který používá veřejná stránka VOP i archivní smluvní snapshot;
+- Terms rollout proběhl bezpečně ve třech DB krocích: **20260921071533_update_terms_1_1_legal_007**, kompatibilitní guard **20260921072059_restore_terms_1_0_rollout_guard** a finální backward-compatible vrstva **20260921072159_add_versioned_terms_acceptance_rpcs**. Produkční signup trigger umí auditovat v1 i v2 podle skutečně odeslaného key a nový web používá service-only RPC s explicitním `TERMS_ACCEPTANCE_KEY`; historické acceptance eventy se nemění ani nemažou;
+- staré v1 RPC zůstává jen kvůli rollout kompatibilitě předchozího buildu; 0.9.87 používá verzované RPC `has_terms_acceptance_for_service` / `record_terms_reconsent_for_service` s explicitním key. Všechny tyto RPC zůstávají pouze pro **service_role** a Security Advisor nepřidal nový anon/authenticated privileged-function warning;
+- individuální Pricing, checkoutový očekávaný amount a smluvní snapshot používají **lib/individual-billing-catalog.ts**;
+- Team / School / Campus Pricing nově čte ceny, seat limity a měsíční lesson/revision kvóty z **lib/organization-billing-catalog.ts** místo vlastních čísel;
+- školní order backend používá stejný organizační katalog pro amount_minor;
+- aktivační e-mail potvrzuje cenu a období přímo z neměnného contract snapshotu a AI kvóty ze stejného individuálního katalogu jako Pricing;
+- nový regresní kontrakt **scripts/verify-offer-contract-consistency.mjs** je součástí hlavního npm run check a hlídá cenu v display/minor units, období, kvóty, renewal text i source wiring napříč Pricing → checkout → snapshot → e-mail;
+- databázový billing_prices katalog mapuje plan/period/currency na Stripe Price ID, ale neukládá částku; částková konzistence se proto hlídá v autoritativních aplikačních katalozích a Stripe mapping samostatně podle plan/period/currency;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+
 
 ### LEGAL-006 enforcement hardening 0.9.86 — 2026-09-21
 
@@ -149,7 +167,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.86** hardenuje uzavřený **
 #### Vysoká právní / smluvní rizika
 
 - **[LEGAL-006 — RESOLVED 0.9.85] Starší účty neměly doložené přijetí aktuálních VOP.** Opraveno: přihlášený účet bez append-only evidence aktuálního key je před další tvorbou, editací, live výukou nebo správou organizace veden na explicitní `/terms/accept`; server zároveň blokuje relevantní mutace i při přímém API volání. Přijetí se zapisuje serverovým časem do `private.terms_acceptance_events` se zdrojem `reconsent`. Billingové doklady a skutečné ukončení/omezení renewal zůstávají dostupné bez nuceného přijetí nové verze.
-- **[LEGAL-007] Čl. 5 VOP se pokouší při rozporu dát přednost údajům těsně před objednávkou a následnému platebnímu dokladu.** Veřejné předsmluvní přísliby však nelze bezpečně zpětně přepsat horším údajem na dokladu. **Náprava:** ustanovení přepsat tak, aby všechny předsmluvní informace byly konzistentní; při rozporu nespoléhat na jednostrannou prioritní klauzuli.
+- **[LEGAL-007 — RESOLVED 0.9.87] Čl. 5 VOP se pokoušel při rozporu dát přednost údajům těsně před objednávkou a následnému platebnímu dokladu.** Opraveno: pozdější potvrzení/faktura už nemůže jednostranně přepsat sjednané podmínky; veřejné VOP a archivní snapshot sdílejí totožnou klauzuli. Pricing a backend jsou navíc regresně svázané se sdílenými cenovými a kvótovými katalogy a nový test hlídá cestu nabídka → checkout → snapshot → aktivační e-mail.
 - **[LEGAL-008] Není definovaná obhajitelná metodika poměrné úhrady při spotřebitelském odstoupení po okamžitém zahájení služby.** Rizikový scénář: zákazník v prvních dnech vyčerpá většinu měsíční AI kvóty a odstoupí. **Náprava:** vytvořit jasnou interní refund metodiku odpovídající skutečně poskytnutému plnění a zákonu; neodvozovat automaticky 100% spotřebu ceny pouze z vyčerpání kvóty.
 - **[LEGAL-009] Claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ je silnější než skutečný produkt.** Implementace poskytuje pouze AI/heuristický integrity signál `none / low / high`; signál není důkaz a nulu může po kontrole potvrdit učitel. **Náprava:** přepsat benefit např. na **„Upozornění na možné využití AI ve studentských odpovědích“** a stejnou formulaci držet ve všech kanálech.
 - **[LEGAL-010] VOP řeší změny průběžné digitální služby příliš obecně.** Formulace „v souladu se zákonem / přiměřeně informován“ nestačí jako provozní postup pro nepříznivou změnu placeného tarifu během zaplaceného období. **Náprava:** definovat version/change workflow: důvod změny, textová notifikace předem, datum účinnosti, zachování původní verze kde možné a právo zákazníka ukončit smlouvu tam, kde ho zákon vyžaduje.
@@ -174,7 +192,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.86** hardenuje uzavřený **
 #### Rozhodnutí pro release
 
 - body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
-- body **LEGAL-007 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
+- body **LEGAL-008 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
 - body **LEGAL-020 až LEGAL-021** mají vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
 - po opravách provést nový **legal offer-vs-contract-vs-runtime audit**: Homepage → Pricing → Signup → Checkout → Stripe → potvrzovací e-mail → Subscription/School UI → VOP → GDPR → skutečné DB/backend entitlementy.

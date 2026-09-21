@@ -8,6 +8,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import { TERMS_PLAN_PRICING_CLAUSE } from '@/lib/terms-content';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from '@/app/gdpr/GdprPage.module.css';
@@ -126,10 +127,7 @@ export default async function TermsPage() {
 
         <section>
           <h2>{ui('5. Tarify, ceny a AI limity', '5. Plans, prices and AI allowances')}</h2>
-          <p>{ui(
-            'Aktuální obsah tarifů, jejich ceny, měna, fakturační období a limity jsou uvedeny v Ceníku a znovu v objednávkovém procesu před vznikem povinnosti platit. Pokud se údaje liší, pro konkrétní objednávku rozhodují údaje výslovně zobrazené bezprostředně před jejím potvrzením a na následném platebním dokladu.',
-            'Current plan features, prices, currency, billing period and allowances are shown on the Pricing page and again in the ordering flow before the user incurs an obligation to pay. If information differs, the details expressly shown immediately before confirmation of a specific order and on the resulting payment document govern that order.'
-          )}</p>
+          <p>{english ? TERMS_PLAN_PRICING_CLAUSE.en : TERMS_PLAN_PRICING_CLAUSE.cs}</p>
           <p>{ui(
             'AI limity se vztahují na operace uvedené u daného tarifu. Nevyčerpané měsíční kvóty se nepřevádějí, není-li výslovně uvedeno jinak. Poskytovatel může zavést přiměřené technické a bezpečnostní limity bránící zneužití služby.',
             'AI allowances apply to the operations listed for the relevant plan. Unused monthly allowances do not roll over unless expressly stated otherwise. The provider may apply reasonable technical and security limits to prevent abuse.'
