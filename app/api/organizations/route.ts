@@ -4,6 +4,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
 import { DPA_ACCEPTANCE_KEY, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
   isOrganizationPlanCode,
   organizationMinorUnitPrice,
@@ -164,6 +165,16 @@ export async function POST(request: Request) {
       livemode: input.environment === 'live',
       billing_snapshot: {
         ...existingSnapshot,
+        providerContact: {
+          legalName: PROVIDER_CONTACT.legalName,
+          businessId: PROVIDER_CONTACT.businessId,
+          addressLine1: PROVIDER_CONTACT.addressLine1,
+          postalCity: PROVIDER_CONTACT.postalCity,
+          country: PROVIDER_CONTACT.countryEn,
+          phone: PROVIDER_CONTACT.phoneE164,
+          email: PROVIDER_CONTACT.email,
+          website: PROVIDER_CONTACT.website,
+        },
         legalAcceptance: {
           termsAccepted: true,
           termsVersion: input.termsVersion,
