@@ -1,8 +1,26 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.80** uzavírá **LEGAL-002**: veřejná komunikace nyní rozlišuje kalendářní reset Free/školních kvót a billing-anchored reset Teacher / Teacher Pro, přičemž účet i stránka Předplatné zobrazují autoritativní datum příští obnovy AI limitu přímo z databázového quota window. Předchozí změny 0.9.79 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.81** uzavírá **LEGAL-003**: AI hodnocení už není neurčitý benefit se skrytým interním stropem. Teacher Pro má 60, School 300 a Campus 750 AI hodnocení za příslušné quota období; stejné hodnoty vynucuje databáze, zobrazuje Ceník i účet a Teacher Pro je potvrzuje v aktivačním e-mailu. Předchozí změny 0.9.80 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Veřejné a měřitelné AI hodnocení 0.9.81 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-003**;
+- zákaznické kvóty AI hodnocení jsou **Teacher Pro 60**, **School 300** a **Campus 750** za quota období;
+- `lib/individual-billing-catalog.ts` obsahuje sdílený customer-facing zdroj těchto hodnot pro aplikaci;
+- produkční `billing_plans.monthly_ai_grading_count_limit` používá stejné hodnoty, takže nejde jen o marketingový text;
+- Teacher Pro grading používá stejné **billing-anchored quota window** jako generování a AI úpravy; School/Campus zůstávají na UTC kalendářním měsíci;
+- `get_ai_quota()` nově vrací `grading_used`, `grading_limit`, `grading_remaining`, `grading_unlimited` a `grading_enabled`;
+- účtové menu zobrazuje zbývající počet AI hodnocení; stránka **Předplatné** u Teacher Pro zobrazuje stejný stav i datum obnovy;
+- Ceník uvádí konkrétní počet AI hodnocení u Teacher Pro / School / Campus a vysvětluje, že grading má vlastní kvótu oddělenou od tvorby lekcí a AI úprav;
+- aktivační e-mail Teacher Pro potvrzuje i konkrétních **60 AI hodnocení za období**;
+- interní dolarový guard už není skrytým zákaznickým limitem: nouzové stropy jsou **$12 / $60 / $150** a in-flight reservation **$0,10**, tedy dvojnásobná nákladová rezerva proti zveřejněné kvótě při $0,10 za hodnocení;
+- v produkci zatím není žádný dokončený placený grading cost záznam; nebylo proto možné poctivě odvodit empirický p95 a tato verze ho nepředstírá;
+- produkční migrace: **20260921042019_publish_ai_grading_allowances**;
+- Security Advisor po změně nepřidal nový warning;
+- regresní kontrakty: **scripts/verify-ai-grading-budget.mjs** + **scripts/verify-billing-lifecycle-email.mjs**;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Přesné obnovení AI kvót 0.9.80 — 2026-09-21
 
@@ -58,7 +76,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.80** uzavírá **LEGAL-002**
 
 - **[LEGAL-001 — RESOLVED 0.9.78] Aktivační e-mail potvrzoval zastaralé a vyšší AI kvóty.** Opraveno: `INDIVIDUAL_PLAN_ALLOWANCES` v `lib/individual-billing-catalog.ts` je společný zdroj pro Pricing i transakční aktivační e-mail. Teacher se potvrzuje jako **10 nových AI lekcí + 20 AI úprav / měsíc**, Teacher Pro jako **25 + 40**. Regresní kontrola vykreslí oba tarify ze sdílených hodnot a zakazuje návrat starých textů **25/100** a **60/250**.
 - **[LEGAL-002 — RESOLVED 0.9.80] Ceník nepravdivě tvrdil, že všechny AI limity se obnovují každý kalendářní měsíc.** Opraveno: Free a sdílené Team / School / Campus kvóty jsou veřejně popsány jako kalendářní; Teacher / Teacher Pro jako kvóty podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. `get_ai_quota()` nyní vrací i autoritativní `quota_window_start`, `quota_window_end` a `quota_source`; přesné datum další obnovy se zobrazuje v účtovém menu a na stránce Předplatné. Regresní test zakazuje návrat původního plošného tvrzení.
-- **[LEGAL-003] AI grading má skryté safety stropy, které mohou změnit slíbenou funkci na ruční review.** Interní limity jsou Teacher Pro **$2 / 150 pokusů**, School **$10 / 700**, Campus **$25 / 1 750** za období. Po dosažení budgetu systém bezpečně přechází na manual review, zatímco Ceník komunikuje AI hodnocení bez tohoto omezení a současně tvrdí, že AI limit se čerpá jen při nové tvorbě a AI úpravách. **Náprava:** rozhodnout customer-facing pravidlo; buď garantovat AI grading v rozumném deklarovaném rozsahu, nebo limit transparentně komunikovat a zahrnout do smluvního modelu.
+- **[LEGAL-003 — RESOLVED 0.9.81] AI grading měl skryté safety stropy, které mohly změnit slíbenou funkci na ruční review.** Opraveno: zákaznická kvóta je nově explicitní a serverově vynucená — **Teacher Pro 60**, **School 300** a **Campus 750 AI hodnocení za quota období**. Teacher Pro používá stejné billing-anchored okno jako ostatní individuální AI kvóty; School/Campus kalendářní měsíc. Ceník, účet a Teacher Pro aktivační e-mail používají stejné hodnoty. Interní cost guard zůstává pouze nouzovou pojistkou s výraznou rezervou (**$12 / $60 / $150**, reservation $0,10), nikoli zákaznickým limitem. Produkce zatím nemá dokončené placené grading cost záznamy, takže hodnoty nejsou vydávány za empirické p95.
 - **[LEGAL-004] Po individuálním elektronickém nákupu není z repozitáře doloženo předání neměnné kopie smluvních informací a VOP v textové podobě.** Aktivační e-mail potvrzuje aktivaci a benefity, nikoli plné znění / snapshot přijatých VOP a zákonné informace. **Náprava:** po objednávce odeslat potvrzení obsahující nebo přikládající přesný snapshot přijatých VOP, cenu, tarif, období, obnovování, datum objednávky, odstoupení a zákonný vzorový formulář; archivovat stejnou verzi serverově.
 - **[LEGAL-005] GDPR stránka stále popisuje školní účty jako budoucí a DPA jako věc před budoucím komerčním nasazením, přestože Team / School / Campus jsou již prodávané.** U školního použití navíc reálně zpracováváme studentská jména, odpovědi a výsledky. **Náprava:** okamžitě přepsat Privacy Notice na skutečný produkční stav a připravit / začlenit smlouvu o zpracování osobních údajů dle čl. 28 GDPR pro organizace, včetně rolí, předmětu, doby, kategorií údajů, subprocesorů, bezpečnosti, incidentů, asistence a mazání/vrácení dat.
 

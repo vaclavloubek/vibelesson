@@ -38,7 +38,7 @@ export default async function SubscriptionPage() {
   if (!userId) redirect(`/${locale}`);
 
   let state;
-  let quotaWindow: { end: string; source: string | null } | null = null;
+  let quotaWindow: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null = null;
   let loadError = false;
   try {
     state = await getLiveSubscriptionManagementState(userId);
@@ -63,6 +63,10 @@ export default async function SubscriptionPage() {
       quotaWindow = {
         end: quotaRow.quota_window_end,
         source: quotaRow.quota_source,
+        gradingUsed: quotaRow.grading_used,
+        gradingLimit: quotaRow.grading_limit,
+        gradingRemaining: quotaRow.grading_remaining,
+        gradingEnabled: quotaRow.grading_enabled,
       };
     }
   }

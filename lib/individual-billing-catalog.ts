@@ -2,12 +2,18 @@ import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-chang
 
 export type IndividualBillingCurrency = 'czk' | 'eur' | 'usd';
 
+export const AI_GRADING_ALLOWANCES = {
+  teacher_pro: 60,
+  school: 300,
+  campus: 750,
+} as const;
+
 export const INDIVIDUAL_PLAN_ALLOWANCES: Record<
   IndividualPlanCode,
-  { lessonGenerations: number; aiEdits: number }
+  { lessonGenerations: number; aiEdits: number; aiGradings: number | null }
 > = {
-  teacher: { lessonGenerations: 10, aiEdits: 20 },
-  teacher_pro: { lessonGenerations: 25, aiEdits: 40 },
+  teacher: { lessonGenerations: 10, aiEdits: 20, aiGradings: null },
+  teacher_pro: { lessonGenerations: 25, aiEdits: 40, aiGradings: AI_GRADING_ALLOWANCES.teacher_pro },
 };
 
 const DISPLAY_PRICES: Record<
