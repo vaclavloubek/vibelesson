@@ -17,6 +17,8 @@ const contractSnapshotMigration = read('supabase/migrations/20260921045117_add_i
 const contractLinkMigration = read('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql');
 const reconsentMigration = read('supabase/migrations/20260921063215_add_terms_reconsent_rpcs.sql');
 const terms11Migration = read('supabase/migrations/20260921071533_update_terms_1_1_legal_007.sql');
+const termsRolloutGuardMigration = read('supabase/migrations/20260921072059_restore_terms_1_0_rollout_guard.sql');
+const versionedTermsMigration = read('supabase/migrations/20260921072159_add_versioned_terms_acceptance_rpcs.sql');
 const termsContent = read('lib/terms-content.ts');
 const serverAuth = read('lib/auth.ts');
 const termsAcceptance = read('lib/terms-acceptance.ts');
@@ -89,13 +91,20 @@ for (const functionName of [
   if (!reconsentMigration.includes(`grant execute on function public.${functionName}(uuid) to service_role`)) fail('Terms re-consent RPC must be service-role only: ' + functionName);
 }
 if (!reconsentMigration.includes("acceptance_key = '2026-09-21-v1'") || !reconsentMigration.includes("'1.0'") || !reconsentMigration.includes("'reconsent'")) fail('historical Terms 1.0 re-consent migration must remain immutable');
-if (!terms11Migration.includes("acceptance_key = '2026-09-21-v2'") || !terms11Migration.includes("'1.1'") || !terms11Migration.includes("'reconsent'")) fail('Terms 1.1 migration must update re-consent RPC constants');
-for (const functionName of ['has_current_terms_acceptance_for_service','record_current_terms_reconsent_for_service']) {
-  if (!terms11Migration.includes(`revoke execute on function public.${functionName}(uuid) from public, anon, authenticated`)) fail('Terms 1.1 migration must preserve client EXECUTE revocation: ' + functionName);
-  if (!terms11Migration.includes(`grant execute on function public.${functionName}(uuid) to service_role`)) fail('Terms 1.1 migration must preserve service-role-only EXECUTE: ' + functionName);
+if (!terms11Migration.includes("acceptance_key = '2026-09-21-v2'") || !terms11Migration.includes("'1.1'") || !terms11Migration.includes("'reconsent'")) fail('historical initial Terms 1.1 rollout migration must be retained');
+if (!termsRolloutGuardMigration.includes("acceptance_key = '2026-09-21-v1'") || !termsRolloutGuardMigration.includes("'1.0'")) fail('rollout guard must preserve the still-running Terms 1.0 build');
+if (!versionedTermsMigration.includes("when '2026-09-21-v1' then '1.0'") || !versionedTermsMigration.includes("when '2026-09-21-v2' then '1.1'")) fail('versioned signup/re-consent migration must map exact acceptance keys to exact Terms versions');
+for (const [functionName, signature] of [
+  ['has_terms_acceptance_for_service', 'uuid, text'],
+  ['record_terms_reconsent_for_service', 'uuid, text'],
+]) {
+  if (!versionedTermsMigration.includes(`function public.${functionName}`)) fail('versioned Terms RPC missing: ' + functionName);
+  if (!versionedTermsMigration.includes(`revoke execute on function public.${functionName}(${signature}) from public, anon, authenticated`)) fail('versioned Terms RPC must revoke client execution: ' + functionName);
+  if (!versionedTermsMigration.includes(`grant execute on function public.${functionName}(${signature}) to service_role`)) fail('versioned Terms RPC must be service-role only: ' + functionName);
 }
 if (!reconsentMigration.includes("and tae.source = 'reconsent'")) fail('re-consent API must return the re-consent event timestamp');
-if (!termsAcceptance.includes("admin.rpc('has_current_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('record_current_terms_reconsent_for_service'")) fail('server Terms helper must use service-only RPCs');
+if (!termsAcceptance.includes("admin.rpc('has_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('record_terms_reconsent_for_service'")) fail('server Terms helper must use versioned service-only RPCs');
+if (!termsAcceptance.includes('p_acceptance_key: TERMS_ACCEPTANCE_KEY')) fail('server Terms helper must pass the exact active acceptance key to the audit RPCs');
 if (!reconsentApi.includes('termsAccepted: z.literal(true)') || !reconsentApi.includes('termsVersion: z.literal(TERMS_ACCEPTANCE_KEY)')) fail('re-consent API must fail closed on explicit current Terms acceptance');
 if (!reconsentApi.includes('recordCurrentTermsReconsent(userId)')) fail('re-consent API must persist server audit');
 if (!reconsentForm.includes('useState(false)') || !reconsentForm.includes('TERMS_ACCEPTANCE_KEY') || !reconsentForm.includes('/api/legal/terms/reconsent')) fail('re-consent form must be explicit, versioned and server-recorded');
