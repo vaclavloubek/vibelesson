@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { billingRouteForCountry } from '../lib/billing-region.ts';
+import { INDIVIDUAL_PLAN_ALLOWANCES } from '../lib/individual-billing-catalog.ts';
 import {
   billingLifecycleNotification,
   renderBillingLifecycleEmail,
@@ -144,6 +145,22 @@ assert(cs.subject.includes('Teacher je aktivní'), 'Czech activation subject mus
 assert(cs.html.includes('#5b57e8'), 'email HTML must use the Syllonaut accent');
 assert(cs.html.includes('Nejde o marketingové sdělení'), 'transactional nature must be explicit');
 
+assert(
+  cs.text.includes(`${INDIVIDUAL_PLAN_ALLOWANCES.teacher.lessonGenerations} nových AI lekcí a ${INDIVIDUAL_PLAN_ALLOWANCES.teacher.aiEdits} AI úprav`),
+  'Teacher activation email must use the shared current AI allowance',
+);
+
+const csPro = renderBillingLifecycleEmail({
+  notification: 'subscription_activated',
+  locale: 'cs',
+  planCode: 'teacher_pro',
+  currentPeriodEnd: '2026-10-19T12:00:00.000Z',
+});
+assert(
+  csPro.text.includes(`${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} nových AI lekcí a ${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav`),
+  'Teacher Pro activation email must use the shared current AI allowance',
+);
+
 const en = renderBillingLifecycleEmail({
   notification: 'cancellation_scheduled',
   locale: 'en',
@@ -153,8 +170,10 @@ const en = renderBillingLifecycleEmail({
 assert(en.subject.includes('cancellation is scheduled'), 'English cancellation subject must be localized');
 assert(en.text.includes('Teacher Pro'), 'plan name must be included');
 
-const [emailSource, routeSource, localeSource, authSource, migrationSource, envSource] = await Promise.all([
+const [emailSource, emailCoreSource, pricingSource, routeSource, localeSource, authSource, migrationSource, envSource] = await Promise.all([
   source('lib/billing-email.ts'),
+  source('lib/billing-email-core.ts'),
+  source('components/PricingPage.tsx'),
   source('app/api/billing/stripe/webhook/route.ts'),
   source('components/LocaleSwitcher.tsx'),
   source('components/AuthControls.tsx'),
@@ -167,6 +186,10 @@ assert(!emailSource.includes('NEXT_PUBLIC_RESEND'), 'Resend secret must never be
 assert(emailSource.includes('Idempotency-Key'), 'Resend sends must use an idempotency key');
 assert(emailSource.includes('billing_email_deliveries'), 'delivery ledger must guard retries');
 assert(!emailSource.includes('marketing_email_consent'), 'transactional billing email must not depend on marketing consent');
+assert(emailCoreSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'activation email must read AI allowances from the shared catalog');
+assert(pricingSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'Pricing must read individual AI allowances from the shared catalog');
+assert(!emailCoreSource.includes('60 new AI lessons and 250 AI edits'), 'stale Teacher Pro activation allowance must not return');
+assert(!emailCoreSource.includes('25 new AI lessons and 100 AI edits'), 'stale Teacher activation allowance must not return');
 assert(routeSource.includes('billingLifecycleNotification(sync)'), 'Stripe webhook must derive lifecycle transition after billing sync');
 assert(routeSource.includes('billing_email_delivery_failed'), 'email delivery failures must request a Stripe webhook retry');
 assert(localeSource.includes("supabase.rpc('set_ui_locale'"), 'explicit locale switch must persist user language');
