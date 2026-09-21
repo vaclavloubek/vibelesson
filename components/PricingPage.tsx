@@ -15,6 +15,7 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { AI_GRADING_ALLOWANCES } from '@/lib/ai-grading-allowances';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
@@ -86,7 +87,7 @@ const teacherPlansCs: Plan[] = [
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav za měsíc`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
-      'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiGradings} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc`,
       'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
@@ -127,7 +128,7 @@ const schoolPlansCs: Plan[] = [
       '240 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
-      'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
+      `${AI_GRADING_ALLOWANCES.school} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
       'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
@@ -151,7 +152,7 @@ const schoolPlansCs: Plan[] = [
       '600 AI úprav za měsíc společně',
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
-      'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí',
+      `${AI_GRADING_ALLOWANCES.campus} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
       'Ochrana proti nepovolenému využití AI ve studentských odpovědích',
       'Složky a podsložky pro organizaci lekcí',
       'Opakované používání lekcí bez omezení',
@@ -197,7 +198,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI edits per month`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
-      'AI grading of scored open, team and exit-ticket responses',
+      `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiGradings} AI gradings of scored open, team and exit-ticket responses per month`,
       'Protection against unauthorized AI use in student responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
@@ -229,7 +230,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       '240 AI edits per month shared',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
-      'AI grading of scored open, team and exit-ticket responses',
+      `${AI_GRADING_ALLOWANCES.school} AI gradings of scored open, team and exit-ticket responses per month shared`,
       'Protection against unauthorized AI use in student responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
@@ -249,7 +250,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       '600 AI edits per month shared',
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
-      'AI grading of scored open, team and exit-ticket responses',
+      `${AI_GRADING_ALLOWANCES.campus} AI gradings of scored open, team and exit-ticket responses per month shared`,
       'Protection against unauthorized AI use in student responses',
       'Folders and subfolders for organising lessons',
       'Unlimited repeated use of lessons',
@@ -973,12 +974,12 @@ export default function PricingPage({
           <strong>{ui('AI limit chrání tvorbu, ne samotnou výuku.', 'The AI allowance limits creation, not teaching itself.')}</strong>
           <p>{audience === 'teachers'
             ? ui(
-              'U Free se AI limity obnovují na začátku každého kalendářního měsíce. U Teacher a Teacher Pro se měsíční AI kvóta obnovuje podle fakturačního cyklu; u ročního předplatného po měsíčních intervalech od data začátku předplatného. Přesné datum další obnovy vidíš v účtu. Spuštění a opakované použití hotových lekcí AI limit nespotřebovává.',
-              'On Free, AI allowances reset at the start of each calendar month. On Teacher and Teacher Pro, the monthly AI allowance resets with the billing cycle; annual subscriptions use monthly intervals anchored to the subscription start date. Your account shows the exact next reset date. Launching and reusing finished lessons does not use the AI allowance.',
+              'U Free se AI limity obnovují na začátku každého kalendářního měsíce. U Teacher a Teacher Pro se měsíční AI kvóty obnovují podle fakturačního cyklu; u ročního předplatného po měsíčních intervalech od data začátku předplatného. Teacher Pro má samostatnou kvótu AI hodnocení: jedno AI vyhodnocení jedné bodované odpovědi čerpá jednu jednotku a opakované AI přehodnocení čerpá další. Po vyčerpání lze odpovědi dál hodnotit ručně. Přesné datum další obnovy a zbývající kvóty vidíš v účtu.',
+              'On Free, AI allowances reset at the start of each calendar month. On Teacher and Teacher Pro, monthly AI allowances reset with the billing cycle; annual subscriptions use monthly intervals anchored to the subscription start date. Teacher Pro has a separate AI grading allowance: one AI evaluation of one scored response uses one unit, and an AI re-grade uses another. After the allowance is used up, responses can still be graded manually. Your account shows the exact next reset date and remaining allowances.',
             )
             : ui(
-              'U Team, School a Campus se společné AI limity pracovního prostoru školy / organizace obnovují na začátku každého kalendářního měsíce. Nová tvorba a AI úpravy se čerpají ze společného limitu organizace; spuštění a opakované použití hotových lekcí jej nespotřebovává.',
-              'On Team, School and Campus, the shared workspace AI allowances reset at the start of each calendar month. New creation and AI edits use the organisation’s shared allowance; launching and reusing finished lessons does not consume it.',
+              'U Team, School a Campus se společné AI limity pracovního prostoru školy / organizace obnovují na začátku každého kalendářního měsíce. School a Campus mají navíc samostatnou společnou kvótu AI hodnocení; jedno AI vyhodnocení jedné bodované odpovědi čerpá jednu jednotku a opakované AI přehodnocení čerpá další. Po vyčerpání lze odpovědi dál hodnotit ručně. Spuštění a opakované použití hotových lekcí tyto limity nespotřebovává.',
+              'On Team, School and Campus, shared workspace AI allowances reset at the start of each calendar month. School and Campus also have a separate shared AI grading allowance; one AI evaluation of one scored response uses one unit, and an AI re-grade uses another. After the allowance is used up, responses can still be graded manually. Launching and reusing finished lessons does not consume these allowances.',
             )}</p>
         </div>
         <div>
