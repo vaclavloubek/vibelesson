@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { trackEvent } from '@/lib/analytics';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import styles from './LandingContactForm.module.css';
 
 type SubmitState = 'idle' | 'sending' | 'success' | 'error';
@@ -13,6 +14,9 @@ const copy = {
     eyebrow: 'Spojení s řídicím střediskem',
     title: 'Zůstala vám otázka mimo radar?',
     body: 'Pošlete nám signál. Stačí e-mail a pár slov k tomu, co potřebujete zjistit — ozveme se zpátky.',
+    direct: 'Přímý kontakt',
+    phone: 'Telefon',
+    email: 'E-mail',
     emailStep: '01 · Kontakt',
     emailLabel: 'Váš e-mail',
     emailPlaceholder: 'vy@skola.cz',
@@ -31,6 +35,9 @@ const copy = {
     eyebrow: 'Mission control link',
     title: 'Is there still a question beyond the radar?',
     body: 'Send us a signal. An email and a few words about what you need are enough — we will get back to you.',
+    direct: 'Direct contact',
+    phone: 'Phone',
+    email: 'Email',
     emailStep: '01 · Contact',
     emailLabel: 'Your email',
     emailPlaceholder: 'you@school.org',
@@ -104,6 +111,11 @@ export default function LandingContactForm() {
         <span className={styles.eyebrow}>{t.eyebrow}</span>
         <h2 id="contact-title">{t.title}</h2>
         <p>{t.body}</p>
+        <div className={styles.directContact}>
+          <strong>{t.direct}</strong>
+          <span>{t.phone}: <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a></span>
+          <span>{t.email}: <a href={PROVIDER_CONTACT.emailHref}>{PROVIDER_CONTACT.email}</a></span>
+        </div>
         <div className={styles.signalLine} aria-hidden="true">
           <span />
           <i />
