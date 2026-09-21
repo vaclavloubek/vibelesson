@@ -10,7 +10,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.81** uzavírá **LEGAL-003**
 - customer-facing kvóty jsou **Teacher Pro 60**, **School 300 společně** a **Campus 750 společně** AI hodnocení za příslušné quota období;
 - jedna jednotka znamená jedno AI vyhodnocení jedné bodované studentské nebo týmové odpovědi; opakované AI přehodnocení čerpá další jednotku;
 - po vyčerpání grading kvóty zůstává ruční hodnocení dostupné;
-- Ceník používá sdílený katalog **lib/ai-grading-allowances.ts** a konkrétní čísla zobrazuje česky i anglicky;
+- Ceník i aktivační e-mail používají sdílený **lib/individual-billing-catalog.ts** jako jediný zákaznický zdroj kvót; konkrétní čísla se zobrazují česky i anglicky;
 - individuální aktivační e-mail Teacher Pro potvrzuje stejných **60 AI hodnocení** ze sdíleného katalogu;
 - `public.get_ai_quota()` nově vrací také `grading_used`, `grading_limit`, `grading_remaining`, `grading_unlimited` a `grading_enabled`; stejné údaje používá účtové menu a stránka Předplatné;
 - produkční migrace **20260921042019_publish_ai_grading_allowances** nastavuje count limity 60 / 300 / 750;
