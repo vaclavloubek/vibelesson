@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
-import { TERMS_PLAN_PRICING_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
+import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
 
@@ -110,8 +110,7 @@ const TERMS_CURRENT_CS = `
 </section>
 <section>
 <h2>10. Změny služby a podmínek</h2>
-<p>Službu lze měnit kvůli vývoji, bezpečnosti, právním povinnostem nebo změnám dodavatelů. Podstatné změny placeného tarifu, které uživatele nepříznivě ovlivní během zaplaceného období, budou řešeny v souladu se zákonem a uživatel bude přiměřeně informován.</p>
-<p>Podmínky mohou být aktualizovány. Pokud změna vyžaduje nový souhlas, Syllonaut si jej vyžádá před tím, než bude změna pro daného uživatele závazná.</p>
+${TERMS_SERVICE_CHANGE_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 </section>
 <section>
 <h2>11. Ukončení účtu</h2>
@@ -190,8 +189,7 @@ const TERMS_CURRENT_EN = `
 </section>
 <section>
 <h2>10. Changes to the service and Terms</h2>
-<p>The service may change because of product development, security, legal requirements or provider changes. Material adverse changes to a paid plan during a paid period will be handled in accordance with applicable law and users will receive reasonable notice.</p>
-<p>These Terms may be updated. Where a change requires renewed consent, Syllonaut will request it before the change becomes binding on the relevant user.</p>
+${TERMS_SERVICE_CHANGE_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 </section>
 <section>
 <h2>11. Account termination</h2>
@@ -215,9 +213,9 @@ const TERMS_CURRENT_EN = `
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.2'
+    TERMS_VERSION !== '1.3'
     || TERMS_EFFECTIVE_DATE !== '2026-09-21'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v3'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v4'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
