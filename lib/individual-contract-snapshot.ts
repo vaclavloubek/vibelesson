@@ -28,6 +28,24 @@ export function formatContractMoney(amountMinor: number, currency: IndividualBil
   }).format(amountMinor / 100);
 }
 
+export type IndividualContractSnapshotHashInput = {
+  snapshotId: string;
+  locale: LegalLocale;
+  planCode: IndividualPlanCode;
+  billingPeriod: BillingPeriod;
+  currency: IndividualBillingCurrency;
+  amountMinor: number;
+  termsVersion: string;
+  termsAcceptanceKey: string;
+  immediatePerformanceRequested: boolean;
+  contractHtml: string;
+  withdrawalHtml: string;
+};
+
+export function hashIndividualContractSnapshot(input: IndividualContractSnapshotHashInput) {
+  return createHash('sha256').update(JSON.stringify(input), 'utf8').digest('hex');
+}
+
 export function buildIndividualContractSnapshot(input: IndividualContractSnapshotInput) {
   const amountMinor = individualMinorUnitPrice(input.planCode, input.billingPeriod, input.currency);
   const planName = input.planCode === 'teacher_pro' ? 'Teacher Pro' : 'Teacher';
@@ -64,7 +82,7 @@ export function buildIndividualContractSnapshot(input: IndividualContractSnapsho
 ${termsHtml.replace(/^<!doctype html>[\s\S]*?<body>/i, '').replace(/<\/body><\/html>\s*$/i, '')}
 </body></html>`;
 
-  const hashInput = JSON.stringify({
+  const contentSha256 = hashIndividualContractSnapshot({
     snapshotId: input.snapshotId,
     locale: input.locale,
     planCode: input.planCode,
@@ -77,7 +95,6 @@ ${termsHtml.replace(/^<!doctype html>[\s\S]*?<body>/i, '').replace(/<\/body><\/h
     contractHtml,
     withdrawalHtml,
   });
-  const contentSha256 = createHash('sha256').update(hashInput, 'utf8').digest('hex');
 
   return {
     amountMinor,
