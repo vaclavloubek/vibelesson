@@ -25,6 +25,8 @@ const params = buildStripeCheckoutParams({
   managedPayments: true,
   planCode: 'teacher',
   billingPeriod: 'monthly',
+  termsVersion: '2026-09-21-v1',
+  immediatePerformanceRequested: true,
 });
 assert.equal(params.get('mode'), 'subscription');
 assert.equal(params.get('line_items[0][price]'), 'price_test123');
@@ -34,6 +36,8 @@ assert.equal(params.has('customer_email'), false);
 assert.equal(params.get('managed_payments[enabled]'), 'true');
 assert.equal(params.get('subscription_data[metadata][syllonaut_user_id]'), '123e4567-e89b-42d3-a456-426614174000');
 assert.equal(params.get('subscription_data[metadata][syllonaut_billing_country]'), 'DE');
+assert.equal(params.get('metadata[syllonaut_terms_version]'), '2026-09-21-v1');
+assert.equal(params.get('metadata[syllonaut_immediate_service]'), 'true');
 assert.match(params.get('integration_identifier') ?? '', /^syllonaut_web_[a-z]{8}$/);
 assert.match(params.get('success_url') ?? '', /billing_env=sandbox/);
 assert.ok(!params.has('automatic_tax[enabled]'));
@@ -49,6 +53,8 @@ const firstPurchaseParams = buildStripeCheckoutParams({
   managedPayments: false,
   planCode: 'teacher',
   billingPeriod: 'monthly',
+  termsVersion: '2026-09-21-v1',
+  immediatePerformanceRequested: true,
 });
 assert.equal(firstPurchaseParams.get('customer_email'), 'teacher@example.com');
 assert.equal(firstPurchaseParams.has('customer'), false);

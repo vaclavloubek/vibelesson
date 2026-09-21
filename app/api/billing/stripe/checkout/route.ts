@@ -16,6 +16,9 @@ const InputSchema = z.object({
   billing: z.enum(['monthly', 'annual']),
   country: z.string().trim().length(2).transform((value) => value.toUpperCase()),
   environment: z.enum(['sandbox', 'live']).default('sandbox'),
+  termsAccepted: z.literal(true),
+  immediatePerformanceRequested: z.literal(true),
+  termsVersion: z.literal('2026-09-21-v1'),
 });
 
 function jsonError(status: number, error: string, diagnostics?: { stripeType?: string | null; stripeCode?: string | null; stripeMessage?: string | null }) {
@@ -117,6 +120,8 @@ export async function POST(request: Request) {
       managedPayments: route.managedPayments,
       planCode,
       billingPeriod: input.billing,
+      termsVersion: input.termsVersion,
+      immediatePerformanceRequested: input.immediatePerformanceRequested,
     });
     return NextResponse.json({ url: session.url, environment: input.environment, currency: route.currency, managedPayments: route.managedPayments }, {
       status: 200, headers: { 'Cache-Control': 'no-store' },

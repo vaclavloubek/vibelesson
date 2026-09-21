@@ -213,6 +213,7 @@ export default function SchoolAdmin({
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'invoice' | 'card'>('invoice');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'teacher' | 'admin'>('teacher');
@@ -497,6 +498,11 @@ export default function SchoolAdmin({
 
   async function createOrder(event: FormEvent) {
     event.preventDefault();
+    if (!termsAccepted) {
+      setMessageKind('error');
+      setMessage(ui('Před objednáním je potřeba odsouhlasit obchodní podmínky.', 'Accept the Terms of Service before placing the order.'));
+      return;
+    }
     setBusy(true);
     setMessage('');
 
@@ -519,6 +525,8 @@ export default function SchoolAdmin({
         billingPeriod,
         paymentMethod,
         environment: billingEnvironment,
+        termsAccepted: true,
+        termsVersion: '2026-09-21-v1',
       }),
     });
 
@@ -1324,13 +1332,26 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.full}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, lineHeight: 1.45 }}>
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(event) => { setTermsAccepted(event.target.checked); setMessage(''); }}
+                    required
+                    style={{ marginTop: 3, width: 'auto' }}
+                  />
+                  <span>{ui('Souhlasím s ', 'I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a potvrzuji objednávku zvoleného tarifu a fakturačního období.', ' and confirm the order for the selected plan and billing period.')}</span>
+                </label>
+              </div>
+
+              <div className={styles.full}>
                 <div className={styles.rowActions}>
-                  <button className={styles.primary} type="submit" disabled={busy}>
+                  <button className={styles.primary} type="submit" disabled={busy || !termsAccepted}>
                     {busy
                       ? ui('Zakládám…', 'Creating…')
                       : paymentMethod === 'invoice'
-                        ? ui('Vystavit fakturu', 'Issue invoice')
-                        : ui('Pokračovat k platbě', 'Continue to payment')}
+                        ? ui('Objednat s povinností platby', 'Order with obligation to pay')
+                        : ui('Objednat a pokračovat k platbě', 'Order and continue to payment')}
                   </button>
                   <button
                     className={styles.secondary}
