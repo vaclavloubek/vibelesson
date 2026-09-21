@@ -591,6 +591,7 @@ export default function PricingPage({
           termsAccepted: true,
           immediatePerformanceRequested: true,
           termsVersion: TERMS_ACCEPTANCE_KEY,
+          locale,
         }),
       });
       const payload = await response.json() as {
