@@ -1,8 +1,24 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.83** uzavírá **LEGAL-005**: školní Team / School / Campus workflow má nyní závaznou verzovanou DPA podle čl. 28 GDPR, samostatné explicitní přijetí v objednávce, serverový fail-closed acceptance key a doložitelnou verzi/čas/přijímající účet v objednávkovém snapshotu. Privacy Notice popisuje skutečný produkční controller/processor model a aktuální subprocessory. Předchozí změny 0.9.82 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.84** uzavírá **LEGAL-006**: starší přihlášené účty bez doloženého přijetí aktuálních VOP dostanou jednorázový hard re-consent před dalším používáním pracovních funkcí; přijetí se zapisuje serverovým časem do existující append-only auditní evidence. Právní dokumenty, faktury, billing a skutečné zrušení služby zůstávají dostupné i bez nového souhlasu. Předchozí změny 0.9.83 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Jednorázový re-consent aktuálních VOP 0.9.84 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-006**;
+- produkční kontrola před implementací potvrdila **3 Auth účty, 0/3** s aktuálním registračním acceptance metadata a **0/3** se serverovým auditem `2026-09-21-v1`; žádný z těchto účtů není administrativně označen jako souhlasící — audit vznikne až po skutečném výslovném přijetí uživatelem;
+- nová stránka **/terms/accept** (CZ/EN) používá nezaškrtnutý checkbox a přesný `TERMS_ACCEPTANCE_KEY`; po přijetí se uživatel bezpečně vrátí pouze na povolenou interní pracovní cestu;
+- zápis používá existující append-only tabulku **private.terms_acceptance_events** se zdrojem `reconsent`; nevzniká nová auditní tabulka ani vazba, která by se smazala spolu s Auth účtem;
+- dvě úzké RPC funkce `has_current_terms_acceptance_for_service` a `record_current_terms_reconsent_for_service` jsou `SECURITY DEFINER` s prázdným `search_path`, mají odebraný execute pro `PUBLIC` / `anon` / `authenticated` a grant pouze `service_role`;
+- serverový `proxy.ts` u skutečných produktových mutací odstraní případný klientem podvržený interní marker a znovu ho nastaví pouze podle autoritativní cesty + HTTP metody; společný auth helper pak proti append-only auditu fail-closed rozhodne, zda mutaci pustí;
+- page-level gate je na tvorbě nové lekce, knihovně, editoru lekce, worksheetu, teacher session a presenteru; guest `/new` zůstává beze změny;
+- read-only náhled sdílené lekce zůstává dostupný, ale import kopie vyžaduje aktuální VOP; po přihlášení se stejně gateuje i přijetí školní pozvánky;
+- `/school` zůstává přístupný kvůli fakturám a ukončení licence, ale zobrazuje re-consent banner a chráněné správní akce přesměruje na VOP;
+- bez re-consentu je nadále možné číst právní dokumenty, otevřít faktury, provést platbu existujícího závazku a **vypnout** automatické obnovení; naopak nové renewal objednávky, opětovné zapnutí automatického obnovení a změna individuálního tarifu aktuální VOP vyžadují;
+- DB migrace: **20260921062000_add_terms_reconsent_rpcs**;
+- regresní kontrakt je rozšířen v **scripts/verify-terms.mjs** a hlídá server-only RPC, anti-spoof marker, page gate, billing/cancellation výjimky i speciální school/share flow;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Zpracovatelská smlouva organizací 0.9.83 — 2026-09-21
 
@@ -119,7 +135,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.83** uzavírá **LEGAL-005**
 
 #### Vysoká právní / smluvní rizika
 
-- **[LEGAL-006] Starší účty nemají doložené přijetí aktuálních VOP.** V okamžiku auditu existovaly v produkčním Auth **3 účty a 0/3** mělo registrační metadata aktuálního acceptance key `2026-09-21-v1`. Placený checkout může mít vlastní doklad, ale pro Free používání a obecná pravidla VOP není bezpečné předpokládat automatickou závaznost nové verze. **Náprava:** jednorázový re-consent aktuálních podmínek pro existující účty před dalším relevantním použitím, s append-only serverovým auditem.
+- **[LEGAL-006 — RESOLVED 0.9.84] Starší účty neměly doložené přijetí aktuálních VOP.** Opraveno: přihlášený účet bez append-only evidence aktuálního key je před další tvorbou, editací, live výukou nebo správou organizace veden na explicitní `/terms/accept`; server zároveň blokuje relevantní mutace i při přímém API volání. Přijetí se zapisuje serverovým časem do `private.terms_acceptance_events` se zdrojem `reconsent`. Billingové doklady a skutečné ukončení/omezení renewal zůstávají dostupné bez nuceného přijetí nové verze.
 - **[LEGAL-007] Čl. 5 VOP se pokouší při rozporu dát přednost údajům těsně před objednávkou a následnému platebnímu dokladu.** Veřejné předsmluvní přísliby však nelze bezpečně zpětně přepsat horším údajem na dokladu. **Náprava:** ustanovení přepsat tak, aby všechny předsmluvní informace byly konzistentní; při rozporu nespoléhat na jednostrannou prioritní klauzuli.
 - **[LEGAL-008] Není definovaná obhajitelná metodika poměrné úhrady při spotřebitelském odstoupení po okamžitém zahájení služby.** Rizikový scénář: zákazník v prvních dnech vyčerpá většinu měsíční AI kvóty a odstoupí. **Náprava:** vytvořit jasnou interní refund metodiku odpovídající skutečně poskytnutému plnění a zákonu; neodvozovat automaticky 100% spotřebu ceny pouze z vyčerpání kvóty.
 - **[LEGAL-009] Claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ je silnější než skutečný produkt.** Implementace poskytuje pouze AI/heuristický integrity signál `none / low / high`; signál není důkaz a nulu může po kontrole potvrdit učitel. **Náprava:** přepsat benefit např. na **„Upozornění na možné využití AI ve studentských odpovědích“** a stejnou formulaci držet ve všech kanálech.
@@ -145,7 +161,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.83** uzavírá **LEGAL-005**
 #### Rozhodnutí pro release
 
 - body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
-- body **LEGAL-006 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
+- body **LEGAL-007 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
 - body **LEGAL-020 až LEGAL-021** mají vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
 - po opravách provést nový **legal offer-vs-contract-vs-runtime audit**: Homepage → Pricing → Signup → Checkout → Stripe → potvrzovací e-mail → Subscription/School UI → VOP → GDPR → skutečné DB/backend entitlementy.
