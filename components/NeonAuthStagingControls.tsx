@@ -32,17 +32,21 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
     event.preventDefault();
     setBusy(true);
     setMessage('');
-    const result = await neonAuthClient.signIn.email({ email, password });
-    setBusy(false);
+    try {
+      const result = await neonAuthClient.signIn.email({ email, password });
+      if (result.error) {
+        setMessage(errorMessage(result.error, 'Přihlášení se nepodařilo.'));
+        return;
+      }
 
-    if (result.error) {
-      setMessage(errorMessage(result.error, 'Přihlášení se nepodařilo.'));
-      return;
+      setPassword('');
+      await session.refetch();
+      setMessage('Přihlášení přes Neon Auth proběhlo úspěšně.');
+    } catch (error) {
+      setMessage(errorMessage(error, 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.'));
+    } finally {
+      setBusy(false);
     }
-
-    setPassword('');
-    await session.refetch();
-    setMessage('Přihlášení přes Neon Auth proběhlo úspěšně.');
   }
 
   async function requestReset() {
@@ -53,16 +57,20 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
 
     setBusy(true);
     setMessage('');
-    const redirectTo = `${window.location.origin}/auth/neon-staging`;
-    const result = await neonAuthClient.requestPasswordReset({ email, redirectTo });
-    setBusy(false);
+    try {
+      const redirectTo = `${window.location.origin}/auth/neon-staging`;
+      const result = await neonAuthClient.requestPasswordReset({ email, redirectTo });
+      if (result.error) {
+        setMessage(errorMessage(result.error, 'E-mail pro obnovu se nepodařilo odeslat.'));
+        return;
+      }
 
-    if (result.error) {
-      setMessage(errorMessage(result.error, 'E-mail pro obnovu se nepodařilo odeslat.'));
-      return;
+      setMessage('Pokud účet existuje, Neon právě odeslal odkaz pro nastavení nového hesla.');
+    } catch (error) {
+      setMessage(errorMessage(error, 'E-mail pro obnovu se nepodařilo odeslat.'));
+    } finally {
+      setBusy(false);
     }
-
-    setMessage('Pokud účet existuje, Neon právě odeslal odkaz pro nastavení nového hesla.');
   }
 
   async function resetPassword(event: FormEvent) {
@@ -79,33 +87,41 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
 
     setBusy(true);
     setMessage('');
-    const result = await neonAuthClient.resetPassword({ newPassword: password, token: resetToken });
-    setBusy(false);
+    try {
+      const result = await neonAuthClient.resetPassword({ newPassword: password, token: resetToken });
+      if (result.error) {
+        setMessage(errorMessage(result.error, 'Heslo se nepodařilo nastavit. Pošli si nový odkaz.'));
+        return;
+      }
 
-    if (result.error) {
-      setMessage(errorMessage(result.error, 'Heslo se nepodařilo nastavit. Pošli si nový odkaz.'));
-      return;
+      setPassword('');
+      setPasswordConfirm('');
+      window.history.replaceState({}, '', '/auth/neon-staging');
+      setMessage('Nové heslo je uložené. Teď se s ním přihlas.');
+    } catch (error) {
+      setMessage(errorMessage(error, 'Heslo se nepodařilo nastavit. Pošli si nový odkaz.'));
+    } finally {
+      setBusy(false);
     }
-
-    setPassword('');
-    setPasswordConfirm('');
-    window.history.replaceState({}, '', '/auth/neon-staging');
-    setMessage('Nové heslo je uložené. Teď se s ním přihlas.');
   }
 
   async function signOut() {
     setBusy(true);
     setMessage('');
-    const result = await neonAuthClient.signOut();
-    setBusy(false);
+    try {
+      const result = await neonAuthClient.signOut();
+      if (result.error) {
+        setMessage(errorMessage(result.error, 'Odhlášení se nepodařilo.'));
+        return;
+      }
 
-    if (result.error) {
-      setMessage(errorMessage(result.error, 'Odhlášení se nepodařilo.'));
-      return;
+      await session.refetch();
+      setMessage('Odhlášení z Neon Auth proběhlo úspěšně.');
+    } catch (error) {
+      setMessage(errorMessage(error, 'Odhlášení se nepodařilo.'));
+    } finally {
+      setBusy(false);
     }
-
-    await session.refetch();
-    setMessage('Odhlášení z Neon Auth proběhlo úspěšně.');
   }
 
   if (resetToken) {
