@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
@@ -56,8 +57,8 @@ hr{border:0;border-top:1px solid #ddd;margin:34px 0}a{color:#4f46c8}
 const TERMS_CURRENT_CS = `
 <section>
 <h2>1. Poskytovatel služby</h2>
-<p><strong>Václav Loubek</strong><br>IČO: 88878431<br>Slepá 868<br>289 24 Milovice – Mladá<br>Česká republika</p>
-<p>E-mail: <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a><br>Web: <strong>syllonaut.com</strong></p>
+<p><strong>${escapeHtml(PROVIDER_CONTACT.legalName)}</strong><br>IČO: ${escapeHtml(PROVIDER_CONTACT.businessId)}<br>${escapeHtml(PROVIDER_CONTACT.addressLine1)}<br>${escapeHtml(PROVIDER_CONTACT.postalCity)}<br>${escapeHtml(PROVIDER_CONTACT.countryCs)}</p>
+<p>Telefon: <a href="${escapeHtml(PROVIDER_CONTACT.phoneHref)}">${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}</a><br>E-mail: <a href="${escapeHtml(PROVIDER_CONTACT.emailHref)}">${escapeHtml(PROVIDER_CONTACT.email)}</a><br>Web: <strong>${escapeHtml(PROVIDER_CONTACT.website)}</strong></p>
 <p>Tyto obchodní podmínky tvoří součást smlouvy mezi poskytovatelem a uživatelem služby Syllonaut.</p>
 </section>
 <section>
@@ -135,8 +136,8 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}
 const TERMS_CURRENT_EN = `
 <section>
 <h2>1. Service provider</h2>
-<p><strong>Václav Loubek</strong><br>Business ID: 88878431<br>Slepá 868<br>289 24 Milovice – Mladá<br>Czech Republic</p>
-<p>Email: <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a><br>Website: <strong>syllonaut.com</strong></p>
+<p><strong>${escapeHtml(PROVIDER_CONTACT.legalName)}</strong><br>Business ID: ${escapeHtml(PROVIDER_CONTACT.businessId)}<br>${escapeHtml(PROVIDER_CONTACT.addressLine1)}<br>${escapeHtml(PROVIDER_CONTACT.postalCity)}<br>${escapeHtml(PROVIDER_CONTACT.countryEn)}</p>
+<p>Phone: <a href="${escapeHtml(PROVIDER_CONTACT.phoneHref)}">${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}</a><br>Email: <a href="${escapeHtml(PROVIDER_CONTACT.emailHref)}">${escapeHtml(PROVIDER_CONTACT.email)}</a><br>Website: <strong>${escapeHtml(PROVIDER_CONTACT.website)}</strong></p>
 <p>These Terms form part of the contract between the provider and each Syllonaut user.</p>
 </section>
 <section>
@@ -213,9 +214,9 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.3'
+    TERMS_VERSION !== '1.4'
     || TERMS_EFFECTIVE_DATE !== '2026-09-21'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v4'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v5'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
@@ -226,7 +227,7 @@ function buildWithdrawalForm(locale: IndividualContractLocale) {
   const body = locale === 'cs'
     ? `<h1>Vzorový formulář pro odstoupení od smlouvy</h1>
 <p class="muted">Tento formulář vyplňte a odešlete pouze v případě, že chcete odstoupit od smlouvy. Můžete také zaslat jiné jednoznačné prohlášení.</p>
-<p><strong>Adresát:</strong><br>Václav Loubek, Slepá 868, 289 24 Milovice – Mladá, Česká republika<br>E-mail: vaclav@syllonaut.com</p>
+<p><strong>Adresát:</strong><br>${escapeHtml(PROVIDER_CONTACT.legalName)}, ${escapeHtml(PROVIDER_CONTACT.addressLine1)}, ${escapeHtml(PROVIDER_CONTACT.postalCity)}, ${escapeHtml(PROVIDER_CONTACT.countryCs)}<br>Telefon: ${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}<br>E-mail: ${escapeHtml(PROVIDER_CONTACT.email)}</p>
 <p>Oznamuji, že tímto odstupuji od smlouvy o poskytování služby Syllonaut:</p>
 <table><tr><th>Tarif / služba</th><td>________________________________</td></tr>
 <tr><th>Datum objednání</th><td>________________________________</td></tr>
@@ -237,7 +238,7 @@ function buildWithdrawalForm(locale: IndividualContractLocale) {
 <p>Podpis spotřebitele: ________________________________ <span class="muted">(pouze pokud je formulář zasílán v listinné podobě)</span></p>`
     : `<h1>Model withdrawal form</h1>
 <p class="muted">Complete and return this form only if you wish to withdraw from the contract. You may also send any other unequivocal statement.</p>
-<p><strong>To:</strong><br>Václav Loubek, Slepá 868, 289 24 Milovice – Mladá, Czech Republic<br>Email: vaclav@syllonaut.com</p>
+<p><strong>To:</strong><br>${escapeHtml(PROVIDER_CONTACT.legalName)}, ${escapeHtml(PROVIDER_CONTACT.addressLine1)}, ${escapeHtml(PROVIDER_CONTACT.postalCity)}, ${escapeHtml(PROVIDER_CONTACT.countryEn)}<br>Phone: ${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}<br>Email: ${escapeHtml(PROVIDER_CONTACT.email)}</p>
 <p>I hereby give notice that I withdraw from my contract for the provision of the Syllonaut service:</p>
 <table><tr><th>Plan / service</th><td>________________________________</td></tr>
 <tr><th>Order date</th><td>________________________________</td></tr>
@@ -276,7 +277,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 <div class="box"><strong>Tento dokument zachycuje nabídku a obchodní podmínky odsouhlasené před objednávkou.</strong> Placené oprávnění se aktivuje po potvrzení platby.</div>
 <h2>Shrnutí objednávky</h2>
 <table>
-<tr><th>Poskytovatel</th><td>Václav Loubek, IČO 88878431, Slepá 868, 289 24 Milovice – Mladá, Česká republika</td></tr>
+<tr><th>Poskytovatel</th><td>${escapeHtml(PROVIDER_CONTACT.legalName)}, IČO ${escapeHtml(PROVIDER_CONTACT.businessId)}, ${escapeHtml(PROVIDER_CONTACT.addressLine1)}, ${escapeHtml(PROVIDER_CONTACT.postalCity)}, ${escapeHtml(PROVIDER_CONTACT.countryCs)}; telefon ${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}; e-mail ${escapeHtml(PROVIDER_CONTACT.email)}</td></tr>
 <tr><th>Tarif</th><td>${escapeHtml(name)}</td></tr>
 <tr><th>Cena</th><td>${escapeHtml(price)}</td></tr>
 <tr><th>Fakturační období</th><td>${period}</td></tr>
@@ -294,7 +295,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 <div class="box"><strong>This document records the offer and Terms accepted before the order.</strong> Paid entitlements activate after payment is confirmed.</div>
 <h2>Order summary</h2>
 <table>
-<tr><th>Provider</th><td>Václav Loubek, Business ID 88878431, Slepá 868, 289 24 Milovice – Mladá, Czech Republic</td></tr>
+<tr><th>Provider</th><td>${escapeHtml(PROVIDER_CONTACT.legalName)}, Business ID ${escapeHtml(PROVIDER_CONTACT.businessId)}, ${escapeHtml(PROVIDER_CONTACT.addressLine1)}, ${escapeHtml(PROVIDER_CONTACT.postalCity)}, ${escapeHtml(PROVIDER_CONTACT.countryEn)}; phone ${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}; email ${escapeHtml(PROVIDER_CONTACT.email)}</td></tr>
 <tr><th>Plan</th><td>${escapeHtml(name)}</td></tr>
 <tr><th>Price</th><td>${escapeHtml(price)}</td></tr>
 <tr><th>Billing period</th><td>${period}</td></tr>
