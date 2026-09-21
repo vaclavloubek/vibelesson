@@ -8,7 +8,7 @@ Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
 Příprava je implementovaná jako bezpečný, opakovatelný migrační balík. Produkční Supabase ani produkční prostředí Vercelu nebyly změněny. Výchozí `DATABASE_BACKEND` zůstává `supabase`; zapnutí Neonu vyžaduje explicitní runtime gate `NEON_CUTOVER_APPROVED=true`.
 
-Databázová stagingová kopie byla vytvořena a validována. Následuje Auth migrace a aplikační refaktor. **Není povolen produkční cutover**, dokud neprojdou všechny stop podmínky v tomto dokumentu. Zejména se nesmí předpokládat kompatibilita hesel nebo ID mezi Supabase Auth a aktuálním Neon Auth bez důkazu na stagingu.
+Databázová stagingová kopie byla vytvořena a validována. Auth import je připravený jako jednorázový Preview build se zachováním UUID a povinným resetem hesla; po jeho ověření následuje aplikační refaktor. **Není povolen produkční cutover**, dokud neprojdou všechny stop podmínky v tomto dokumentu.
 
 ### Zřízený stagingový cíl
 
@@ -88,6 +88,7 @@ Pro privilegované billingové, právní a organizační operace se nepoužije v
 - explicitní konfigurace a cutover guard;
 - read-only preflight, výchozí dry-run migrace, explicitní write gate, import identity bridge a deterministické kontroly počtů/checksumů;
 - samostatný Auth preflight, který bez výpisu e-mailů porovná počet a fingerprint UUID/e-mailů a odmítne ne-UUID identitu;
+- dry-run-first Auth import s vlastní zápisovou pojistkou, zachováním UUID, kontrolou konfliktů a výslovným zákazem kopírování hesel a sessions;
 - idempotentní SQL prerequisites a Neon Auth synchronizační trigger;
 - deklarace Cloudflare Durable Object SQLite migrace;
 - hardening `/lessons` proti opakování incidentu;
@@ -121,6 +122,7 @@ Pouze jednorázový migrační shell, nikdy Vercel runtime:
 ```text
 SUPABASE_DB_URL=
 NEON_MIGRATION_APPROVED=I_UNDERSTAND_THIS_WRITES_TO_NEON
+NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS
 ```
 
 ### Bezpečné lokální načtení Preview proměnných
@@ -184,19 +186,40 @@ Skript odmítne cíl, který už obsahuje aplikační tabulky v `public`, `priva
 
 Aktuální Neon Auth je Better Auth v `neon_auth.*`. Starší Neon návod pro Stack Auth a `users_sync` není pro tuto architekturu autoritativní.
 
+Read-only kontrola 2026-09-21 ověřila:
+
+- Supabase má 3 aktivní uživatele, všichni 3 mají potvrzený e-mail a heslovou identitu; jediný provider je `email`;
+- stagingová tabulka `neon_auth.user` je prázdná a používá UUID primární klíč;
+- heslo se v Better Auth ukládá do `neon_auth.account` s providerem `credential`;
+- Supabase hashe jsou bcrypt, zatímco spravovaný Better Auth používá scrypt. Hashe se proto nekopírují a existující uživatelé musí jednou projít bezpečným resetem hesla.
+
 Povinný postup:
 
-1. Použít aktuální, Neonem podporovaný import pro Managed Better Auth, nebo naplánovat uživatelsky komunikovaný reset hesla.
-2. Zachovat původní Supabase UUID jako `neon_auth.user.id`. Pokud import neumí explicitní ID, produkční cutover se zastavuje a musí se připravit kompletní FK/ownership remap.
-3. Ověřit e-mail+heslo, OAuth callback, reset hesla, verifikaci e-mailu, logout, expiraci/refresh session a zneplatnění session.
-4. Spustit:
+1. Spustit dry-run; nesmí nic změnit:
+
+```bash
+bash scripts/neon/auth-import.sh
+```
+
+2. Na izolované Preview branch spustit zápis pouze s explicitní pojistkou:
+
+```bash
+NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS \
+  bash scripts/neon/auth-import.sh --execute
+```
+
+Skript načte ze Supabase pouze UUID a stav ověření, importuje 3 řádky do `neon_auth.user`, porovná fingerprint a nainstaluje synchronizační trigger. Nekopíruje `encrypted_password`, OAuth tokeny ani sessions a neposílá žádný e-mail.
+
+3. Po úspěšném Preview buildu odstranit jednorázový `buildCommand` z `vercel.json` dříve, než bude větev sloučena nebo znovu nasazena mimo staging.
+4. Jeden vlastník testovacího účtu sám spustí „Zapomenuté heslo“, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu není součást automatického importu.
+5. Samostatně ověřit registraci, verifikaci e-mailu a případný budoucí OAuth callback.
+6. Diagnostiku lze zopakovat:
 
 ```bash
 npm run neon:auth-preflight
-psql "$NEON_DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -f neon/migrations/0002_neon_auth_identity_sync.sql
 ```
 
-Auth preflight musí vrátit shodný počet i fingerprint a nula non-UUID ID. Nezobrazuje jednotlivé e-maily.
+Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_identity.users` a `neon_auth.user` a nula non-UUID ID. Nezobrazuje jednotlivé e-maily.
 
 ### 5. Aplikační port
 

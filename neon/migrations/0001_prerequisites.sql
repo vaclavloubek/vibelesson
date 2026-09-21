@@ -24,11 +24,15 @@ $block$;
 create table if not exists app_identity.users (
   id uuid primary key,
   email text,
+  email_verified boolean,
   raw_user_meta_data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz,
   deleted_at timestamptz
 );
+
+alter table app_identity.users
+  add column if not exists email_verified boolean;
 
 comment on table app_identity.users is
   'Stable UUID identity bridge. Imported from Supabase Auth and retained while Neon Auth is validated.';

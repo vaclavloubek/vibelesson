@@ -62,10 +62,10 @@ psql "$TARGET_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$REPO_DIR/neon/migrations/
 psql "$TARGET_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$WORK_DIR/pre-data.sql"
 
 psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 --csv -c \
-  "select id,email,coalesce(raw_user_meta_data,'{}'::jsonb) as raw_user_meta_data,created_at,updated_at,deleted_at from auth.users order by id" \
+  "select id,email,(email_confirmed_at is not null) as email_verified,coalesce(raw_user_meta_data,'{}'::jsonb) as raw_user_meta_data,created_at,updated_at,deleted_at from auth.users order by id" \
   > "$WORK_DIR/auth-users.csv"
 psql "$TARGET_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c \
-  "\copy app_identity.users(id,email,raw_user_meta_data,created_at,updated_at,deleted_at) from '$WORK_DIR/auth-users.csv' csv header"
+  "\copy app_identity.users(id,email,email_verified,raw_user_meta_data,created_at,updated_at,deleted_at) from '$WORK_DIR/auth-users.csv' csv header"
 
 psql "$TARGET_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$WORK_DIR/data.sql"
 psql "$TARGET_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$WORK_DIR/post-data.sql"
