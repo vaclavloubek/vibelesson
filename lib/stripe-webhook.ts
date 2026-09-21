@@ -110,7 +110,7 @@ export type StripeSubscriptionSync = {
   billingCountry: string;
   previousStatus: string | null;
   previousCancelAtPeriodEnd: boolean | null;
-  contractSnapshotId: string | null;
+  contractSnapshotId?: string | null;
 };
 
 function splitSecrets(value: string | undefined) {
