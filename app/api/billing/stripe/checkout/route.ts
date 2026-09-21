@@ -4,6 +4,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isSupportedCountryCode } from '@/lib/countries';
+import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -18,7 +19,7 @@ const InputSchema = z.object({
   environment: z.enum(['sandbox', 'live']).default('sandbox'),
   termsAccepted: z.literal(true),
   immediatePerformanceRequested: z.literal(true),
-  termsVersion: z.literal('2026-09-21-v1'),
+  termsVersion: z.literal(TERMS_ACCEPTANCE_KEY),
 });
 
 function jsonError(status: number, error: string, diagnostics?: { stripeType?: string | null; stripeCode?: string | null; stripeMessage?: string | null }) {

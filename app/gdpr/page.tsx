@@ -79,7 +79,7 @@ export default async function GdprPage() {
 
         <section>
           <h2>{ui('1. Správce osobních údajů', '1. Data controller')}</h2>
-          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice<br />{ui('Česká republika', 'Czech Republic')}</p>
+          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice – Mladá<br />{ui('Česká republika', 'Czech Republic')}</p>
           <p>{ui('Správce provozuje službu Syllonaut na doméně', 'The controller operates Syllonaut at')} <strong>syllonaut.com</strong>. {ui('Pro dotazy k ochraně soukromí nás můžete kontaktovat na', 'For privacy-related questions, contact')} <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a>.</p>
         </section>
 

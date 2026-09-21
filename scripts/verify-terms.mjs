@@ -9,6 +9,7 @@ const schoolApi = read('app/api/organizations/route.ts');
 const footer = read('components/SiteFooter.tsx');
 const proxy = read('proxy.ts');
 const terms = read('app/terms/page.tsx');
+const legal = read('lib/legal.ts');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -18,5 +19,9 @@ if (!auth.includes('termsAccepted') || !auth.includes('terms_acceptance_version'
 if (!pricing.includes('termsAccepted') || !pricing.includes('immediatePerformanceRequested')) fail('individual paid checkout must require Terms and immediate-service request');
 if (!individualApi.includes('termsAccepted: z.literal(true)') || !individualApi.includes('immediatePerformanceRequested: z.literal(true)')) fail('individual checkout server must fail closed without acceptance');
 if (!school.includes('termsAccepted') || !schoolApi.includes('termsAccepted: z.literal(true)')) fail('school ordering must require Terms on client and server');
-if (!terms.includes('88878431') || !terms.includes('14') || !terms.includes('coi.gov.cz')) fail('Terms page is missing provider or consumer-rights essentials');
+if (!legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v1'")) fail('shared Terms acceptance version key is missing');
+if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANCE_KEY') || !school.includes('TERMS_ACCEPTANCE_KEY')) fail('client flows must use the shared Terms acceptance key');
+if (!individualApi.includes('TERMS_ACCEPTANCE_KEY') || !schoolApi.includes('TERMS_ACCEPTANCE_KEY')) fail('server flows must use the shared Terms acceptance key');
+if (!schoolApi.includes('acceptedByUserId: userId')) fail('school Terms acceptance must record the accepting account');
+if (!terms.includes('88878431') || !terms.includes('289 24 Milovice – Mladá') || !terms.includes('14') || !terms.includes('coi.gov.cz')) fail('Terms page is missing provider or consumer-rights essentials');
 console.log('Terms acceptance contract OK');

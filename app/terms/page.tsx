@@ -78,7 +78,7 @@ export default async function TermsPage() {
 
         <section>
           <h2>{ui('1. Poskytovatel služby', '1. Service provider')}</h2>
-          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice<br />{ui('Česká republika', 'Czech Republic')}</p>
+          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice – Mladá<br />{ui('Česká republika', 'Czech Republic')}</p>
           <p>{ui('E-mail:', 'Email:')} <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a><br />{ui('Web:', 'Website:')} <strong>syllonaut.com</strong></p>
           <p>{ui(
             'Tyto obchodní podmínky tvoří součást smlouvy mezi poskytovatelem a uživatelem služby Syllonaut.',

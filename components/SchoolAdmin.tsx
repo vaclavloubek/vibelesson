@@ -9,6 +9,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SyllonautMark from '@/components/SyllonautMark';
 import TrustedDevicesPanel from '@/components/TrustedDevicesPanel';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
+import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import {
   ORGANIZATION_PLANS,
   type OrganizationBillingPeriod,
@@ -526,7 +527,7 @@ export default function SchoolAdmin({
         paymentMethod,
         environment: billingEnvironment,
         termsAccepted: true,
-        termsVersion: '2026-09-21-v1',
+        termsVersion: TERMS_ACCEPTANCE_KEY,
       }),
     });
 
@@ -1340,7 +1341,7 @@ export default function SchoolAdmin({
                     required
                     style={{ marginTop: 3, width: 'auto' }}
                   />
-                  <span>{ui('Souhlasím s ', 'I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a potvrzuji objednávku zvoleného tarifu a fakturačního období.', ' and confirm the order for the selected plan and billing period.')}</span>
+                  <span>{ui('Souhlasím jménem školy / organizace s ', 'On behalf of the school / organisation, I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a potvrzuji objednávku zvoleného tarifu a fakturačního období i své oprávnění tuto objednávku učinit.', ' and confirm the order for the selected plan and billing period and my authority to place this order.')}</span>
                 </label>
               </div>
 

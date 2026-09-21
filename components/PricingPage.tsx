@@ -15,6 +15,7 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -589,7 +590,7 @@ export default function PricingPage({
           environment: billingTestEnvironment,
           termsAccepted: true,
           immediatePerformanceRequested: true,
-          termsVersion: '2026-09-21-v1',
+          termsVersion: TERMS_ACCEPTANCE_KEY,
         }),
       });
       const payload = await response.json() as {
@@ -917,7 +918,12 @@ export default function PricingPage({
                 disabled={checkoutBusy}
                 style={{ marginTop: 3, width: 'auto' }}
               />
-              <span>{ui('Souhlasím s ', 'I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a seznámil(a) jsem se s ochranou osobních údajů.', ' and I have read the Privacy Notice.')}</span>
+              <span>
+                {ui('Souhlasím s ', 'I agree to the ')}
+                <Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>
+                {ui(' a seznámil(a) jsem se s ', ' and I have read the ')}
+                <Link href={`/${locale}/gdpr`} target="_blank">{ui('ochranou osobních údajů', 'Privacy Notice')}</Link>.
+              </span>
             </label>
 
             <label className={styles.checkoutField} style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
