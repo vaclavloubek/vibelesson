@@ -22,6 +22,7 @@ export type StripeSubscriptionItem = {
 
 export type StripeSubscription = {
   id?: string;
+  created?: number | null;
   customer?: string | { id?: string } | null;
   status?: string;
   cancel_at_period_end?: boolean;
