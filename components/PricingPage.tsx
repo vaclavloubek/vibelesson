@@ -429,6 +429,8 @@ export default function PricingPage({
     if (currency === 'eur') return 'DE';
     return 'US';
   });
+  const [checkoutTermsAccepted, setCheckoutTermsAccepted] = useState(false);
+  const [immediatePerformanceRequested, setImmediatePerformanceRequested] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [portalBusy, setPortalBusy] = useState(false);
@@ -558,12 +560,18 @@ export default function PricingPage({
       return;
     }
 
+    setCheckoutTermsAccepted(false);
+    setImmediatePerformanceRequested(false);
     setCheckoutPlan(plan);
     setCheckoutError('');
   }
 
   async function startSandboxCheckout() {
     if (!checkoutPlan || checkoutBusy) return;
+    if (!checkoutTermsAccepted || !immediatePerformanceRequested) {
+      setCheckoutError(ui('Před objednáním potvrď obchodní podmínky i žádost o okamžité zahájení služby.', 'Before ordering, accept the Terms and request immediate start of the service.'));
+      return;
+    }
     if (checkoutPlan.id !== 'teacher' && checkoutPlan.id !== 'teacher-pro') return;
     const planId = checkoutPlan.id;
     setCheckoutBusy(true);
@@ -579,6 +587,9 @@ export default function PricingPage({
           billing,
           country: checkoutCountry,
           environment: billingTestEnvironment,
+          termsAccepted: true,
+          immediatePerformanceRequested: true,
+          termsVersion: '2026-09-21-v1',
         }),
       });
       const payload = await response.json() as {
@@ -898,6 +909,31 @@ export default function PricingPage({
               <strong>{checkoutRoute.managedPayments ? 'Managed Payments' : ui('Standardní Stripe', 'Standard Stripe')}</strong>
             </div>
 
+            <label className={styles.checkoutField} style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <input
+                type="checkbox"
+                checked={checkoutTermsAccepted}
+                onChange={(event) => { setCheckoutTermsAccepted(event.target.checked); setCheckoutError(''); }}
+                disabled={checkoutBusy}
+                style={{ marginTop: 3, width: 'auto' }}
+              />
+              <span>{ui('Souhlasím s ', 'I agree to the ')}<Link href={`/${locale}/terms`} target="_blank">{ui('obchodními podmínkami', 'Terms of Service')}</Link>{ui(' a seznámil(a) jsem se s ochranou osobních údajů.', ' and I have read the Privacy Notice.')}</span>
+            </label>
+
+            <label className={styles.checkoutField} style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <input
+                type="checkbox"
+                checked={immediatePerformanceRequested}
+                onChange={(event) => { setImmediatePerformanceRequested(event.target.checked); setCheckoutError(''); }}
+                disabled={checkoutBusy}
+                style={{ marginTop: 3, width: 'auto' }}
+              />
+              <span>{ui(
+                'Výslovně žádám, aby služba začala ihned, tedy ještě před uplynutím 14 dnů pro odstoupení. Beru na vědomí, že při odstoupení mohu hradit poměrnou část ceny za plnění poskytnuté do odstoupení.',
+                'I expressly request that the service start immediately, before the 14-day withdrawal period expires. I understand that if I withdraw, I may have to pay a proportionate amount for the service supplied before withdrawal.'
+              )}</span>
+            </label>
+
             {checkoutError ? <div className={styles.checkoutError} role="alert">{checkoutError}</div> : null}
 
             <div className={styles.checkoutActions}>
@@ -916,9 +952,9 @@ export default function PricingPage({
                 type="button"
                 className={styles.activeCta}
                 onClick={startSandboxCheckout}
-                disabled={checkoutBusy}
+                disabled={checkoutBusy || !checkoutTermsAccepted || !immediatePerformanceRequested}
               >
-                {checkoutBusy ? ui('Otevírám Stripe…', 'Opening Stripe…') : ui('Pokračovat do Stripe', 'Continue to Stripe')}
+                {checkoutBusy ? ui('Otevírám Stripe…', 'Opening Stripe…') : ui('Objednat a zaplatit přes Stripe', 'Order and pay via Stripe')}
               </button>
             </div>
           </div>
