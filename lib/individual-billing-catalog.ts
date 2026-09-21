@@ -2,6 +2,14 @@ import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-chang
 
 export type IndividualBillingCurrency = 'czk' | 'eur' | 'usd';
 
+export const INDIVIDUAL_PLAN_ALLOWANCES: Record<
+  IndividualPlanCode,
+  { lessonGenerations: number; aiEdits: number }
+> = {
+  teacher: { lessonGenerations: 10, aiEdits: 20 },
+  teacher_pro: { lessonGenerations: 25, aiEdits: 40 },
+};
+
 const DISPLAY_PRICES: Record<
   IndividualPlanCode,
   Record<BillingPeriod, Record<IndividualBillingCurrency, number>>
