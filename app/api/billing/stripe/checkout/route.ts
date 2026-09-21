@@ -4,6 +4,7 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isSupportedCountryCode } from '@/lib/countries';
+import { TERMS_VERSION } from '@/lib/legal';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -16,6 +17,9 @@ const InputSchema = z.object({
   billing: z.enum(['monthly', 'annual']),
   country: z.string().trim().length(2).transform((value) => value.toUpperCase()),
   environment: z.enum(['sandbox', 'live']).default('sandbox'),
+  termsAccepted: z.literal(true),
+  termsVersion: z.literal(TERMS_VERSION),
+  earlyPerformanceRequested: z.literal(true),
 });
 
 function jsonError(status: number, error: string, diagnostics?: { stripeType?: string | null; stripeCode?: string | null; stripeMessage?: string | null }) {
@@ -117,6 +121,8 @@ export async function POST(request: Request) {
       managedPayments: route.managedPayments,
       planCode,
       billingPeriod: input.billing,
+      termsVersion: input.termsVersion,
+      earlyPerformanceRequested: input.earlyPerformanceRequested,
     });
     return NextResponse.json({ url: session.url, environment: input.environment, currency: route.currency, managedPayments: route.managedPayments }, {
       status: 200, headers: { 'Cache-Control': 'no-store' },

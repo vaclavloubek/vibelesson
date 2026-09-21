@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
+import { PRIVACY_NOTICE_VERSION, TERMS_VERSION } from '@/lib/legal';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -161,6 +162,7 @@ export default function AuthControls({
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [marketingConsent, setMarketingConsent] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [turnstileReady, setTurnstileReady] = useState(false);
@@ -170,6 +172,7 @@ export default function AuthControls({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const marketingConsentId = useId();
+  const termsConsentId = useId();
   const signupStartedRef = useRef(false);
 
   async function loadQuota(nextUser: User | null) {
@@ -406,6 +409,10 @@ export default function AuthControls({
       setMessage(english ? 'The passwords do not match.' : 'Hesla se neshodují.');
       return;
     }
+    if (!termsAccepted) {
+      setMessage(english ? 'Please accept the Terms and Conditions to create an account.' : 'Pro vytvoření účtu je potřeba přijmout Obchodní podmínky.');
+      return;
+    }
     if (!captchaToken) {
       setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
@@ -422,6 +429,10 @@ export default function AuthControls({
         captchaToken: token,
         data: {
           marketing_email_consent: marketingConsent,
+          terms_version: TERMS_VERSION,
+          terms_accepted_at: new Date().toISOString(),
+          privacy_notice_version: PRIVACY_NOTICE_VERSION,
+          privacy_notice_acknowledged_at: new Date().toISOString(),
           ui_locale: locale,
         },
       },
@@ -563,11 +574,26 @@ export default function AuthControls({
           {mode === 'signup' ? (
             <>
               <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</strong>
-              <p>{english ? 'The Free account includes 5 new AI lessons and 20 AI edits per calendar month. No plan selection and no payment card required.' : 'Free účet obsahuje 5 nových AI lekcí a 20 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.' }</p>
+              <p>{english ? 'The Free account includes 3 new AI lessons and 10 AI edits per calendar month. No plan selection and no payment card required.' : 'Free účet obsahuje 3 nové AI lekce a 10 AI úprav za kalendářní měsíc. Bez výběru tarifu a bez platební karty.' }</p>
               <form onSubmit={signUp}>
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <PasswordField label={english ? 'Password again' : 'Heslo znovu'} value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+                <div className="auth-marketing-consent">
+                  <input
+                    id={termsConsentId}
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(event) => setTermsAccepted(event.target.checked)}
+                    required
+                  />
+                  <label htmlFor={termsConsentId}>
+                    {english ? 'I agree to the ' : 'Souhlasím s '}
+                    <a href={`/${locale}/terms`} target="_blank" rel="noreferrer">{english ? 'Terms and Conditions' : 'Obchodními podmínkami'}</a>
+                    {english ? ' and confirm that I have read the ' : ' a potvrzuji, že jsem se seznámil/a s '}
+                    <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'Privacy Notice' : 'informacemi o ochraně osobních údajů'}</a>.
+                  </label>
+                </div>
                 <div className="auth-marketing-consent">
                   <input
                     id={marketingConsentId}
@@ -579,11 +605,11 @@ export default function AuthControls({
                     {english
                       ? 'I want to receive Syllonaut news, case studies and occasional offers by email. Consent is optional and can be withdrawn at any time. '
                       : 'Chci dostávat e-mailem novinky, případové studie a občasné nabídky Syllonautu. Souhlas je dobrovolný a můžu ho kdykoli odvolat. '}
-                    <a href="/gdpr" target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
+                    <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
                   </label>
                 </div>
                 <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
+                <button className="primary" disabled={busy || !captchaToken || !termsAccepted}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'I already have an account' : 'Už mám účet' }</button>
             </>

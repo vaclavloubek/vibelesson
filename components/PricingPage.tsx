@@ -15,6 +15,7 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { pricingPagePrice } from '@/lib/individual-billing-catalog';
+import { TERMS_VERSION } from '@/lib/legal';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
 
@@ -431,6 +432,8 @@ export default function PricingPage({
   });
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutTermsAccepted, setCheckoutTermsAccepted] = useState(false);
+  const [earlyPerformanceRequested, setEarlyPerformanceRequested] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalError, setPortalError] = useState('');
   const checkoutDialogRef = useRef<HTMLDivElement | null>(null);
@@ -559,12 +562,21 @@ export default function PricingPage({
     }
 
     setCheckoutPlan(plan);
+    setCheckoutTermsAccepted(false);
+    setEarlyPerformanceRequested(false);
     setCheckoutError('');
   }
 
   async function startSandboxCheckout() {
     if (!checkoutPlan || checkoutBusy) return;
     if (checkoutPlan.id !== 'teacher' && checkoutPlan.id !== 'teacher-pro') return;
+    if (!checkoutTermsAccepted || !earlyPerformanceRequested) {
+      setCheckoutError(ui(
+        'Před pokračováním je potřeba přijmout Obchodní podmínky a potvrdit okamžité zpřístupnění služby.',
+        'Before continuing, accept the Terms and confirm immediate access to the service.',
+      ));
+      return;
+    }
     const planId = checkoutPlan.id;
     setCheckoutBusy(true);
     setCheckoutError('');
@@ -579,6 +591,9 @@ export default function PricingPage({
           billing,
           country: checkoutCountry,
           environment: billingTestEnvironment,
+          termsAccepted: checkoutTermsAccepted,
+          termsVersion: TERMS_VERSION,
+          earlyPerformanceRequested,
         }),
       });
       const payload = await response.json() as {
@@ -898,6 +913,40 @@ export default function PricingPage({
               <strong>{checkoutRoute.managedPayments ? 'Managed Payments' : ui('Standardní Stripe', 'Standard Stripe')}</strong>
             </div>
 
+            <div className={styles.checkoutConsents}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={checkoutTermsAccepted}
+                  onChange={(event) => {
+                    setCheckoutTermsAccepted(event.target.checked);
+                    setCheckoutError('');
+                  }}
+                  disabled={checkoutBusy}
+                />
+                <span>
+                  {ui('Souhlasím s ', 'I agree to the ')}
+                  <Link href={`/${locale}/terms`} target="_blank">{ui('Obchodními podmínkami', 'Terms and Conditions')}</Link>
+                  {ui(' a beru na vědomí cenu, zvolené fakturační období a pravidla obnovení a ukončení předplatného.', ' and acknowledge the price, selected billing period, and subscription renewal and cancellation rules.')}
+                </span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={earlyPerformanceRequested}
+                  onChange={(event) => {
+                    setEarlyPerformanceRequested(event.target.checked);
+                    setCheckoutError('');
+                  }}
+                  disabled={checkoutBusy}
+                />
+                <span>{ui(
+                  'Výslovně žádám o zpřístupnění digitální služby ihned před uplynutím 14denní lhůty pro odstoupení a beru na vědomí zákonné důsledky zahájení plnění popsané v Obchodních podmínkách.',
+                  'I expressly request immediate access to the digital service before the 14-day withdrawal period expires and acknowledge the statutory consequences of beginning performance described in the Terms.',
+                )}</span>
+              </label>
+            </div>
+
             {checkoutError ? <div className={styles.checkoutError} role="alert">{checkoutError}</div> : null}
 
             <div className={styles.checkoutActions}>
@@ -906,6 +955,8 @@ export default function PricingPage({
                 className={styles.dialogSecondary}
                 onClick={() => {
                   setCheckoutPlan(null);
+                  setCheckoutTermsAccepted(false);
+                  setEarlyPerformanceRequested(false);
                   setCheckoutError('');
                 }}
                 disabled={checkoutBusy}
@@ -916,7 +967,7 @@ export default function PricingPage({
                 type="button"
                 className={styles.activeCta}
                 onClick={startSandboxCheckout}
-                disabled={checkoutBusy}
+                disabled={checkoutBusy || !checkoutTermsAccepted || !earlyPerformanceRequested}
               >
                 {checkoutBusy ? ui('Otevírám Stripe…', 'Opening Stripe…') : ui('Pokračovat do Stripe', 'Continue to Stripe')}
               </button>

@@ -600,3 +600,30 @@
     grid-template-columns: 1fr;
   }
 }
+
+.checkoutConsents {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+.checkoutConsents label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 9px;
+  align-items: start;
+  color: #555861;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 560;
+}
+.checkoutConsents input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+.checkoutConsents a {
+  color: var(--accent);
+  font-weight: 720;
+  text-underline-offset: 2px;
+}
