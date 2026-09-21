@@ -17,6 +17,7 @@ const legal = read('lib/legal.ts');
 const gdpr = read('app/gdpr/page.tsx');
 const termsAuditMigration = read('supabase/migrations/20260921033344_add_terms_acceptance_audit.sql');
 const contractSnapshotMigration = read('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql');
+const atomicContractSnapshotMigration = read('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -49,7 +50,11 @@ if (!contractSnapshotMigration.includes('alter table private.individual_contract
 if (!contractSnapshotMigration.includes('revoke all on table private.individual_contract_snapshots from public, anon, authenticated')) fail('paid-contract snapshot table must not be client-readable');
 if (!contractSnapshotMigration.includes('individual_contract_snapshots_append_only') || !contractSnapshotMigration.includes('individual_contract_checkout_links_append_only')) fail('paid-contract snapshot and Checkout linkage must be append-only');
 if (!contractSnapshotMigration.includes('grant execute on function public.create_individual_contract_snapshot') || !contractSnapshotMigration.includes('to service_role')) fail('paid-contract snapshot RPCs must be service-role-only');
-if (!individualApi.includes('create_individual_contract_snapshot') || !individualApi.includes('link_individual_contract_snapshot_checkout')) fail('individual checkout must create and bind the immutable contract snapshot before returning Stripe URL');
+if (!atomicContractSnapshotMigration.includes('create_and_link_individual_contract_snapshot')) fail('paid-contract snapshot and Checkout link must be persisted atomically');
+if (!atomicContractSnapshotMigration.includes('drop function public.create_individual_contract_snapshot') || !atomicContractSnapshotMigration.includes('drop function public.link_individual_contract_snapshot_checkout')) fail('superseded non-atomic contract RPCs must be dropped');
+if (!atomicContractSnapshotMigration.includes("tg_op = 'DELETE' and current_user = 'postgres'")) fail('contract evidence retention purge must remain restricted to the database owner');
+if (!individualApi.includes('create_and_link_individual_contract_snapshot')) fail('individual checkout must atomically create and bind the immutable contract snapshot after Stripe Session creation and before returning its URL');
+if (individualApi.includes("admin.rpc('create_individual_contract_snapshot'") || individualApi.includes("admin.rpc('link_individual_contract_snapshot_checkout'")) fail('individual checkout must not use the superseded non-atomic snapshot RPCs');
 if (!stripeCheckout.includes('syllonaut_contract_snapshot_id')) fail('Stripe Checkout and subscription metadata must carry contract snapshot ID');
 if (!billingEmail.includes('get_individual_contract_snapshot_for_delivery') || !billingEmail.includes('hashIndividualContractSnapshot')) fail('activation email must fetch and verify the frozen contract snapshot');
 if (!billingEmail.includes('withdrawal_form_html') || !billingEmail.includes('contract_html')) fail('activation email must attach the frozen contract and withdrawal form');
