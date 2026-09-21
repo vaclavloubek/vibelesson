@@ -21,11 +21,12 @@ export default function WithdrawalAdmin() {
     <form onSubmit={event => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
       void send({ action:'register',userId:form.get('userId'),snapshotId:form.get('snapshotId'),
-        receivedAt:form.get('receivedAt'),noticeSha256:form.get('noticeSha256'),consumerAndWithdrawalEligibilityConfirmed:true });
+        sentAt:form.get('sentAt'),receivedAt:form.get('receivedAt'),noticeSha256:form.get('noticeSha256'),consumerAndWithdrawalEligibilityConfirmed:true });
     }}>
       <p><label>ID účtu <input name="userId" required /></label></p>
       <p><label>ID smluvního snapshotu <input name="snapshotId" required /></label></p>
-      <p><label>Doručeno (ISO čas včetně Z nebo časového posunu) <input name="receivedAt" placeholder="2026-09-21T12:00:00+02:00" required /></label></p>
+      <p><label>Odesláno spotřebitelem (ISO čas včetně Z nebo časového posunu) <input name="sentAt" placeholder="2026-09-21T11:58:00+02:00" required /></label></p>
+      <p><label>Doručeno poskytovateli (ISO čas včetně Z nebo časového posunu) <input name="receivedAt" placeholder="2026-09-21T12:00:00+02:00" required /></label></p>
       <p><label>SHA-256 původního oznámení <input name="noticeSha256" pattern="[0-9a-f]{64}" required /></label></p>
       <p><label><input type="checkbox" required /> Ověřil/a jsem totožnost, spotřebitelské postavení a platnost odstoupení.</label></p>
       <button disabled={busy}>Zaevidovat odstoupení</button>

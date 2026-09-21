@@ -9,7 +9,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const Input = z.discriminatedUnion('action', [
   z.object({ action: z.literal('register'), userId: z.string().uuid(), snapshotId: z.string().uuid(),
-    receivedAt: z.string().datetime({ offset: true }), noticeSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    sentAt: z.string().datetime({ offset: true }), receivedAt: z.string().datetime({ offset: true }),
+    noticeSha256: z.string().regex(/^[0-9a-f]{64}$/),
     consumerAndWithdrawalEligibilityConfirmed: z.literal(true) }),
   z.object({ action: z.literal('prepare'), id: z.string().uuid() }),
   z.object({ action: z.literal('execute'), id: z.string().uuid() }),
@@ -27,8 +28,8 @@ export async function POST(request: Request) {
   const input = parsed.data;
   try {
     if (input.action === 'register') {
-      const { data, error } = await createAdminClient().rpc('register_individual_withdrawal_for_service', {
-        p_user_id: input.userId,p_snapshot_id: input.snapshotId,p_received_at: input.receivedAt,
+      const { data, error } = await createAdminClient().rpc('register_individual_withdrawal_receipt_for_service', {
+        p_user_id: input.userId,p_snapshot_id: input.snapshotId,p_sent_at:input.sentAt,p_received_at: input.receivedAt,
         p_notice_sha256: input.noticeSha256,p_actor_user_id: userId,
       });
       if (error) return json({ error: 'withdrawal_receipt_not_registered' }, 409);

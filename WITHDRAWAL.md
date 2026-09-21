@@ -1,6 +1,6 @@
 # Consumer withdrawal — LEGAL-008
 
-Method: `time-pro-rata-v1`. Receipt time is the time the withdrawal reaches the provider, never the time an administrator processes it. Eligibility (including timely dispatch, consumer status and statutory exceptions) is reviewed against the retained original notice. An absent snapshot or an unusual payment history does not reject the legal withdrawal.
+Method: `time-pro-rata-v1`. The dispatch time from the retained original notice determines whether the consumer exercised the right within 14 days. The receipt time is when the notice reaches the provider, never when an administrator processes it, and it determines how much service was supplied. Both timestamps and the notice SHA-256 are immutable evidence. Consumer status and statutory exceptions still require review. An absent snapshot or an unusual payment history does not reject the legal withdrawal.
 
 ## Monetary calculation
 
@@ -12,7 +12,7 @@ The activation email's server ledger entry is created after entitlement provisio
 
 ## Operations
 
-Use `/admin/withdrawals` as the existing superadmin. Preserve the original notice in the legal case archive, calculate its SHA-256, verify the account and contract snapshot, and confirm consumer/withdrawal eligibility. Register the receipt, prepare the calculation, review the displayed amount, then execute. The consumer continues to submit notices through the existing email channel; this is an internal processing interface, not the future LEGAL-020 online withdrawal feature.
+Use `/admin/withdrawals` as the existing superadmin. Preserve the original notice in the legal case archive, calculate its SHA-256, record its evidenced dispatch and receipt times, verify the account and contract snapshot, and confirm consumer/withdrawal eligibility. Register the receipt, prepare the calculation, review the displayed amount, then execute. The consumer continues to submit notices through the existing email channel; this is an internal processing interface, not the future LEGAL-020 online withdrawal feature.
 
 Receipt registration and preparation never move money. Execution cancels the specific subscription immediately without another Stripe invoice or Stripe proration, then refunds the original payment. Cancellation and refund webhooks retain their existing authority over entitlements and payment state. `pending` is not a completed refund. Signed refund lifecycle events re-fetch the canonical refund and reconcile its status with the stored payment, amount, currency and withdrawal identity. Failed/canceled/requires_action refunds require attention.
 

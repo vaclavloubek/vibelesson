@@ -62,26 +62,27 @@ export async function getWithdrawalCharge(key: string, paymentIntentId: string) 
 }
 
 export async function createWithdrawalStripeRefund(key: string, input: {
-  withdrawalId: string; paymentIntentId: string; amountMinor: number; currency: string;
+  requestId: string; receiptId: string; paymentIntentId: string; amountMinor: number; currency: string;
 }) {
   if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) throw new Error('withdrawal_refund_amount_invalid');
   const body = new URLSearchParams({
     payment_intent: input.paymentIntentId, amount: String(input.amountMinor), reason: 'requested_by_customer',
-    'metadata[syllonaut_withdrawal_id]': input.withdrawalId,
+    'metadata[syllonaut_withdrawal_id]': input.requestId,
+    'metadata[syllonaut_withdrawal_receipt_id]': input.receiptId,
     'metadata[syllonaut_refund_method]': 'time-pro-rata-v1',
   });
   const refund = await withdrawalStripeRequest(key, 'refunds', RefundSchema, 'POST', body,
-    'syllonaut-withdrawal-' + input.withdrawalId);
+    'syllonaut-withdrawal-' + input.requestId);
   if (stripeReference(refund.payment_intent) !== input.paymentIntentId
     || refund.amount !== input.amountMinor || refund.currency !== input.currency
-    || refund.metadata.syllonaut_withdrawal_id !== input.withdrawalId) throw new Error('withdrawal_refund_response_mismatch');
+    || refund.metadata.syllonaut_withdrawal_id !== input.requestId) throw new Error('withdrawal_refund_response_mismatch');
   return refund;
 }
 
-export async function findWithdrawalStripeRefund(key: string, withdrawalId: string, paymentIntentId: string) {
+export async function findWithdrawalStripeRefund(key: string, requestId: string, paymentIntentId: string) {
   const list = await withdrawalStripeRequest(key, 'refunds?payment_intent=' + encodeURIComponent(paymentIntentId) + '&limit=100',
     z.object({ has_more: z.literal(false), data: z.array(RefundSchema) }));
-  const matching = list.data.filter(r => r.metadata.syllonaut_withdrawal_id === withdrawalId);
+  const matching = list.data.filter(r => r.metadata.syllonaut_withdrawal_id === requestId);
   if (matching.length > 1) throw new Error('withdrawal_duplicate_refund_review_required');
   return matching[0] ?? null;
 }
@@ -89,9 +90,10 @@ export async function findWithdrawalStripeRefund(key: string, withdrawalId: stri
 export async function cancelWithdrawnSubscription(key: string, subscriptionId: string) {
   if (!/^sub_[A-Za-z0-9_]+$/.test(subscriptionId)) throw new Error('withdrawal_subscription_invalid');
   const canceled = await withdrawalStripeRequest(key, 'subscriptions/' + subscriptionId,
-    z.object({ id: Id, status: z.literal('canceled'), livemode: z.literal(true) }), 'DELETE',
+    z.object({ id: Id, status: z.literal('canceled'), livemode: z.literal(true), canceled_at:z.number().int().positive() }), 'DELETE',
     new URLSearchParams({ invoice_now: 'false', prorate: 'false' }));
   if (canceled.id !== subscriptionId) throw new Error('withdrawal_cancellation_mismatch');
+  return { canceledAt: new Date(canceled.canceled_at * 1000).toISOString() };
 }
 
 export async function reconcileWithdrawalRefundEvent(key: string, object: unknown) {
@@ -101,8 +103,8 @@ export async function reconcileWithdrawalRefundEvent(key: string, object: unknow
   const id = refund.metadata.syllonaut_withdrawal_id;
   if (!id) return;
   if (!z.string().uuid().safeParse(id).success) throw new Error('withdrawal_refund_metadata_invalid');
-  const {error}=await createAdminClient().rpc('reconcile_individual_withdrawal_for_service',{
-    p_id:id,p_refund_id:refund.id,p_payment_intent_id:stripeReference(refund.payment_intent),
+  const {error}=await createAdminClient().rpc('reconcile_individual_withdrawal_refund_for_service',{
+    p_request_id:id,p_lease_token:null,p_refund_id:refund.id,p_payment_intent_id:stripeReference(refund.payment_intent),
     p_amount:refund.amount,p_currency:refund.currency,p_status:refund.status,
   });
   if(error) throw new Error('withdrawal_refund_reconciliation_failed');
