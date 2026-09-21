@@ -36,7 +36,6 @@ const sharedImportButton = read('components/ImportSharedLessonButton.tsx');
 const organizationSubscription = read('app/api/organizations/subscription/route.ts');
 const organizationCancellation = read('app/api/organizations/cancellation/route.ts');
 const sharedImportApi = read('app/api/lesson-shares/[token]/import/route.ts');
-const sharedImportButton = read('components/ImportSharedLessonButton.tsx');
 const individualSubscriptionChange = read('app/api/billing/stripe/subscription/change/route.ts');
 const subscriptionManagement = read('components/SubscriptionManagement.tsx');
 
