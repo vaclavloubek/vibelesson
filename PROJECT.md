@@ -1,8 +1,20 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.91** uzavírá **LEGAL-011** schválenou variantou C: veřejný a funkční telefon poskytovatele **+420 733 377 199** je součástí předsmluvních kontaktních údajů, VOP, checkoutů i nových smluvních snapshotů. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.92** uzavírá **LEGAL-012** schválenou variantou C: aktuální zákonný vzorový formulář je ve VOP, na veřejné tisknutelné stránce i v neměnném smluvním snapshotu; spotřebitel může během lhůty odstoupit také online ze správy předplatného a dostane trvalé e-mailové potvrzení. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Zákonný formulář a online odstoupení 0.9.92 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-012** schválenou variantou C: sdílený CZ/EN zdroj obsahuje strukturu aktuálního vzorového formuláře podle nařízení vlády č. 29/2023 Sb. v aktuálním znění;
+- veřejné stránky `/cs/withdrawal` a `/en/withdrawal` poskytují tisknutelný formulář, adresáta a zachovávají možnost odeslání e-mailem nebo poštou; stejný zdroj používají VOP a příloha nového neměnného individuálního smluvního snapshotu;
+- část Předplatné zobrazuje kartu odstoupení každému přihlášenému uživateli; tlačítko **„Odstoupit od smlouvy“** je aktivní pouze u konkrétní individuální placené smlouvy během její 14denní lhůty a druhý krok používá **„Potvrdit odstoupení od smlouvy“**;
+- online podání v jedné databázové transakci ukládá přesný obsah, jméno, elektronický kontakt, smluvní snapshot, tarif, serverové datum a čas, autora a SHA-256; právní záznam je append-only a opakované odeslání je idempotentní;
+- potvrzení na trvalém nosiči obsahuje obsah podání, datum, čas, ID potvrzení a hash, používá idempotentní Resend klíč a při dočasném selhání dovoluje bezpečné opakování bez ztráty již přijatého odstoupení;
+- záznam navazuje na stávající kontrolovaný workflow z **LEGAL-008** pro přípravu časového výpočtu, bezpečný Stripe refund a zrušení předplatného; AI spotřeba výši refundu nemění;
+- VOP jsou **1.5** a `TERMS_ACCEPTANCE_KEY = 2026-09-21-v6`; nové registrace a objednávky ukládají v6, zatímco v5 a v4 zůstávají dostatečné pro běžný přístup stávajících uživatelů;
+- produkční migrace **add_online_withdrawal_legal_012** vytvořila dvě soukromé RLS tabulky bez přímých práv; všechny čtyři nové RPC jsou `security definer`, mají prázdný `search_path` a jsou pouze pro `service_role`. Security Advisor nepřidal nový warning;
+- PR **#281** prošel full check/build, Security headers, Accessibility i Vercel Preview; produkční merge commit **0462f22e** má Vercel **success**.
 
 ### Veřejný telefon poskytovatele 0.9.91 — 2026-09-21
 
@@ -223,7 +235,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.91** uzavírá **LEGAL-011**
 - **[LEGAL-009 — RESOLVED 0.9.89] Claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ byl silnější než skutečný produkt.** Ceník nyní pro Teacher Pro, School a Campus používá sdílený CZ/EN benefit **„Upozornění na možné využití AI ve studentských odpovědích“** / **“Alerts about possible AI use in student responses”** a viditelně uvádí, že jde o AI/heuristický signál pro kontrolu učitelem, nikoli důkaz; body se automaticky nemění. Regresní test zakazuje návrat původního slibu ochrany.
 - **[LEGAL-010 — RESOLVED 0.9.90] VOP řešily změny průběžné digitální služby příliš obecně.** Schválená hybridní varianta C nyní vynucuje doložený důvod, klasifikaci a datum účinnosti; u podstatně nepříznivé změny přednostně zachová bezpečnou původní verzi do konce zaplaceného období, jinak vyžaduje trvalé oznámení alespoň 30 dnů předem a nabízí spotřebiteli ukončení bez postihu s vrácením nevyužité předplacené části.
 - **[LEGAL-011 — RESOLVED 0.9.91] VOP neuváděly telefonní číslo poskytovatele.** Funkční přímý kontakt **+420 733 377 199** je nyní ze sdíleného zdroje uveden ve VOP, předsmluvních checkout údajích, veřejném kontaktu a nových individuálních i školních smluvních snapshotech; odkaz používá normalizované `tel:+420733377199`.
-- **[LEGAL-012] VOP obsahují vlastní zkrácený vzor odstoupení, nikoli zjevně zákonný vzorový formulář podle aktuální české úpravy.** **Náprava:** přidat oficiálně strukturovaný vzorový formulář a poskytnout jej i v potvrzení smlouvy na trvalém nosiči.
+- **[LEGAL-012 — RESOLVED 0.9.92] VOP obsahovaly vlastní zkrácený vzor odstoupení, nikoli zjevně zákonný vzorový formulář podle aktuální české úpravy.** Aktuální vzor je nyní sdílený mezi VOP, veřejnou tisknutelnou stránkou a neměnnou přílohou smluvního potvrzení. Spotřebitel může ve 14denní lhůtě odstoupit také online ze správy předplatného; systém atomicky uloží přesný obsah a serverový čas a bezodkladně odešle trvalé e-mailové potvrzení.
 - **[LEGAL-013] Absolutní marketingové „bez omezení“ koliduje s bezpečnostními omezeními zařízení a dalšími guardy.** Placené účty mají např. trusted-device limit **3 aktivní zařízení / 5 nových za 30 dní**. **Náprava:** používat přesný claim **„opakované spouštění hotových lekcí bez čerpání AI limitu“**, nikoli obecné „bez omezení“.
 
 #### Střední / provozní rizika
