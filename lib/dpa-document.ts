@@ -145,6 +145,7 @@ export function getDpaDocument(locale: DpaLocale) {
       heading: '5. Confidentiality, access control and technical and organisational measures',
       bullets: [
         'Access to organisation and student data is restricted to authorised users and server-side service paths according to role and scope.',
+        'Persons authorised by the Processor to handle Controller Data are subject to confidentiality obligations or an appropriate statutory duty of confidentiality.',
         'Database access is protected by server-side authorisation, row-level security and least-privilege grants where applicable; privileged internal tables are not intentionally exposed to ordinary clients.',
         'Secrets and service credentials are kept out of client-side code and source control; sensitive server operations use dedicated server credentials.',
         'Transport uses HTTPS/TLS. Capability and invitation tokens use cryptographically strong random values and/or stored hashes where implemented.',
@@ -238,6 +239,7 @@ export function getDpaDocument(locale: DpaLocale) {
       heading: '5. Důvěrnost, řízení přístupu a technická a organizační opatření',
       bullets: [
         'Přístup k datům organizace a studentů je omezen na oprávněné uživatele a serverové cesty podle role a rozsahu oprávnění.',
+        'Osoby, které Zpracovatel oprávní k nakládání s daty Správce, jsou vázány povinností mlčenlivosti nebo odpovídající zákonnou povinností mlčenlivosti.',
         'Databázový přístup chrání serverová autorizace, RLS a princip nejmenších oprávnění tam, kde je relevantní; privilegované interní tabulky nejsou záměrně zpřístupněny běžným klientům.',
         'Secrets a servisní credentials nejsou ukládány do klientského kódu ani do repozitáře; citlivé serverové operace používají vyhrazená serverová oprávnění.',
         'Přenos probíhá přes HTTPS/TLS. Capability a invitační tokeny používají kryptograficky silné náhodné hodnoty a/nebo ukládané hashe tam, kde je to implementováno.',
