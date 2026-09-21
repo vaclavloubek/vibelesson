@@ -41,7 +41,7 @@ type IndividualContractSnapshotForDelivery = {
   external_checkout_session_id: string;
 };
 
-async function sendResendEmail({
+export async function sendResendEmail({
   to,
   subject,
   text,

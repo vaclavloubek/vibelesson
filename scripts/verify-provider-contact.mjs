@@ -26,8 +26,9 @@ for (const [path, requirements] of Object.entries({
 }
 
 const legal = read('lib/legal.ts');
-assert.ok(legal.includes("TERMS_VERSION = '1.4'"));
-assert.ok(legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v5'"));
+assert.ok(legal.includes("TERMS_VERSION = '1.5'"));
+assert.ok(legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v6'"));
+assert.ok(legal.includes("'2026-09-21-v5'"), 'Terms 1.4 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-21-v4'"), 'Terms 1.3 access compatibility must be retained');
 
 const migration = read('supabase/migrations/20260921114500_update_terms_1_4_legal_011.sql');
@@ -36,4 +37,4 @@ assert.ok(migration.includes("'2026-09-21-v4', '2026-09-21-v5'"));
 assert.ok(migration.includes('from public, anon, authenticated'));
 assert.ok(migration.includes('to service_role'));
 
-console.log('Provider telephone and Terms 1.4 checks passed.');
+console.log('Provider telephone and current Terms compatibility checks passed.');

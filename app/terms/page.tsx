@@ -10,6 +10,7 @@ import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
+import { WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from '@/app/gdpr/GdprPage.module.css';
@@ -36,6 +37,7 @@ export default async function TermsPage() {
   const locale = normalizeUiLocale(requestHeaders.get(LOCALE_REQUEST_HEADER)) ?? 'cs';
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
+  const withdrawalForm = WITHDRAWAL_FORM_COPY[locale];
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
@@ -165,11 +167,18 @@ export default async function TermsPage() {
             TERMS_WITHDRAWAL_CLAUSE.cs,
             TERMS_WITHDRAWAL_CLAUSE.en
           )}</p>
-          <h3>{ui('Vzor oznámení o odstoupení', 'Model withdrawal notice')}</h3>
           <p>{ui(
-            '„Oznamuji, že odstupuji od smlouvy na tarif Syllonaut [název tarifu], objednaný dne [datum]. E-mail účtu: [e-mail]. Jméno: [jméno]. Datum: [datum].“',
-            '“I hereby give notice that I withdraw from my contract for the Syllonaut [plan name] plan, ordered on [date]. Account email: [email]. Name: [name]. Date: [date].”'
+            'Spotřebitel s individuální placenou smlouvou může během 14denní lhůty odstoupit také online v části Předplatné tlačítkem „Odstoupit od smlouvy“ a následným tlačítkem „Potvrdit odstoupení od smlouvy“. Přijetí online podání bezodkladně potvrdíme e-mailem s jeho obsahem, datem a časem. Tím nejsou omezeny možnosti odstoupit e-mailem nebo poštou.',
+            'A consumer with an individual paid contract may also withdraw online during the 14-day period in Subscription using “Withdraw from contract” followed by “Confirm withdrawal from contract”. We promptly confirm receipt by email with the content, date and time. Withdrawal by email or post remains available.'
           )}</p>
+          <h3>{withdrawalForm.title}</h3>
+          <p>{withdrawalForm.instruction}</p>
+          <p><strong>{withdrawalForm.addressee}:</strong><br />{PROVIDER_CONTACT.legalName}<br />{PROVIDER_CONTACT.addressLine1}<br />{PROVIDER_CONTACT.postalCity}<br />{ui(PROVIDER_CONTACT.countryCs, PROVIDER_CONTACT.countryEn)}<br />{ui('E-mail', 'Email')}: {PROVIDER_CONTACT.email}</p>
+          <p>{withdrawalForm.statement}</p>
+          <ul>
+            <li>{withdrawalForm.ordered}</li><li>{withdrawalForm.names}</li><li>{withdrawalForm.address}</li><li>{withdrawalForm.signature}</li><li>{withdrawalForm.date}</li>
+          </ul>
+          <p>{withdrawalForm.note} <Link href={`/${locale}/withdrawal`}>{ui('Formulář k vytištění a online postup', 'Printable form and online process')}</Link>.</p>
           <p>{ui(
             'Toto právo se vztahuje pouze na spotřebitele. Práva spotřebitele, která nelze smluvně omezit, zůstávají těmito podmínkami nedotčena.',
             'This right applies only to consumers. Statutory consumer rights that cannot be contractually restricted remain unaffected by these Terms.'

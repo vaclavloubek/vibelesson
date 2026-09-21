@@ -9,12 +9,102 @@
 .changeCard,
 .emptyCard,
 .scheduledCard,
-.devicesCard {
+.devicesCard,
+.withdrawalCard {
   border: 1px solid var(--line);
   border-radius: 20px;
   background: rgba(255,255,255,.82);
   box-shadow: 0 10px 34px rgba(21,23,33,.05);
 }
+
+.withdrawalCard {
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+}
+
+.withdrawalSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.withdrawalSummary span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f3f2ee;
+  color: #555861;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dangerButton {
+  min-height: 44px;
+  width: fit-content;
+  padding: 0 18px;
+  border: 1px solid #b43d36;
+  border-radius: 11px;
+  background: #fff;
+  color: #8a2e29;
+  font-size: 13px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.dangerButton:hover { background: #fff2f1; }
+.dangerButton:disabled { opacity: .58; cursor: wait; }
+
+.withdrawalForm {
+  padding: 20px;
+  border: 1px solid #e0b4b0;
+  border-radius: 15px;
+  background: #fffafa;
+  display: grid;
+  gap: 16px;
+}
+
+.withdrawalForm p,
+.withdrawalAlternative {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.withdrawalForm > label:not(.checkRow) {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.withdrawalForm input[type='text'],
+.withdrawalForm input[type='email'],
+.withdrawalForm > label:not(.checkRow) input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #444650;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.checkRow input { margin-top: 3px; }
+.formActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.withdrawalAlternative a { color: var(--accent); }
+.retryButton { margin: 12px 0 0; min-height: 38px; padding: 0 12px; border: 1px solid #79ae9d; border-radius: 9px; background:#fff; color:#276a57; font-weight:740; cursor:pointer; }
+.retryButton:disabled { opacity:.58; cursor:wait; }
 
 .summaryCard {
   padding: 28px;
@@ -238,6 +328,8 @@
   .summaryCard .secondary { width: 100%; }
   .details { grid-template-columns: 1fr; }
   .changeCard { padding: 22px; }
+  .withdrawalCard { padding: 22px; }
+  .dangerButton { width: 100%; }
   .segmented { width: 100%; }
   .segmented button { flex: 1; }
   .scheduledCard { align-items: stretch; flex-direction: column; }

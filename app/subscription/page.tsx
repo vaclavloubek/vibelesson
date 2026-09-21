@@ -13,6 +13,7 @@ import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import { getServiceChangeNotices, type ServiceChangeNotice } from '@/lib/service-change-state';
+import { getOnlineWithdrawalOpportunity, type OnlineWithdrawalOpportunity } from '@/lib/online-withdrawal';
 import landing from '@/components/LandingPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +43,7 @@ export default async function SubscriptionPage() {
   let quotaWindow: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null = null;
   let loadError = false;
   let serviceChangeNotices: ServiceChangeNotice[] = [];
+  let withdrawalOpportunity: OnlineWithdrawalOpportunity | null = null;
   try {
     state = await getLiveSubscriptionManagementState(userId);
   } catch (error) {
@@ -57,6 +59,15 @@ export default async function SubscriptionPage() {
     serviceChangeNotices = await getServiceChangeNotices(userId);
   } catch (error) {
     console.error('load service change notices failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+      userId,
+    });
+  }
+
+  try {
+    withdrawalOpportunity = await getOnlineWithdrawalOpportunity(userId);
+  } catch (error) {
+    console.error('load online withdrawal opportunity failed', {
       error: error instanceof Error ? error.message : 'unknown',
       userId,
     });
@@ -115,7 +126,13 @@ export default async function SubscriptionPage() {
         <section style={{ width: 'min(960px, calc(100% - 40px))', margin: '56px auto 0' }} className="error">
           {ui('Správu předplatného se nepodařilo načíst. Zkus stránku obnovit.', 'Subscription management could not be loaded. Refresh the page and try again.')}
         </section>
-      ) : <SubscriptionManagement state={state} quotaWindow={quotaWindow} serviceChangeNotices={serviceChangeNotices} />}
+      ) : <SubscriptionManagement
+        state={state}
+        quotaWindow={quotaWindow}
+        serviceChangeNotices={serviceChangeNotices}
+        withdrawalOpportunity={withdrawalOpportunity}
+        accountEmail={accountUser.email ?? ''}
+      />}
     </main>
   );
 }

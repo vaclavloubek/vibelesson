@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
+import { buildStatutoryWithdrawalFormHtml, WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
 
@@ -95,8 +96,7 @@ const TERMS_CURRENT_CS = `
 <h2>7. Spotřebitelé: právo odstoupit do 14 dnů</h2>
 <p>Jste-li spotřebitel, můžete od smlouvy uzavřené na dálku zpravidla odstoupit do 14 dnů od jejího uzavření bez uvedení důvodu. Odstoupení stačí v této lhůtě odeslat na vaclav@syllonaut.com jednoznačným prohlášením.</p>
 <p>${escapeHtml(TERMS_WITHDRAWAL_CLAUSE.cs)}</p>
-<h3>Vzor oznámení o odstoupení</h3>
-<p>„Oznamuji, že odstupuji od smlouvy na tarif Syllonaut [název tarifu], objednaný dne [datum]. E-mail účtu: [e-mail]. Jméno: [jméno]. Datum: [datum].“</p>
+<p>Zákonný vzorový formulář je přiložen k tomuto potvrzení a trvale dostupný na syllonaut.com/cs/withdrawal. Spotřebitel s individuálním placeným účtem může v zákonné lhůtě odstoupit také online v části Předplatné tlačítkem „Odstoupit od smlouvy“. Přijetí online podání bezodkladně potvrdíme e-mailem s jeho obsahem, datem a časem.</p>
 <p>Toto právo se vztahuje pouze na spotřebitele. Práva spotřebitele, která nelze smluvně omezit, zůstávají těmito podmínkami nedotčena.</p>
 </section>
 <section>
@@ -174,8 +174,7 @@ const TERMS_CURRENT_EN = `
 <h2>7. Consumers: 14-day withdrawal right</h2>
 <p>If you are a consumer, you generally have 14 days from conclusion of a distance contract to withdraw without giving a reason. It is sufficient to send an unequivocal withdrawal statement within that period to vaclav@syllonaut.com.</p>
 <p>${escapeHtml(TERMS_WITHDRAWAL_CLAUSE.en)}</p>
-<h3>Model withdrawal notice</h3>
-<p>“I hereby give notice that I withdraw from my contract for the Syllonaut [plan name] plan, ordered on [date]. Account email: [email]. Name: [name]. Date: [date].”</p>
+<p>The statutory model form is attached to this confirmation and remains available at syllonaut.com/en/withdrawal. A consumer with an individual paid account may also withdraw online during the statutory period in Subscription by using the “Withdraw from contract” button. We promptly confirm receipt by email with the submission content, date and time.</p>
 <p>This right applies only to consumers. Statutory consumer rights that cannot be contractually restricted remain unaffected by these Terms.</p>
 </section>
 <section>
@@ -214,9 +213,9 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.4'
+    TERMS_VERSION !== '1.5'
     || TERMS_EFFECTIVE_DATE !== '2026-09-21'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v5'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v6'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
@@ -224,30 +223,7 @@ function termsCurrent(locale: IndividualContractLocale) {
 }
 
 function buildWithdrawalForm(locale: IndividualContractLocale) {
-  const body = locale === 'cs'
-    ? `<h1>Vzorový formulář pro odstoupení od smlouvy</h1>
-<p class="muted">Tento formulář vyplňte a odešlete pouze v případě, že chcete odstoupit od smlouvy. Můžete také zaslat jiné jednoznačné prohlášení.</p>
-<p><strong>Adresát:</strong><br>${escapeHtml(PROVIDER_CONTACT.legalName)}, ${escapeHtml(PROVIDER_CONTACT.addressLine1)}, ${escapeHtml(PROVIDER_CONTACT.postalCity)}, ${escapeHtml(PROVIDER_CONTACT.countryCs)}<br>Telefon: ${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}<br>E-mail: ${escapeHtml(PROVIDER_CONTACT.email)}</p>
-<p>Oznamuji, že tímto odstupuji od smlouvy o poskytování služby Syllonaut:</p>
-<table><tr><th>Tarif / služba</th><td>________________________________</td></tr>
-<tr><th>Datum objednání</th><td>________________________________</td></tr>
-<tr><th>Jméno a příjmení spotřebitele</th><td>________________________________</td></tr>
-<tr><th>Adresa spotřebitele</th><td>________________________________</td></tr>
-<tr><th>E-mail účtu</th><td>________________________________</td></tr>
-<tr><th>Datum</th><td>________________________________</td></tr></table>
-<p>Podpis spotřebitele: ________________________________ <span class="muted">(pouze pokud je formulář zasílán v listinné podobě)</span></p>`
-    : `<h1>Model withdrawal form</h1>
-<p class="muted">Complete and return this form only if you wish to withdraw from the contract. You may also send any other unequivocal statement.</p>
-<p><strong>To:</strong><br>${escapeHtml(PROVIDER_CONTACT.legalName)}, ${escapeHtml(PROVIDER_CONTACT.addressLine1)}, ${escapeHtml(PROVIDER_CONTACT.postalCity)}, ${escapeHtml(PROVIDER_CONTACT.countryEn)}<br>Phone: ${escapeHtml(PROVIDER_CONTACT.phoneDisplay)}<br>Email: ${escapeHtml(PROVIDER_CONTACT.email)}</p>
-<p>I hereby give notice that I withdraw from my contract for the provision of the Syllonaut service:</p>
-<table><tr><th>Plan / service</th><td>________________________________</td></tr>
-<tr><th>Order date</th><td>________________________________</td></tr>
-<tr><th>Consumer name</th><td>________________________________</td></tr>
-<tr><th>Consumer address</th><td>________________________________</td></tr>
-<tr><th>Account email</th><td>________________________________</td></tr>
-<tr><th>Date</th><td>________________________________</td></tr></table>
-<p>Consumer signature: ________________________________ <span class="muted">(only if this form is submitted on paper)</span></p>`;
-  return documentShell(locale, locale === 'cs' ? 'Vzorový formulář pro odstoupení' : 'Model withdrawal form', body);
+  return documentShell(locale, WITHDRAWAL_FORM_COPY[locale].title, buildStatutoryWithdrawalFormHtml(locale));
 }
 
 export function buildIndividualContractSnapshotDocuments(input: {
