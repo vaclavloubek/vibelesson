@@ -1,8 +1,19 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.73** doplňuje produkční Obchodní podmínky / Terms of Service, jejich trvalý odkaz v patičce a povinný souhlas při registraci i při objednávce placených individuálních a školních tarifů. Souhlasy jsou vynucené i serverově a jejich verze se ukládá do auditních metadat. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.74** hardenuje registrační souhlas s Obchodními podmínkami: přijetí aktivní verze se při vzniku účtu zrcadlí do privátní append-only auditní tabulky se serverovým časem, bez přímých identifikátorů a bez klientského přístupu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Serverový audit registračního souhlasu 0.9.74 — 2026-09-21
+
+- produkční Supabase má novou privátní tabulku **private.terms_acceptance_events** pro audit souhlasu při registraci Free účtu;
+- audit ukládá pouze technické ID účtu, verzi podmínek, aktivní acceptance key, zdroj `signup` a **serverový čas**; e-mail ani jiný přímý identifikátor se do záznamu nekopíruje;
+- `private.handle_new_user()` zapíše audit pouze tehdy, když signup metadata obsahují explicitní `terms_accepted=true` a přesně aktuální key **2026-09-21-v1**; jiné způsoby vytvoření účtu bez tohoto metadata registraci nezablokují;
+- tabulka má RLS, nulové granty pro `public` / `anon` / `authenticated` a append-only trigger blokující UPDATE/DELETE; uživatel tedy nemůže později auditní stopu měnit přes Auth metadata ani Data API;
+- tabulka záměrně nemá cascade FK na `auth.users`, aby se smluvní důkaz automaticky nesmazal spolu s účtem; GDPR notice 1.2 nově tuto omezenou retenční potřebu výslovně popisuje;
+- produkční migrace: **20260921033344_add_terms_acceptance_audit**;
+- regresní kontrakt **scripts/verify-terms.mjs** kontroluje databázový audit, privacy notice i shodu aktivního acceptance key;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Obchodní podmínky a objednávkové souhlasy 0.9.73 — 2026-09-21
 
