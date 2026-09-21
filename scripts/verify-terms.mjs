@@ -16,6 +16,8 @@ const contractSnapshot = read('lib/individual-contract-snapshot.ts');
 const contractSnapshotMigration = read('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql');
 const contractLinkMigration = read('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql');
 const reconsentMigration = read('supabase/migrations/20260921063215_add_terms_reconsent_rpcs.sql');
+const terms11Migration = read('supabase/migrations/20260921071533_update_terms_1_1_legal_007.sql');
+const termsContent = read('lib/terms-content.ts');
 const serverAuth = read('lib/auth.ts');
 const termsAcceptance = read('lib/terms-acceptance.ts');
 const termsGate = read('lib/terms-gate.ts');
@@ -48,7 +50,7 @@ if (!individualApi.includes('create_and_link_individual_contract_snapshot')) fai
 if (!individualApi.includes('contract_snapshot_store_failed')) fail('individual checkout must fail closed when immutable contract evidence cannot be stored');
 if (!individualApi.includes('contractSnapshotId: snapshotId')) fail('Stripe checkout must carry the immutable contract snapshot ID');
 if (!school.includes('termsAccepted') || !schoolApi.includes('termsAccepted: z.literal(true)')) fail('school ordering must require Terms on client and server');
-if (!legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v1'")) fail('shared Terms acceptance version key is missing');
+if (!legal.includes("TERMS_VERSION = '1.1'") || !legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-21-v2'")) fail('shared Terms version/key is missing');
 if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANCE_KEY') || !school.includes('TERMS_ACCEPTANCE_KEY')) fail('client flows must use the shared Terms acceptance key');
 if (!individualApi.includes('TERMS_ACCEPTANCE_KEY') || !schoolApi.includes('TERMS_ACCEPTANCE_KEY')) fail('server flows must use the shared Terms acceptance key');
 if (!schoolApi.includes('acceptedByUserId: userId')) fail('school Terms acceptance must record the accepting account');
@@ -58,9 +60,13 @@ if (!auditTableDefinition || auditTableDefinition.includes('references auth.user
 if (!termsAuditMigration.includes('alter table private.terms_acceptance_events enable row level security')) fail('Terms audit table must have RLS enabled');
 if (!termsAuditMigration.includes('revoke all on table private.terms_acceptance_events from public, anon, authenticated')) fail('Terms audit table must not be client-accessible');
 if (!termsAuditMigration.includes('terms_acceptance_events_append_only') || !termsAuditMigration.includes("raise exception 'terms acceptance audit is append-only'")) fail('Terms audit must be append-only');
-if (!termsAuditMigration.includes("current_terms_version constant text := '1.0'") || !termsAuditMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('database Terms audit constants must match the active Terms version');
+if (!termsAuditMigration.includes("current_terms_version constant text := '1.0'") || !termsAuditMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('historical signup audit migration must remain immutable');
+if (!terms11Migration.includes("current_terms_version constant text := '1.1'") || !terms11Migration.includes("current_terms_acceptance_key constant text := '2026-09-21-v2'")) fail('Terms 1.1 migration must update signup audit constants');
 if (!termsAuditMigration.includes('requested_terms_acceptance and requested_terms_acceptance_key = current_terms_acceptance_key')) fail('signup audit must only mirror explicit acceptance of the active Terms key');
-if (!contractSnapshot.includes("TERMS_VERSION !== '1.0'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-21-v1'")) fail('immutable contract builder must hard-pin the supported Terms version');
+if (!contractSnapshot.includes("TERMS_VERSION !== '1.1'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-21-v2'")) fail('immutable contract builder must hard-pin the supported Terms version');
+if (!terms.includes('TERMS_PLAN_PRICING_CLAUSE') || !contractSnapshot.includes('TERMS_PLAN_PRICING_CLAUSE')) fail('public Terms and immutable contract snapshot must share the plan/pricing conflict clause');
+if (!termsContent.includes('následný platební doklad již sjednané podmínky jednostranně nemění') || !termsContent.includes('later payment document does not unilaterally change the terms already agreed')) fail('LEGAL-007 protective clause is missing');
+if (/rozhodují údaje výslovně zobrazené[\s\S]*platebním dokladu/.test(terms) || /resulting payment document govern that order/.test(terms)) fail('LEGAL-007 priority clause must not return');
 if (!contractSnapshot.includes('88878431') || !contractSnapshot.includes('289 24 Milovice – Mladá') || !contractSnapshot.includes('Vzorový formulář pro odstoupení') || !contractSnapshot.includes('Model withdrawal form')) fail('immutable contract documents must include provider and withdrawal essentials');
 if (!contractSnapshot.includes("createHash('sha256')") || !contractSnapshot.includes('--syllonaut-withdrawal-form--')) fail('immutable contract documents must carry a deterministic integrity hash');
 const snapshotTableDefinition = contractSnapshotMigration.match(/create table private\.individual_contract_snapshots \(([\s\S]*?)\n\);/)?.[1] ?? '';
@@ -82,7 +88,12 @@ for (const functionName of [
   if (!reconsentMigration.includes(`revoke execute on function public.${functionName}(uuid) from public, anon, authenticated`)) fail('Terms re-consent RPC must revoke client execution: ' + functionName);
   if (!reconsentMigration.includes(`grant execute on function public.${functionName}(uuid) to service_role`)) fail('Terms re-consent RPC must be service-role only: ' + functionName);
 }
-if (!reconsentMigration.includes("acceptance_key = '2026-09-21-v1'") || !reconsentMigration.includes("'1.0'") || !reconsentMigration.includes("'reconsent'")) fail('Terms re-consent DB constants must match active Terms');
+if (!reconsentMigration.includes("acceptance_key = '2026-09-21-v1'") || !reconsentMigration.includes("'1.0'") || !reconsentMigration.includes("'reconsent'")) fail('historical Terms 1.0 re-consent migration must remain immutable');
+if (!terms11Migration.includes("acceptance_key = '2026-09-21-v2'") || !terms11Migration.includes("'1.1'") || !terms11Migration.includes("'reconsent'")) fail('Terms 1.1 migration must update re-consent RPC constants');
+for (const functionName of ['has_current_terms_acceptance_for_service','record_current_terms_reconsent_for_service']) {
+  if (!terms11Migration.includes(`revoke execute on function public.${functionName}(uuid) from public, anon, authenticated`)) fail('Terms 1.1 migration must preserve client EXECUTE revocation: ' + functionName);
+  if (!terms11Migration.includes(`grant execute on function public.${functionName}(uuid) to service_role`)) fail('Terms 1.1 migration must preserve service-role-only EXECUTE: ' + functionName);
+}
 if (!reconsentMigration.includes("and tae.source = 'reconsent'")) fail('re-consent API must return the re-consent event timestamp');
 if (!termsAcceptance.includes("admin.rpc('has_current_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('record_current_terms_reconsent_for_service'")) fail('server Terms helper must use service-only RPCs');
 if (!reconsentApi.includes('termsAccepted: z.literal(true)') || !reconsentApi.includes('termsVersion: z.literal(TERMS_ACCEPTANCE_KEY)')) fail('re-consent API must fail closed on explicit current Terms acceptance');
