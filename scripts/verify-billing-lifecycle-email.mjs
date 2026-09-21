@@ -36,6 +36,7 @@ function subscriptionEvent({
         metadata: {
           syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000',
           syllonaut_billing_country: 'CZ',
+          syllonaut_contract_snapshot_id: '423e4567-e89b-42d3-a456-426614174000',
         },
         managed_payments: { enabled: false },
         status,
@@ -141,10 +142,24 @@ const cs = renderBillingLifecycleEmail({
   planCode: 'teacher',
   currentPeriodEnd: '2026-10-19T12:00:00.000Z',
   allowance: INDIVIDUAL_PLAN_ALLOWANCES.teacher,
+  contractConfirmation: {
+    snapshotId: '423e4567-e89b-42d3-a456-426614174000',
+    billingPeriod: 'monthly',
+    currency: 'czk',
+    amountMinor: 19900,
+    acceptedAt: '2026-09-21T04:50:00.000Z',
+    termsVersion: '1.0',
+    termsAcceptanceKey: '2026-09-21-v1',
+    immediatePerformanceRequested: true,
+  },
 });
 assert(cs.subject.includes('Teacher je aktivní'), 'Czech activation subject must be localized');
 assert(cs.html.includes('#5b57e8'), 'email HTML must use the Syllonaut accent');
 assert(cs.html.includes('Nejde o marketingové sdělení'), 'transactional nature must be explicit');
+assert(cs.text.includes('199 Kč'), 'activation email must confirm the exact contract price');
+assert(cs.text.includes('2026-09-21-v1'), 'activation email must confirm the accepted Terms key');
+assert(cs.text.includes('423e4567-e89b-42d3-a456-426614174000'), 'activation email must identify the immutable contract snapshot');
+assert(cs.text.includes('automaticky obnovuje'), 'activation email must disclose automatic renewal');
 
 assert(
   cs.text.includes(`${INDIVIDUAL_PLAN_ALLOWANCES.teacher.lessonGenerations} nových AI lekcí a ${INDIVIDUAL_PLAN_ALLOWANCES.teacher.aiEdits} AI úprav`),
@@ -173,14 +188,16 @@ const en = renderBillingLifecycleEmail({
 assert(en.subject.includes('cancellation is scheduled'), 'English cancellation subject must be localized');
 assert(en.text.includes('Teacher Pro'), 'plan name must be included');
 
-const [emailSource, emailCoreSource, pricingSource, routeSource, localeSource, authSource, migrationSource, envSource] = await Promise.all([
+const [emailSource, emailCoreSource, pricingSource, routeSource, checkoutRouteSource, localeSource, authSource, migrationSource, contractMigrationSource, envSource] = await Promise.all([
   source('lib/billing-email.ts'),
   source('lib/billing-email-core.ts'),
   source('components/PricingPage.tsx'),
   source('app/api/billing/stripe/webhook/route.ts'),
+  source('app/api/billing/stripe/checkout/route.ts'),
   source('components/LocaleSwitcher.tsx'),
   source('components/AuthControls.tsx'),
   source('supabase/migrations/20260919080000_add_billing_lifecycle_email_delivery.sql'),
+  source('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql'),
   source('.env.example'),
 ]);
 
@@ -190,6 +207,17 @@ assert(emailSource.includes('Idempotency-Key'), 'Resend sends must use an idempo
 assert(emailSource.includes('billing_email_deliveries'), 'delivery ledger must guard retries');
 assert(!emailSource.includes('marketing_email_consent'), 'transactional billing email must not depend on marketing consent');
 assert(emailSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'billing delivery must feed the shared AI allowance into the activation email');
+assert(emailSource.includes('get_individual_contract_snapshot_for_delivery'), 'activation delivery must load the immutable contract snapshot');
+assert(emailSource.includes('hashIndividualContractSnapshot'), 'activation delivery must verify the stored contract snapshot hash');
+assert(emailSource.includes('attachments'), 'activation email must carry durable contract attachments');
+assert(emailSource.includes('contract_html') && emailSource.includes('withdrawal_form_html'), 'activation delivery must attach the contract and withdrawal form');
+assert(emailSource.includes("content_type: 'text/html; charset=utf-8'"), 'contract attachments must use explicit HTML content type');
+assert(emailSource.includes('contract_snapshot_id'), 'delivery ledger must retain the contract snapshot reference');
+assert(checkoutRouteSource.includes('create_individual_contract_snapshot'), 'checkout must freeze contract content before opening Stripe');
+assert(checkoutRouteSource.includes('link_individual_contract_snapshot_checkout'), 'checkout must bind the snapshot to the exact Stripe Checkout Session');
+assert(contractMigrationSource.includes('individual_contract_snapshots_append_only'), 'contract snapshot evidence must be append-only');
+assert(contractMigrationSource.includes('individual_contract_checkout_links_append_only'), 'checkout linkage evidence must be append-only');
+assert(contractMigrationSource.includes('grant execute on function public.get_individual_contract_snapshot_for_delivery'), 'delivery lookup must be service-role gated');
 assert(pricingSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'Pricing must read individual AI allowances from the shared catalog');
 assert(!emailCoreSource.includes('60 new AI lessons and 250 AI edits'), 'stale Teacher Pro activation allowance must not return');
 assert(!emailCoreSource.includes('25 new AI lessons and 100 AI edits'), 'stale Teacher activation allowance must not return');
