@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/organization-billing",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/cron/service-changes",
+      "schedule": "37 3 * * *"
     }
   ]
 }
