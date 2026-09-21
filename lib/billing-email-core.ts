@@ -21,6 +21,10 @@ type RenderInput = {
   locale: UiLocale;
   planCode: IndividualPlanCode;
   currentPeriodEnd: string;
+  allowance: {
+    lessonGenerations: number;
+    aiEdits: number;
+  };
 };
 
 export function billingLifecycleNotification(
@@ -137,12 +141,13 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
   const baseUrl = `https://www.syllonaut.com/${input.locale}`;
   const pricingUrl = `${baseUrl}/pricing`;
   const subscriptionUrl = `${baseUrl}/subscription`;
+  const allowance = input.allowance;
 
   if (input.locale === 'cs') {
     if (input.notification === 'subscription_activated') {
       const benefits = input.planCode === 'teacher_pro'
-        ? '60 nových AI lekcí a 250 AI úprav měsíčně, lekce v libovolném jazyce, AI hodnocení a složky.'
-        : '25 nových AI lekcí a 100 AI úprav měsíčně a lekce v libovolném jazyce.';
+        ? `${allowance.lessonGenerations} nových AI lekcí a ${allowance.aiEdits} AI úprav měsíčně, lekce v libovolném jazyce, AI hodnocení a složky.`
+        : `${allowance.lessonGenerations} nových AI lekcí a ${allowance.aiEdits} AI úprav měsíčně a lekce v libovolném jazyce.`;
       const text = `Tarif ${name} je aktivní.\n\nPlatba proběhla v pořádku a placené funkce Syllonautu jsou připravené. ${benefits}\n\nOtevřít Syllonaut: ${baseUrl}`;
       const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Tarif ${name} je aktivní</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Platba proběhla v pořádku a placené funkce Syllonautu jsou připravené.</p><div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#efefff;color:#39368f;font-size:14px;line-height:1.55;"><strong>${name}</strong><br>${benefits}</div>`;
       return { subject: `${name} je aktivní · Syllonaut`, text, html: shell(content, 'Otevřít Syllonaut', baseUrl, input.locale) };
@@ -167,8 +172,8 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
 
   if (input.notification === 'subscription_activated') {
     const benefits = input.planCode === 'teacher_pro'
-      ? '60 new AI lessons and 250 AI edits per month, lessons in any language, AI grading and folders.'
-      : '25 new AI lessons and 100 AI edits per month, plus lessons in any language.';
+      ? `${allowance.lessonGenerations} new AI lessons and ${allowance.aiEdits} AI edits per month, lessons in any language, AI grading and folders.`
+      : `${allowance.lessonGenerations} new AI lessons and ${allowance.aiEdits} AI edits per month, plus lessons in any language.`;
     const text = `Your ${name} plan is active.\n\nYour payment was successful and Syllonaut paid features are ready. ${benefits}\n\nOpen Syllonaut: ${baseUrl}`;
     const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Your ${name} plan is active</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Your payment was successful and Syllonaut paid features are ready.</p><div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#efefff;color:#39368f;font-size:14px;line-height:1.55;"><strong>${name}</strong><br>${benefits}</div>`;
     return { subject: `Your ${name} plan is active · Syllonaut`, text, html: shell(content, 'Open Syllonaut', baseUrl, input.locale) };
