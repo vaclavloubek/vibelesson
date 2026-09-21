@@ -8,6 +8,7 @@ import MarketingEmailPreferences from '@/components/MarketingEmailPreferences';
 import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { PRIVACY_NOTICE_VERSION } from '@/lib/legal';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from './GdprPage.module.css';
@@ -74,12 +75,12 @@ export default async function GdprPage() {
             'Tato stránka popisuje, jaké osobní údaje Syllonaut zpracovává, proč je potřebuje, jak dlouho je uchovává a jaká máte práva.',
             'This page explains which personal data Syllonaut processes, why it is needed, how long it is retained and what rights you have.'
           )}</p>
-          <div className={styles.meta}>{ui('Verze 1.1 · účinná od 20. 9. 2026', 'Version 1.1 · effective from 20 September 2026')}</div>
+          <div className={styles.meta}>{ui('Verze 1.2 · účinná od 21. 9. 2026', 'Version 1.2 · effective from 21 September 2026')} {' · '} {PRIVACY_NOTICE_VERSION}</div>
         </div>
 
         <section>
           <h2>{ui('1. Správce osobních údajů', '1. Data controller')}</h2>
-          <p><strong>Václav Loubek</strong><br />Slepá 868<br />289 23 Milovice<br />{ui('Česká republika', 'Czech Republic')}</p>
+          <p><strong>Václav Loubek</strong><br />{ui('IČO', 'Business ID')}: 88878431<br />Slepá 868<br />289 24 Milovice – Mladá<br />{ui('Česká republika', 'Czech Republic')}</p>
           <p>{ui('Správce provozuje službu Syllonaut na doméně', 'The controller operates Syllonaut at')} <strong>syllonaut.com</strong>. {ui('Pro dotazy k ochraně soukromí nás můžete kontaktovat na', 'For privacy-related questions, contact')} <a href="mailto:vaclav@syllonaut.com">vaclav@syllonaut.com</a>.</p>
         </section>
 
@@ -140,7 +141,7 @@ export default async function GdprPage() {
         <section>
           <h2>{ui('7. Studenti a školní použití', '7. Students and school use')}</h2>
           <p>{ui('Student pro připojení k živé lekci nepotřebuje plnohodnotný účet. Zadává zobrazované jméno a během výuky může odesílat odpovědi. Učitel by měl požadovat jen takové označení studenta, které je pro konkrétní hodinu potřebné.', 'A student does not need a full account to join a live lesson. They enter a display name and may submit responses during the lesson. Teachers should request only the student identifier needed for the specific lesson.')}</p>
-          <p>{ui('U budoucích školních účtů může být správcem osobních údajů škola a Syllonaut jejím zpracovatelem. Konkrétní role a smluvní podmínky budou před komerčním školním nasazením upraveny samostatně.', 'For future school accounts, the school may act as data controller and Syllonaut as its processor. Specific roles and contractual terms will be addressed separately before commercial school deployment.')}</p>
+          <p>{ui('Při školním použití může být správcem osobních údajů škola nebo jiná organizace a Syllonaut jejím zpracovatelem. Pokud to povaha a rozsah zpracování vyžadují, příslušné role a povinnosti se upraví samostatnou zpracovatelskou smlouvou.', 'For school use, the school or other organisation may act as data controller and Syllonaut as its processor. Where required by the nature and scope of processing, the relevant roles and obligations will be governed by a separate data processing agreement.')}</p>
         </section>
 
         <section>
