@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { classifySubscriptionChange, type BillingPeriod } from '@/lib/subscription-change-policy';
 import type { LiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
+import { quotaSourceLabel } from '@/lib/ai-quota';
 import styles from './SubscriptionManagement.module.css';
 import TrustedDevicesPanel from './TrustedDevicesPanel';
 
@@ -28,7 +29,13 @@ function formatMoney(amount: number, currency: 'czk' | 'eur' | 'usd', english: b
   }).format(value);
 }
 
-export default function SubscriptionManagement({ state }: { state: LiveSubscriptionManagementState }) {
+export default function SubscriptionManagement({
+  state,
+  quotaWindow,
+}: {
+  state: LiveSubscriptionManagementState;
+  quotaWindow?: { end: string; source: string | null } | null;
+}) {
   const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
@@ -81,6 +88,8 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
   const refundedPayment = active.aiBillingPauseReason === 'refund';
   const blocked = active.cancelAtPeriodEnd || active.paymentIssue || disputedPayment || refundedPayment || active.pendingUpdate;
   const renewalDate = formatDate(active.currentPeriodEnd, english);
+  const quotaResetDate = quotaWindow?.end ? formatDate(quotaWindow.end, english) : null;
+  const quotaResetSource = quotaSourceLabel(quotaWindow?.source, english);
   const targetPlanName = targetPlan === 'teacher-pro' ? 'Teacher Pro' : 'Teacher';
 
   async function openPortal() {
@@ -199,6 +208,12 @@ export default function SubscriptionManagement({ state }: { state: LiveSubscript
 
         <dl className={styles.details}>
           <div><dt>{active.cancelAtPeriodEnd ? ui('Přístup do', 'Access until') : ui('Další obnovení', 'Next renewal')}</dt><dd>{renewalDate}</dd></div>
+          {quotaResetDate ? (
+            <div>
+              <dt>{ui('Obnovení AI limitu', 'AI allowance reset')}</dt>
+              <dd>{quotaResetDate}{quotaResetSource ? ` · ${quotaResetSource}` : ''}</dd>
+            </div>
+          ) : null}
           <div><dt>{ui('Fakturační země', 'Billing country')}</dt><dd>{active.billingCountry ?? '—'}</dd></div>
           <div><dt>{ui('Stav', 'Status')}</dt><dd>{disputedPayment ? ui('Platba reklamována', 'Payment disputed') : refundedPayment ? ui('Platba vrácena', 'Payment refunded') : active.paymentIssue ? ui('Platba vyžaduje pozornost', 'Payment needs attention') : active.cancelAtPeriodEnd ? ui('Ukončení naplánováno', 'Cancellation scheduled') : ui('Aktivní', 'Active')}</dd></div>
         </dl>
