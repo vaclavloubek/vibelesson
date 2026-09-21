@@ -4,6 +4,14 @@ const migration = fs.readFileSync(
   'supabase/migrations/20260920080000_anchor_individual_ai_quotas_to_billing_period.sql',
   'utf8',
 );
+const quotaMetadataMigration = fs.readFileSync(
+  'supabase/migrations/20260921040634_expose_ai_quota_window_on_primary_rpc.sql',
+  'utf8',
+);
+const pricing = fs.readFileSync('components/PricingPage.tsx', 'utf8');
+const accountMenu = fs.readFileSync('components/PublicHeaderAccountMenu.tsx', 'utf8');
+const subscriptionPage = fs.readFileSync('app/subscription/page.tsx', 'utf8');
+const subscriptionManagement = fs.readFileSync('components/SubscriptionManagement.tsx', 'utf8');
 
 const requireText = (needle, label) => {
   if (!migration.includes(needle)) {
@@ -33,4 +41,43 @@ if (!migration.includes("v_window_start := v_calendar_start;")
   throw new Error('Organization shared quota must remain UTC-calendar based.');
 }
 
-console.log('Billing-anchored individual AI quota safeguards verified.');
+for (const [needle, label] of [
+  ['quota_window_start timestamptz', 'quota RPC exposes authoritative window start'],
+  ['quota_window_end timestamptz', 'quota RPC exposes authoritative window end'],
+  ['quota_source text', 'quota RPC exposes authoritative reset source'],
+  ["v_quota_source := 'calendar_utc'", 'organization quota identifies calendar-month source'],
+  ['q.window_start, q.window_end, q.quota_source', 'individual quota metadata comes from the same private window helper'],
+  ['grant execute on function public.get_ai_quota() to authenticated, service_role', 'primary quota RPC retains explicit authenticated access'],
+  ['drop function public.get_ai_quota_v2()', 'temporary extra RPC is removed after primary RPC migration'],
+]) {
+  if (!quotaMetadataMigration.includes(needle)) {
+    throw new Error('Missing quota reset metadata safeguard: ' + label);
+  }
+}
+
+if (pricing.includes('Limity se obnovují každý kalendářní měsíc.')
+    || pricing.includes('Allowances reset every calendar month.')) {
+  throw new Error('Pricing must not claim that every plan resets on a calendar month.');
+}
+
+for (const [needle, label] of [
+  ['U Free se AI limity obnovují na začátku každého kalendářního měsíce.', 'Pricing identifies Free calendar-month reset'],
+  ['U Teacher a Teacher Pro se měsíční AI kvóta obnovuje podle fakturačního cyklu', 'Pricing identifies paid individual billing-cycle reset'],
+  ['u ročního předplatného po měsíčních intervalech od data začátku předplatného', 'Pricing explains annual monthly subwindows'],
+  ['U Team, School a Campus se společné AI limity pracovního prostoru obnovují na začátku každého kalendářního měsíce.', 'Pricing identifies organization calendar-month reset'],
+]) {
+  if (!pricing.includes(needle)) throw new Error('Missing Pricing reset copy: ' + label);
+}
+
+for (const [source, needle, label] of [
+  [accountMenu, 'quota_window_end', 'account menu reads authoritative reset date'],
+  [accountMenu, 'Obnova AI limitu:', 'account menu displays Czech reset label'],
+  [accountMenu, 'AI allowance resets:', 'account menu displays English reset label'],
+  [subscriptionPage, "supabase.rpc('get_ai_quota')", 'Subscription page loads the authoritative quota RPC'],
+  [subscriptionPage, 'quotaWindow={quotaWindow}', 'Subscription page passes the quota reset to management UI'],
+  [subscriptionManagement, "ui('Obnovení AI limitu', 'AI allowance reset')", 'Subscription UI displays the next AI allowance reset'],
+]) {
+  if (!source.includes(needle)) throw new Error('Missing quota reset UI safeguard: ' + label);
+}
+
+console.log('Billing-anchored individual AI quota safeguards and customer-facing reset timing verified.');
