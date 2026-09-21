@@ -33,6 +33,7 @@ requirePattern(cookieConsent, /trackPageView\(\)/, 'sanitized manual pageview tr
 requirePattern(analytics, /sanitizeAnalyticsPathname/, 'analytics pathname sanitization is missing.');
 requirePattern(analytics, /page_location:\s*analyticsPageLocation\(\)/, 'custom analytics events must override the raw page URL.');
 requirePattern(analytics, /CAMPAIGN_QUERY_KEYS[\s\S]*'utm_source'[\s\S]*'utm_medium'[\s\S]*'utm_campaign'[\s\S]*'utm_content'/, 'safe campaign attribution allowlist is incomplete.');
+requirePattern(footer, /href=\{\`\/\$\{locale\}\/terms\`\}/, 'Locale-aware Terms link is missing from the shared footer.');
 requirePattern(footer, /href=\{\`\/\$\{locale\}\/gdpr\`\}/, 'Locale-aware GDPR link is missing from the shared footer.');
 requirePattern(footer, /COOKIE_SETTINGS_EVENT/, 'cookie settings action is missing from the shared footer.');
 requirePattern(gdpr, /Ochrana osobních údajů \(GDPR\)/, 'GDPR page content is missing.');

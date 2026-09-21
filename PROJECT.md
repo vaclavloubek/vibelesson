@@ -1,8 +1,18 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-20 — interní verze **0.9.72** doplňuje do sekce **Stavebnice aktivit** na landing page responzivní wordcloud přímo v HTML/CSS. Uprostřed dominuje Syllonaut, kolem něj jsou klíčové produktové pojmy v odstínech fialové a jemné orbitální/vesmírné prvky. Wordcloud vyplňuje dříve prázdnou horní část celé viewportové sekce, zachovává spodní claim i activity chips a má českou i anglickou variantu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.73** zavádí české i anglické **Obchodní podmínky Syllonautu v1.0**, odkazuje je z globální patičky a vynucuje jejich přijetí při registraci, nákupu Teacher/Teacher Pro i vytvoření školní objednávky Team/School/Campus. Individuální checkout navíc vyžaduje výslovnou žádost o okamžité zpřístupnění digitální služby; server souhlasy ověřuje a placené nákupy ukládají verzi podmínek do auditních metadat. GDPR informace byly sjednoceny s aktivním školním workflow. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Obchodní podmínky a souhlasy 0.9.73 — 2026-09-21
+
+- nová lokalizovaná stránka **/cs/terms** a **/en/terms** obsahuje Obchodní podmínky v1.0, identifikaci poskytovatele, pravidla účtů, předplatného, plateb, školních licencí, AI obsahu, vad, ukončení, spotřebitelského odstoupení a ADR;
+- globální patička odkazuje vedle GDPR a cookies také na Obchodní podmínky;
+- registrace má samostatný povinný souhlas s Obchodními podmínkami a potvrzení seznámení s GDPR; do Supabase registračních metadat se zapisuje verze podmínek a čas přijetí;
+- nákup **Teacher / Teacher Pro** má samostatný souhlas s podmínkami a výslovnou žádost o okamžité zpřístupnění digitální služby; oba souhlasy vynucuje také server a verze podmínek se propisuje do Stripe Checkout/subscription metadata;
+- objednávka **Team / School / Campus** vyžaduje souhlas jménem organizace a potvrzení oprávnění objednávku učinit; server souhlas vynucuje a ukládá verzi i čas do billing snapshotu objednávky;
+- GDPR stránka je verze **1.2**, obsahuje IČO a aktuální formulaci pro již aktivní školní použití;
+- nový regresní kontrakt `scripts/verify-terms.mjs` hlídá právní odkazy, UI guardy, serverové guardy i auditní metadata.
 
 ### Landing wordcloud 0.9.72 — 2026-09-20
 
