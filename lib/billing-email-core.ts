@@ -15,6 +15,18 @@ export type BillingLifecycleSync = {
 
 type UiLocale = 'cs' | 'en';
 type IndividualPlanCode = 'teacher' | 'teacher_pro';
+type BillingCurrency = 'czk' | 'eur' | 'usd';
+
+type ContractConfirmation = {
+  snapshotId: string;
+  billingPeriod: 'monthly' | 'annual';
+  currency: BillingCurrency;
+  amountMinor: number;
+  acceptedAt: string;
+  termsVersion: string;
+  termsAcceptanceKey: string;
+  immediatePerformanceRequested: boolean;
+};
 
 type RenderInput = {
   notification: BillingLifecycleNotification;
@@ -26,6 +38,7 @@ type RenderInput = {
     aiEdits: number;
     aiGradings: number | null;
   };
+  contractConfirmation?: ContractConfirmation | null;
 };
 
 export function billingLifecycleNotification(
@@ -93,6 +106,41 @@ function formatPeriodEnd(value: string, locale: UiLocale) {
   }).format(date);
 }
 
+function formatContractPrice(amountMinor: number, currency: BillingCurrency, locale: UiLocale) {
+  return new Intl.NumberFormat(locale === 'cs' ? 'cs-CZ' : 'en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: currency === 'czk' ? 0 : 2,
+    maximumFractionDigits: currency === 'czk' ? 0 : 2,
+  }).format(amountMinor / 100);
+}
+
+function contractConfirmationCopy(input: RenderInput) {
+  const contract = input.contractConfirmation;
+  if (!contract) return { text: '', html: '' };
+  const acceptedAt = new Date(contract.acceptedAt);
+  if (Number.isNaN(acceptedAt.getTime())) throw new Error('billing_email_contract_date_invalid');
+  const accepted = acceptedAt.toISOString();
+  const price = formatContractPrice(contract.amountMinor, contract.currency, input.locale);
+  const period = input.locale === 'cs'
+    ? (contract.billingPeriod === 'annual' ? 'roční' : 'měsíční')
+    : contract.billingPeriod;
+  const renewal = input.locale === 'cs'
+    ? `Předplatné se automaticky obnovuje po každém ${period}m fakturačním období, dokud automatické obnovení nezrušíš.`
+    : `The subscription renews automatically after each ${period} billing period until you cancel automatic renewal.`;
+  const immediate = input.locale === 'cs'
+    ? 'Výslovná žádost o zahájení služby před uplynutím 14 dnů: ano.'
+    : 'Express request to start the service before the 14-day withdrawal period expires: yes.';
+  const withdrawal = input.locale === 'cs'
+    ? 'Jsi-li spotřebitel, informace o právu odstoupit a vzorový formulář jsou součástí přiloženého potvrzení.'
+    : 'If you are a consumer, information about the withdrawal right and the model withdrawal form are included with this confirmation.';
+  const text = input.locale === 'cs'
+    ? `\n\nPotvrzení smlouvy: ${price} · ${period} fakturace · objednávka ${accepted}. ${renewal} VOP ${contract.termsVersion} (${contract.termsAcceptanceKey}). ${immediate} ${withdrawal} Snapshot: ${contract.snapshotId}.`
+    : `\n\nContract confirmation: ${price} · ${period} billing · ordered ${accepted}. ${renewal} Terms ${contract.termsVersion} (${contract.termsAcceptanceKey}). ${immediate} ${withdrawal} Snapshot: ${contract.snapshotId}.`;
+  const html = `<div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#f7f6f2;color:#4b4d57;font-size:13px;line-height:1.6;"><strong>${input.locale === 'cs' ? 'Potvrzení smlouvy' : 'Contract confirmation'}</strong><br>${price} · ${period}<br>${input.locale === 'cs' ? 'Objednávka' : 'Ordered'}: ${accepted}<br>${renewal}<br>${input.locale === 'cs' ? 'VOP' : 'Terms'}: ${contract.termsVersion} (${contract.termsAcceptanceKey})<br>${immediate}<br>${withdrawal}<br><span style="color:#777;">Snapshot: ${contract.snapshotId}</span></div>`;
+  return { text, html };
+}
+
 function shell(content: string, ctaLabel: string, ctaHref: string, locale: UiLocale) {
   const footer = locale === 'cs'
     ? 'Tento e-mail se týká vašeho předplatného Syllonautu. Nejde o marketingové sdělení.'
@@ -149,8 +197,9 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
       const benefits = input.planCode === 'teacher_pro'
         ? `${allowance.lessonGenerations} nových AI lekcí, ${allowance.aiEdits} AI úprav a ${allowance.aiGradings ?? 0} AI hodnocení za období, lekce v libovolném jazyce a složky.`
         : `${allowance.lessonGenerations} nových AI lekcí a ${allowance.aiEdits} AI úprav měsíčně a lekce v libovolném jazyce.`;
-      const text = `Tarif ${name} je aktivní.\n\nPlatba proběhla v pořádku a placené funkce Syllonautu jsou připravené. ${benefits}\n\nOtevřít Syllonaut: ${baseUrl}`;
-      const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Tarif ${name} je aktivní</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Platba proběhla v pořádku a placené funkce Syllonautu jsou připravené.</p><div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#efefff;color:#39368f;font-size:14px;line-height:1.55;"><strong>${name}</strong><br>${benefits}</div>`;
+      const contract = contractConfirmationCopy(input);
+      const text = `Tarif ${name} je aktivní.\n\nPlatba proběhla v pořádku a placené funkce Syllonautu jsou připravené. ${benefits}${contract.text}\n\nOtevřít Syllonaut: ${baseUrl}`;
+      const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Tarif ${name} je aktivní</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Platba proběhla v pořádku a placené funkce Syllonautu jsou připravené.</p><div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#efefff;color:#39368f;font-size:14px;line-height:1.55;"><strong>${name}</strong><br>${benefits}</div>${contract.html}`;
       return { subject: `${name} je aktivní · Syllonaut`, text, html: shell(content, 'Otevřít Syllonaut', baseUrl, input.locale) };
     }
 
@@ -175,8 +224,9 @@ export function renderBillingLifecycleEmail(input: RenderInput) {
     const benefits = input.planCode === 'teacher_pro'
       ? `${allowance.lessonGenerations} new AI lessons, ${allowance.aiEdits} AI edits and ${allowance.aiGradings ?? 0} AI gradings per allowance period, lessons in any language and folders.`
       : `${allowance.lessonGenerations} new AI lessons and ${allowance.aiEdits} AI edits per month, plus lessons in any language.`;
-    const text = `Your ${name} plan is active.\n\nYour payment was successful and Syllonaut paid features are ready. ${benefits}\n\nOpen Syllonaut: ${baseUrl}`;
-    const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Your ${name} plan is active</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Your payment was successful and Syllonaut paid features are ready.</p><div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#efefff;color:#39368f;font-size:14px;line-height:1.55;"><strong>${name}</strong><br>${benefits}</div>`;
+    const contract = contractConfirmationCopy(input);
+    const text = `Your ${name} plan is active.\n\nYour payment was successful and Syllonaut paid features are ready. ${benefits}${contract.text}\n\nOpen Syllonaut: ${baseUrl}`;
+    const content = `<h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;letter-spacing:-0.035em;">Your ${name} plan is active</h1><p style="margin:0;color:#686b74;font-size:15px;line-height:1.65;">Your payment was successful and Syllonaut paid features are ready.</p><div style="margin-top:18px;padding:14px 16px;border-radius:13px;background:#efefff;color:#39368f;font-size:14px;line-height:1.55;"><strong>${name}</strong><br>${benefits}</div>${contract.html}`;
     return { subject: `Your ${name} plan is active · Syllonaut`, text, html: shell(content, 'Open Syllonaut', baseUrl, input.locale) };
   }
 
