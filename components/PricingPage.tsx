@@ -20,6 +20,7 @@ import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { AI_GRADING_ALLOWANCES, INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } from '@/lib/individual-billing-catalog';
 import { ORGANIZATION_PLANS, organizationPricingPagePrice } from '@/lib/organization-billing-catalog';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { termsReconsentPath } from '@/lib/terms-gate';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
@@ -925,6 +926,11 @@ export default function PricingPage({
               <span>{ui('Zpracování', 'Processing')}</span>
               <strong>{checkoutRoute.managedPayments ? 'Managed Payments' : ui('Standardní Stripe', 'Standard Stripe')}</strong>
             </div>
+
+            <p>
+              <strong>{ui('Poskytovatel:', 'Provider:')}</strong> {PROVIDER_CONTACT.legalName}, {ui('IČO', 'Business ID')} {PROVIDER_CONTACT.businessId}<br />
+              {ui('Telefon:', 'Phone:')} <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a> · <a href={PROVIDER_CONTACT.emailHref}>{PROVIDER_CONTACT.email}</a>
+            </p>
 
             <label className={styles.checkoutField} style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
               <input
