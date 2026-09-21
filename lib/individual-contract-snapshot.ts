@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
-import { TERMS_PLAN_PRICING_CLAUSE } from '@/lib/terms-content';
+import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
 
@@ -93,7 +93,7 @@ const TERMS_CURRENT_CS = `
 <section>
 <h2>7. Spotřebitelé: právo odstoupit do 14 dnů</h2>
 <p>Jste-li spotřebitel, můžete od smlouvy uzavřené na dálku zpravidla odstoupit do 14 dnů od jejího uzavření bez uvedení důvodu. Odstoupení stačí v této lhůtě odeslat na vaclav@syllonaut.com jednoznačným prohlášením.</p>
-<p>Požádáte-li při objednávce výslovně o zahájení služby ještě před uplynutím 14denní lhůty a následně odstoupíte, může být účtována poměrná část ceny za plnění skutečně poskytnuté do okamžiku odstoupení. Pokud byla služba na základě vašeho předchozího výslovného souhlasu plně poskytnuta a vzali jste na vědomí zánik práva odstoupit, právo může zaniknout v případech stanovených zákonem.</p>
+<p>${escapeHtml(TERMS_WITHDRAWAL_CLAUSE.cs)}</p>
 <h3>Vzor oznámení o odstoupení</h3>
 <p>„Oznamuji, že odstupuji od smlouvy na tarif Syllonaut [název tarifu], objednaný dne [datum]. E-mail účtu: [e-mail]. Jméno: [jméno]. Datum: [datum].“</p>
 <p>Toto právo se vztahuje pouze na spotřebitele. Práva spotřebitele, která nelze smluvně omezit, zůstávají těmito podmínkami nedotčena.</p>
@@ -110,8 +110,7 @@ const TERMS_CURRENT_CS = `
 </section>
 <section>
 <h2>10. Změny služby a podmínek</h2>
-<p>Službu lze měnit kvůli vývoji, bezpečnosti, právním povinnostem nebo změnám dodavatelů. Podstatné změny placeného tarifu, které uživatele nepříznivě ovlivní během zaplaceného období, budou řešeny v souladu se zákonem a uživatel bude přiměřeně informován.</p>
-<p>Podmínky mohou být aktualizovány. Pokud změna vyžaduje nový souhlas, Syllonaut si jej vyžádá před tím, než bude změna pro daného uživatele závazná.</p>
+${TERMS_SERVICE_CHANGE_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 </section>
 <section>
 <h2>11. Ukončení účtu</h2>
@@ -130,7 +129,7 @@ const TERMS_CURRENT_CS = `
 <section>
 <h2>14. Ochrana osobních údajů a závěrečná ustanovení</h2>
 <p>Zpracování osobních údajů upravuje samostatná stránka Ochrana osobních údajů (GDPR) na syllonaut.com.</p>
-<p>Aktuální verze těchto podmínek je 1.1 a je účinná od 21. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
+<p>Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od 21. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
 </section>`;
 
 const TERMS_CURRENT_EN = `
@@ -173,7 +172,7 @@ const TERMS_CURRENT_EN = `
 <section>
 <h2>7. Consumers: 14-day withdrawal right</h2>
 <p>If you are a consumer, you generally have 14 days from conclusion of a distance contract to withdraw without giving a reason. It is sufficient to send an unequivocal withdrawal statement within that period to vaclav@syllonaut.com.</p>
-<p>If you expressly request that the service begin before the 14-day period ends and later withdraw, you may be charged a proportionate amount for the service actually supplied before withdrawal. Where a service has been fully performed with your prior express consent and your acknowledgement that the withdrawal right will be lost, that right may be lost in the cases provided by law.</p>
+<p>${escapeHtml(TERMS_WITHDRAWAL_CLAUSE.en)}</p>
 <h3>Model withdrawal notice</h3>
 <p>“I hereby give notice that I withdraw from my contract for the Syllonaut [plan name] plan, ordered on [date]. Account email: [email]. Name: [name]. Date: [date].”</p>
 <p>This right applies only to consumers. Statutory consumer rights that cannot be contractually restricted remain unaffected by these Terms.</p>
@@ -190,8 +189,7 @@ const TERMS_CURRENT_EN = `
 </section>
 <section>
 <h2>10. Changes to the service and Terms</h2>
-<p>The service may change because of product development, security, legal requirements or provider changes. Material adverse changes to a paid plan during a paid period will be handled in accordance with applicable law and users will receive reasonable notice.</p>
-<p>These Terms may be updated. Where a change requires renewed consent, Syllonaut will request it before the change becomes binding on the relevant user.</p>
+${TERMS_SERVICE_CHANGE_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 </section>
 <section>
 <h2>11. Account termination</h2>
@@ -210,14 +208,14 @@ const TERMS_CURRENT_EN = `
 <section>
 <h2>14. Privacy and final provisions</h2>
 <p>Personal-data processing is described in the separate Privacy Notice on syllonaut.com.</p>
-<p>The current version of these Terms is 1.1, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
+<p>The current version of these Terms is ${TERMS_VERSION}, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
 </section>`;
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.1'
+    TERMS_VERSION !== '1.3'
     || TERMS_EFFECTIVE_DATE !== '2026-09-21'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v2'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v4'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }

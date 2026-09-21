@@ -8,7 +8,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
-import { TERMS_PLAN_PRICING_CLAUSE } from '@/lib/terms-content';
+import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from '@/app/gdpr/GdprPage.module.css';
@@ -157,8 +157,8 @@ export default async function TermsPage() {
             'If you are a consumer, you generally have 14 days from conclusion of a distance contract to withdraw without giving a reason. It is sufficient to send an unequivocal withdrawal statement within that period to vaclav@syllonaut.com.'
           )}</p>
           <p>{ui(
-            'Požádáte-li při objednávce výslovně o zahájení služby ještě před uplynutím 14denní lhůty a následně odstoupíte, může být účtována poměrná část ceny za plnění skutečně poskytnuté do okamžiku odstoupení. Pokud byla služba na základě vašeho předchozího výslovného souhlasu plně poskytnuta a vzali jste na vědomí zánik práva odstoupit, právo může zaniknout v případech stanovených zákonem.',
-            'If you expressly request that the service begin before the 14-day period ends and later withdraw, you may be charged a proportionate amount for the service actually supplied before withdrawal. Where a service has been fully performed with your prior express consent and your acknowledgement that the withdrawal right will be lost, that right may be lost in the cases provided by law.'
+            TERMS_WITHDRAWAL_CLAUSE.cs,
+            TERMS_WITHDRAWAL_CLAUSE.en
           )}</p>
           <h3>{ui('Vzor oznámení o odstoupení', 'Model withdrawal notice')}</h3>
           <p>{ui(
@@ -196,14 +196,9 @@ export default async function TermsPage() {
 
         <section>
           <h2>{ui('10. Změny služby a podmínek', '10. Changes to the service and Terms')}</h2>
-          <p>{ui(
-            'Službu lze měnit kvůli vývoji, bezpečnosti, právním povinnostem nebo změnám dodavatelů. Podstatné změny placeného tarifu, které uživatele nepříznivě ovlivní během zaplaceného období, budou řešeny v souladu se zákonem a uživatel bude přiměřeně informován.',
-            'The service may change because of product development, security, legal requirements or provider changes. Material adverse changes to a paid plan during a paid period will be handled in accordance with applicable law and users will receive reasonable notice.'
-          )}</p>
-          <p>{ui(
-            'Podmínky mohou být aktualizovány. Pokud změna vyžaduje nový souhlas, Syllonaut si jej vyžádá před tím, než bude změna pro daného uživatele závazná.',
-            'These Terms may be updated. Where a change requires renewed consent, Syllonaut will request it before the change becomes binding on the relevant user.'
-          )}</p>
+          {TERMS_SERVICE_CHANGE_CLAUSE[english ? 'en' : 'cs'].map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
         </section>
 
         <section>

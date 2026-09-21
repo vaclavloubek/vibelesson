@@ -1,8 +1,51 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**: čl. 5 VOP už nepřipouští, aby pozdější faktura nebo platební doklad jednostranně přepsaly předsmluvní příslib; webová VOP a neměnný smluvní snapshot používají stejnou sdílenou klauzuli. VOP jsou verze 1.1 / acceptance key `2026-09-21-v2`; signup audit a re-consent používají backward-compatible verzovanou DB vrstvu, která eviduje přesně key skutečně přijatý uživatelem. Pricing nyní čte i Team / School / Campus ceny, seat limity a AI lesson/revision kvóty ze sdíleného organizačního katalogu a regresní kontrakt hlídá cestu nabídka → checkout → smluvní snapshot → aktivační e-mail. Hardening LEGAL-006 z 0.9.86 zůstává zachovaný. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.90** uzavírá **LEGAL-010** schválenou hybridní variantou C: každá změna průběžné digitální služby má doložený důvod, klasifikaci a datum účinnosti; u podstatně nepříznivé změny se přednostně zachová bezpečná původní verze do konce zaplaceného období, jinak spotřebitel dostane trvalé oznámení alespoň 30 dnů předem a může smlouvu bez postihu ukončit s vrácením nevyužité předplacené části. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Řízené změny průběžné digitální služby 0.9.90 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-010** schválenou hybridní variantou C;
+- autoritativní policy `hybrid-v1` rozlišuje bezpečnostní/opravné, příznivé či nevýznamné a podstatně nepříznivé změny; každá release evidence ukládá platný důvod, konkrétní CZ/EN dopad, cílové tarify, datum účinnosti a SHA-256 obsahu;
+- podstatně nepříznivá změna přednostně zachová bezpečnou původní verzi nejméně do konce již zaplaceného období bez příplatku; pokud to bezpečně a technicky nejde, server vyžaduje nejméně 30 celých dnů před účinností;
+- bilingvní oznámení se doručuje e-mailem se stabilní idempotencí a ukládá hash adresy, hash celého oznámení, ID poskytovatele, čas odeslání a zákonnou lhůtu počítanou 30 dnů od pozdějšího z oznámení nebo účinnosti;
+- spotřebitel může z Předplatného po výslovném potvrzení ukončit službu i bez přijetí nových VOP; žádost, výpočet, Stripe refund a okamžité zrušení subscription používají neměnnou evidenci a execution lease;
+- refund vrací nevyužitou část skutečně zaplaceného aktuálního období původní Stripe platbou, se zaokrouhlením retained částky dolů a se započtením dřívějších refundů; změna tarifu nebo neobvyklá historie se zastaví k individuální kontrole;
+- VOP a neměnný smluvní snapshot sdílejí totožnou CZ/EN klauzuli; VOP jsou **1.3** a `TERMS_ACCEPTANCE_KEY = 2026-09-21-v4`, starší v1–v3 zůstávají podporované a historická evidence se nepřepisuje;
+- produkční Supabase migrace **add_service_change_workflow** a **update_terms_1_3_legal_010** jsou aplikované; tři nové privátní tabulky mají RLS bez přímých grantů a všech 12 RPC je pouze pro `service_role` s prázdným `search_path`;
+- regresní testy pokrývají apply/grandfather/durable-notice strategii, 30denní minimum, měsíční i roční/leap období, ukončení ve stejném okamžiku, zaokrouhlení, dřívější refund, explicitní potvrzení a změnu tarifu; provozní postup je v **SERVICE_CHANGE_RUNBOOK.md**;
+- PR **#276** prošel full check/build, Security headers, Accessibility a Vercel Preview; produkční merge commit **c83b0ba9** má Vercel **success**. V produkční evidenci při ověření zůstalo **0 releases / 0 deliveries / 0 terminations** a nevznikl žádný e-mail, refund ani zrušení předplatného;
+- Security Advisor nepřidal nový privileged warning; tři nové privátní tabulky jsou pouze očekávané INFO `rls_enabled_no_policy`;
+- veřejně zobrazovaná verze dashboardu zůstává **0.9.30**.
+
+
+### Přesné označení AI integrity signalizace 0.9.89 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-009** schválenou variantou A;
+- původní claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ / “Protection against unauthorized AI use in student responses” je nahrazen přesným benefitem „Upozornění na možné využití AI ve studentských odpovědích“ / “Alerts about possible AI use in student responses”;
+- Teacher Pro, School a Campus používají společný CZ/EN zdroj textu `lib/ai-integrity-copy.ts`;
+- Ceník viditelně vysvětluje, že jde o AI/heuristický signál pro kontrolu učitelem, nikoli důkaz, a že body se automaticky nemění; konečné posouzení zůstává na učiteli;
+- regresní kontrola hlídá přesný společný text pro všechny tři oprávněné tarify, viditelné vysvětlení limitů signálu a zakazuje návrat původního slibu ochrany;
+- změna nezasahuje do databáze, Supabase RLS, oprávnění ani scoring workflow;
+- lokálně prošly hlavní kontroly, produkční build a accessibility kontrola; PR **#274** prošel Security headers, Accessibility a Vercel Preview. Produkční merge commit **78af1248** má Vercel **success**;
+- veřejně zobrazovaná verze dashboardu zůstává **0.9.30**.
+
+
+### Poměrná úhrada při odstoupení 0.9.88 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-008**;
+- autoritativní metoda `time-pro-rata-v1` počítá zadrženou částku jako jediné zaokrouhlení dolů: původní sjednaná cena v nejmenších měnových jednotkách × skutečně poskytnutý čas / skutečná délka zaplaceného období; zbytek se vrací;
+- AI spotřeba nevstupuje do částky a může sloužit pouze oddělenému fraud monitoringu;
+- včasnost odstoupení se ověřuje podle doloženého času odeslání, zatímco výpočet poskytnuté služby končí časem doručení poskytovateli; oba časy a SHA-256 původního oznámení jsou neměnnou evidencí;
+- výpočet používá původní smluvní snapshot, Checkout Session, počáteční fakturu, PaymentIntent, Charge a serverový aktivační záznam. Upgrade, další platba, schedule, pending update, cenový rozpor nebo chybějící evidence zastaví automatizaci k individuálnímu posouzení;
+- refund běží proti původní Stripe platbě se stabilním idempotency key, nejprve vyhledá již existující refund a používá service-only execution lease; stav refundu se znovu načítá a smiřuje také ze signed webhooku;
+- původní paralelně nasazené mutační RPC bez důkazu oznámení a lease jsou odebrané `service_role`; nový zápis, výpočet, claim, refund reconciliation, cancellation a failure workflow jsou dostupné pouze `service_role`;
+- VOP, checkout a neměnný smluvní snapshot sdílejí CZ/EN metodiku; VOP jsou **1.2** a `TERMS_ACCEPTANCE_KEY = 2026-09-21-v3`, přičemž v1/v2 zůstávají během rollout kompatibility podporované a historická evidence se nepřepisuje;
+- produkční Supabase migrace **20260921092334_add_withdrawal_refund_evidence** a **20260921092346_update_terms_1_2_legal_008** jsou aplikované. Obě privátní tabulky mají RLS bez přímých grantů; Security Advisor nepřidal nový WARN ani nové privileged-RPC upozornění, pouze očekávané INFO `rls_enabled_no_policy` pro novou privátní receipt tabulku;
+- regresní testy pokrývají měsíční i roční/leap období, odstoupení ve stejný den, přesné zaokrouhlení, nulový retained amount bez výslovné žádosti/poučení, předchozí refund, nezávislost na AI spotřebě, změnu tarifu, retry recovery, včasné odeslání s pozdějším doručením, neměnnost důkazů, granty, RLS a Terms v1/v2/v3;
+- PR **#272** prošel full check/build, Security headers, Accessibility, Vercel Preview a izolovaným PostgreSQL testem; produkční merge commit **73aab962** má Vercel **success**. V produkční evidenci při ověření zůstalo **0 receipts / 0 requests** a žádný živý refund ani syntetický nákup nebyl proveden;
+- veřejně zobrazovaná verze dashboardu zůstává **0.9.30**.
 
 
 ### Konzistence nabídky a smlouvy 0.9.87 — 2026-09-21
@@ -154,9 +197,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**
 
 ### Právní / ČOI launch audit před 1.0 — 2026-09-21
 
-**Stav: OPEN.** Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
-
-#### Blokátory 1.0
+**Stav: OPEN.** Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.\n\n#### Blokátory 1.0
 
 - **[LEGAL-001 — RESOLVED 0.9.78] Aktivační e-mail potvrzoval zastaralé a vyšší AI kvóty.** Opraveno: `INDIVIDUAL_PLAN_ALLOWANCES` v `lib/individual-billing-catalog.ts` je společný zdroj pro Pricing i transakční aktivační e-mail. Teacher se potvrzuje jako **10 nových AI lekcí + 20 AI úprav / měsíc**, Teacher Pro jako **25 + 40**. Regresní kontrola vykreslí oba tarify ze sdílených hodnot a zakazuje návrat starých textů **25/100** a **60/250**.
 - **[LEGAL-002 — RESOLVED 0.9.80] Ceník nepravdivě tvrdil, že všechny AI limity se obnovují každý kalendářní měsíc.** Opraveno: Free a sdílené Team / School / Campus kvóty jsou veřejně popsány jako kalendářní; Teacher / Teacher Pro jako kvóty podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. `get_ai_quota()` nyní vrací i autoritativní `quota_window_start`, `quota_window_end` a `quota_source`; přesné datum další obnovy se zobrazuje v účtovém menu a na stránce Předplatné. Regresní test zakazuje návrat původního plošného tvrzení.
@@ -168,9 +209,9 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**
 
 - **[LEGAL-006 — RESOLVED 0.9.85] Starší účty neměly doložené přijetí aktuálních VOP.** Opraveno: přihlášený účet bez append-only evidence aktuálního key je před další tvorbou, editací, live výukou nebo správou organizace veden na explicitní `/terms/accept`; server zároveň blokuje relevantní mutace i při přímém API volání. Přijetí se zapisuje serverovým časem do `private.terms_acceptance_events` se zdrojem `reconsent`. Billingové doklady a skutečné ukončení/omezení renewal zůstávají dostupné bez nuceného přijetí nové verze.
 - **[LEGAL-007 — RESOLVED 0.9.87] Čl. 5 VOP se pokoušel při rozporu dát přednost údajům těsně před objednávkou a následnému platebnímu dokladu.** Opraveno: pozdější potvrzení/faktura už nemůže jednostranně přepsat sjednané podmínky; veřejné VOP a archivní snapshot sdílejí totožnou klauzuli. Pricing a backend jsou navíc regresně svázané se sdílenými cenovými a kvótovými katalogy a nový test hlídá cestu nabídka → checkout → snapshot → aktivační e-mail.
-- **[LEGAL-008] Není definovaná obhajitelná metodika poměrné úhrady při spotřebitelském odstoupení po okamžitém zahájení služby.** Rizikový scénář: zákazník v prvních dnech vyčerpá většinu měsíční AI kvóty a odstoupí. **Náprava:** vytvořit jasnou interní refund metodiku odpovídající skutečně poskytnutému plnění a zákonu; neodvozovat automaticky 100% spotřebu ceny pouze z vyčerpání kvóty.
-- **[LEGAL-009] Claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ je silnější než skutečný produkt.** Implementace poskytuje pouze AI/heuristický integrity signál `none / low / high`; signál není důkaz a nulu může po kontrole potvrdit učitel. **Náprava:** přepsat benefit např. na **„Upozornění na možné využití AI ve studentských odpovědích“** a stejnou formulaci držet ve všech kanálech.
-- **[LEGAL-010] VOP řeší změny průběžné digitální služby příliš obecně.** Formulace „v souladu se zákonem / přiměřeně informován“ nestačí jako provozní postup pro nepříznivou změnu placeného tarifu během zaplaceného období. **Náprava:** definovat version/change workflow: důvod změny, textová notifikace předem, datum účinnosti, zachování původní verze kde možné a právo zákazníka ukončit smlouvu tam, kde ho zákon vyžaduje.
+- **[LEGAL-008 — RESOLVED 0.9.88] Není definovaná obhajitelná metodika poměrné úhrady při spotřebitelském odstoupení po okamžitém zahájení služby.** Vyřešeno čistým časovým poměrem z původní sjednané ceny a skutečné délky období, se zaokrouhlením zadržené částky dolů ve prospěch spotřebitele. AI spotřeba částku nemění. Neměnná evidence rozlišuje čas odeslání pro zachování lhůty a čas doručení pro výpočet; bezpečný Stripe refund je vázaný na původní platbu a chráněný proti souběhu a duplicitě.
+- **[LEGAL-009 — RESOLVED 0.9.89] Claim „Ochrana proti nepovolenému využití AI ve studentských odpovědích“ byl silnější než skutečný produkt.** Ceník nyní pro Teacher Pro, School a Campus používá sdílený CZ/EN benefit **„Upozornění na možné využití AI ve studentských odpovědích“** / **“Alerts about possible AI use in student responses”** a viditelně uvádí, že jde o AI/heuristický signál pro kontrolu učitelem, nikoli důkaz; body se automaticky nemění. Regresní test zakazuje návrat původního slibu ochrany.
+- **[LEGAL-010 — RESOLVED 0.9.90] VOP řešily změny průběžné digitální služby příliš obecně.** Schválená hybridní varianta C nyní vynucuje doložený důvod, klasifikaci a datum účinnosti; u podstatně nepříznivé změny přednostně zachová bezpečnou původní verzi do konce zaplaceného období, jinak vyžaduje trvalé oznámení alespoň 30 dnů předem a nabízí spotřebiteli ukončení bez postihu s vrácením nevyužité předplacené části.
 - **[LEGAL-011] VOP neuvádějí telefonní číslo poskytovatele.** U spotřebitelské distanční smlouvy patří telefon mezi předsmluvní kontaktní informace. **Náprava:** doplnit funkční telefon do VOP a checkout/legal kontaktních údajů.
 - **[LEGAL-012] VOP obsahují vlastní zkrácený vzor odstoupení, nikoli zjevně zákonný vzorový formulář podle aktuální české úpravy.** **Náprava:** přidat oficiálně strukturovaný vzorový formulář a poskytnout jej i v potvrzení smlouvy na trvalém nosiči.
 - **[LEGAL-013] Absolutní marketingové „bez omezení“ koliduje s bezpečnostními omezeními zařízení a dalšími guardy.** Placené účty mají např. trusted-device limit **3 aktivní zařízení / 5 nových za 30 dní**. **Náprava:** používat přesný claim **„opakované spouštění hotových lekcí bez čerpání AI limitu“**, nikoli obecné „bez omezení“.
@@ -192,7 +233,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.87** uzavírá **LEGAL-007**
 #### Rozhodnutí pro release
 
 - body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
-- body **LEGAL-008 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
+- body **LEGAL-009 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
 - body **LEGAL-020 až LEGAL-021** mají vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
 - po opravách provést nový **legal offer-vs-contract-vs-runtime audit**: Homepage → Pricing → Signup → Checkout → Stripe → potvrzovací e-mail → Subscription/School UI → VOP → GDPR → skutečné DB/backend entitlementy.

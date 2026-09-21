@@ -12,6 +12,7 @@ import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-s
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import type { AiQuotaSnapshot } from '@/lib/ai-quota';
+import { getServiceChangeNotices, type ServiceChangeNotice } from '@/lib/service-change-state';
 import landing from '@/components/LandingPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,7 @@ export default async function SubscriptionPage() {
   let state;
   let quotaWindow: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null = null;
   let loadError = false;
+  let serviceChangeNotices: ServiceChangeNotice[] = [];
   try {
     state = await getLiveSubscriptionManagementState(userId);
   } catch (error) {
@@ -49,6 +51,15 @@ export default async function SubscriptionPage() {
     });
     state = { kind: 'none' } as const;
     loadError = true;
+  }
+
+  try {
+    serviceChangeNotices = await getServiceChangeNotices(userId);
+  } catch (error) {
+    console.error('load service change notices failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+      userId,
+    });
   }
 
   const { data: quotaData, error: quotaError } = await supabase.rpc('get_ai_quota');
@@ -104,7 +115,7 @@ export default async function SubscriptionPage() {
         <section style={{ width: 'min(960px, calc(100% - 40px))', margin: '56px auto 0' }} className="error">
           {ui('Správu předplatného se nepodařilo načíst. Zkus stránku obnovit.', 'Subscription management could not be loaded. Refresh the page and try again.')}
         </section>
-      ) : <SubscriptionManagement state={state} quotaWindow={quotaWindow} />}
+      ) : <SubscriptionManagement state={state} quotaWindow={quotaWindow} serviceChangeNotices={serviceChangeNotices} />}
     </main>
   );
 }

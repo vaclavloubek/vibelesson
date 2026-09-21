@@ -10,6 +10,8 @@ import type { LiveSubscriptionManagementState } from '@/lib/billing-subscription
 import { quotaSourceLabel } from '@/lib/ai-quota';
 import styles from './SubscriptionManagement.module.css';
 import TrustedDevicesPanel from './TrustedDevicesPanel';
+import ServiceChangeNotices from './ServiceChangeNotices';
+import type { ServiceChangeNotice } from '@/lib/service-change-state';
 
 type ActiveState = Extract<LiveSubscriptionManagementState, { kind: 'active' }>;
 
@@ -33,9 +35,11 @@ function formatMoney(amount: number, currency: 'czk' | 'eur' | 'usd', english: b
 export default function SubscriptionManagement({
   state,
   quotaWindow,
+  serviceChangeNotices = [],
 }: {
   state: LiveSubscriptionManagementState;
   quotaWindow?: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null;
+  serviceChangeNotices?: ServiceChangeNotice[];
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -239,6 +243,8 @@ export default function SubscriptionManagement({
       </section>
 
       <TrustedDevicesPanel />
+
+      <ServiceChangeNotices notices={serviceChangeNotices} />
 
       {active.scheduledChange ? (
         <section className={styles.scheduledCard}>
