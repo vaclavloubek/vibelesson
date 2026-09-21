@@ -203,7 +203,7 @@ export default function SchoolAdmin({
     const response = await window.fetch(input, init);
     if (
       termsAcceptanceRequired
-      && response.status === 401
+      && (response.status === 401 || response.status === 428)
       && !authBoundaryTriggeredRef.current
     ) {
       window.location.assign(termsReconsentPath('/school'));
