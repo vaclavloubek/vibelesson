@@ -73,6 +73,9 @@ if (/localStorage/.test(liveControlClient)) {
 }
 requirePattern(teacher, /Promise\.any\(\[primary, fallback\]\)/, 'teacher commands must race primary and fallback paths.');
 requirePattern(teacher, /const operationId = crypto\.randomUUID\(\)/, 'teacher primary/fallback paths must share an idempotency key.');
+requirePattern(teacher, /Ukončit bez spuštění/, 'teacher lobby must offer an explicit exit without starting the lesson.');
+requirePattern(teacher, /session\?\.status === 'lobby'[\s\S]*End this prepared lesson without starting it\?/, 'lobby exit must use a dedicated confirmation message.');
+requirePattern(teacher, /if \(current\.status !== 'live'\) return;[\s\S]*trackEvent\('live_session_ended'/, 'ending an unstarted lobby must not count as a completed live lesson.');
 requirePattern(worker, /expectedActiveBlockId && expectedActiveBlockId !== snapshot\.activeBlockId/, 'fallback navigation must reject stale teacher commands.');
 requirePattern(worker, /type Role = 'teacher' \| 'student' \| 'presenter'/, 'Worker must support a dedicated Presenter capability role.');
 requirePattern(worker, /actorRole === 'presenter'\) return json\(\{ error: 'Forbidden\.' \}, 403\)/, 'Presenter capability must be unable to write live events.');
