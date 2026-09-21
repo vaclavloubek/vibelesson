@@ -11,6 +11,7 @@ import SubscriptionManagement from '@/components/SubscriptionManagement';
 import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
+import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import landing from '@/components/LandingPage.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,7 @@ export default async function SubscriptionPage() {
   if (!userId) redirect(`/${locale}`);
 
   let state;
+  let quotaWindow: { end: string; source: string | null } | null = null;
   let loadError = false;
   try {
     state = await getLiveSubscriptionManagementState(userId);
@@ -47,6 +49,22 @@ export default async function SubscriptionPage() {
     });
     state = { kind: 'none' } as const;
     loadError = true;
+  }
+
+  const { data: quotaData, error: quotaError } = await supabase.rpc('get_ai_quota');
+  if (quotaError) {
+    console.error('load subscription AI quota window failed', {
+      error: quotaError.message,
+      userId,
+    });
+  } else {
+    const quotaRow = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as AiQuotaSnapshot | undefined;
+    if (quotaRow?.quota_window_end) {
+      quotaWindow = {
+        end: quotaRow.quota_window_end,
+        source: quotaRow.quota_source,
+      };
+    }
   }
 
   const accountUser = {
@@ -82,7 +100,7 @@ export default async function SubscriptionPage() {
         <section style={{ width: 'min(960px, calc(100% - 40px))', margin: '56px auto 0' }} className="error">
           {ui('Správu předplatného se nepodařilo načíst. Zkus stránku obnovit.', 'Subscription management could not be loaded. Refresh the page and try again.')}
         </section>
-      ) : <SubscriptionManagement state={state} />}
+      ) : <SubscriptionManagement state={state} quotaWindow={quotaWindow} />}
     </main>
   );
 }
