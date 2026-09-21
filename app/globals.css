@@ -144,7 +144,7 @@ a { color: inherit; }
   gap: 14px;
   position: sticky;
   top: 16px;
-  max-height: calc(100vh - 32px);
+  max-height: var(--builder-available-height, calc(100dvh - 112px));
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
