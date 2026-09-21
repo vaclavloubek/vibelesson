@@ -202,7 +202,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
       ? (english ? `edits ${quota.revision_remaining ?? 0}/${quota.revision_limit}` : `úpravy ${quota.revision_remaining ?? 0}/${quota.revision_limit}`)
       : (english ? 'edits loading' : 'úpravy načítám');
 
-  const quotaResetDate = quota?.quota_window_end
+  const quotaResetDate = quota?.quota_window_end && !(quota.lesson_unlimited && quota.revision_unlimited)
     ? new Intl.DateTimeFormat(english ? 'en-GB' : 'cs-CZ', {
         dateStyle: 'medium',
         timeZone: 'Europe/Prague',
