@@ -10,6 +10,9 @@ export type DpaSection = {
 
 export type DpaSubprocessor = {
   provider: string;
+  legalEntity: string;
+  address: string;
+  contact: string;
   purpose: string;
   dataScope: string;
   transfer: string;
@@ -21,42 +24,63 @@ export function getDpaDocument(locale: DpaLocale) {
   const subprocessors: DpaSubprocessor[] = english ? [
     {
       provider: 'Supabase',
+      legalEntity: 'Supabase, Inc.',
+      address: '970 Toa Payoh North #07-04, Singapore 318992',
+      contact: 'privacy@supabase.io',
       purpose: 'Authentication, PostgreSQL database and related backend infrastructure.',
       dataScope: 'Teacher/admin account data, organisation membership data, lesson/session data, student display names, responses, results and related metadata where stored in Syllonaut.',
       transfer: 'The production database is hosted in the EU (eu-west-1). Any other processing by the provider must be covered by the provider’s applicable GDPR transfer safeguards.',
     },
     {
       provider: 'Vercel',
+      legalEntity: 'Vercel Inc.',
+      address: '440 N Barranca Avenue #4133, Covina, CA 91723, United States',
+      contact: 'privacy@vercel.com',
       purpose: 'Application hosting, serverless execution, delivery infrastructure and AI Gateway.',
       dataScope: 'Application requests, technical metadata and content that must pass through the application or AI Gateway to perform the controller-requested operation.',
       transfer: 'Where processing occurs outside the EEA, Syllonaut relies on an applicable Chapter V GDPR transfer mechanism.',
     },
     {
       provider: 'Cloudflare',
+      legalEntity: 'Cloudflare, Inc.',
+      address: '101 Townsend St., San Francisco, CA 94107, United States',
+      contact: 'Data Protection Officer · privacyquestions@cloudflare.com',
       purpose: 'Turnstile and abuse-prevention/security controls.',
       dataScope: 'Technical request, browser and anti-abuse signals. Lesson content and student answers are not intentionally supplied to Turnstile.',
       transfer: 'Where processing occurs outside the EEA, the provider’s applicable GDPR transfer safeguards are used.',
     },
     {
       provider: 'Resend',
+      legalEntity: 'Plus Five Five, Inc.',
+      address: '2261 Market Street #5039, San Francisco, CA 94114, United States',
+      contact: 'Resend Security · privacy@resend.com',
       purpose: 'Transactional emails, organisation invitations and service notifications.',
       dataScope: 'Teacher/admin email addresses and the content of the relevant operational email. Student answers are not intentionally sent through Resend.',
       transfer: 'Where processing occurs outside the EEA, the provider’s applicable GDPR transfer safeguards are used.',
     },
     {
       provider: 'OpenAI',
+      legalEntity: 'OpenAI Ireland Limited',
+      address: '1st Floor, The Liffey Trust Centre, 117–126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland',
+      contact: 'privacy@openai.com',
       purpose: 'AI lesson generation/revision and AI evaluation/grading on routes that use OpenAI.',
       dataScope: 'Prompts, lesson text and, where the controller uses AI grading, the student response and grading context needed for that operation.',
       transfer: 'Current Syllonaut AI routes enforce zero data retention at the Vercel AI Gateway layer. Any transfer outside the EEA must be covered by an applicable Chapter V GDPR mechanism.',
     },
     {
       provider: 'Amazon Web Services (Bedrock)',
+      legalEntity: 'Amazon Web Services EMEA SARL',
+      address: '38 Avenue John F. Kennedy, L-1855 Luxembourg',
+      contact: 'Data Protection Officer · aws-EU-privacy@amazon.com',
       purpose: 'AI processing for supported generation flows using source materials when selected by Syllonaut routing.',
       dataScope: 'Prompt and extracted source text needed for the requested AI operation.',
       transfer: 'Processing is used only through the configured Syllonaut route and must remain covered by applicable GDPR transfer safeguards.',
     },
     {
       provider: 'Microsoft Azure',
+      legalEntity: 'Microsoft Ireland Operations Limited',
+      address: 'One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Ireland',
+      contact: 'Data Protection Officer',
       purpose: 'AI processing for supported generation flows using source materials when selected by Syllonaut routing.',
       dataScope: 'Prompt and extracted source text needed for the requested AI operation.',
       transfer: 'Processing is used only through the configured Syllonaut route and must remain covered by applicable GDPR transfer safeguards.',
@@ -64,42 +88,63 @@ export function getDpaDocument(locale: DpaLocale) {
   ] : [
     {
       provider: 'Supabase',
+      legalEntity: 'Supabase, Inc.',
+      address: '970 Toa Payoh North #07-04, Singapore 318992',
+      contact: 'privacy@supabase.io',
       purpose: 'Autentizace, PostgreSQL databáze a související backendová infrastruktura.',
       dataScope: 'Údaje účtů učitelů/adminů, členství organizace, data lekcí a sessions, zobrazovaná jména studentů, odpovědi, výsledky a související metadata, pokud jsou v Syllonautu ukládána.',
       transfer: 'Produkční databáze je hostována v EU (eu-west-1). Případné další zpracování dodavatelem musí být kryto odpovídajícími zárukami pro předávání podle GDPR.',
     },
     {
       provider: 'Vercel',
+      legalEntity: 'Vercel Inc.',
+      address: '440 N Barranca Avenue #4133, Covina, CA 91723, United States',
+      contact: 'privacy@vercel.com',
       purpose: 'Hosting aplikace, serverless běh, doručovací infrastruktura a AI Gateway.',
       dataScope: 'Aplikační požadavky, technická metadata a obsah, který musí projít aplikací nebo AI Gateway k provedení operace vyžádané správcem.',
       transfer: 'Pokud zpracování probíhá mimo EHP, Syllonaut používá použitelný mechanismus předávání podle kapitoly V GDPR.',
     },
     {
       provider: 'Cloudflare',
+      legalEntity: 'Cloudflare, Inc.',
+      address: '101 Townsend St., San Francisco, CA 94107, United States',
+      contact: 'Data Protection Officer · privacyquestions@cloudflare.com',
       purpose: 'Turnstile a bezpečnostní/anti-abuse ochrana.',
       dataScope: 'Technické údaje o požadavku, prohlížeči a signály proti zneužití. Obsah lekcí a studentské odpovědi nejsou do Turnstile záměrně předávány.',
       transfer: 'Pokud zpracování probíhá mimo EHP, použijí se odpovídající záruky dodavatele podle GDPR.',
     },
     {
       provider: 'Resend',
+      legalEntity: 'Plus Five Five, Inc.',
+      address: '2261 Market Street #5039, San Francisco, CA 94114, United States',
+      contact: 'Resend Security · privacy@resend.com',
       purpose: 'Transakční e-maily, pozvánky do organizace a provozní notifikace.',
       dataScope: 'E-mailové adresy učitelů/adminů a obsah příslušného provozního e-mailu. Studentské odpovědi nejsou přes Resend záměrně odesílány.',
       transfer: 'Pokud zpracování probíhá mimo EHP, použijí se odpovídající záruky dodavatele podle GDPR.',
     },
     {
       provider: 'OpenAI',
+      legalEntity: 'OpenAI Ireland Limited',
+      address: '1st Floor, The Liffey Trust Centre, 117–126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland',
+      contact: 'privacy@openai.com',
       purpose: 'AI tvorba/úpravy lekcí a AI hodnocení na cestách, které používají OpenAI.',
       dataScope: 'Prompty, text lekce a při využití AI hodnocení také studentská odpověď a hodnoticí kontext nutný pro danou operaci.',
       transfer: 'Současné AI cesty Syllonautu vynucují na úrovni Vercel AI Gateway zero data retention. Případné předání mimo EHP musí být kryto použitelným mechanismem podle kapitoly V GDPR.',
     },
     {
       provider: 'Amazon Web Services (Bedrock)',
+      legalEntity: 'Amazon Web Services EMEA SARL',
+      address: '38 Avenue John F. Kennedy, L-1855 Luxembourg',
+      contact: 'Data Protection Officer · aws-EU-privacy@amazon.com',
       purpose: 'AI zpracování u podporovaných cest generování s podklady, pokud tuto cestu vybere routing Syllonautu.',
       dataScope: 'Prompt a extrahovaný text podkladů potřebný pro vyžádanou AI operaci.',
       transfer: 'Zpracování probíhá pouze přes nakonfigurovanou cestu Syllonautu a musí zůstat kryto odpovídajícími zárukami podle GDPR.',
     },
     {
       provider: 'Microsoft Azure',
+      legalEntity: 'Microsoft Ireland Operations Limited',
+      address: 'One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Ireland',
+      contact: 'Data Protection Officer',
       purpose: 'AI zpracování u podporovaných cest generování s podklady, pokud tuto cestu vybere routing Syllonautu.',
       dataScope: 'Prompt a extrahovaný text podkladů potřebný pro vyžádanou AI operaci.',
       transfer: 'Zpracování probíhá pouze přes nakonfigurovanou cestu Syllonautu a musí zůstat kryto odpovídajícími zárukami podle GDPR.',

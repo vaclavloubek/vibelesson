@@ -103,7 +103,12 @@ export default async function DpaPage() {
                   <tbody>
                     {document.subprocessors.map((subprocessor) => (
                       <tr key={subprocessor.provider}>
-                        <td><strong>{subprocessor.provider}</strong></td>
+                        <td>
+                          <strong>{subprocessor.provider}</strong><br />
+                          <span>{subprocessor.legalEntity}</span><br />
+                          <span>{subprocessor.address}</span><br />
+                          <span>{subprocessor.contact}</span>
+                        </td>
                         <td>{subprocessor.purpose}</td>
                         <td>{subprocessor.dataScope}</td>
                         <td>{subprocessor.transfer}</td>
