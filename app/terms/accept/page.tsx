@@ -32,11 +32,13 @@ export default async function TermsAcceptPage({
   const { authenticatedUserId: userId, supabase } = await getAuthenticatedUserId();
   if (!userId) redirect(`/${locale}`);
 
+  let alreadyAccepted = false;
   try {
-    if (await hasCurrentTermsAcceptance(userId)) redirect(returnTo);
+    alreadyAccepted = await hasCurrentTermsAcceptance(userId);
   } catch (error) {
     console.error('Terms re-consent page status lookup failed', error);
   }
+  if (alreadyAccepted) redirect(returnTo);
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const accountUser = {
