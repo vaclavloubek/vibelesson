@@ -290,6 +290,52 @@ export default function LessonWorkspace({
   }, [saveStatus]);
 
   useEffect(() => {
+    const builder = builderRef.current;
+    if (!builder) return;
+
+    let frame = 0;
+    const updateBuilderViewportHeight = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (window.matchMedia('(max-width: 900px)').matches) {
+          builder.style.removeProperty('--builder-available-height');
+          return;
+        }
+
+        const visualViewport = window.visualViewport;
+        const viewportTop = visualViewport?.offsetTop ?? 0;
+        const viewportHeight = visualViewport?.height ?? window.innerHeight;
+        const stickyTop = 16;
+        const bottomGap = 16;
+        const builderTop = Math.max(builder.getBoundingClientRect().top, viewportTop + stickyTop);
+        const availableHeight = Math.max(
+          240,
+          viewportTop + viewportHeight - builderTop - bottomGap,
+        );
+
+        builder.style.setProperty('--builder-available-height', `${Math.floor(availableHeight)}px`);
+      });
+    };
+
+    updateBuilderViewportHeight();
+
+    const visualViewport = window.visualViewport;
+    window.addEventListener('scroll', updateBuilderViewportHeight, { passive: true });
+    window.addEventListener('resize', updateBuilderViewportHeight);
+    visualViewport?.addEventListener('scroll', updateBuilderViewportHeight);
+    visualViewport?.addEventListener('resize', updateBuilderViewportHeight);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', updateBuilderViewportHeight);
+      window.removeEventListener('resize', updateBuilderViewportHeight);
+      visualViewport?.removeEventListener('scroll', updateBuilderViewportHeight);
+      visualViewport?.removeEventListener('resize', updateBuilderViewportHeight);
+      builder.style.removeProperty('--builder-available-height');
+    };
+  }, [aiBillingPaused, authUser?.id, locale, recovery?.lessonId]);
+
+  useEffect(() => {
     if (!generationStartedAt || generationStage !== 'requesting') return;
     if (!window.matchMedia('(max-width: 900px)').matches) return;
 
