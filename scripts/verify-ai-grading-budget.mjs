@@ -18,7 +18,7 @@ if (!rebalance) throw new Error('Missing measured plan-economics rebalance migra
 const teacherProExpansion = migrations.find(({ content }) => content.includes('Teacher Pro allowance expansion 2026-09-20'));
 if (!teacherProExpansion) throw new Error('Missing Teacher Pro 25+40 allowance migration.');
 
-const allowanceCatalog = read('lib/ai-grading-allowances.ts');
+const allowanceCatalog = read('lib/individual-billing-catalog.ts');
 const pricing = read('components/PricingPage.tsx');
 const accountMenu = read('components/PublicHeaderAccountMenu.tsx');
 const subscriptionPage = read('app/subscription/page.tsx');
