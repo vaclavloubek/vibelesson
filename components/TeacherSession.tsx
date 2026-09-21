@@ -72,7 +72,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const ui = (cs: string, en: string) => english ? en : cs;
   const [session, setSession] = useState<TeacherSessionData | null>(null);
   const [busy, setBusy] = useState(false);
-  const [teamCount, setTeamCount] = useState(4);
+  const [teamCount, setTeamCount] = useState('4');
   const [error, setError] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
   const [connectionMode, setConnectionMode] = useState<TeacherConnectionMode>('primary');
@@ -83,6 +83,8 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   const reconciliationRef = useRef<Promise<void> | null>(null);
   const teamSetupRef = useRef<HTMLElement | null>(null);
   const teamCountInputRef = useRef<HTMLInputElement | null>(null);
+  const parsedTeamCount = Number(teamCount);
+  const hasValidTeamCount = /^\d+$/.test(teamCount) && Number.isInteger(parsedTeamCount) && parsedTeamCount >= 2 && parsedTeamCount <= 12;
 
   const refresh = useCallback(async () => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
@@ -421,14 +423,14 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   }
 
   async function createTeams() {
-    if (busy) return;
+    if (busy || !hasValidTeamCount) return;
     setBusy(true);
     setError('');
     try {
       const response = await fetch(`/api/sessions/${sessionId}/teams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count: teamCount }),
+        body: JSON.stringify({ count: parsedTeamCount }),
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(localizedApiError(data.error, locale, 'Týmy se nepodařilo vytvořit.', 'Teams could not be created.'));
@@ -550,9 +552,9 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                   <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 14, flexWrap: 'wrap' }}>
                     <label style={{ maxWidth: 160 }}>
                       {ui('Počet týmů', 'Number of teams')}
-                      <input ref={teamCountInputRef} type="number" min={2} max={12} value={teamCount} onChange={(event) => setTeamCount(Math.max(2, Math.min(12, Number(event.target.value) || 2)))} />
+                      <input ref={teamCountInputRef} type="number" inputMode="numeric" min={2} max={12} step={1} value={teamCount} aria-invalid={teamCount !== '' && !hasValidTeamCount} onChange={(event) => setTeamCount(event.target.value)} />
                     </label>
-                    <button className="primary" disabled={busy} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
+                    <button className="primary" disabled={busy || !hasValidTeamCount} onClick={() => void createTeams()}>{ui('Vytvořit týmy', 'Create teams')}</button>
                   </div>
                 </div>
               ) : (
