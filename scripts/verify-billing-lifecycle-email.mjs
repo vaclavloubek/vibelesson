@@ -36,6 +36,7 @@ function subscriptionEvent({
         metadata: {
           syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000',
           syllonaut_billing_country: 'CZ',
+          syllonaut_contract_snapshot_id: '223e4567-e89b-42d3-a456-426614174001',
         },
         managed_payments: { enabled: false },
         status,
@@ -58,6 +59,8 @@ const activated = normalizeStripeSubscriptionEvent(
   billingRouteForCountry,
 );
 assert(activated, 'active created subscription must normalize');
+assert(activated.contractSnapshotId === '223e4567-e89b-42d3-a456-426614174001', 'subscription must preserve contract snapshot identity');
+assert(activated.checkoutSessionId === null, 'checkout session is attached only after canonical checkout verification');
 assert(
   billingLifecycleNotification(activated) === 'subscription_activated',
   'active LIVE subscription creation must trigger activation email',
@@ -173,7 +176,7 @@ const en = renderBillingLifecycleEmail({
 assert(en.subject.includes('cancellation is scheduled'), 'English cancellation subject must be localized');
 assert(en.text.includes('Teacher Pro'), 'plan name must be included');
 
-const [emailSource, emailCoreSource, pricingSource, routeSource, localeSource, authSource, migrationSource, envSource] = await Promise.all([
+const [emailSource, emailCoreSource, pricingSource, routeSource, localeSource, authSource, migrationSource, contractMigrationSource, contractLinkMigrationSource, envSource] = await Promise.all([
   source('lib/billing-email.ts'),
   source('lib/billing-email-core.ts'),
   source('components/PricingPage.tsx'),
@@ -181,6 +184,8 @@ const [emailSource, emailCoreSource, pricingSource, routeSource, localeSource, a
   source('components/LocaleSwitcher.tsx'),
   source('components/AuthControls.tsx'),
   source('supabase/migrations/20260919080000_add_billing_lifecycle_email_delivery.sql'),
+  source('supabase/migrations/20260921045117_add_individual_contract_snapshots.sql'),
+  source('supabase/migrations/20260921045911_atomically_link_individual_contract_snapshot.sql'),
   source('.env.example'),
 ]);
 
@@ -188,17 +193,30 @@ assert(emailSource.includes('RESEND_API_KEY'), 'Resend credential must remain se
 assert(!emailSource.includes('NEXT_PUBLIC_RESEND'), 'Resend secret must never be public');
 assert(emailSource.includes('Idempotency-Key'), 'Resend sends must use an idempotency key');
 assert(emailSource.includes('billing_email_deliveries'), 'delivery ledger must guard retries');
+assert(emailSource.includes('get_individual_contract_snapshot_for_delivery'), 'activation email must load the immutable contract snapshot');
+assert(emailSource.includes("createHash('sha256')"), 'activation email must verify the archived contract hash');
+assert(emailSource.includes("toString('base64')"), 'activation attachments must use Base64 content');
+assert(emailSource.includes('attachments'), 'activation email must attach contract evidence');
+assert(emailSource.includes('contract_snapshot_id: sync.contractSnapshotId'), 'delivery ledger must retain the contract snapshot ID');
 assert(!emailSource.includes('marketing_email_consent'), 'transactional billing email must not depend on marketing consent');
 assert(emailSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'billing delivery must feed the shared AI allowance into the activation email');
 assert(pricingSource.includes('INDIVIDUAL_PLAN_ALLOWANCES'), 'Pricing must read individual AI allowances from the shared catalog');
 assert(!emailCoreSource.includes('60 new AI lessons and 250 AI edits'), 'stale Teacher Pro activation allowance must not return');
 assert(!emailCoreSource.includes('25 new AI lessons and 100 AI edits'), 'stale Teacher activation allowance must not return');
+assert(routeSource.includes('expectedContractSnapshotId: sync.contractSnapshotId'), 'Stripe checkout verification must bind the completed checkout to the archived contract snapshot');
+assert(routeSource.includes('checkoutSessionId: verifiedCheckoutSessionId'), 'verified checkout identity must reach the activation email path');
 assert(routeSource.includes('billingLifecycleNotification(sync)'), 'Stripe webhook must derive lifecycle transition after billing sync');
 assert(routeSource.includes('billing_email_delivery_failed'), 'email delivery failures must request a Stripe webhook retry');
 assert(localeSource.includes("supabase.rpc('set_ui_locale'"), 'explicit locale switch must persist user language');
 assert(authSource.includes('ui_locale: locale'), 'signup must persist the initial UI locale');
 assert(migrationSource.includes('enable row level security'), 'delivery ledger must use RLS');
 assert(migrationSource.includes('revoke all on table public.billing_email_deliveries'), 'delivery ledger must not be client-readable');
+assert(contractMigrationSource.includes('individual_contract_snapshots_append_only'), 'contract snapshots must be append-only');
+assert(contractMigrationSource.includes('enable row level security'), 'contract snapshot table must use RLS');
+assert(contractMigrationSource.includes('revoke all on table private.individual_contract_snapshots from public, anon, authenticated'), 'contract snapshot table must not be client-readable');
+assert(contractLinkMigrationSource.includes('create_and_link_individual_contract_snapshot'), 'checkout and contract evidence must be linked atomically');
+assert(contractLinkMigrationSource.includes('get_individual_contract_snapshot_for_delivery'), 'delivery must use the service-only contract snapshot lookup');
+assert(contractLinkMigrationSource.includes('contract_snapshot_id uuid references private.individual_contract_snapshots'), 'billing delivery ledger must retain the immutable contract reference');
 const indexMigrationSource = await source('supabase/migrations/20260919081500_index_billing_email_deliveries_user.sql');
 assert(indexMigrationSource.includes('billing_email_deliveries_user_id_idx'), 'delivery ledger user foreign key must have a covering index');
 assert(envSource.includes('BILLING_EMAIL_FROM'), 'sender configuration must be documented');
