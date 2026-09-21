@@ -48,6 +48,7 @@ begin
   from private.terms_acceptance_events tae
   where tae.user_id = p_user_id
     and tae.acceptance_key = '2026-09-21-v1'
+    and tae.source = 'reconsent'
   order by tae.accepted_at asc
   limit 1;
 
