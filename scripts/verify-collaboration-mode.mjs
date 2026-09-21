@@ -52,6 +52,10 @@ requireText(teacher, "teamMode && session.teams.length < 2 ? (", 'team-mode lobb
 requireText(teacher, "Nejdřív vytvoř týmy", 'team-mode lobby does not clearly tell the teacher what to do first.');
 requireText(teacher, 'onClick={focusTeamSetup}', 'team setup prerequisite does not navigate the teacher to team creation.');
 requireText(teacher, 'ref={teamCountInputRef}', 'team setup shortcut does not focus the team-count control.');
+requireText(teacher, "const [teamCount, setTeamCount] = useState('4')", 'team count input must preserve editable string state so it can be cleared.');
+requireText(teacher, 'setTeamCount(event.target.value)', 'team count input must not clamp an empty edit back to the minimum.');
+requireText(teacher, 'disabled={busy || !hasValidTeamCount}', 'team creation must stay disabled until the team count is valid.');
+requireText(teacher, 'body: JSON.stringify({ count: parsedTeamCount })', 'team creation must send the validated numeric team count.');
 requireText(styles, '.live-start-prerequisite {', 'team setup prerequisite is not visually distinguished.');
 requireText(sessionRoute, "resolveLessonCollaborationMode(lesson) === 'teams'", 'server live-start boundary is not driven by collaboration mode.');
 
