@@ -10,6 +10,8 @@ const footer = read('components/SiteFooter.tsx');
 const proxy = read('proxy.ts');
 const terms = read('app/terms/page.tsx');
 const legal = read('lib/legal.ts');
+const gdpr = read('app/gdpr/page.tsx');
+const termsAuditMigration = read('supabase/migrations/20260921033344_add_terms_acceptance_audit.sql');
 
 const fail = (message) => { throw new Error('[terms] ' + message); };
 
@@ -24,4 +26,12 @@ if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANC
 if (!individualApi.includes('TERMS_ACCEPTANCE_KEY') || !schoolApi.includes('TERMS_ACCEPTANCE_KEY')) fail('server flows must use the shared Terms acceptance key');
 if (!schoolApi.includes('acceptedByUserId: userId')) fail('school Terms acceptance must record the accepting account');
 if (!terms.includes('88878431') || !terms.includes('289 24 Milovice – Mladá') || !terms.includes('14') || !terms.includes('coi.gov.cz')) fail('Terms page is missing provider or consumer-rights essentials');
+const auditTableDefinition = termsAuditMigration.match(/create table private\.terms_acceptance_events \(([\s\S]*?)\n\);/)?.[1] ?? '';
+if (!auditTableDefinition || auditTableDefinition.includes('references auth.users')) fail('Terms audit must survive account deletion and must not cascade through auth.users');
+if (!termsAuditMigration.includes('alter table private.terms_acceptance_events enable row level security')) fail('Terms audit table must have RLS enabled');
+if (!termsAuditMigration.includes('revoke all on table private.terms_acceptance_events from public, anon, authenticated')) fail('Terms audit table must not be client-accessible');
+if (!termsAuditMigration.includes('terms_acceptance_events_append_only') || !termsAuditMigration.includes("raise exception 'terms acceptance audit is append-only'")) fail('Terms audit must be append-only');
+if (!termsAuditMigration.includes("current_terms_version constant text := '1.0'") || !termsAuditMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('database Terms audit constants must match the active Terms version');
+if (!termsAuditMigration.includes('requested_terms_acceptance and requested_terms_acceptance_key = current_terms_acceptance_key')) fail('signup audit must only mirror explicit acceptance of the active Terms key');
+if (!gdpr.includes('Souhlas s obchodními podmínkami:') || !gdpr.includes('Terms acceptance:') || !gdpr.includes('právních nároků') || !gdpr.includes('legal claims')) fail('privacy notice must disclose Terms acceptance audit and retention');
 console.log('Terms acceptance contract OK');
