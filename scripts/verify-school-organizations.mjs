@@ -5,6 +5,8 @@ const requiredFiles = [
   'supabase/migrations/20260919164000_add_school_billing_events.sql',
   'supabase/migrations/20260919165500_add_school_checkout_resume_url.sql',
   'lib/organization-billing-catalog.ts',
+  'lib/dpa-document.ts',
+  'app/dpa/page.tsx',
   'lib/organizations.ts',
   'lib/organization-payment.ts',
   'lib/organization-stripe.ts',
@@ -243,6 +245,29 @@ for (const needle of [
 ]) {
   if (!schoolAdmin.includes(needle)) {
     throw new Error('School billing form required-field UX missing: ' + needle);
+  }
+}
+
+
+for (const needle of [
+  'dpaAccepted: z.literal(true)',
+  'dpaAcceptanceKey: z.literal(DPA_ACCEPTANCE_KEY)',
+  'dpaVersion: DPA_VERSION',
+  'dpaAcceptanceKey: input.dpaAcceptanceKey',
+  'acceptedByUserId: userId',
+]) {
+  if (!organizationOrderRoute.includes(needle)) {
+    throw new Error('School DPA acceptance contract missing: ' + needle);
+  }
+}
+for (const needle of [
+  'DPA_ACCEPTANCE_KEY',
+  '/dpa',
+  'zpracovatelskou smlouvou (DPA)',
+  'Data Processing Addendum (DPA)',
+]) {
+  if (!schoolAdmin.includes(needle)) {
+    throw new Error('School DPA acceptance UX missing: ' + needle);
   }
 }
 

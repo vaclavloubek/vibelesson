@@ -8,12 +8,14 @@ function requirePattern(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(`Privacy regression: ${message}`);
 }
 
-const [layout, cookieConsent, analytics, footer, gdpr, auth, nextConfig, marketingPreferences] = await Promise.all([
+const [layout, cookieConsent, analytics, footer, gdpr, dpa, proxy, auth, nextConfig, marketingPreferences] = await Promise.all([
   source('app/layout.tsx'),
   source('components/CookieConsent.tsx'),
   source('lib/analytics.ts'),
   source('components/SiteFooter.tsx'),
   source('app/gdpr/page.tsx'),
+  source('lib/dpa-document.ts'),
+  source('proxy.ts'),
   source('components/AuthControls.tsx'),
   source('next.config.ts'),
   source('components/MarketingEmailPreferences.tsx'),
@@ -34,6 +36,14 @@ requirePattern(analytics, /sanitizeAnalyticsPathname/, 'analytics pathname sanit
 requirePattern(analytics, /page_location:\s*analyticsPageLocation\(\)/, 'custom analytics events must override the raw page URL.');
 requirePattern(analytics, /CAMPAIGN_QUERY_KEYS[\s\S]*'utm_source'[\s\S]*'utm_medium'[\s\S]*'utm_campaign'[\s\S]*'utm_content'/, 'safe campaign attribution allowlist is incomplete.');
 requirePattern(footer, /href=\{\`\/\$\{locale\}\/gdpr\`\}/, 'Locale-aware GDPR link is missing from the shared footer.');
+requirePattern(footer, /\/dpa/, 'DPA link is missing from the shared footer.');
+requirePattern(proxy, /pathname === '\/dpa'/, 'Unprefixed DPA route must use the locale gateway.');
+requirePattern(gdpr, /Team \/ School \/ Campus[\s\S]*zpracovatelem/, 'Privacy Notice must describe the current organisation controller/processor role.');
+requirePattern(gdpr, /Přijetí DPA organizací:/, 'Privacy Notice must disclose organisation DPA acceptance evidence.');
+if (/budoucích školních účtů|future school accounts/.test(gdpr)) throw new Error('Privacy regression: school processing must not be described as future.');
+requirePattern(dpa, /čl\. 28 GDPR|Article 28 GDPR/, 'DPA must expressly implement Article 28 GDPR.');
+requirePattern(dpa, /Supabase[\s\S]*Vercel[\s\S]*Cloudflare[\s\S]*Resend[\s\S]*OpenAI[\s\S]*Amazon Web Services[\s\S]*Microsoft/, 'DPA sub-processor list is incomplete.');
+requirePattern(dpa, /15 dnů|15 days/, 'DPA must define advance notice for planned sub-processor changes.');
 requirePattern(footer, /COOKIE_SETTINGS_EVENT/, 'cookie settings action is missing from the shared footer.');
 requirePattern(gdpr, /Ochrana osobních údajů \(GDPR\)/, 'GDPR page content is missing.');
 requirePattern(gdpr, /Google Analytics 4 se načte pouze po aktivním/, 'GA4 opt-in explanation is missing.');

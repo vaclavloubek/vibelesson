@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
-import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
+import { DPA_ACCEPTANCE_KEY, DPA_VERSION, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import {
   isOrganizationPlanCode,
   organizationMinorUnitPrice,
@@ -49,6 +49,8 @@ const InputSchema = z.object({
   environment: z.enum(['sandbox', 'live']).default('live'),
   termsAccepted: z.literal(true),
   termsVersion: z.literal(TERMS_ACCEPTANCE_KEY),
+  dpaAccepted: z.literal(true),
+  dpaAcceptanceKey: z.literal(DPA_ACCEPTANCE_KEY),
 });
 
 export async function POST(request: Request) {
@@ -155,6 +157,7 @@ export async function POST(request: Request) {
   const existingSnapshot = createdOrder.billing_snapshot && typeof createdOrder.billing_snapshot === 'object'
     ? createdOrder.billing_snapshot as Record<string, unknown>
     : {};
+  const acceptedAt = new Date().toISOString();
   const { error: environmentError } = await admin
     .from('organization_orders')
     .update({
@@ -164,7 +167,10 @@ export async function POST(request: Request) {
         legalAcceptance: {
           termsAccepted: true,
           termsVersion: input.termsVersion,
-          acceptedAt: new Date().toISOString(),
+          dpaAccepted: true,
+          dpaVersion: DPA_VERSION,
+          dpaAcceptanceKey: input.dpaAcceptanceKey,
+          acceptedAt,
           acceptedByUserId: userId,
         },
       },

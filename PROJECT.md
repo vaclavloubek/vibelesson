@@ -1,8 +1,26 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.82** uzavírá **LEGAL-004**: individuální placený checkout nyní před vydáním Stripe URL archivuje neměnný snapshot konkrétní smluvní nabídky a přijatých VOP; po aktivaci se zákazníkovi odešle stejná hashově ověřená kopie smluvních informací a vzorový formulář pro odstoupení jako HTML přílohy. Předchozí změny 0.9.81 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.83** uzavírá **LEGAL-005**: Team / School / Campus mají veřejnou verzovanou zpracovatelskou smlouvu podle čl. 28 GDPR, školní objednávka ji výslovně přijímá vedle VOP a server fail-closed ukládá přijatou verzi / acceptance key, čas a objednávající účet do billing snapshotu. Privacy Notice 1.4 už popisuje skutečné produkční role správce/zpracovatele a současný seznam subprocesorů. Předchozí změny 0.9.82 zůstávají zachované. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+
+### Organizace: DPA a skutečný GDPR stav 0.9.83 — 2026-09-21
+
+- uzavřen právní auditní bod **LEGAL-005**;
+- nová veřejná lokalizovaná stránka **/cs/dpa** / **/en/dpa** obsahuje verzovanou **DPA 1.0** podle čl. 28 GDPR pro Team / School / Campus;
+- DPA rozlišuje role podle konkrétního zpracování: organizace je správcem studentských a výukových dat zpracovávaných pro její vlastní výuku a Syllonaut je v tomto rozsahu zpracovatelem; u vlastní fakturace, zabezpečení, smluvní evidence a dalších vlastních účelů je provozovatel Syllonautu samostatným správcem;
+- DPA konkretizuje předmět, dobu, povahu a účel zpracování, kategorie subjektů a údajů, doložené pokyny, důvěrnost, TOMs, pomoc správci, incidenty, výmaz/vrácení dat a audit;
+- DPA obsahuje aktuální seznam subprocesorů **Supabase, Vercel, Cloudflare, Resend, OpenAI, Amazon Web Services / Bedrock a Microsoft / Azure AI** a obecné oprávnění s plánovaným oznámením změny alespoň 15 dnů předem, pokud nejde o naléhavou bezpečnostní nebo zákonnou změnu;
+- lib/legal.ts je společný zdroj **DPA_VERSION 1.0** a **DPA_ACCEPTANCE_KEY 2026-09-21-dpa-v1**;
+- školní objednávkový checkbox nyní výslovně odkazuje na **VOP i DPA** a potvrzuje jejich přijetí jménem organizace;
+- serverový /api/organizations failuje zavřeně bez dpaAccepted=true a přesně aktuálního DPA acceptance key;
+- organization_orders.billing_snapshot.legalAcceptance ukládá vedle VOP také dpaAccepted, dpaVersion, dpaAcceptanceKey, společný serverový acceptedAt a acceptedByUserId;
+- nevznikla nová DB tabulka ani RPC: důkaz DPA je součástí již existujícího serverově spravovaného objednávkového snapshotu, takže tato změna nevyžaduje DDL migraci;
+- Privacy Notice je povýšena na **1.4**, odstraňuje zastaralé tvrzení o „budoucích školních účtech“, popisuje aktuální dual-role model, DPA acceptance evidenci, subprocesory a pravidla výmazu/vrácení organizovaných dat;
+- sdílená patička nově odkazuje také na DPA a /dpa používá stejný locale gateway jako ostatní veřejné právní stránky;
+- regresní ochrana je součástí **scripts/verify-privacy.mjs**, **scripts/verify-terms.mjs** a **scripts/verify-school-organizations.mjs**;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Neměnné potvrzení individuální smlouvy 0.9.82 — 2026-09-21
 
@@ -97,7 +115,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.82** uzavírá **LEGAL-004**
 - **[LEGAL-002 — RESOLVED 0.9.80] Ceník nepravdivě tvrdil, že všechny AI limity se obnovují každý kalendářní měsíc.** Opraveno: Free a sdílené Team / School / Campus kvóty jsou veřejně popsány jako kalendářní; Teacher / Teacher Pro jako kvóty podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. `get_ai_quota()` nyní vrací i autoritativní `quota_window_start`, `quota_window_end` a `quota_source`; přesné datum další obnovy se zobrazuje v účtovém menu a na stránce Předplatné. Regresní test zakazuje návrat původního plošného tvrzení.
 - **[LEGAL-003 — RESOLVED 0.9.81] AI grading měl skryté safety stropy, které mohly změnit slíbenou funkci na ruční review.** Opraveno: zákaznická kvóta je nově explicitní a serverově vynucená — **Teacher Pro 60**, **School 300** a **Campus 750 AI hodnocení za quota období**. Teacher Pro používá stejné billing-anchored okno jako ostatní individuální AI kvóty; School/Campus kalendářní měsíc. Ceník, účet a Teacher Pro aktivační e-mail používají stejné hodnoty. Interní cost guard zůstává pouze nouzovou pojistkou s výraznou rezervou (**$12 / $60 / $150**, reservation $0,10), nikoli zákaznickým limitem. Produkce zatím nemá dokončené placené grading cost záznamy, takže hodnoty nejsou vydávány za empirické p95.
 - **[LEGAL-004 — RESOLVED 0.9.82] Po individuálním elektronickém nákupu chyběla neměnná kopie smluvních informací a VOP v textové podobě.** Opraveno: checkout před vydáním Stripe URL archivuje append-only snapshot konkrétní nabídky a VOP včetně ceny, tarifu, období, obnovování a žádosti o okamžité zahájení služby; snapshot je svázaný s konkrétní Stripe Checkout Session a chráněný SHA-256 hashem. Po aktivaci se stejný archivní obsah posílá jako HTML příloha spolu s odděleným vzorovým formulářem pro odstoupení a doručovací ledger uchovává `contract_snapshot_id`. Privacy Notice 1.3 tento právní záznam a jeho retention výslovně popisuje.
-- **[LEGAL-005] GDPR stránka stále popisuje školní účty jako budoucí a DPA jako věc před budoucím komerčním nasazením, přestože Team / School / Campus jsou již prodávané.** U školního použití navíc reálně zpracováváme studentská jména, odpovědi a výsledky. **Náprava:** okamžitě přepsat Privacy Notice na skutečný produkční stav a připravit / začlenit smlouvu o zpracování osobních údajů dle čl. 28 GDPR pro organizace, včetně rolí, předmětu, doby, kategorií údajů, subprocesorů, bezpečnosti, incidentů, asistence a mazání/vrácení dat.
+- **[LEGAL-005 — RESOLVED 0.9.83] GDPR stránka popisovala školní účty jako budoucí a chyběla účinná DPA pro již prodávané Team / School / Campus.** Opraveno: veřejná DPA 1.0 podle čl. 28 GDPR výslovně upravuje organizace jako správce a Syllonaut jako zpracovatele pro studentská/výuková data, včetně předmětu a doby zpracování, kategorií údajů a subjektů, TOMs, incidentů, asistence, subprocesorů, auditů a výmazu/vrácení. Školní objednávka DPA explicitně přijímá, server vyžaduje aktuální acceptance key a ukládá přijatou verzi, čas a účet objednatele do billing snapshotu. Privacy Notice 1.4 odpovídá skutečnému produkčnímu stavu.
 
 #### Vysoká právní / smluvní rizika
 
@@ -126,7 +144,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.82** uzavírá **LEGAL-004**
 
 #### Rozhodnutí pro release
 
-- body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
+- body **LEGAL-001 až LEGAL-005** byly v auditu vedené jako **blokátory 1.0** a po 0.9.83 jsou všechny označené **RESOLVED**;
 - body **LEGAL-006 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
 - body **LEGAL-020 až LEGAL-021** mají vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
