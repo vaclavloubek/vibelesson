@@ -8,7 +8,7 @@ Aktualizováno: 2026-09-21 — interní verze **0.9.81** uzavírá **LEGAL-003**
 
 - uzavřen právní auditní bod **LEGAL-003**;
 - zákaznické kvóty AI hodnocení jsou **Teacher Pro 60**, **School 300** a **Campus 750** za quota období;
-- `lib/ai-grading-allowances.ts` je sdílený customer-facing zdroj těchto hodnot pro aplikaci;
+- `lib/individual-billing-catalog.ts` obsahuje sdílený customer-facing zdroj těchto hodnot pro aplikaci;
 - produkční `billing_plans.monthly_ai_grading_count_limit` používá stejné hodnoty, takže nejde jen o marketingový text;
 - Teacher Pro grading používá stejné **billing-anchored quota window** jako generování a AI úpravy; School/Campus zůstávají na UTC kalendářním měsíci;
 - `get_ai_quota()` nově vrací `grading_used`, `grading_limit`, `grading_remaining`, `grading_unlimited` a `grading_enabled`;
