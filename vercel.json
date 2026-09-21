@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm ci",
-  "buildCommand": "NEON_MIGRATION_APPROVED=I_UNDERSTAND_THIS_WRITES_TO_NEON bash scripts/neon/remote-migrate-build.sh",
   "crons": [
     {
       "path": "/api/cron/organization-billing",
