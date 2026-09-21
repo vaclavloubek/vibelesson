@@ -10,6 +10,7 @@ import type { LiveSubscriptionManagementState } from '@/lib/billing-subscription
 import { quotaSourceLabel } from '@/lib/ai-quota';
 import styles from './SubscriptionManagement.module.css';
 import TrustedDevicesPanel from './TrustedDevicesPanel';
+import WithdrawalManagement from './WithdrawalManagement';
 
 type ActiveState = Extract<LiveSubscriptionManagementState, { kind: 'active' }>;
 
@@ -239,6 +240,8 @@ export default function SubscriptionManagement({
       </section>
 
       <TrustedDevicesPanel />
+
+      <WithdrawalManagement />
 
       {active.scheduledChange ? (
         <section className={styles.scheduledCard}>

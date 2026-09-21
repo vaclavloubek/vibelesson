@@ -105,4 +105,23 @@ assert(stripeSource.includes("'idempotency-key': idempotencyKey"));
 assert(stripeSource.includes('syllonaut_withdrawal_refund_'));
 assert(stripeSource.includes('syllonaut_withdrawal_cancel_'));
 
-console.log('Pro-rata withdrawal calculation and Stripe idempotency contract: OK');
+const [routeSource, serviceSource, componentSource, gateSource, migrationSource] = await Promise.all([
+  readFile(new URL('../app/api/billing/stripe/withdrawal/route.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../lib/individual-withdrawal-service.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../components/WithdrawalManagement.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../lib/terms-gate.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../supabase/migrations/20260921074647_add_individual_prorata_withdrawal_workflow.sql', import.meta.url), 'utf8'),
+]);
+assert(routeSource.includes('confirm: z.literal(true)'));
+assert(routeSource.indexOf('createStripeWithdrawalRefund') < routeSource.indexOf('cancelStripeSubscriptionForWithdrawal'));
+assert(routeSource.includes('reserve_individual_withdrawal_for_service'));
+assert(routeSource.includes('fail_individual_withdrawal_for_service'));
+assert(serviceSource.includes("billing_reason = 'subscription_create'") || migrationSource.includes("billing_reason = 'subscription_create'"));
+assert(serviceSource.includes("return { kind: 'manual_review', reason: 'subscription_changed' }"));
+assert(componentSource.includes('AI allowance usage does not increase that amount by itself'));
+assert(!gateSource.includes("pathname === '/api/billing/stripe/withdrawal'"));
+assert(migrationSource.includes('alter table private.individual_withdrawal_requests enable row level security'));
+assert(migrationSource.includes('individual_withdrawal_legal_fields_immutable'));
+assert(migrationSource.includes('to service_role'));
+
+console.log('Pro-rata withdrawal calculation, audit and Stripe idempotency contract: OK');

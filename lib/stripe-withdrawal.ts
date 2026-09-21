@@ -139,6 +139,10 @@ export async function createStripeWithdrawalRefund(input: {
     throw new StripeWithdrawalApiError('stripe_withdrawal_refund_response_invalid');
   }
 
+  if (refund.status && !['succeeded', 'pending'].includes(refund.status)) {
+    throw new StripeWithdrawalApiError('stripe_withdrawal_refund_not_accepted');
+  }
+
   return {
     refundId: refund.id,
     amountMinor: refund.amount,
