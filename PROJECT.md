@@ -1,8 +1,17 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.76** zpřehledňuje start týmové hodiny: pokud ještě nejsou vytvořené alespoň dva týmy, startovní zóna nyní ukazuje jasný dvoukrokový postup **1. Vytvořit týmy → 2. Odstartovat hodinu** a první krok učitele přímo posune na nastavení týmů. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-21 — interní verze **0.9.77** opravuje editaci počtu týmů před startem live hodiny: předvyplněnou hodnotu lze normálně celou smazat a přepsat, aniž by se prázdné pole samo změnilo na minimum 2. Tlačítko pro vytvoření týmů je aktivní jen pro platnou hodnotu 2–12. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Přirozená editace počtu týmů 0.9.77 — 2026-09-21
+
+- pole **Počet týmů** už při každém stisku okamžitě neclampuje hodnotu na minimum 2;
+- předvyplněnou hodnotu lze celou smazat, pole zůstane prázdné a učitel může bez boje zadat nové číslo;
+- klient akceptuje pro vytvoření týmů pouze celé číslo **2–12**; při prázdné nebo neplatné hodnotě je tlačítko **Vytvořit týmy** deaktivované;
+- serverový `TeamCreateSchema` dál nezávisle vynucuje celé číslo 2–12, takže bezpečnostní hranice se nemění;
+- regresní kontrakt v **scripts/verify-collaboration-mode.mjs** nově hlídá, že se nevrátí okamžité přepisování prázdné hodnoty na minimum;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Intuitivní start týmové hodiny 0.9.76 — 2026-09-21
 
