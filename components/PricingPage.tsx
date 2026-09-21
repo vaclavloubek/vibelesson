@@ -971,7 +971,15 @@ export default function PricingPage({
         <div>
           <span className={styles.noteIndex}>01</span>
           <strong>{ui('AI limit chrání tvorbu, ne samotnou výuku.', 'The AI allowance limits creation, not teaching itself.')}</strong>
-          <p>{ui('Limity se obnovují každý kalendářní měsíc. U placených tarifů spuštění a opakované použití hotových lekcí limit nespotřebovává; u škol má každý učitel vlastní účet a nová tvorba i AI úpravy se čerpají ze společného limitu pracovního prostoru školy.', 'Allowances reset every calendar month. On paid plans, launching and reusing finished lessons does not consume them; school plans share the allowance for new creation and AI edits.')}</p>
+          <p>{audience === 'teachers'
+            ? ui(
+              'U Free se AI limity obnovují na začátku každého kalendářního měsíce. U Teacher a Teacher Pro se měsíční AI kvóta obnovuje podle fakturačního cyklu; u ročního předplatného po měsíčních intervalech od data začátku předplatného. Přesné datum další obnovy vidíš v účtu. Spuštění a opakované použití hotových lekcí AI limit nespotřebovává.',
+              'On Free, AI allowances reset at the start of each calendar month. On Teacher and Teacher Pro, the monthly AI allowance resets with the billing cycle; annual subscriptions use monthly intervals anchored to the subscription start date. Your account shows the exact next reset date. Launching and reusing finished lessons does not use the AI allowance.',
+            )
+            : ui(
+              'U Team, School a Campus se společné AI limity pracovního prostoru obnovují na začátku každého kalendářního měsíce. Nová tvorba a AI úpravy se čerpají ze společného limitu organizace; spuštění a opakované použití hotových lekcí jej nespotřebovává.',
+              'On Team, School and Campus, the shared workspace AI allowances reset at the start of each calendar month. New creation and AI edits use the organisation’s shared allowance; launching and reusing finished lessons does not consume it.',
+            )}</p>
         </div>
         <div>
           <span className={styles.noteIndex}>02</span>
