@@ -430,3 +430,12 @@ Pokud už Neon přijal produkční zápisy, prosté přepnutí zpět by vytvoři
 - alertovat na Auth 401/403 skok, DB 5xx, timeouty, grading queue age a Cloudflare revision/reconnect chyby;
 - zálohy a PITR Neonu otestovat obnovou do nové branch;
 - po stabilizačním období odstranit Supabase kód po menších PR, ale Supabase projekt rušit až po samostatném schválení a ověřené retenci/exportu auditních dat.
+
+
+## Třináctý aplikační datový port: mazání lekce
+
+Dne 2026-09-22 byla v Preview větvi dokončena čtvrtá úzká zápisová canary. `DELETE /api/lessons/[id]` nyní při branch-only `NEON_LESSON_DELETE_WRITES=true` používá owner-scoped parametrizovaný Neon SQL; po vypnutí přepínače zůstává Supabase fallback a produkční zapnutí bez `NEON_CUTOVER_APPROVED=true` je zablokované.
+
+Rollback deployment `DZWPNWHtW75TLNbTGwC8tkjaTo8Q` z commitu `63aa820` porovnal 32 zdrojových a 31 stagingových lekcí, zamítl pokus o smazání pod cizím vlastníkem, provedl vlastní smazání jen uvnitř cílové transakce a po `ROLLBACK` potvrdil přesně nezměněný Neon staging baseline. Log neobsahoval owner ID, lesson ID, titulek, obsah ani tajné hodnoty. Jednorázový build hook odstranil commit `96b6fa4`; následný běžný Preview deployment `J2Se1wAEKM5f1gCZJ5BFuzDHTr7B` skončil `Ready` za 54 sekund. Config přepínač platí pouze pro větev `codex/neon-staging-import-20260921-v2` v Preview. Produkce nebyla změněna.
+
+Duplikace lekce zůstává na Supabase, dokud nebude společně převedena i rezervace licence/kvóty; tato operace se nesmí rozdělit mezi dva backendy. Orientační dokončení celé migrace je po tomto řezu přibližně **92 %**.
