@@ -352,7 +352,9 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 10. [Ověřeno v Preview] Vytvoření, přejmenování a mazání složek lekcí používá branch-only `NEON_LESSON_FOLDER_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test ověřil celý zápisový cyklus, zamítnutí cizího vlastníka i databázovou ochranu rodiče s potomkem a potvrdil nezměněný Neon staging baseline. Drift živého zdroje je evidovaný pro finální delta synchronizaci.
 11. [Ověřeno v Preview] Přesun vlastních lekcí do vlastní složky a zpět mezi nezařazené používá branch-only `NEON_LESSON_MOVE_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test porovnal 31/31 přiřazení, ověřil celý přesunový cyklus i zamítnutí cizího vlastníka a potvrdil nezměněný Neon staging baseline.
 12. [Ověřeno v Preview] Přejmenování a úplné uložení vlastních lekcí používá branch-only `NEON_LESSON_CONTENT_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test ověřil zamítnutí cizího vlastníka, přejmenování, plnou náhradu dokumentu, obnovu původních hodnot a nezměněný Neon staging baseline; drift 32/31 je evidovaný pro delta synchronizaci.
-13. [Čeká] Portovat další úzkou server-only mutaci nebo související RPC až po samostatném owner/actor auditu; klientské Data API granty se neotevírají plošně.
+13. [Ověřeno v Preview] Mazání vlastní lekce používá branch-only `NEON_LESSON_DELETE_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test porovnal zdrojový a stagingový stav, zamítl smazání pod cizím vlastníkem, provedl smazání pod skutečným vlastníkem jen uvnitř transakce a po rollbacku potvrdil přesně nezměněný Neon staging baseline. Drift 32/31 zůstává evidovaný pro finální delta synchronizaci.
+14. [Ověřeno v Preview] Duplikace vlastní lekce používá branch-only `NEON_LESSON_DUPLICATE_WRITES=true` a jedinou server-only funkci `duplicate_lesson_server`. Kontrola vlastníka a organizačního původu, rezervace Free účtové i zařízení kvóty, vložení kopie, zachování lineage a dokončení rezervace proběhnou v jedné databázové transakci. Funkce je `SECURITY INVOKER` a `EXECUTE` je odebrané rolím `PUBLIC`, `anon`, `authenticated` i `service_role`; volá ji jen serverové přímé Postgres spojení. Rollback test porovnal zdroj/staging 32/31, ověřil zamítnutého cizího vlastníka, povinný device cookie, výslednou kopii a oba kvótové ledgery a potvrdil nezměněný staging.
+15. [Čeká] Další server-only mutaci nebo související RPC portovat až po samostatném owner/actor auditu; klientské Data API granty se neotevírají plošně. Poté následují Edge Functions, Realtime/outbox, závěrečná delta synchronizace a browserová akceptační matice.
 
 Před cutoverem musí být dokončeno:
 
@@ -430,12 +432,3 @@ Pokud už Neon přijal produkční zápisy, prosté přepnutí zpět by vytvoři
 - alertovat na Auth 401/403 skok, DB 5xx, timeouty, grading queue age a Cloudflare revision/reconnect chyby;
 - zálohy a PITR Neonu otestovat obnovou do nové branch;
 - po stabilizačním období odstranit Supabase kód po menších PR, ale Supabase projekt rušit až po samostatném schválení a ověřené retenci/exportu auditních dat.
-
-
-## Třináctý aplikační datový port: mazání lekce
-
-Dne 2026-09-22 byla v Preview větvi dokončena čtvrtá úzká zápisová canary. `DELETE /api/lessons/[id]` nyní při branch-only `NEON_LESSON_DELETE_WRITES=true` používá owner-scoped parametrizovaný Neon SQL; po vypnutí přepínače zůstává Supabase fallback a produkční zapnutí bez `NEON_CUTOVER_APPROVED=true` je zablokované.
-
-Rollback deployment `DZWPNWHtW75TLNbTGwC8tkjaTo8Q` z commitu `63aa820` porovnal 32 zdrojových a 31 stagingových lekcí, zamítl pokus o smazání pod cizím vlastníkem, provedl vlastní smazání jen uvnitř cílové transakce a po `ROLLBACK` potvrdil přesně nezměněný Neon staging baseline. Log neobsahoval owner ID, lesson ID, titulek, obsah ani tajné hodnoty. Jednorázový build hook odstranil commit `96b6fa4`; následný běžný Preview deployment `J2Se1wAEKM5f1gCZJ5BFuzDHTr7B` skončil `Ready` za 54 sekund. Config přepínač platí pouze pro větev `codex/neon-staging-import-20260921-v2` v Preview. Produkce nebyla změněna.
-
-Duplikace lekce zůstává na Supabase, dokud nebude společně převedena i rezervace licence/kvóty; tato operace se nesmí rozdělit mezi dva backendy. Orientační dokončení celé migrace je po tomto řezu přibližně **92 %**.
