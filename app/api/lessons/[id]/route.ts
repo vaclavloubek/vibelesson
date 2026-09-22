@@ -12,6 +12,7 @@ import {
   readLessonContentForWrite,
   writeLessonContent,
 } from '@/lib/lesson-content-writer';
+import { deleteOwnedLesson, LessonDeleteWriteError } from '@/lib/lesson-delete-writer';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -231,17 +232,12 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
 
   try {
     const { id } = await params;
-    const { data: deleted, error: deleteError } = await supabase
-      .from('lessons')
-      .delete()
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
-
-    if (deleteError || !deleted) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    await deleteOwnedLesson(supabase, userId, id);
     return NextResponse.json({ deleted: true });
   } catch (error) {
+    if (error instanceof LessonDeleteWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
     console.error('delete lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo smazat.' }, { status: 500 });
   }
