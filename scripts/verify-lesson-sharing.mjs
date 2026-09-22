@@ -28,6 +28,9 @@ const [
   sharedAuthControls,
   importButton,
   lessonShareReader,
+  lessonShareWriter,
+  sharedImportWriter,
+  neonImportMigration,
 ] = await Promise.all([
   source('supabase/migrations/20260919105631_add_lesson_sharing_and_session_concurrency.sql'),
   source('app/api/lessons/[id]/share/route.ts'),
@@ -48,6 +51,9 @@ const [
   source('components/SharedLessonAuthControls.tsx'),
   source('components/ImportSharedLessonButton.tsx'),
   source('lib/lesson-share-reader.ts'),
+  source('lib/lesson-share-writer.ts'),
+  source('lib/shared-lesson-import-writer.ts'),
+  source('neon/migrations/0006_atomic_shared_lesson_import.sql'),
 ]);
 
 requirePattern(migration, /alter table public\.lesson_shares enable row level security/, 'lesson_shares must have RLS enabled.');
@@ -64,9 +70,13 @@ requirePattern(migration, /old\.source_share_id is not null[\s\S]*new\.source_sh
 requirePattern(migration, /old\.source_lesson_id is not null[\s\S]*new\.source_lesson_id is null[\s\S]*not exists \([\s\S]*from public\.lessons/, 'source provenance may be cleared only after the referenced source lesson is actually gone.');
 requirePattern(migration, /sessions_one_active_per_teacher_idx[\s\S]*where status in \('lobby', 'live'\)/, 'the database must enforce one active lesson per teacher.');
 
-requirePattern(ownerRoute, /\.eq\('owner_id', userId\)/, 'share management must scope every share to the lesson owner.');
-requirePattern(ownerRoute, /LessonSchema\.parse\(lessonRow\.lesson\)/, 'public snapshots must be schema validated before storage.');
-requirePattern(importRoute, /admin\.rpc\('import_lesson_share_server'[\s\S]*p_device_token_hash/, 'imports must use the transactional server-only database function with a server-derived device hash.');
+requirePattern(ownerRoute, /readOwnedLessonShare\(supabase, id, userId\)[\s\S]*createOwnedLessonShare\(supabase, id, userId\)[\s\S]*revokeOwnedLessonShare\(supabase, id, userId\)/, 'share management must delegate every operation with the authenticated owner.');
+requirePattern(lessonShareWriter, /owner_id = \$\{userId\}[\s\S]*LessonSchema\.parse\(lesson\.lesson\)[\s\S]*owner_id, token, snapshot/, 'share storage must remain owner-scoped and schema validated.');
+requirePattern(importRoute, /importSharedLesson\(userId, token\)/, 'the import route must delegate to the server-only backend switch.');
+requirePattern(sharedImportWriter, /currentFreeDeviceBudgetHash\(\)[\s\S]*import_lesson_share_server[\s\S]*p_device_token_hash/, 'the Supabase fallback must retain its server-derived device hash.');
+requirePattern(sharedImportWriter, /import_shared_lesson_neon_server/, 'the Neon import path must use the atomic server function.');
+requirePattern(sharedImportWriter, /VERCEL_ENV === 'production'[\s\S]*NEON_CUTOVER_APPROVED !== 'true'/, 'the Neon import path must fail closed in production.');
+requirePattern(neonImportMigration, /security invoker[\s\S]*reserve_lesson_import_server[\s\S]*finish_generation_request_server[\s\S]*revoke all on function public\.import_shared_lesson_neon_server/, 'the Neon import function must keep quota and insertion atomic without public execution.');
 requirePattern(importRoute, /headers:[\s\S]*Authorization:[\s\S]*Bearer[\s\S]*accessToken/, 'bearer-authenticated imports must forward the verified user JWT into the Supabase client context.');
 requirePattern(importRoute, /supabase\.auth\.getUser\(accessToken\)/, 'bearer tokens must be verified by Supabase before import.');
 requirePattern(importRoute, /if \(authorization\)[\s\S]*return \{ supabase, userId: data\.user\.id \}/, 'explicit bearer auth must resolve a concrete authenticated user.');

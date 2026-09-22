@@ -44,8 +44,8 @@ for (const [file, needle, label] of [
   ['app/api/generate/route.ts', 'reserve_lesson_generation_server', 'generation uses server-authoritative device hash'],
   ['app/api/revise/route.ts', 'reserve_revision_operation_server', 'whole-lesson revision uses server device budget'],
   ['app/api/revise-block/route.ts', 'reserve_revision_operation_server', 'block revision uses server device budget'],
-  ['app/api/lessons/[id]/route.ts', 'reserve_lesson_import_server', 'duplication uses server device budget'],
-  ['app/api/lesson-shares/[token]/import/route.ts', 'import_lesson_share_server', 'public-share import uses server device budget'],
+  ['lib/lesson-duplicate-writer.ts', 'reserve_lesson_import_server', 'duplication uses server device budget'],
+  ['lib/shared-lesson-import-writer.ts', 'import_lesson_share_server', 'public-share import uses server device budget'],
 ]) requireText(read(file), needle, label);
 
 const helper = read('lib/free-device-budget.ts');
