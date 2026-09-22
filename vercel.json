@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm ci",
-  "buildCommand": "npm run neon:verify-folder-write && npm run build",
   "crons": [
     {
       "path": "/api/cron/organization-billing",
