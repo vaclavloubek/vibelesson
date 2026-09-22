@@ -10,6 +10,5 @@
       "path": "/api/cron/service-changes",
       "schedule": "37 3 * * *"
     }
-  ],
-  "buildCommand": "npm run neon:reconcile-stale-lesson -- --approved-staging-only && npm run neon:verify-lesson-list-read && npm run build"
+  ]
 }
