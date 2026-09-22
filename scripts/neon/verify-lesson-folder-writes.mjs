@@ -87,10 +87,9 @@ try {
     source.query(selectAllFolders),
     target.query(selectAllFolders),
   ]);
-  const baselineFingerprint = fingerprint(sourceBaseline.rows);
-  if (baselineFingerprint !== fingerprint(targetBaseline.rows)) {
-    throw new Error(`Folder baselines differ before the write check (counts ${sourceBaseline.rows.length}/${targetBaseline.rows.length}).`);
-  }
+  const sourceBaselineFingerprint = fingerprint(sourceBaseline.rows);
+  const targetBaselineFingerprint = fingerprint(targetBaseline.rows);
+  const baselineDrifted = sourceBaselineFingerprint !== targetBaselineFingerprint;
 
   const ownerResult = await target.query(`
     select id::text as id
@@ -161,21 +160,26 @@ try {
   }
 
   const transactionEnd = await target.query(selectAllFolders);
-  if (fingerprint(transactionEnd.rows) !== baselineFingerprint) {
+  if (fingerprint(transactionEnd.rows) !== targetBaselineFingerprint) {
     throw new Error('The folder table did not return to its baseline inside the rollback transaction.');
   }
 
   await target.query('rollback');
   targetTransactionOpen = false;
   const targetAfterRollback = await target.query(selectAllFolders);
-  if (fingerprint(targetAfterRollback.rows) !== baselineFingerprint) {
+  if (fingerprint(targetAfterRollback.rows) !== targetBaselineFingerprint) {
     throw new Error('The Neon folder table changed after rollback.');
   }
 
   await source.query('commit');
-  console.log(`Compared ${sourceBaseline.rows.length} baseline folder rows before the write cycle.`);
+  console.log(`Compared source/target folder row counts before the write cycle: ${sourceBaseline.rows.length}/${targetBaseline.rows.length}.`);
+  if (baselineDrifted) {
+    console.log('NOTICE: source and staging folder fingerprints differ; preserve this drift for the final delta-sync plan.');
+  } else {
+    console.log('Source and staging folder fingerprints match.');
+  }
   console.log('Verified owner-scoped create, rename, denied cross-owner update, child-delete guard, and delete.');
-  console.log('PASS: the complete Neon write cycle was rolled back and both database baselines remain identical.');
+  console.log('PASS: the complete Neon write cycle was rolled back and the Neon staging baseline is unchanged.');
   console.log('No owner ID, folder ID, folder name, or secret was logged.');
 } catch (error) {
   if (targetTransactionOpen) {
