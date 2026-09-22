@@ -23,6 +23,7 @@
     "lib/session-history-reader.ts",
     "lib/lesson-detail-reader.ts",
     "lib/lesson-worksheet-reader.ts",
+    "lib/lesson-reuse-reader.ts",
     "lib/neon/**/*.ts"
   ],
   "exclude": ["node_modules", "supabase/functions", "cloudflare/live-control"]
