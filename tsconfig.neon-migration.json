@@ -10,6 +10,8 @@
     "app/lessons/[id]/page.tsx",
     "app/api/lessons/[id]/worksheet-pdf/route.ts",
     "app/lessons/[id]/worksheet/page.tsx",
+    "app/sessions/[id]/page.tsx",
+    "app/sessions/[id]/presenter/page.tsx",
     "app/lessons/loading.tsx",
     "app/lessons/error.tsx",
     "lib/fetch-with-timeout.ts",
@@ -24,6 +26,7 @@
     "lib/lesson-detail-reader.ts",
     "lib/lesson-worksheet-reader.ts",
     "lib/lesson-reuse-reader.ts",
+    "lib/session-access-reader.ts",
     "lib/neon/**/*.ts"
   ],
   "exclude": ["node_modules", "supabase/functions", "cloudflare/live-control"]

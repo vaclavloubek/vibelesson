@@ -30,6 +30,7 @@
     "neon:verify-lesson-detail-read": "node scripts/neon/verify-lesson-detail-parity.mjs",
     "neon:verify-lesson-worksheet-read": "node scripts/neon/verify-lesson-worksheet-parity.mjs",
     "neon:verify-lesson-reuse-read": "node scripts/neon/verify-lesson-reuse-parity.mjs",
+    "neon:verify-session-access-read": "node scripts/neon/verify-session-access-parity.mjs",
     "neon:reconcile-stale-lesson": "node scripts/neon/reconcile-stale-lesson.mjs",
     "neon:security-audit": "node scripts/neon/security-audit.mjs",
     "neon:security-harden": "node scripts/neon/apply-security-hardening.mjs",
