@@ -106,6 +106,13 @@ const source = new Client({
   statement_timeout: 30_000,
   application_name: 'syllonaut-neon-lesson-list-parity',
 });
+const targetClient = new Client({
+  connectionString: targetUrl,
+  connectionTimeoutMillis: 15_000,
+  query_timeout: 30_000,
+  statement_timeout: 30_000,
+  application_name: 'syllonaut-neon-lesson-list-reference-audit',
+});
 const target = neon(targetUrl, { fetchOptions: { signal: AbortSignal.timeout(30_000) } });
 
 const selectColumns = `
@@ -122,6 +129,8 @@ const selectColumns = `
 try {
   await source.connect();
   await source.query('begin read only');
+  await targetClient.connect();
+  await targetClient.query('begin read only');
 
   const sourceAll = await source.query(`
     select ${selectColumns}
@@ -146,6 +155,40 @@ try {
     const delta = anonymousDelta(sourceAll.rows, targetAll);
     console.error(`Lesson row counts: Supabase ${sourceAll.rows.length}, Neon ${targetAll.length}.`);
     console.error(`Anonymous delta: Supabase-only ${delta.sourceOnly}, Neon-only ${delta.targetOnly}, changed ${delta.changed}, owners with count drift ${delta.ownersWithCountDrift}.`);
+
+    const sourceIds = new Set(sourceAll.rows.map((row) => row.id));
+    const targetOnlyIds = targetAll.filter((row) => !sourceIds.has(row.id)).map((row) => row.id);
+    if (targetOnlyIds.length === 1) {
+      const foreignKeys = await targetClient.query(`
+        select
+          format(
+            'select count(*)::bigint as count from %I.%I where %I = $1',
+            namespace.nspname,
+            relation.relname,
+            attribute.attname
+          ) as count_sql
+        from pg_constraint constraint_row
+        join pg_class relation on relation.oid = constraint_row.conrelid
+        join pg_namespace namespace on namespace.oid = relation.relnamespace
+        join lateral unnest(constraint_row.conkey) with ordinality as key_column(attnum, position) on true
+        join pg_attribute attribute
+          on attribute.attrelid = constraint_row.conrelid
+          and attribute.attnum = key_column.attnum
+        where constraint_row.contype = 'f'
+          and constraint_row.confrelid = 'public.lessons'::regclass
+          and cardinality(constraint_row.conkey) = 1
+          and cardinality(constraint_row.confkey) = 1
+      `);
+      let referencingRelations = 0;
+      let referenceCount = 0;
+      for (const foreignKey of foreignKeys.rows) {
+        const countResult = await targetClient.query(foreignKey.count_sql, [targetOnlyIds[0]]);
+        const count = Number(countResult.rows[0]?.count ?? 0);
+        if (count > 0) referencingRelations += 1;
+        referenceCount += count;
+      }
+      console.error(`Stale-row reference audit: ${foreignKeys.rows.length} inbound foreign keys, ${referencingRelations} referencing relations, ${referenceCount} total references.`);
+    }
     throw new Error('Supabase and Neon lesson tables have different fingerprints.');
   }
 
@@ -177,13 +220,16 @@ try {
   }
 
   await source.query('commit');
+  await targetClient.query('commit');
   console.log(`Compared ${targetAll.length} lesson rows across both databases.`);
   console.log(`Compared ${targetFiltered.length} owner-scoped lesson rows without logging their owner or contents.`);
   console.log('PASS: Supabase and Neon returned the same lesson table and owner-scoped result.');
   console.log('Read-only parity check completed; no owner ID, title, lesson content, or secret was logged.');
 } catch (error) {
   try { await source.query('rollback'); } catch {}
+  try { await targetClient.query('rollback'); } catch {}
   throw error;
 } finally {
   await source.end().catch(() => {});
+  await targetClient.end().catch(() => {});
 }
