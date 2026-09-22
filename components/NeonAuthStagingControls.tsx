@@ -2,11 +2,13 @@
 
 import { FormEvent, useState } from 'react';
 import PasswordField from '@/components/PasswordField';
+import { signInWithNeon, signOutFromNeon } from '@/app/auth/neon-staging/actions';
 import { neonAuthClient } from '@/lib/neon/auth-client';
 
 type Props = {
   resetToken?: string;
   resetError?: string;
+  initialUserEmail?: string;
 };
 
 function errorMessage(error: unknown, fallback: string) {
@@ -16,8 +18,7 @@ function errorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-export default function NeonAuthStagingControls({ resetToken, resetError }: Props) {
-  const session = neonAuthClient.useSession();
+export default function NeonAuthStagingControls({ resetToken, resetError, initialUserEmail }: Props) {
   const [activeResetToken, setActiveResetToken] = useState(resetToken);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,15 +35,14 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
     setBusy(true);
     setMessage('');
     try {
-      const result = await neonAuthClient.signIn.email({ email, password });
+      const result = await signInWithNeon(email, password);
       if (result.error) {
-        setMessage(errorMessage(result.error, 'Přihlášení se nepodařilo.'));
+        setMessage(result.error);
         return;
       }
 
       setPassword('');
-      await session.refetch();
-      setMessage('Přihlášení přes Neon Auth proběhlo úspěšně.');
+      window.location.reload();
     } catch (error) {
       setMessage(errorMessage(error, 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.'));
     } finally {
@@ -111,14 +111,13 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
     setBusy(true);
     setMessage('');
     try {
-      const result = await neonAuthClient.signOut();
+      const result = await signOutFromNeon();
       if (result.error) {
-        setMessage(errorMessage(result.error, 'Odhlášení se nepodařilo.'));
+        setMessage(result.error);
         return;
       }
 
-      await session.refetch();
-      setMessage('Odhlášení z Neon Auth proběhlo úspěšně.');
+      window.location.reload();
     } catch (error) {
       setMessage(errorMessage(error, 'Odhlášení se nepodařilo.'));
     } finally {
@@ -139,14 +138,10 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
     );
   }
 
-  if (session.isPending) {
-    return <p className="muted-copy">Kontroluji Neon Auth relaci…</p>;
-  }
-
-  if (session.data?.user) {
+  if (initialUserEmail) {
     return (
       <div>
-        <p className="muted-copy">Přihlášený Neon účet: <strong>{session.data.user.email}</strong></p>
+        <p className="muted-copy">Přihlášený Neon účet: <strong>{initialUserEmail}</strong></p>
         <button className="primary" type="button" onClick={signOut} disabled={busy}>
           {busy ? 'Odhlašuji…' : 'Odhlásit testovací účet'}
         </button>
