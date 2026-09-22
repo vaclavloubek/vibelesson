@@ -85,6 +85,12 @@ Detail vlastní lekce na `/lessons/[id]` používá serverovou abstrakci s vých
 
 Vercel Preview deployment `DDSyzRz6acizH9jiN1Paj8GTvLqj` z commitu `f935180` porovnal 31 detailů lekcí v celé tabulce i jeden přesný owner-scoped detail a potvrdil `PASS`. Kontrola byla read-only a nelogovala ID lekce, ID vlastníka, prompt, obsah ani tajné hodnoty. Jednorázový hook byl odstraněn commitem `ed6a9a6`; následný běžný Preview deployment `GwL9eYJ1UNDNomQi77ysVbRjKPSN` skončil stavem `Ready` za 49 sekund. Produkce nebyla změněna.
 
+### Šestý aplikační datový řez
+
+Serverové načtení obsahu lekce pro route `/api/lessons/[id]/worksheet-pdf` používá novou úzkou datovou službu s výchozím Supabase fallbackem. Branch-only `NEON_LESSON_WORKSHEET_READS=true` přesměruje do Neonu pouze owner-scoped čtení sloupců `id` a `lesson`; ověření uživatele, entitlementu, důvěryhodného zařízení, organizačního původu, samotné vytvoření PDF a všechny zápisy zůstávají na Supabase. Parametrizovaný SQL dotaz je omezený ID lekce i uživatele a produkční použití bez `NEON_CUTOVER_APPROVED=true` selže zavřeně.
+
+Vercel Preview deployment `5R4E8Wd5h9YGu3Fq1itxpTVPxJCN` z commitu `e1d861e` porovnal všech 31 worksheet záznamů i jeden přesný owner-scoped výsledek a potvrdil `PASS`. Kontrola byla read-only a nelogovala ID lekce, ID vlastníka, obsah ani tajné hodnoty. Jednorázový build hook byl poté odstraněn; produkce nebyla změněna.
+
 ## Incident 2026-09-21
 
 Pozorovaný problém na `/lessons` nebyla ztráta dat:
@@ -167,6 +173,7 @@ NEON_LESSON_FOLDER_READS=false|true
 NEON_LESSON_LIST_READS=false|true
 NEON_SESSION_HISTORY_READS=false|true
 NEON_LESSON_DETAIL_READS=false|true
+NEON_LESSON_WORKSHEET_READS=false|true
 NEON_CUTOVER_APPROVED=false|true
 ```
 
@@ -297,7 +304,8 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 3. [Ověřeno v Preview] Seznam lekcí na `/lessons` používá `NEON_LESSON_LIST_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Paritní test po jednorázovém srovnání zastaralého stagingového řádku potvrdil 31 shodných lekcí v celé tabulce a 6 shodných řádků pro jednoho vlastníka. Závislý `generation_requests` řádek se přes deklarované `ON DELETE SET NULL` srovnal přesně se zdrojem; transakce byla omezená na konkrétní Preview větev a jednorázový build hook byl odstraněn.
 4. [Ověřeno v Preview] Historie ukončených relací na `/lessons` používá `NEON_SESSION_HISTORY_READS=true`, parametrizovaný owner-scoped Neon SQL, filtr `status='ended'` a nenulové `ended_at`, Supabase fallback po vypnutí přepínače a produkční pojistku. Read-only paritní kontrola potvrdila 23 shodných řádků v celé tabulce i 23 shodných owner-scoped řádků; jednorázový build hook byl odstraněn.
 5. [Ověřeno v Preview] Detail vlastní lekce na `/lessons/[id]` používá `NEON_LESSON_DETAIL_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Read-only paritní kontrola potvrdila 31 shodných detailů v celé tabulce i jeden shodný přesný owner-scoped detail; editace, spuštění relace a všechny zápisy zůstávají na Supabase. Jednorázový build hook byl odstraněn a následný běžný Preview build je zelený.
-6. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
+6. [Ověřeno v Preview] Načtení obsahu lekce pro `/api/lessons/[id]/worksheet-pdf` používá `NEON_LESSON_WORKSHEET_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Read-only paritní kontrola potvrdila 31 shodných worksheet záznamů v celé tabulce i jeden shodný přesný owner-scoped výsledek; auth, oprávnění, trusted-device kontrola, vytvoření PDF a všechny zápisy zůstávají na Supabase. Jednorázový build hook byl odstraněn.
+7. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
