@@ -21,7 +21,9 @@ async function handle(method: HandlerMethod, request: Request, context: RouteCon
     );
   }
 
-  const handlers = createServerAuth().handler();
+  // Managed Neon Auth may scope its upstream cookie to the Neon hostname.
+  // Re-home proxied cookies to the exact Preview host so the browser keeps them.
+  const handlers = createServerAuth(new URL(request.url).hostname).handler();
   return handlers[method](request, context);
 }
 
