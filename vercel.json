@@ -11,5 +11,5 @@
       "schedule": "37 3 * * *"
     }
   ],
-  "buildCommand": "npm run neon:verify-lesson-list-read && npm run build"
+  "buildCommand": "npm run neon:reconcile-stale-lesson -- --approved-staging-only && npm run neon:verify-lesson-list-read && npm run build"
 }
