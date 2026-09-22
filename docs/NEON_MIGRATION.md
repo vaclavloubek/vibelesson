@@ -115,6 +115,18 @@ První zápisový řez pokrývá výhradně vytváření, přejmenování a maz�
 
 Vercel Preview deployment `DdDgMBriPfVdyedtW8iZeUdGE1Hf` z commitu `7b7fa6d` provedl v jediné cílové transakci vytvoření kořenové i podřízené složky, zamítnutý update pod cizím vlastníkem, owner-scoped přejmenování, ověření databázové ochrany rodiče s potomkem a smazání obou testovacích záznamů. Následný `ROLLBACK` obnovil původní Neon staging fingerprint; build skončil `Ready` za 49 sekund a nelogoval žádné ID, názvy ani tajné hodnoty. Kontrola současně zaznamenala drift živého Supabase zdroje proti staging snapshotu při shodném počtu 9/9 složek, který musí zahrnout závěrečná delta synchronizace. Jednorázový build hook byl odstraněn commitem `b8054c3` a branch-only přepínač byl ve Vercelu aktivován pouze pro migrační Preview větev. Produkce nebyla změněna.
 
+### Jedenáctý aplikační datový řez
+
+Druhý zápisový řez pokrývá přesun vlastních lekcí do vlastní složky a zpět mezi nezařazené přes `/api/lessons/move`. Branch-only `NEON_LESSON_MOVE_WRITES=true` přesměruje v Preview pouze kontrolu cílové složky a owner-scoped update `public.lessons.folder_id` na parametrizovaný serverový Neon SQL. Supabase nadále obsluhuje Auth, trusted-device kontrolu, entitlement, kontrolu organizačního původu a všechny ostatní čtecí i zápisové cesty. Při vypnutém přepínači zůstává původní Supabase cesta; produkční zapnutí bez `NEON_CUTOVER_APPROVED=true` selže zavřeně.
+
+Vercel Preview deployment `73rqwmUaWfqaz1sPGfTKLhRvNC1A` z commitu `632abf4` porovnal 31/31 zdrojových a stagingových přiřazení lekcí a shodný fingerprint. Uvnitř jediné cílové transakce ověřil vytvoření dočasné složky, zamítnutý update pod cizím vlastníkem, přesun lekce do složky, přesun zpět mezi nezařazené, obnovu původního umístění a odstranění dočasné složky. Následný `ROLLBACK` potvrdil nezměněný staging baseline; build skončil `Ready` za 51 sekund a nelogoval žádné owner, lesson ani folder ID, obsah ani tajné hodnoty. Jednorázový build hook byl odstraněn a branch-only přepínač je ve Vercelu aktivní pouze pro migrační Preview větev. Produkce nebyla změněna.
+
+### Dvanáctý aplikační datový řez
+
+Třetí zápisový řez pokrývá přejmenování vlastní lekce přes `PATCH /api/lessons/[id]` a uložení celého upraveného dokumentu přes `PUT /api/lessons/[id]`. Branch-only `NEON_LESSON_CONTENT_WRITES=true` přesměruje v Preview pouze owner-scoped načtení a update sloupců `title`, `lesson` a `updated_at` na parametrizovaný serverový Neon SQL. Supabase nadále obsluhuje Auth, trusted-device kontrolu, organizační původ, profilový a vícejazyčný entitlement, duplikaci, mazání i všechny ostatní datové cesty. Při vypnutém přepínači zůstává původní Supabase cesta; produkční zapnutí bez `NEON_CUTOVER_APPROVED=true` selže zavřeně.
+
+Vercel Preview deployment `5G6y1KXHJwgKY5cGz141DqyMsJ8W` z commitu `a0d19c1` zaznamenal očekávaný drift živého zdroje proti staging snapshotu (32/31 lekcí) pro závěrečnou delta synchronizaci. Uvnitř jediné cílové transakce ověřil zamítnutý update pod cizím vlastníkem, owner-scoped přejmenování synchronizované do skalárního titulku i JSON dokumentu, plné nahrazení dokumentu, obnovu původních hodnot a následný `ROLLBACK`. Kontrola potvrdila nezměněný Neon staging baseline, build skončil `Ready` za 54 sekund a nelogoval owner ID, lesson ID, titulky, obsah ani tajné hodnoty. Jednorázový build hook byl odstraněn a Config přepínač je aktivní pouze pro migrační Preview větev. Produkce nebyla změněna.
+
 ## Incident 2026-09-21
 
 Pozorovaný problém na `/lessons` nebyla ztráta dat:
@@ -201,6 +213,8 @@ NEON_LESSON_DETAIL_READS=false|true
 NEON_LESSON_WORKSHEET_READS=false|true
 NEON_SESSION_ACCESS_READS=false|true
 NEON_LESSON_FOLDER_WRITES=false|true
+NEON_LESSON_MOVE_WRITES=false|true
+NEON_LESSON_CONTENT_WRITES=false|true
 NEON_CUTOVER_APPROVED=false|true
 ```
 
@@ -336,7 +350,9 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 8. [Ověřeno v Preview] Oprávnění k opakovanému použití lekcí a `lesson_live_usage` na `/lessons` i `/lessons/[id]` používají společnou serverovou službu, branch-only `NEON_LESSON_REUSE_READS=true`, Supabase fallback, produkční pojistku a parametrizované user/owner/lesson scope. Read-only parita potvrdila 3 shodná oprávnění, 10 shodných usage řádků i jeden přesný owner-scoped výsledek; zápisy a spuštění relací zůstávají na Supabase.
 9. [Ověřeno v Preview] Vlastnická brána `/sessions/[id]` a `/sessions/[id]/presenter` používá společnou serverovou službu, branch-only `NEON_SESSION_ACCESS_READS=true`, parametrizovaný Neon SQL, Supabase fallback s retry a produkční pojistku. Read-only parita potvrdila 23 shodných vazeb relace–vlastník, jeden oprávněný a jeden zamítnutý přístup; Auth, Terms, resume ticket, živá data, ovládání, odpovědi, Realtime a zápisy zůstávají na Supabase.
 10. [Ověřeno v Preview] Vytvoření, přejmenování a mazání složek lekcí používá branch-only `NEON_LESSON_FOLDER_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test ověřil celý zápisový cyklus, zamítnutí cizího vlastníka i databázovou ochranu rodiče s potomkem a potvrdil nezměněný Neon staging baseline. Drift živého zdroje je evidovaný pro finální delta synchronizaci.
-11. [Čeká] Portovat další úzkou server-only mutaci nebo související RPC až po samostatném owner/actor auditu; klientské Data API granty se neotevírají plošně.
+11. [Ověřeno v Preview] Přesun vlastních lekcí do vlastní složky a zpět mezi nezařazené používá branch-only `NEON_LESSON_MOVE_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test porovnal 31/31 přiřazení, ověřil celý přesunový cyklus i zamítnutí cizího vlastníka a potvrdil nezměněný Neon staging baseline.
+12. [Ověřeno v Preview] Přejmenování a úplné uložení vlastních lekcí používá branch-only `NEON_LESSON_CONTENT_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test ověřil zamítnutí cizího vlastníka, přejmenování, plnou náhradu dokumentu, obnovu původních hodnot a nezměněný Neon staging baseline; drift 32/31 je evidovaný pro delta synchronizaci.
+13. [Čeká] Portovat další úzkou server-only mutaci nebo související RPC až po samostatném owner/actor auditu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
