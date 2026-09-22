@@ -17,7 +17,9 @@
     "check:security-headers": "node scripts/verify-security-headers.mjs",
     "check:accessibility": "node scripts/verify-accessibility.mjs",
     "ga4:setup": "node scripts/setup-ga4.mjs",
-    "ga4:setup:apply": "node scripts/setup-ga4.mjs --apply"
+    "ga4:setup:apply": "node scripts/setup-ga4.mjs --apply",
+    "neon:security-audit": "node scripts/neon/security-audit.mjs",
+    "neon:security-harden": "node scripts/neon/apply-security-hardening.mjs"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",
@@ -38,6 +40,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "pg": "8.23.0"
   }
 }
