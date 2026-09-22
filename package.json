@@ -27,6 +27,7 @@
     "neon:verify-folder-read": "node scripts/neon/verify-lesson-folder-parity.mjs",
     "neon:verify-folder-write": "node scripts/neon/verify-lesson-folder-writes.mjs",
     "neon:verify-lesson-move-write": "node scripts/neon/verify-lesson-move-writes.mjs",
+    "neon:verify-lesson-content-write": "node scripts/neon/verify-lesson-content-writes.mjs",
     "neon:verify-lesson-list-read": "node scripts/neon/verify-lesson-list-parity.mjs",
     "neon:verify-session-history-read": "node scripts/neon/verify-session-history-parity.mjs",
     "neon:verify-lesson-detail-read": "node scripts/neon/verify-lesson-detail-parity.mjs",
