@@ -92,8 +92,10 @@ export default async function LessonsPage({ searchParams }: Props) {
     .map((row) => typeof row.organization_origin_id === 'string' ? row.organization_origin_id : null)
     .filter((value): value is string => Boolean(value));
 
+  let foldersError = false;
   const folderPromise = entitlement.enabled
     ? readLessonFolders(supabase, userId).catch((folderError) => {
+      foldersError = true;
       console.error(
         'load lesson folders failed',
         folderError instanceof LessonFolderReadError ? folderError.code : 'LESSON_FOLDER_QUERY_FAILED',
