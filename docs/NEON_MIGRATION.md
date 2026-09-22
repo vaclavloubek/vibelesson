@@ -101,7 +101,7 @@ Dotaz ani datový kontrakt se proti šestému řezu nezměnily, proto stránka s
 
 Oprávnění k opakovanému použití lekcí a čtení append-only historie `lesson_live_usage` nyní používají jednu serverovou službu na obou učitelských obrazovkách: `/lessons` i `/lessons/[id]`. Branch-only `NEON_LESSON_REUSE_READS=true` přesměruje v Preview pouze čtení na parametrizovaný Neon SQL; entitlement je omezený ID uživatele a historie použití explicitně `owner_id`, v detailu navíc `lesson_id`. Supabase zůstává výchozím fallbackem a nadále obsluhuje Auth, spuštění živé relace, záznam použití i všechny ostatní zápisy. Produkční zapnutí bez `NEON_CUTOVER_APPROVED=true` selže zavřeně.
 
-Vercel Preview deployment `38WtK9ZGQmseqLGD3RD9jPVzTde6` z commitu `3fd0dd3` porovnal oprávnění všech 3 profilů, všech 10 řádků `lesson_live_usage` a jeden samostatný owner-scoped výsledek. Potvrdil `PASS`, dokončil TypeScript/Next.js build a nelogoval ID uživatele, ID lekce ani tajné hodnoty. Po branch-only aktivaci přepínače prošel opakovaný Preview deployment `4PR2YnZHaai8adjXTRSZXb6CYRRa` ve stavu `Ready`; produkce nebyla změněna.
+Vercel Preview deployment `38WtK9ZGQmseqLGD3RD9jPVzTde6` z commitu `3fd0dd3` porovnal oprávnění všech 3 profilů, všech 10 řádků `lesson_live_usage` a jeden samostatný owner-scoped výsledek. Potvrdil `PASS`, dokončil TypeScript/Next.js build a nelogoval ID uživatele, ID lekce ani tajné hodnoty. Po branch-only aktivaci přepínače prošel opakovaný Preview deployment `4PR2YnZHaai8adjXTRSZXb6CYRRa` ve stavu `Ready`. Jednorázový build hook byl následně odstraněn commitem `b081f93`; čistý Preview deployment `3iwh5qpevDU11TpJ7sWfY7zXhwiu` skončil `Ready` za 46 sekund. Produkce nebyla změněna.
 
 ## Incident 2026-09-21
 
