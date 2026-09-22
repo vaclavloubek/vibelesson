@@ -201,6 +201,28 @@ try {
         referenceCount += count;
       }
       console.error(`Stale-row reference audit: ${foreignKeys.rows.length} inbound foreign keys, ${referencingRelations} referencing relations, ${referenceCount} total references.`);
+
+      if (referencingRelations === 1 && referenceCount === 1) {
+        const targetDependency = await targetClient.query(
+          'select to_jsonb(request_row) as row from public.generation_requests request_row where lesson_id = $1',
+          [targetOnlyIds[0]],
+        );
+        const dependencyId = targetDependency.rows[0]?.row?.id;
+        if (targetDependency.rows.length === 1 && typeof dependencyId === 'string') {
+          const sourceDependency = await source.query(
+            'select to_jsonb(request_row) as row from public.generation_requests request_row where id = $1',
+            [dependencyId],
+          );
+          const normalizedTargetDependency = {
+            ...targetDependency.rows[0].row,
+            lesson_id: null,
+          };
+          const compatible = sourceDependency.rows.length === 1
+            && sourceDependency.rows[0].row?.lesson_id === null
+            && fingerprint(sourceDependency.rows[0].row) === fingerprint(normalizedTargetDependency);
+          console.error(`Dependent row parity after set-null action: ${compatible ? 'compatible' : 'not compatible'}.`);
+        }
+      }
     }
     throw new Error('Supabase and Neon lesson tables have different fingerprints.');
   }
