@@ -11,6 +11,7 @@ import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { LessonFolderReadError, readLessonFolders } from '@/lib/lesson-folder-reader';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -55,69 +56,72 @@ export default async function LessonsPage({ searchParams }: Props) {
   if (!userId) redirect(`/${locale}`);
   await requireCurrentTermsForPage(userId, '/lessons');
 
-  const entitlement = await getLessonFolderEntitlement(supabase, userId);
-  const reusableLessons = await getLessonReuseEntitlement(supabase);
-  let aiBillingState: Awaited<ReturnType<typeof getEffectiveAiBillingPauseState>> = {
+  const defaultAiBillingState: Awaited<ReturnType<typeof getEffectiveAiBillingPauseState>> = {
     reason: null,
     scope: null,
     organizationId: null,
     manager: false,
   };
-  try {
-    aiBillingState = await getEffectiveAiBillingPauseState(userId);
-  } catch (billingError) {
-    console.error('load AI billing pause state failed', billingError);
-  }
 
-  const { data: rows, error } = await supabase
-    .from('lessons')
-    .select('id, title, lesson, folder_id, organization_origin_id, created_at, updated_at')
-    .eq('owner_id', userId)
-    .order('updated_at', { ascending: false });
-
-  let folderRows: { id: string; name: string; parent_id: string | null }[] = [];
-  let foldersError: unknown = null;
-  if (entitlement.enabled) {
-    const folderResult = await supabase
-      .from('lesson_folders')
-      .select('id, name, parent_id')
+  // These calls are independent. Running them concurrently bounds the page's
+  // critical path to the slowest backend request instead of their total time.
+  const [entitlement, reusableLessons, aiBillingState, lessonResult, sessionResult] = await Promise.all([
+    getLessonFolderEntitlement(supabase, userId),
+    getLessonReuseEntitlement(supabase),
+    getEffectiveAiBillingPauseState(userId).catch((billingError) => {
+      console.error('load AI billing pause state failed', billingError);
+      return defaultAiBillingState;
+    }),
+    supabase
+      .from('lessons')
+      .select('id, title, lesson, folder_id, organization_origin_id, created_at, updated_at')
       .eq('owner_id', userId)
-      .order('name', { ascending: true });
-    folderRows = (folderResult.data ?? []) as { id: string; name: string; parent_id: string | null }[];
-    foldersError = folderResult.error;
-  }
+      .order('updated_at', { ascending: false }),
+    supabase
+      .from('sessions')
+      .select('id, lesson_id, join_code, lesson_snapshot, started_at, ended_at')
+      .eq('teacher_id', userId)
+      .eq('status', 'ended')
+      .not('ended_at', 'is', null)
+      .order('ended_at', { ascending: false }),
+  ]);
 
-  const { data: sessionRows, error: sessionsError } = await supabase
-    .from('sessions')
-    .select('id, lesson_id, join_code, lesson_snapshot, started_at, ended_at')
-    .eq('teacher_id', userId)
-    .eq('status', 'ended')
-    .not('ended_at', 'is', null)
-    .order('ended_at', { ascending: false });
-
-  if (error) console.error('load lessons failed', error);
-  if (foldersError) console.error('load lesson folders failed', foldersError);
-  if (sessionsError) console.error('load ended sessions failed', sessionsError);
-
-  const usedLessonIds = new Set<string>();
-  if (!reusableLessons) {
-    const { data: usageRows, error: usageError } = await supabase
-      .from('lesson_live_usage')
-      .select('lesson_id');
-
-    if (usageError) {
-      console.error('load lesson live usage failed', usageError);
-    } else {
-      for (const usage of usageRows ?? []) {
-        if (typeof usage.lesson_id === 'string') usedLessonIds.add(usage.lesson_id);
-      }
-    }
-  }
-
+  const { data: rows, error } = lessonResult;
+  const { data: sessionRows, error: sessionsError } = sessionResult;
   const originIds = (rows ?? [])
     .map((row) => typeof row.organization_origin_id === 'string' ? row.organization_origin_id : null)
     .filter((value): value is string => Boolean(value));
-  const originAccess = await getOrganizationOriginAccessMap(userId, originIds);
+
+  const folderPromise = entitlement.enabled
+    ? readLessonFolders(supabase, userId).catch((folderError) => {
+      console.error(
+        'load lesson folders failed',
+        folderError instanceof LessonFolderReadError ? folderError.code : 'LESSON_FOLDER_QUERY_FAILED',
+      );
+      return [];
+    })
+    : Promise.resolve([]);
+  const usagePromise = reusableLessons
+    ? Promise.resolve({ data: [], error: null })
+    : supabase.from('lesson_live_usage').select('lesson_id');
+
+  const [folderRows, usageResult, originAccess] = await Promise.all([
+    folderPromise,
+    usagePromise,
+    getOrganizationOriginAccessMap(userId, originIds),
+  ]);
+
+  if (error) console.error('load lessons failed', error);
+  if (sessionsError) console.error('load ended sessions failed', sessionsError);
+
+  const usedLessonIds = new Set<string>();
+  if (usageResult.error) {
+    console.error('load lesson live usage failed', usageResult.error);
+  } else {
+    for (const usage of usageResult.data ?? []) {
+      if (typeof usage.lesson_id === 'string') usedLessonIds.add(usage.lesson_id);
+    }
+  }
 
   const lessons: LessonListItem[] = (rows ?? []).flatMap((row) => {
     const parsed = LessonSchema.safeParse(row.lesson);
