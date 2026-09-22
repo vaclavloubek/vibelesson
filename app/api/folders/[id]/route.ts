@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { deleteLessonFolder, LessonFolderWriteError, renameLessonFolder } from '@/lib/lesson-folder-writer';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 const RenameFolderSchema = z.object({
@@ -40,21 +41,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
     const { name } = RenameFolderSchema.parse(await req.json());
-    const { data: folder, error } = await auth.supabase
-      .from('lesson_folders')
-      .update({ name, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('owner_id', auth.userId)
-      .select('id, name, parent_id')
-      .maybeSingle();
-
-    if (error) {
-      if (error.code === '23505') {
-        return NextResponse.json({ error: 'Složka se stejným názvem už na této úrovni existuje.' }, { status: 409 });
-      }
-      throw error;
-    }
-    if (!folder) return NextResponse.json({ error: 'Složka nebyla nalezena.' }, { status: 404 });
+    const folder = await renameLessonFolder(auth.supabase, auth.userId, id, name);
 
     return NextResponse.json({
       folder: { id: folder.id, name: folder.name, parentId: folder.parent_id },
@@ -62,6 +49,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Zkontroluj název složky a zkus to znovu.' }, { status: 400 });
+    }
+    if (error instanceof LessonFolderWriteError) {
+      if (error.code === 'DUPLICATE_FOLDER') {
+        return NextResponse.json({ error: 'Složka se stejným názvem už na této úrovni existuje.' }, { status: 409 });
+      }
+      if (error.code === 'FOLDER_NOT_FOUND') {
+        return NextResponse.json({ error: 'Složka nebyla nalezena.' }, { status: 404 });
+      }
     }
     console.error('rename lesson folder failed', error);
     return NextResponse.json({ error: 'Složku se nepodařilo přejmenovat.' }, { status: 500 });
@@ -74,31 +69,18 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
 
   try {
     const { id } = await params;
-    const { data: children, error: childrenError } = await auth.supabase
-      .from('lesson_folders')
-      .select('id')
-      .eq('owner_id', auth.userId)
-      .eq('parent_id', id)
-      .limit(1);
-
-    if (childrenError) throw childrenError;
-    if (children?.length) {
-      return NextResponse.json({ error: 'Nejdřív smaž podsložky.' }, { status: 409 });
-    }
-
-    const { data: deleted, error: deleteError } = await auth.supabase
-      .from('lesson_folders')
-      .delete()
-      .eq('id', id)
-      .eq('owner_id', auth.userId)
-      .select('id')
-      .maybeSingle();
-
-    if (deleteError) throw deleteError;
-    if (!deleted) return NextResponse.json({ error: 'Složka nebyla nalezena.' }, { status: 404 });
+    await deleteLessonFolder(auth.supabase, auth.userId, id);
 
     return NextResponse.json({ deleted: true });
   } catch (error) {
+    if (error instanceof LessonFolderWriteError) {
+      if (error.code === 'FOLDER_HAS_CHILDREN') {
+        return NextResponse.json({ error: 'Nejdřív smaž podsložky.' }, { status: 409 });
+      }
+      if (error.code === 'FOLDER_NOT_FOUND') {
+        return NextResponse.json({ error: 'Složka nebyla nalezena.' }, { status: 404 });
+      }
+    }
     console.error('delete lesson folder failed', error);
     return NextResponse.json({ error: 'Složku se nepodařilo smazat.' }, { status: 500 });
   }
