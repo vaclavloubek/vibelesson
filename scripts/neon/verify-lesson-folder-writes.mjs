@@ -144,7 +144,7 @@ try {
     throw new Error('A parent folder with a child was unexpectedly deleted.');
   } catch (error) {
     await target.query('rollback to savepoint expected_child_guard');
-    if (error?.code !== '23503') throw error;
+    if (!['23001', '23503'].includes(error?.code)) throw error;
   }
 
   const deletedChild = await target.query(
