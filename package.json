@@ -25,6 +25,7 @@
     "neon:verify": "bash scripts/neon/verify.sh",
     "neon:verify-share-read": "node scripts/neon/verify-shared-lesson-parity.mjs",
     "neon:verify-folder-read": "node scripts/neon/verify-lesson-folder-parity.mjs",
+    "neon:verify-lesson-list-read": "node scripts/neon/verify-lesson-list-parity.mjs",
     "neon:security-audit": "node scripts/neon/security-audit.mjs",
     "neon:security-harden": "node scripts/neon/apply-security-hardening.mjs",
     "neon:auth-preflight": "bash scripts/neon/auth-preflight.sh",

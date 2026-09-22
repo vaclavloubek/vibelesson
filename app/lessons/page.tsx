@@ -12,6 +12,7 @@ import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonFolderReadError, readLessonFolders } from '@/lib/lesson-folder-reader';
+import { LessonListReadError, readLessonList, type LessonCatalogRow } from '@/lib/lesson-list-reader';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -63,6 +64,15 @@ export default async function LessonsPage({ searchParams }: Props) {
     manager: false,
   };
 
+  const lessonPromise = readLessonList(supabase, userId)
+    .then((data) => ({ data, error: null as LessonListReadError | null }))
+    .catch((lessonError: unknown) => ({
+      data: [] as LessonCatalogRow[],
+      error: lessonError instanceof LessonListReadError
+        ? lessonError
+        : new LessonListReadError('LESSON_LIST_QUERY_FAILED', lessonError),
+    }));
+
   // These calls are independent. Running them concurrently bounds the page's
   // critical path to the slowest backend request instead of their total time.
   const [entitlement, reusableLessons, aiBillingState, lessonResult, sessionResult] = await Promise.all([
@@ -72,11 +82,7 @@ export default async function LessonsPage({ searchParams }: Props) {
       console.error('load AI billing pause state failed', billingError);
       return defaultAiBillingState;
     }),
-    supabase
-      .from('lessons')
-      .select('id, title, lesson, folder_id, organization_origin_id, created_at, updated_at')
-      .eq('owner_id', userId)
-      .order('updated_at', { ascending: false }),
+    lessonPromise,
     supabase
       .from('sessions')
       .select('id, lesson_id, join_code, lesson_snapshot, started_at, ended_at')
@@ -113,7 +119,7 @@ export default async function LessonsPage({ searchParams }: Props) {
     getOrganizationOriginAccessMap(userId, originIds),
   ]);
 
-  if (error) console.error('load lessons failed', error);
+  if (error) console.error('load lessons failed', error.code);
   if (sessionsError) console.error('load ended sessions failed', sessionsError);
 
   const usedLessonIds = new Set<string>();

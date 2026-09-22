@@ -16,6 +16,7 @@
     "lib/supabase/server.ts",
     "lib/terms-acceptance.ts",
     "lib/lesson-folder-reader.ts",
+    "lib/lesson-list-reader.ts",
     "lib/neon/**/*.ts"
   ],
   "exclude": ["node_modules", "supabase/functions", "cloudflare/live-control"]

@@ -17,6 +17,7 @@ const authImport = read('scripts/neon/auth-import.sh');
 const authUserImport = read('neon/migrations/0002_neon_auth_user_import.sql');
 const lessonShareReader = read('lib/lesson-share-reader.ts');
 const lessonFolderReader = read('lib/lesson-folder-reader.ts');
+const lessonListReader = read('lib/lesson-list-reader.ts');
 const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
 
@@ -43,6 +44,10 @@ requireText(lessonFolderReader, "process.env.VERCEL_ENV === 'production'", 'The 
 requireText(lessonFolderReader, 'where owner_id = ${userId}', 'The Neon lesson-folder lookup must remain owner-scoped and parameterized.');
 requireText(lessonsPage, 'readLessonFolders(supabase, userId)', '/lessons must use the folder reader abstraction.');
 requireText(envExample, 'NEON_LESSON_FOLDER_READS=false', 'The folder-read canary must default to disabled.');
+requireText(lessonListReader, "process.env.VERCEL_ENV === 'production'", 'The Neon lesson-list canary must be isolated from unapproved production use.');
+requireText(lessonListReader, 'where owner_id = ${userId}', 'The Neon lesson-list lookup must remain owner-scoped and parameterized.');
+requireText(lessonsPage, 'readLessonList(supabase, userId)', '/lessons must use the lesson-list reader abstraction.');
+requireText(envExample, 'NEON_LESSON_LIST_READS=false', 'The lesson-list canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
 requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
