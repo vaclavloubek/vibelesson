@@ -166,7 +166,17 @@ try {
             namespace.nspname,
             relation.relname,
             attribute.attname
-          ) as count_sql
+          ) as count_sql,
+          namespace.nspname as schema_name,
+          relation.relname as relation_name,
+          case constraint_row.confdeltype
+            when 'a' then 'no action'
+            when 'r' then 'restrict'
+            when 'c' then 'cascade'
+            when 'n' then 'set null'
+            when 'd' then 'set default'
+            else 'unknown'
+          end as on_delete
         from pg_constraint constraint_row
         join pg_class relation on relation.oid = constraint_row.conrelid
         join pg_namespace namespace on namespace.oid = relation.relnamespace
@@ -184,7 +194,10 @@ try {
       for (const foreignKey of foreignKeys.rows) {
         const countResult = await targetClient.query(foreignKey.count_sql, [targetOnlyIds[0]]);
         const count = Number(countResult.rows[0]?.count ?? 0);
-        if (count > 0) referencingRelations += 1;
+        if (count > 0) {
+          referencingRelations += 1;
+          console.error(`Stale-row reference: ${foreignKey.schema_name}.${foreignKey.relation_name}, count ${count}, on delete ${foreignKey.on_delete}.`);
+        }
         referenceCount += count;
       }
       console.error(`Stale-row reference audit: ${foreignKeys.rows.length} inbound foreign keys, ${referencingRelations} referencing relations, ${referenceCount} total references.`);
