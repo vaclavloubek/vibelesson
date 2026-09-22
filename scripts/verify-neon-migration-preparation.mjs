@@ -45,6 +45,12 @@ const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
 const studentSessionServer = read('lib/student-session-server.ts');
 const teamEditServer = read('lib/team-edit-server.ts');
+const neonStudentSessionServer = read('lib/neon/student-session-server.ts');
+const neonTeamEditServer = read('lib/neon/team-edit-server.ts');
+const neonGradingWorker = read('lib/neon/grading-outbox-worker.ts');
+const neonGradingRoute = read('app/api/cron/neon-grading/route.ts');
+const neonGradingOutbox = read('neon/migrations/0007_live_session_grading_outbox.sql');
+const neonLiveSessionMigration = read('scripts/neon/apply-live-session-migration.mjs');
 const studentRoutes = [
   'app/api/student/join/route.ts',
   'app/api/student/sessions/[id]/route.ts',
@@ -155,6 +161,22 @@ requireText(studentSessionServer, "createAdminClient()", 'Student session logic 
 requireText(studentSessionServer, "queue_submitted_response_evaluation", 'Student response submission must preserve the grading queue.');
 requireText(teamEditServer, "claim_team_edit_lock", 'Team editing must preserve the database lock.');
 requireText(teamEditServer, "queue_submitted_team_response_evaluation", 'Team submission must preserve the grading queue.');
+requireText(envExample, 'NEON_LIVE_SESSION_DATA=false', 'The Neon live-session path must default to disabled.');
+requireText(envExample, 'NEON_GRADING_OUTBOX_WORKER=false', 'The Neon grading worker must default to disabled.');
+requireText(studentSessionServer, 'useNeonLiveSessionData()', 'Student sessions must select the isolated Neon live-data path.');
+requireText(teamEditServer, 'useNeonLiveSessionData()', 'Team editing must select the isolated Neon live-data path.');
+requireText(neonStudentSessionServer, 'where session_id = ${sessionId}::uuid', 'Neon participant reads must remain session-scoped and parameterized.');
+requireText(neonStudentSessionServer, 'queue_submitted_response_evaluation', 'Neon response submission must preserve evaluation queueing.');
+requireText(neonTeamEditServer, 'claim_team_edit_lock', 'Neon team editing must preserve the database lock.');
+requireText(neonTeamEditServer, 'queue_submitted_team_response_evaluation', 'Neon team submission must preserve evaluation queueing.');
+requireText(neonGradingOutbox, 'private.grading_dispatch_outbox', 'The Neon migration must create the private grading outbox.');
+requireText(neonGradingOutbox, 'for update skip locked', 'The grading outbox claim must be concurrency-safe.');
+requireText(neonGradingOutbox, 'security invoker', 'The grading outbox worker functions must not elevate privileges.');
+forbidText(neonGradingOutbox, 'net.http_post', 'Neon grading dispatch must not initiate HTTP from Postgres.');
+requireText(neonGradingWorker, 'finish_grading_job_v2', 'The Neon grading worker must retain validated grading completion.');
+requireText(neonGradingRoute, "req.headers.get('authorization')", 'The Neon grading cron route must require authorization.');
+requireText(neonLiveSessionMigration, 'NEON_LIVE_SESSION_MIGRATION_APPROVED', 'The live-session migration must require an explicit staging write gate.');
+requireText(neonLiveSessionMigration, "process.env.VERCEL_ENV !== 'preview'", 'The live-session migration must be restricted to Preview staging.');
 requireText(studentRoutes, 'handleStudentSessionAction', 'Student routes must call the Vercel student-session module.');
 requireText(studentRoutes, 'handleTeamEditAction', 'Team routes must call the Vercel team-edit module.');
 forbidText(studentRoutes, '/functions/v1/student-session', 'Student routes must not call the Supabase student-session Edge Function.');
