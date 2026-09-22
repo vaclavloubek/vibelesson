@@ -107,8 +107,9 @@ try {
     join public.profiles p on p.id = l.owner_id
     where l.organization_origin_id is null
       and p.role <> 'admin'
-      and coalesce(p.active_plan_code, 'free') = 'free'
-      and not exists (
+    order by
+      case when coalesce(p.active_plan_code, 'free') = 'free' then 0 else 1 end,
+      case when exists (
         select 1
         from public.organization_memberships m
         join public.organizations o on o.id = m.organization_id
@@ -116,14 +117,38 @@ try {
           and m.status = 'active'
           and m.revoked_at is null
           and o.status = 'active'
-      )
-    order by l.id asc
+      ) then 1 else 0 end,
+      l.id asc
     limit 1
   `);
   const lessonId = candidate.rows[0]?.lesson_id;
   const ownerId = candidate.rows[0]?.owner_id;
   if (typeof lessonId !== 'string' || typeof ownerId !== 'string') {
-    throw new Error('No personal Free lesson exists for the atomic duplication check.');
+    throw new Error('No non-admin personal lesson exists for the atomic duplication check.');
+  }
+
+  // Build the Free-account scenario inside this transaction. These temporary
+  // entitlement changes are covered by the same final rollback as the copy.
+  await target.query(`
+    update public.profiles
+    set active_plan_code = 'free'
+    where id = $1
+  `, [ownerId]);
+  await target.query(`
+    update public.organization_memberships
+    set status = 'revoked',
+        revoked_at = coalesce(revoked_at, now()),
+        updated_at = now()
+    where user_id = $1
+      and status = 'active'
+  `, [ownerId]);
+
+  const freeScenario = await target.query(
+    'select private.lesson_reuse_enabled($1) as reuse_enabled',
+    [ownerId],
+  );
+  if (freeScenario.rows[0]?.reuse_enabled !== false) {
+    throw new Error('Could not create an isolated Free-account duplication scenario.');
   }
 
   await target.query(`
