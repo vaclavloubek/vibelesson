@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import LessonWorkspace from '@/components/LessonWorkspace';
 import StartSessionButton from '@/components/StartSessionButton';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
+import { LessonDetailReadError, readLessonDetail } from '@/lib/lesson-detail-reader';
 import { LessonSchema } from '@/lib/schema';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createClient } from '@/lib/supabase/server';
@@ -21,14 +22,15 @@ export default async function LessonPage({ params }: Props) {
   if (!userId) redirect('/');
   await requireCurrentTermsForPage(userId, `/lessons/${id}`);
 
-  const { data: row, error } = await supabase
-    .from('lessons')
-    .select('id, source_prompt, lesson')
-    .eq('id', id)
-    .eq('owner_id', userId)
-    .single();
+  const row = await readLessonDetail(supabase, userId, id).catch((lessonError: unknown) => {
+    console.error(
+      'load lesson detail failed',
+      lessonError instanceof LessonDetailReadError ? lessonError.code : 'LESSON_DETAIL_QUERY_FAILED',
+    );
+    return null;
+  });
 
-  if (error || !row) notFound();
+  if (!row) notFound();
 
   const parsed = LessonSchema.safeParse(row.lesson);
   if (!parsed.success) notFound();
