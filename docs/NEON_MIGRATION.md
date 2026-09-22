@@ -212,6 +212,8 @@ NEON_SESSION_HISTORY_READS=false|true
 NEON_LESSON_DETAIL_READS=false|true
 NEON_LESSON_WORKSHEET_READS=false|true
 NEON_SESSION_ACCESS_READS=false|true
+NEON_LIVE_SESSION_DATA=false|true
+NEON_GRADING_OUTBOX_WORKER=false|true
 NEON_LESSON_FOLDER_WRITES=false|true
 NEON_LESSON_MOVE_WRITES=false|true
 NEON_LESSON_CONTENT_WRITES=false|true
@@ -355,16 +357,16 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 13. [Ověřeno v Preview] Mazání vlastní lekce používá branch-only `NEON_LESSON_DELETE_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test porovnal zdrojový a stagingový stav, zamítl smazání pod cizím vlastníkem, provedl smazání pod skutečným vlastníkem jen uvnitř transakce a po rollbacku potvrdil přesně nezměněný Neon staging baseline. Drift 32/31 zůstává evidovaný pro finální delta synchronizaci.
 14. [Ověřeno v Preview] Duplikace vlastní lekce používá branch-only `NEON_LESSON_DUPLICATE_WRITES=true` a jedinou server-only funkci `duplicate_lesson_server`. Kontrola vlastníka a organizačního původu, rezervace Free účtové i zařízení kvóty, vložení kopie, zachování lineage a dokončení rezervace proběhnou v jedné databázové transakci. Funkce je `SECURITY INVOKER` a `EXECUTE` je odebrané rolím `PUBLIC`, `anon`, `authenticated` i `service_role`; volá ji jen serverové přímé Postgres spojení. Rollback test porovnal zdroj/staging 32/31, ověřil zamítnutého cizího vlastníka, povinný device cookie, výslednou kopii a oba kvótové ledgery a potvrdil nezměněný staging.
 15. [Ověřeno v Preview] Celý lifecycle sdílení lekce používá dvojici branch-only přepínačů `NEON_LESSON_SHARE_WRITES=true` a `NEON_SHARED_LESSON_IMPORT_WRITES=true`. Vytvoření a revokace sdílení jsou owner-scoped serverové SQL operace; import volá jedinou `SECURITY INVOKER` funkci `import_shared_lesson_neon_server`, která atomicky ověří token, zabrání duplicitě, rezervuje Free účtovou i zařízení kvótu, vloží lekci s provenance a dokončí oba ledgery. `EXECUTE` je odebrané veřejným i klientským rolím a produkční aktivace bez `NEON_CUTOVER_APPROVED=true` selže zavřeně. Rollback test ověřil create/read/revoke/import, zamítnutí cizího vlastníka, idempotenci a nezměněný Neon staging baseline; následný čistý Preview deployment `FKEfVQm26i7zsdtvL1C97KwdrasB` z commitu `4fac1c7` skončil `Ready`.
-16. [Připraveno k Preview ověření] Studentské akce `join`, `state`, `choose_team`, `respond` a týmové akce `status`, `claim`, `heartbeat`, `save`, `submit`, `release` běží ve Vercel serverových modulech; žádná studentská route už nevolá `/functions/v1/student-session` ani `/functions/v1/team-edit`. Čtyři klientské Supabase Realtime kanály byly odstraněné a teacher/student/presenter ponechávají Cloudflare WebSocket, reconnect/replay a intervalový polling. Databázový backend těchto nových serverových modulů zůstává v této etapě Supabase, takže jde o odstranění Edge/Realtime runtime závislosti, nikoli ještě o finální databázový cutover.
-17. [Čeká] Přesměrovat databázové čtení a zápisy živé relace v nových Vercel modulech ze Supabase admin klienta na server-only Neon SQL/RPC po actor/participant auditu. Klientské Data API granty se neotevírají plošně. Poté následují outbox/background dispatch, závěrečná delta synchronizace a browserová akceptační matice.
+16. [Ověřeno v Preview] Studentské akce `join`, `state`, `choose_team`, `respond` a týmové akce `status`, `claim`, `heartbeat`, `save`, `submit`, `release` běží ve Vercel serverových modulech; žádná studentská route už nevolá `/functions/v1/student-session` ani `/functions/v1/team-edit`. Čtyři klientské Supabase Realtime kanály byly odstraněné a teacher/student/presenter ponechávají Cloudflare WebSocket, reconnect/replay a intervalový polling. Tento první runtime řez ponechal databázový backend na Supabase, aby bylo možné odděleně ověřit odstranění Edge/Realtime závislosti.
+17. [Implementováno, čeká na Preview aktivaci] `NEON_LIVE_SESSION_DATA=true` přesměruje všechny nové studentské a týmové Vercel moduly včetně veřejného scoreboardu na parametrizované server-only Neon SQL/RPC. Výchozí stav je `false`, Supabase fallback zůstává zachovaný a produkční aktivace bez `NEON_CUTOVER_APPROVED=true` selže zavřeně. Migrace `0007_live_session_grading_outbox.sql` nahrazuje `net.http_post` privátním outboxem, concurrency-safe `FOR UPDATE SKIP LOCKED` claimem a Vercel cron workerem. Jednorázový capability token se vrací pouze workeru v rámci serverového DB spojení; databáze ukládá výhradně jeho SHA-256 hash. Klientské Data API granty se neotevírají.
 
 Před cutoverem musí být dokončeno:
 
 - nahradit Supabase SSR/Auth helpery Neon Auth middlewarem/handlerem;
 - přesměrovat `.from()` a `.rpc()` na Neon Data API nebo serverové SQL služby;
-- [Připraveno k Preview ověření] `student-session` a `team-edit` jsou převedené z Edge Functions do Vercel serverových modulů; jejich databázový backend se přepne na Neon v navazující etapě;
-- [Připraveno k Preview ověření] čtyři Supabase Realtime kanály jsou odstraněné; teacher/student/presenter zachovávají Cloudflare WebSocket reconnect/replay a fallback polling;
-- nahradit všechny `net.http_post` grading dispatch funkce DB outboxem; samotná existence `private.grading_jobs` nestačí, protože současný worker používá jednorázový plaintext capability token;
+- [Implementováno, čeká na Preview aktivaci] `student-session` a `team-edit` mají server-only Neon SQL/RPC backend za `NEON_LIVE_SESSION_DATA=true`, Supabase fallbackem a produkční pojistkou;
+- [Ověřeno v Preview] čtyři Supabase Realtime kanály jsou odstraněné; teacher/student/presenter zachovávají Cloudflare WebSocket reconnect/replay a fallback polling;
+- [Implementováno, čeká na Preview aktivaci] `net.http_post` grading dispatch nahrazuje privátní DB outbox a autorizovaný Vercel worker; plaintext capability se neukládá;
 - převést cron úlohy pro grading retry, free-session expiry a billing lifecycle;
 - zachovat append-only právní evidenci, Stripe webhook signature validation, idempotency keys a oddělení test/live klíčů;
 - přegenerovat databázové typy proti Neonu a odstranit `service_role` z klientských cest.
