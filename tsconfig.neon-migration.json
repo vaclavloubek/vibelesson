@@ -8,6 +8,7 @@
     "next-env.d.ts",
     "app/lessons/page.tsx",
     "app/lessons/[id]/page.tsx",
+    "app/api/lessons/[id]/worksheet-pdf/route.ts",
     "app/lessons/loading.tsx",
     "app/lessons/error.tsx",
     "lib/fetch-with-timeout.ts",
@@ -20,6 +21,7 @@
     "lib/lesson-list-reader.ts",
     "lib/session-history-reader.ts",
     "lib/lesson-detail-reader.ts",
+    "lib/lesson-worksheet-reader.ts",
     "lib/neon/**/*.ts"
   ],
   "exclude": ["node_modules", "supabase/functions", "cloudflare/live-control"]
