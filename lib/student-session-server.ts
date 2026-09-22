@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
+import { useNeonLiveSessionData } from '@/lib/neon/live-session-config';
+import { handleNeonStudentSessionAction } from '@/lib/neon/student-session-server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 type Block = Record<string, unknown>;
@@ -392,6 +394,7 @@ async function respond(body: Record<string, unknown>) {
 }
 
 export async function handleStudentSessionAction(body: Record<string, unknown>) {
+  if (useNeonLiveSessionData()) return handleNeonStudentSessionAction(body);
   try {
     if (body.action === 'join') return await join(body);
     if (body.action === 'state') return await state(body);
