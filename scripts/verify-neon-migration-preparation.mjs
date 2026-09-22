@@ -13,6 +13,7 @@ const envExample = read('.env.example');
 const lessonsPage = read('app/lessons/page.tsx');
 const lessonDetailPage = read('app/lessons/[id]/page.tsx');
 const lessonWorksheetRoute = read('app/api/lessons/[id]/worksheet-pdf/route.ts');
+const lessonWorksheetPage = read('app/lessons/[id]/worksheet/page.tsx');
 const terms = read('lib/terms-acceptance.ts');
 const migration = read('scripts/neon/migrate.sh');
 const authImport = read('scripts/neon/auth-import.sh');
@@ -67,6 +68,7 @@ requireText(lessonWorksheetReader, "process.env.VERCEL_ENV === 'production'", 'T
 requireText(lessonWorksheetReader, 'where id = ${lessonId}', 'The Neon lesson-worksheet lookup must remain lesson-scoped and parameterized.');
 requireText(lessonWorksheetReader, 'and owner_id = ${userId}', 'The Neon lesson-worksheet lookup must remain owner-scoped and parameterized.');
 requireText(lessonWorksheetRoute, 'readLessonWorksheet(supabase, userId, id)', 'The worksheet PDF route must use the lesson-worksheet reader abstraction.');
+requireText(lessonWorksheetPage, 'readLessonWorksheet(supabase, userId, id)', 'The worksheet page must use the lesson-worksheet reader abstraction.');
 requireText(envExample, 'NEON_LESSON_WORKSHEET_READS=false', 'The lesson-worksheet canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
