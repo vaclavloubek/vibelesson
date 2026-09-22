@@ -79,6 +79,12 @@ Historie ukončených relací na `/lessons` používá serverovou abstrakci s v�
 
 Vercel Preview deployment `2njzbvAf1fcP86WvXUhSz3e9EfDp` z commitu `7079655` porovnal 23 ukončených relací v celé tabulce i 23 owner-scoped relací a potvrdil `PASS`. Kontrola byla read-only a nelogovala owner ID, join code, snapshot lekce ani tajné hodnoty. Jednorázový hook byl odstraněn commitem `91c6c55`; následný běžný Preview deployment `4FR4t6bztdqsRfEn3wxVfkHdxgPj` skončil stavem `Ready` za 55 sekund. Produkce nebyla změněna.
 
+### Pátý aplikační datový řez
+
+Detail vlastní lekce na `/lessons/[id]` používá serverovou abstrakci s výchozím Supabase fallbackem. Branch-only `NEON_LESSON_DETAIL_READS=true` přesměruje pouze owner-scoped čtení sloupců `id`, `source_prompt` a `lesson` do Neonu. Dotaz je parametrizovaný ID lekce i uživatele; úpravy lekce, spuštění živé relace a všechny zápisy zůstávají na Supabase. Produkční použití bez `NEON_CUTOVER_APPROVED=true` selže zavřeně.
+
+Vercel Preview deployment `DDSyzRz6acizH9jiN1Paj8GTvLqj` z commitu `f935180` porovnal 31 detailů lekcí v celé tabulce i jeden přesný owner-scoped detail a potvrdil `PASS`. Kontrola byla read-only a nelogovala ID lekce, ID vlastníka, prompt, obsah ani tajné hodnoty. Jednorázový hook byl odstraněn commitem `ed6a9a6`; následný běžný Preview deployment `GwL9eYJ1UNDNomQi77ysVbRjKPSN` skončil stavem `Ready` za 49 sekund. Produkce nebyla změněna.
+
 ## Incident 2026-09-21
 
 Pozorovaný problém na `/lessons` nebyla ztráta dat:
@@ -140,6 +146,7 @@ Pro privilegované billingové, právní a organizační operace se nepoužije v
 - druhý izolovaný datový port seznamu složek na `/lessons` s owner-scoped SQL, stabilním řazením a read-only paritní kontrolou;
 - třetí izolovaný datový port seznamu lekcí na `/lessons` s owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
 - čtvrtý izolovaný datový port historie ukončených relací na `/lessons` s owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
+- pátý izolovaný datový port detailu vlastní lekce na `/lessons/[id]` s owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
 - regresní kontrakt `scripts/verify-neon-migration-preparation.mjs`.
 
 Balíky Neon Auth a Neon JS jsou v této revizi beta a jsou připnuté přesně. Před produkcí musí staging prokázat funkčnost konkrétních verzí; automatický upgrade není povolen.
@@ -159,6 +166,7 @@ NEON_SHARED_LESSON_READS=false|true
 NEON_LESSON_FOLDER_READS=false|true
 NEON_LESSON_LIST_READS=false|true
 NEON_SESSION_HISTORY_READS=false|true
+NEON_LESSON_DETAIL_READS=false|true
 NEON_CUTOVER_APPROVED=false|true
 ```
 
@@ -288,7 +296,8 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 2. [Ověřeno v Preview] Seznam složek na `/lessons` používá `NEON_LESSON_FOLDER_READS=true`, parametrizovaný owner-scoped Neon SQL a společné stabilní řazení. Paritní test potvrdil 9 shodných řádků a shodný výsledek pro jednoho vlastníka.
 3. [Ověřeno v Preview] Seznam lekcí na `/lessons` používá `NEON_LESSON_LIST_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Paritní test po jednorázovém srovnání zastaralého stagingového řádku potvrdil 31 shodných lekcí v celé tabulce a 6 shodných řádků pro jednoho vlastníka. Závislý `generation_requests` řádek se přes deklarované `ON DELETE SET NULL` srovnal přesně se zdrojem; transakce byla omezená na konkrétní Preview větev a jednorázový build hook byl odstraněn.
 4. [Ověřeno v Preview] Historie ukončených relací na `/lessons` používá `NEON_SESSION_HISTORY_READS=true`, parametrizovaný owner-scoped Neon SQL, filtr `status='ended'` a nenulové `ended_at`, Supabase fallback po vypnutí přepínače a produkční pojistku. Read-only paritní kontrola potvrdila 23 shodných řádků v celé tabulce i 23 shodných owner-scoped řádků; jednorázový build hook byl odstraněn.
-5. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
+5. [Ověřeno v Preview] Detail vlastní lekce na `/lessons/[id]` používá `NEON_LESSON_DETAIL_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Read-only paritní kontrola potvrdila 31 shodných detailů v celé tabulce i jeden shodný přesný owner-scoped detail; editace, spuštění relace a všechny zápisy zůstávají na Supabase. Jednorázový build hook byl odstraněn a následný běžný Preview build je zelený.
+6. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
