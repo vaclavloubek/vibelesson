@@ -29,7 +29,8 @@
     "neon:security-audit": "node scripts/neon/security-audit.mjs",
     "neon:security-harden": "node scripts/neon/apply-security-hardening.mjs",
     "neon:auth-preflight": "bash scripts/neon/auth-preflight.sh",
-    "neon:auth-import": "bash scripts/neon/auth-import.sh"
+    "neon:auth-import": "bash scripts/neon/auth-import.sh",
+    "neon:reconcile-stale-lesson": "node scripts/neon/reconcile-stale-lesson.mjs"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",
