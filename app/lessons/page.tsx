@@ -13,6 +13,7 @@ import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonFolderReadError, readLessonFolders } from '@/lib/lesson-folder-reader';
 import { LessonListReadError, readLessonList, type LessonCatalogRow } from '@/lib/lesson-list-reader';
+import { readSessionHistory, SessionHistoryReadError, type SessionHistoryRow } from '@/lib/session-history-reader';
 import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
@@ -83,13 +84,14 @@ export default async function LessonsPage({ searchParams }: Props) {
       return defaultAiBillingState;
     }),
     lessonPromise,
-    supabase
-      .from('sessions')
-      .select('id, lesson_id, join_code, lesson_snapshot, started_at, ended_at')
-      .eq('teacher_id', userId)
-      .eq('status', 'ended')
-      .not('ended_at', 'is', null)
-      .order('ended_at', { ascending: false }),
+    readSessionHistory(supabase, userId)
+      .then((data) => ({ data, error: null as SessionHistoryReadError | null }))
+      .catch((sessionError: unknown) => ({
+        data: [] as SessionHistoryRow[],
+        error: sessionError instanceof SessionHistoryReadError
+          ? sessionError
+          : new SessionHistoryReadError('SESSION_HISTORY_QUERY_FAILED', sessionError),
+      })),
   ]);
 
   const { data: rows, error } = lessonResult;
@@ -120,7 +122,7 @@ export default async function LessonsPage({ searchParams }: Props) {
   ]);
 
   if (error) console.error('load lessons failed', error.code);
-  if (sessionsError) console.error('load ended sessions failed', sessionsError);
+  if (sessionsError) console.error('load ended sessions failed', sessionsError.code);
 
   const usedLessonIds = new Set<string>();
   if (usageResult.error) {
