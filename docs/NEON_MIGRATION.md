@@ -57,6 +57,8 @@ Migrace `0004_harden_security_definer_execute.sql` v jedné transakci odebrala `
 
 Veřejné načtení sdílené lekce `/s/[token]` má samostatnou serverovou datovou službu. Výchozí cesta stále volá úzké Supabase RPC `get_lesson_share`; v Preview lze pouze pro tento read-only tok zapnout přímý parametrizovaný dotaz do Neon Postgres pomocí `NEON_SHARED_LESSON_READS=true`. Dotaz zachovává omezení na aktivní sdílení bez organizačního původu, nevrací metadata vlastníka a connection string zůstává pouze na serveru.
 
+Ověřeno 2026-09-22 ve Vercel Preview větvi `codex/neon-staging-import-20260921-v2`: branch-only přepínač byl aktivní, Supabase RPC a Neon SQL vrátily stejný kryptografický otisk snapshotu a deployment `AZrmVsW1iHiBi4oZtQQvgJuHqYfs` skončil `Ready`. Kontrola byla read-only a nevytiskla token, obsah lekce ani tajné hodnoty. Produkční prostředí zůstalo na Supabase.
+
 Canary přepínač je oddělený od globálního `DATABASE_BACKEND`, aby nebylo nutné předčasně přepnout ostatní aplikační cesty. Pokud by se omylem objevil v Production, bez `NEON_CUTOVER_APPROVED=true` selže zavřeně. Read-only paritu stejného snapshotu ze Supabase RPC a Neon SQL ověřuje `npm run neon:verify-share-read`; skript nezobrazuje token, obsah lekce ani tajné hodnoty.
 
 ## Incident 2026-09-21
@@ -258,7 +260,7 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 
 ### 5. Aplikační port
 
-1. [Připraveno k Preview ověření] `/s/[token]` čte přes serverovou abstrakci. `NEON_SHARED_LESSON_READS=true` přesměruje pouze veřejný snapshot na Neon a zachová Supabase jako automatický fallback po vypnutí přepínače.
+1. [Ověřeno v Preview] `/s/[token]` čte přes serverovou abstrakci. `NEON_SHARED_LESSON_READS=true` přesměruje pouze veřejný snapshot na Neon a zachová Supabase jako automatický fallback po vypnutí přepínače. Paritní test potvrdil shodný výsledek obou backendů.
 2. [Čeká] Po zelené paritě a browser smoke testu portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
