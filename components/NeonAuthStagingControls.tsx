@@ -18,6 +18,7 @@ function errorMessage(error: unknown, fallback: string) {
 
 export default function NeonAuthStagingControls({ resetToken, resetError }: Props) {
   const session = neonAuthClient.useSession();
+  const [activeResetToken, setActiveResetToken] = useState(resetToken);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -75,7 +76,7 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
 
   async function resetPassword(event: FormEvent) {
     event.preventDefault();
-    if (!resetToken) return;
+    if (!activeResetToken) return;
     if (password.length < 8) {
       setMessage('Nové heslo musí mít alespoň 8 znaků.');
       return;
@@ -88,7 +89,7 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
     setBusy(true);
     setMessage('');
     try {
-      const result = await neonAuthClient.resetPassword({ newPassword: password, token: resetToken });
+      const result = await neonAuthClient.resetPassword({ newPassword: password, token: activeResetToken });
       if (result.error) {
         setMessage(errorMessage(result.error, 'Heslo se nepodařilo nastavit. Pošli si nový odkaz.'));
         return;
@@ -96,6 +97,7 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
 
       setPassword('');
       setPasswordConfirm('');
+      setActiveResetToken(undefined);
       window.history.replaceState({}, '', '/auth/neon-staging');
       setMessage('Nové heslo je uložené. Teď se s ním přihlas.');
     } catch (error) {
@@ -124,7 +126,7 @@ export default function NeonAuthStagingControls({ resetToken, resetError }: Prop
     }
   }
 
-  if (resetToken) {
+  if (activeResetToken) {
     return (
       <div className="vibe-editor">
         <form onSubmit={resetPassword}>
