@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci",
+  "installCommand": "npm ci && npm install pg@8.23.0 --no-save",
+  "buildCommand": "NEON_SECURITY_HARDENING_APPROVED=I_UNDERSTAND_THIS_REVOKES_PUBLIC_EXECUTE_IN_NEON_STAGING node scripts/neon/apply-security-hardening.mjs && node scripts/neon/security-audit.mjs && npm run build",
   "crons": [
     {
       "path": "/api/cron/organization-billing",
