@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import NeonAuthStagingControls from '@/components/NeonAuthStagingControls';
 import SyllonautMark from '@/components/SyllonautMark';
+import { createServerAuth } from '@/lib/neon/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,16 @@ export default async function NeonAuthStagingPage({ searchParams }: Props) {
 
   const { token, error } = await searchParams;
   const configured = Boolean(process.env.NEON_AUTH_BASE_URL && process.env.NEON_AUTH_COOKIE_SECRET);
+  let initialUserEmail: string | undefined;
+
+  if (configured) {
+    try {
+      const { data: session } = await createServerAuth().getSession();
+      initialUserEmail = session?.user?.email;
+    } catch {
+      // Keep the isolated staging page usable if Neon Auth is temporarily unavailable.
+    }
+  }
 
   return (
     <main className="shell join-shell">
@@ -36,7 +47,11 @@ export default async function NeonAuthStagingPage({ searchParams }: Props) {
           Tato neveřejná stránka pracuje jen s Neon Auth stagingem. Registrace je vypnutá a produkční Supabase přihlášení se nemění.
         </p>
         {configured ? (
-          <NeonAuthStagingControls resetToken={token} resetError={error} />
+          <NeonAuthStagingControls
+            resetToken={token}
+            resetError={error}
+            initialUserEmail={initialUserEmail}
+          />
         ) : (
           <div className="auth-message" role="status">
             Preview zatím nemá kompletní serverové nastavení Neon Auth. Chybí proměnná NEON_AUTH_COOKIE_SECRET.
