@@ -25,6 +25,9 @@ const sessionHistoryReader = read('lib/session-history-reader.ts');
 const lessonDetailReader = read('lib/lesson-detail-reader.ts');
 const lessonWorksheetReader = read('lib/lesson-worksheet-reader.ts');
 const lessonReuseReader = read('lib/lesson-reuse-reader.ts');
+const sessionAccessReader = read('lib/session-access-reader.ts');
+const teacherSessionPage = read('app/sessions/[id]/page.tsx');
+const presenterPage = read('app/sessions/[id]/presenter/page.tsx');
 const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
 
@@ -80,6 +83,12 @@ requireText(lessonsPage, 'readLessonLiveUsage(supabase, userId)', '/lessons must
 requireText(lessonDetailPage, 'readLessonReuseEntitlement(supabase, userId)', '/lessons/[id] must use the lesson-reuse reader abstraction.');
 requireText(lessonDetailPage, 'readLessonLiveUsage(supabase, userId, id)', '/lessons/[id] must use the owner-scoped live-usage reader abstraction.');
 requireText(envExample, 'NEON_LESSON_REUSE_READS=false', 'The lesson-reuse canary must default to disabled.');
+requireText(sessionAccessReader, "process.env.VERCEL_ENV === 'production'", 'The Neon session-access canary must be isolated from unapproved production use.');
+requireText(sessionAccessReader, 'where id = ${sessionId}', 'The Neon session-access lookup must remain session-scoped and parameterized.');
+requireText(sessionAccessReader, 'and teacher_id = ${userId}', 'The Neon session-access lookup must remain owner-scoped and parameterized.');
+requireText(teacherSessionPage, 'readOwnedSessionAccess(supabase, userId, id)', 'The teacher session page must use the session-access reader abstraction.');
+requireText(presenterPage, 'readOwnedSessionAccess(supabase, userId, id)', 'The presenter page must use the session-access reader abstraction.');
+requireText(envExample, 'NEON_SESSION_ACCESS_READS=false', 'The session-access canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
 requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
