@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { participantCookieName, type PublicScoreboardState } from '@/lib/live';
+import { useNeonLiveSessionData } from '@/lib/neon/live-session-config';
+import { readNeonStudentScoreboard } from '@/lib/neon/student-session-server';
 import { handleStudentSessionAction } from '@/lib/student-session-server';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -31,13 +33,17 @@ export async function GET(_req: Request, { params }: RouteContext) {
     let scoreboard: PublicScoreboardState | null = null;
     try {
       const participantTokenHash = createHash('sha256').update(participantToken).digest('hex');
-      const { createAdminClient } = await import('@/lib/supabase/admin');
-      const { data: score, error: scoreError } = await createAdminClient().rpc('get_student_public_scoreboard', {
-        p_session_id: id,
-        p_participant_token_hash: participantTokenHash,
-      });
-      if (scoreError) console.error('student public scoreboard RPC failed', scoreError);
-      else scoreboard = sanitizeScoreboard(score);
+      if (useNeonLiveSessionData()) {
+        scoreboard = sanitizeScoreboard(await readNeonStudentScoreboard(id, participantTokenHash));
+      } else {
+        const { createAdminClient } = await import('@/lib/supabase/admin');
+        const { data: score, error: scoreError } = await createAdminClient().rpc('get_student_public_scoreboard', {
+          p_session_id: id,
+          p_participant_token_hash: participantTokenHash,
+        });
+        if (scoreError) console.error('student public scoreboard RPC failed', scoreError);
+        else scoreboard = sanitizeScoreboard(score);
+      }
     } catch (scoreError) {
       console.error('student public scoreboard lookup failed', scoreError);
     }
