@@ -9,6 +9,7 @@
     "app/lessons/page.tsx",
     "app/lessons/[id]/page.tsx",
     "app/api/lessons/[id]/worksheet-pdf/route.ts",
+    "app/lessons/[id]/worksheet/page.tsx",
     "app/lessons/loading.tsx",
     "app/lessons/error.tsx",
     "lib/fetch-with-timeout.ts",
