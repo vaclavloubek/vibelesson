@@ -61,6 +61,12 @@ Ověřeno 2026-09-22 ve Vercel Preview větvi `codex/neon-staging-import-2026092
 
 Canary přepínač je oddělený od globálního `DATABASE_BACKEND`, aby nebylo nutné předčasně přepnout ostatní aplikační cesty. Pokud by se omylem objevil v Production, bez `NEON_CUTOVER_APPROVED=true` selže zavřeně. Read-only paritu stejného snapshotu ze Supabase RPC a Neon SQL ověřuje `npm run neon:verify-share-read`; skript nezobrazuje token, obsah lekce ani tajné hodnoty.
 
+### Druhý aplikační datový řez
+
+Seznam složek na `/lessons` čte přes serverovou abstrakci s výchozím Supabase fallbackem. Branch-only `NEON_LESSON_FOLDER_READS=true` přesměruje v Preview pouze parametrizovaný dotaz `public.lesson_folders` omezený na přihlášeného vlastníka do Neon Postgres. Produkční použití bez `NEON_CUTOVER_APPROVED=true` selže zavřeně; chyba složkového dotazu se bezpečně degraduje bez znepřístupnění seznamu lekcí.
+
+Ověřeno 2026-09-22 ve Vercel Preview deploymentu `DmnmajCsKYK8vkN4gimyDUMcTQLh` z commitu `8840b48`: read-only skript porovnal všech 9 složek a owner-scoped výsledek mezi Supabase a Neonem a vrátil `PASS`. Nelogoval ID vlastníka, názvy složek ani tajné hodnoty. Rozdílné databázové locale vracelo shodné řádky v jiném pořadí, proto obě cesty nyní používají stejné stabilní aplikační řazení. Paritu ověřuje `npm run neon:verify-folder-read`.
+
 ## Incident 2026-09-21
 
 Pozorovaný problém na `/lessons` nebyla ztráta dat:
@@ -119,6 +125,7 @@ Pro privilegované billingové, právní a organizační operace se nepoužije v
 - deklarace Cloudflare Durable Object SQLite migrace;
 - hardening `/lessons` proti opakování incidentu;
 - první izolovaný datový port `/s/[token]` se samostatným Preview canary přepínačem a read-only paritní kontrolou;
+- druhý izolovaný datový port seznamu složek na `/lessons` s owner-scoped SQL, stabilním řazením a read-only paritní kontrolou;
 - regresní kontrakt `scripts/verify-neon-migration-preparation.mjs`.
 
 Balíky Neon Auth a Neon JS jsou v této revizi beta a jsou připnuté přesně. Před produkcí musí staging prokázat funkčnost konkrétních verzí; automatický upgrade není povolen.
@@ -135,6 +142,7 @@ NEON_DATA_API_URL=
 NEON_AUTH_BASE_URL=
 NEON_AUTH_COOKIE_SECRET=
 NEON_SHARED_LESSON_READS=false|true
+NEON_LESSON_FOLDER_READS=false|true
 NEON_CUTOVER_APPROVED=false|true
 ```
 
@@ -261,7 +269,8 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 ### 5. Aplikační port
 
 1. [Ověřeno v Preview] `/s/[token]` čte přes serverovou abstrakci. `NEON_SHARED_LESSON_READS=true` přesměruje pouze veřejný snapshot na Neon a zachová Supabase jako automatický fallback po vypnutí přepínače. Paritní test potvrdil shodný výsledek obou backendů.
-2. [Čeká] Po zelené paritě a browser smoke testu portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
+2. [Ověřeno v Preview] Seznam složek na `/lessons` používá `NEON_LESSON_FOLDER_READS=true`, parametrizovaný owner-scoped Neon SQL a společné stabilní řazení. Paritní test potvrdil 9 shodných řádků a shodný výsledek pro jednoho vlastníka.
+3. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
