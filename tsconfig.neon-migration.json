@@ -29,6 +29,7 @@
     "lib/lesson-folder-writer.ts",
     "lib/lesson-move-writer.ts",
     "lib/lesson-content-writer.ts",
+    "lib/lesson-delete-writer.ts",
     "lib/lesson-list-reader.ts",
     "lib/session-history-reader.ts",
     "lib/lesson-detail-reader.ts",
