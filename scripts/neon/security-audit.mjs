@@ -187,6 +187,25 @@ try {
     [FUNCTION_SCHEMAS, AUDITED_ROLES],
   );
 
+  const directFunctionGrantsResult = await client.query(
+    `select p.oid,
+            n.nspname as schema_name,
+            p.proname as function_name,
+            pg_get_function_identity_arguments(p.oid) as arguments,
+            grantee.rolname,
+            acl.privilege_type
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       cross join lateral aclexplode(p.proacl) acl
+       join pg_roles grantee on grantee.oid = acl.grantee
+      where n.nspname = any($1::text[])
+        and p.prosecdef
+        and acl.privilege_type = 'EXECUTE'
+        and grantee.rolname = any($2::text[])
+      order by n.nspname, p.proname, grantee.rolname`,
+    [FUNCTION_SCHEMAS, AUDITED_ROLES],
+  );
+
   const policiesResult = await client.query(
     `select schemaname as schema_name,
             tablename as object_name,
@@ -215,13 +234,30 @@ try {
     privilegesByFunction.get(row.oid).push(row);
   }
 
+  const directGrantsByFunction = new Map();
+  for (const row of directFunctionGrantsResult.rows) {
+    if (!directGrantsByFunction.has(row.oid)) directGrantsByFunction.set(row.oid, []);
+    directGrantsByFunction.get(row.oid).push(row);
+  }
+
   const hardFailures = [];
   const reviews = [];
   const inventory = [];
+  const blockerCounts = {
+    missingRoles: 0,
+    unsafeRoleAttributes: 0,
+    rlsDisabled: 0,
+    unsafeViews: 0,
+    missingSearchPath: 0,
+    publicFunctionExecute: 0,
+  };
 
   const foundRoleNames = new Set(rolesResult.rows.map((row) => row.rolname));
   for (const roleName of AUDITED_ROLES) {
-    if (!foundRoleNames.has(roleName)) hardFailures.push(`required role is missing: ${roleName}`);
+    if (!foundRoleNames.has(roleName)) {
+      blockerCounts.missingRoles += 1;
+      hardFailures.push(`required role is missing: ${roleName}`);
+    }
   }
   for (const role of rolesResult.rows) {
     const unsafeAttributes = [];
@@ -229,6 +265,7 @@ try {
     if (role.rolsuper) unsafeAttributes.push('SUPERUSER');
     if (role.rolbypassrls) unsafeAttributes.push('BYPASSRLS');
     if (unsafeAttributes.length) {
+      blockerCounts.unsafeRoleAttributes += 1;
       hardFailures.push(`role ${role.rolname} has unsafe attributes: ${unsafeAttributes.join(', ')}`);
     }
   }
@@ -240,6 +277,7 @@ try {
       && (row.can_select || row.can_insert || row.can_update || row.can_delete));
 
     if (!table.relrowsecurity) {
+      blockerCounts.rlsDisabled += 1;
       const suffix = apiPrivileges.length
         ? `; effective Data API access: ${apiPrivileges.map((row) => row.rolname).join(', ')}`
         : '; no effective Data API table access detected';
@@ -263,6 +301,7 @@ try {
     const securityInvoker = view.relkind === 'v'
       && view.reloptions.some((option) => option === 'security_invoker=true');
     if (!securityInvoker) {
+      blockerCounts.unsafeViews += 1;
       hardFailures.push(
         `public.${view.object_name} is exposed to ${apiPrivileges.map((row) => row.rolname).join(', ')} without security_invoker=true`,
       );
@@ -273,18 +312,24 @@ try {
     const functionName = formatObjectName(fn);
     const settings = Array.isArray(fn.settings) ? fn.settings : [];
     const hasSearchPath = settings.some((setting) => setting.startsWith('search_path='));
-    if (!hasSearchPath) hardFailures.push(`${functionName} is SECURITY DEFINER without an explicit search_path`);
-    if (fn.public_execute) hardFailures.push(`${functionName} is executable by PUBLIC`);
+    if (!hasSearchPath) {
+      blockerCounts.missingSearchPath += 1;
+      hardFailures.push(`${functionName} is SECURITY DEFINER without an explicit search_path`);
+    }
+    if (fn.public_execute) {
+      blockerCounts.publicFunctionExecute += 1;
+      hardFailures.push(`${functionName} is executable by PUBLIC`);
+    }
 
-    const apiExecutors = (privilegesByFunction.get(fn.oid) ?? [])
-      .filter((row) => API_ROLES.includes(row.rolname) && row.can_execute)
+    const directApiExecutors = (directGrantsByFunction.get(fn.oid) ?? [])
+      .filter((row) => API_ROLES.includes(row.rolname))
       .map((row) => row.rolname);
 
-    if (apiExecutors.length) {
+    if (directApiExecutors.length) {
       const actorGuardPattern = /auth\.uid\s*\(|pg_session_jwt|request\.jwt\.claims|current_user|session_user/i;
-      reviews.push(`${functionName} is executable by Data API roles: ${apiExecutors.join(', ')}`);
+      reviews.push(`${functionName} has direct Data API EXECUTE grants: ${directApiExecutors.join(', ')}`);
       if (!actorGuardPattern.test(fn.definition)) {
-        reviews.push(`${functionName} has broad API execution and no recognizable actor guard; inspect manually`);
+        reviews.push(`${functionName} has direct API execution and no recognizable actor guard; inspect manually`);
       }
     }
   }
@@ -299,6 +344,12 @@ try {
   console.log(`Database: ${versionResult.rows[0].database}; PostgreSQL ${versionResult.rows[0].version}`);
   console.log(`Public tables: ${tablesResult.rowCount}; public views/materialized views: ${viewsResult.rowCount}`);
   console.log(`Public RLS policies: ${policiesResult.rowCount}; SECURITY DEFINER functions: ${functionsResult.rowCount}`);
+  console.log(
+    `Blocker categories: missing roles=${blockerCounts.missingRoles}; unsafe role attributes=${blockerCounts.unsafeRoleAttributes}; RLS disabled=${blockerCounts.rlsDisabled}; unsafe views=${blockerCounts.unsafeViews}; missing search_path=${blockerCounts.missingSearchPath}; PUBLIC function EXECUTE=${blockerCounts.publicFunctionExecute}`,
+  );
+  const directAnonymous = directFunctionGrantsResult.rows.filter((row) => row.rolname === 'anonymous').length;
+  const directAuthenticated = directFunctionGrantsResult.rows.filter((row) => row.rolname === 'authenticated').length;
+  console.log(`Direct SECURITY DEFINER grants: anonymous=${directAnonymous}; authenticated=${directAuthenticated}`);
   console.log(`Hard blockers: ${hardFailures.length}; manual reviews: ${reviews.length}`);
 
   printItems('HARD BLOCKERS', hardFailures);
