@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { createHash } from 'node:crypto';
+import { useNeonLiveSessionData } from '@/lib/neon/live-session-config';
+import { handleNeonTeamEditAction } from '@/lib/neon/team-edit-server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const LOCK_TTL_SECONDS = 60;
@@ -284,6 +286,7 @@ async function release(body: Record<string, unknown>) {
 }
 
 export async function handleTeamEditAction(body: Record<string, unknown>) {
+  if (useNeonLiveSessionData()) return handleNeonTeamEditAction(body);
   try {
     if (body.action === 'status') return await status(body);
     if (body.action === 'claim') return await claim(body, true);
