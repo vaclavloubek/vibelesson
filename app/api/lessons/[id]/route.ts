@@ -7,6 +7,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import {
+  LessonContentWriteError,
+  readLessonContentForWrite,
+  writeLessonContent,
+} from '@/lib/lesson-content-writer';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -50,29 +55,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     if (locked) return locked;
     const { title } = RenameSchema.parse(await req.json());
 
-    const { data: current, error: readError } = await supabase
-      .from('lessons')
-      .select('lesson')
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .single();
-
-    if (readError || !current) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
-
-    const lesson = LessonSchema.parse(current.lesson);
+    const lesson = LessonSchema.parse(await readLessonContentForWrite(supabase, userId, id));
     const renamedLesson = LessonSchema.parse({ ...lesson, title });
-
-    const { data: updated, error: updateError } = await supabase
-      .from('lessons')
-      .update({ title, lesson: renamedLesson, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
-
-    if (updateError || !updated) throw updateError ?? new Error('Rename returned no row.');
+    await writeLessonContent(supabase, userId, id, renamedLesson);
     return NextResponse.json({ lessonId: id, lesson: renamedLesson });
   } catch (error) {
+    if (error instanceof LessonContentWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
     console.error('rename lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo přejmenovat.' }, { status: 500 });
   }
@@ -90,18 +80,7 @@ export async function PUT(req: Request, { params }: RouteContext) {
     if (locked) return locked;
     const { lesson } = ReplaceLessonSchema.parse(await req.json());
 
-    const { data: current, error: readError } = await supabase
-      .from('lessons')
-      .select('lesson')
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .maybeSingle();
-
-    if (readError || !current) {
-      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
-    }
-
-    const currentLesson = LessonSchema.parse(current.lesson);
+    const currentLesson = LessonSchema.parse(await readLessonContentForWrite(supabase, userId, id));
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -121,17 +100,12 @@ export async function PUT(req: Request, { params }: RouteContext) {
       );
     }
 
-    const { data: updated, error: updateError } = await supabase
-      .from('lessons')
-      .update({ title: lesson.title, lesson, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
-
-    if (updateError || !updated) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    await writeLessonContent(supabase, userId, id, lesson);
     return NextResponse.json({ lessonId: id, lesson });
   } catch (error) {
+    if (error instanceof LessonContentWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
     console.error('replace lesson failed', error);
     return NextResponse.json({ error: 'Předchozí verzi se nepodařilo obnovit.' }, { status: 500 });
   }
