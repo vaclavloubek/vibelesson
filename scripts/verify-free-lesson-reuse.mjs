@@ -30,7 +30,7 @@ const generateRoute = read('app/api/generate/route.ts');
 requireText(generateRoute, 'createAdminClient', 'AI generation uses a server-only insert path');
 
 const lessonPage = read('app/lessons/[id]/page.tsx');
-requireText(lessonPage, "from('lesson_live_usage')", 'lesson detail reads live-use history');
+requireText(lessonPage, 'readLessonLiveUsage(supabase, userId, id)', 'lesson detail reads owner-scoped live-use history');
 requireText(lessonPage, 'liveLocked={liveLocked}', 'lesson detail disables repeat Free live use');
 
 const library = read('app/lessons/LessonLibrary.tsx');

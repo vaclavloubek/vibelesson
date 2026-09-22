@@ -24,6 +24,7 @@ const lessonListReader = read('lib/lesson-list-reader.ts');
 const sessionHistoryReader = read('lib/session-history-reader.ts');
 const lessonDetailReader = read('lib/lesson-detail-reader.ts');
 const lessonWorksheetReader = read('lib/lesson-worksheet-reader.ts');
+const lessonReuseReader = read('lib/lesson-reuse-reader.ts');
 const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
 
@@ -70,6 +71,15 @@ requireText(lessonWorksheetReader, 'and owner_id = ${userId}', 'The Neon lesson-
 requireText(lessonWorksheetRoute, 'readLessonWorksheet(supabase, userId, id)', 'The worksheet PDF route must use the lesson-worksheet reader abstraction.');
 requireText(lessonWorksheetPage, 'readLessonWorksheet(supabase, userId, id)', 'The worksheet page must use the lesson-worksheet reader abstraction.');
 requireText(envExample, 'NEON_LESSON_WORKSHEET_READS=false', 'The lesson-worksheet canary must default to disabled.');
+requireText(lessonReuseReader, "process.env.VERCEL_ENV === 'production'", 'The Neon lesson-reuse canary must be isolated from unapproved production use.');
+requireText(lessonReuseReader, 'from private.current_active_organization(${userId}::uuid)', 'The Neon lesson-reuse entitlement must remain user-scoped and parameterized.');
+requireText(lessonReuseReader, 'where owner_id = ${userId}', 'The Neon live-usage lookup must remain owner-scoped and parameterized.');
+requireText(lessonReuseReader, 'and lesson_id = ${lessonId}', 'The Neon live-usage detail lookup must remain lesson-scoped and parameterized.');
+requireText(lessonsPage, 'readLessonReuseEntitlement(supabase, userId)', '/lessons must use the lesson-reuse reader abstraction.');
+requireText(lessonsPage, 'readLessonLiveUsage(supabase, userId)', '/lessons must use the live-usage reader abstraction.');
+requireText(lessonDetailPage, 'readLessonReuseEntitlement(supabase, userId)', '/lessons/[id] must use the lesson-reuse reader abstraction.');
+requireText(lessonDetailPage, 'readLessonLiveUsage(supabase, userId, id)', '/lessons/[id] must use the owner-scoped live-usage reader abstraction.');
+requireText(envExample, 'NEON_LESSON_REUSE_READS=false', 'The lesson-reuse canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
 requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
