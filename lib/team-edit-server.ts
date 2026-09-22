@@ -156,7 +156,7 @@ async function claimLock(context: Context, sessionId: string) {
 
 async function status(body: Record<string, unknown>) {
   const loaded = await loadContext(body);
-  if (loaded.response) return loaded.response;
+  if ('response' in loaded) return loaded.response ?? json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   const context = loaded.context!;
   const lock = await lockInfo(loaded.sessionId!, context.participant.team_id!, context.blockId, context.participant.id);
   return json({ ok: true, lock });
@@ -164,7 +164,7 @@ async function status(body: Record<string, unknown>) {
 
 async function claim(body: Record<string, unknown>, broadcast = true) {
   const loaded = await loadContext(body);
-  if (loaded.response) return loaded.response;
+  if ('response' in loaded) return loaded.response ?? json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   try {
     const result = await claimLock(loaded.context!, loaded.sessionId!);
     void broadcast;
@@ -178,7 +178,7 @@ async function save(body: Record<string, unknown>) {
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (text.length < 1 || text.length > 4000) return json({ error: 'Týmová odpověď musí mít 1 až 4000 znaků.' }, 400);
   const loaded = await loadContext(body);
-  if (loaded.response) return loaded.response;
+  if ('response' in loaded) return loaded.response ?? json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   const context = loaded.context!;
   const sessionId = loaded.sessionId!;
 
@@ -214,7 +214,7 @@ async function submit(body: Record<string, unknown>) {
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (text.length < 1 || text.length > 4000) return json({ error: 'Týmová odpověď musí mít 1 až 4000 znaků.' }, 400);
   const loaded = await loadContext(body);
-  if (loaded.response) return loaded.response;
+  if ('response' in loaded) return loaded.response ?? json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   const context = loaded.context!;
   const sessionId = loaded.sessionId!;
 
@@ -267,7 +267,7 @@ async function submit(body: Record<string, unknown>) {
 
 async function release(body: Record<string, unknown>) {
   const loaded = await loadContext(body, false);
-  if (loaded.response) return loaded.response;
+  if ('response' in loaded) return loaded.response ?? json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   const context = loaded.context!;
   const sessionId = loaded.sessionId!;
   const db = createAdminClient();
@@ -285,7 +285,7 @@ async function release(body: Record<string, unknown>) {
   return json({ ok: true, lock: null });
 }
 
-export async function handleTeamEditAction(body: Record<string, unknown>) {
+export async function handleTeamEditAction(body: Record<string, unknown>): Promise<Response> {
   if (useNeonLiveSessionData()) return handleNeonTeamEditAction(body);
   try {
     if (body.action === 'status') return await status(body);
