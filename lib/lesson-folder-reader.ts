@@ -48,7 +48,9 @@ function normalizeRows(rows: Record<string, unknown>[]): LessonFolderRow[] {
       name: row.name,
       parent_id: row.parent_id,
     };
-  });
+  }).sort((left, right) => (
+    left.name.localeCompare(right.name, 'cs') || left.id.localeCompare(right.id)
+  ));
 }
 
 async function readFromNeon(userId: string) {
