@@ -45,6 +45,15 @@ function fingerprint(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+function canonicalRows(rows) {
+  return [...rows].sort((left, right) => (
+    left.name.localeCompare(right.name, 'cs')
+    || left.id.localeCompare(right.id)
+    || left.owner_id?.localeCompare(right.owner_id ?? '')
+    || (left.parent_id ?? '').localeCompare(right.parent_id ?? '')
+  ));
+}
+
 function fingerprintCounts(rows) {
   const counts = new Map();
   for (const row of rows) {
@@ -100,7 +109,7 @@ try {
     order by owner_id asc, name asc, id asc
   `;
 
-  if (fingerprint(sourceAll.rows) !== fingerprint(targetAll)) {
+  if (fingerprint(canonicalRows(sourceAll.rows)) !== fingerprint(canonicalRows(targetAll))) {
     const delta = countFingerprintDelta(sourceAll.rows, targetAll);
     console.error(`Folder row counts: Supabase ${sourceAll.rows.length}, Neon ${targetAll.length}.`);
     console.error(`Anonymous fingerprint delta: Supabase-only ${delta.leftOnly}, Neon-only ${delta.rightOnly}.`);
@@ -126,7 +135,7 @@ try {
     order by name asc, id asc
   `;
 
-  if (fingerprint(sourceFiltered.rows) !== fingerprint(targetFiltered)) {
+  if (fingerprint(canonicalRows(sourceFiltered.rows)) !== fingerprint(canonicalRows(targetFiltered))) {
     throw new Error('Supabase and Neon returned different folder rows for the same owner.');
   }
 
