@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { createLessonFolder, LessonFolderWriteError } from '@/lib/lesson-folder-writer';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
 const CreateFolderSchema = z.object({
@@ -24,37 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Složky jsou dostupné v nejvyšším tarifu.' }, { status: 403 });
     }
 
-    if (input.parentId) {
-      const { data: parent, error: parentError } = await supabase
-        .from('lesson_folders')
-        .select('id, parent_id')
-        .eq('id', input.parentId)
-        .eq('owner_id', userId)
-        .maybeSingle();
-
-      if (parentError) throw parentError;
-      if (!parent) return NextResponse.json({ error: 'Nadřazená složka nebyla nalezena.' }, { status: 404 });
-      if (parent.parent_id) {
-        return NextResponse.json({ error: 'Syllonaut podporuje nejvýše dvě úrovně složek.' }, { status: 400 });
-      }
-    }
-
-    const { data: folder, error: insertError } = await supabase
-      .from('lesson_folders')
-      .insert({
-        owner_id: userId,
-        parent_id: input.parentId,
-        name: input.name,
-      })
-      .select('id, name, parent_id')
-      .single();
-
-    if (insertError) {
-      if (insertError.code === '23505') {
-        return NextResponse.json({ error: 'Složka se stejným názvem už na této úrovni existuje.' }, { status: 409 });
-      }
-      throw insertError;
-    }
+    const folder = await createLessonFolder(supabase, userId, input);
 
     return NextResponse.json({
       folder: {
@@ -66,6 +37,17 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Zkontroluj název složky a zkus to znovu.' }, { status: 400 });
+    }
+    if (error instanceof LessonFolderWriteError) {
+      if (error.code === 'PARENT_NOT_FOUND') {
+        return NextResponse.json({ error: 'Nadřazená složka nebyla nalezena.' }, { status: 404 });
+      }
+      if (error.code === 'FOLDER_DEPTH_LIMIT') {
+        return NextResponse.json({ error: 'Syllonaut podporuje nejvýše dvě úrovně složek.' }, { status: 400 });
+      }
+      if (error.code === 'DUPLICATE_FOLDER') {
+        return NextResponse.json({ error: 'Složka se stejným názvem už na této úrovni existuje.' }, { status: 409 });
+      }
     }
     console.error('create lesson folder failed', error);
     return NextResponse.json({ error: 'Složku se nepodařilo vytvořit.' }, { status: 500 });
