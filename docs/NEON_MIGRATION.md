@@ -103,6 +103,12 @@ Oprávnění k opakovanému použití lekcí a čtení append-only historie `les
 
 Vercel Preview deployment `38WtK9ZGQmseqLGD3RD9jPVzTde6` z commitu `3fd0dd3` porovnal oprávnění všech 3 profilů, všech 10 řádků `lesson_live_usage` a jeden samostatný owner-scoped výsledek. Potvrdil `PASS`, dokončil TypeScript/Next.js build a nelogoval ID uživatele, ID lekce ani tajné hodnoty. Po branch-only aktivaci přepínače prošel opakovaný Preview deployment `4PR2YnZHaai8adjXTRSZXb6CYRRa` ve stavu `Ready`. Jednorázový build hook byl následně odstraněn commitem `b081f93`; čistý Preview deployment `3iwh5qpevDU11TpJ7sWfY7zXhwiu` skončil `Ready` za 46 sekund. Produkce nebyla změněna.
 
+### Devátý aplikační datový řez
+
+Vlastnická brána učitelské živé relace na `/sessions/[id]` i prezentační stránce `/sessions/[id]/presenter` nyní používá společnou serverovou službu. Branch-only `NEON_SESSION_ACCESS_READS=true` přesměruje v Preview pouze parametrizované ověření dvojice `session id` a `teacher id` do Neonu. Supabase nadále obsluhuje Auth, Terms, resume ticket, živá data, ovládání relace, odpovědi, Realtime i všechny zápisy. Produkční použití bez `NEON_CUTOVER_APPROVED=true` selže zavřeně a po vypnutí přepínače zůstává výchozí Supabase cesta s původními retry pokusy.
+
+Vercel Preview deployment `5PEwytzBduvwWqjrTTdsXa13z1Ui` z commitu `5aacc03` porovnal všech 23 vazeb relace–vlastník a samostatně jeden oprávněný i jeden záměrně zamítnutý owner-scoped přístup. Potvrdil `PASS`, dokončil plný TypeScript/Next.js build a nelogoval ID relace, ID vlastníka, snapshot, join code ani tajné hodnoty. Jednorázový build hook byl odstraněn commitem `d8877ed`; následný běžný Preview deployment `5SBsEPkHrDSCeB7KQPb41Gsguzaf` skončil `Ready` za 50 sekund. Produkce nebyla změněna.
+
 ## Incident 2026-09-21
 
 Pozorovaný problém na `/lessons` nebyla ztráta dat:
@@ -165,6 +171,7 @@ Pro privilegované billingové, právní a organizační operace se nepoužije v
 - třetí izolovaný datový port seznamu lekcí na `/lessons` s owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
 - čtvrtý izolovaný datový port historie ukončených relací na `/lessons` s owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
 - pátý izolovaný datový port detailu vlastní lekce na `/lessons/[id]` s owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
+- devátý izolovaný datový port vlastnické brány `/sessions/[id]` a `/sessions/[id]/presenter` se společným owner-scoped SQL, Supabase fallbackem a read-only paritní kontrolou;
 - regresní kontrakt `scripts/verify-neon-migration-preparation.mjs`.
 
 Balíky Neon Auth a Neon JS jsou v této revizi beta a jsou připnuté přesně. Před produkcí musí staging prokázat funkčnost konkrétních verzí; automatický upgrade není povolen.
@@ -186,6 +193,7 @@ NEON_LESSON_LIST_READS=false|true
 NEON_SESSION_HISTORY_READS=false|true
 NEON_LESSON_DETAIL_READS=false|true
 NEON_LESSON_WORKSHEET_READS=false|true
+NEON_SESSION_ACCESS_READS=false|true
 NEON_CUTOVER_APPROVED=false|true
 ```
 
@@ -319,7 +327,8 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 6. [Ověřeno v Preview] Načtení obsahu lekce pro `/api/lessons/[id]/worksheet-pdf` používá `NEON_LESSON_WORKSHEET_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Read-only paritní kontrola potvrdila 31 shodných worksheet záznamů v celé tabulce i jeden shodný přesný owner-scoped výsledek; auth, oprávnění, trusted-device kontrola, vytvoření PDF a všechny zápisy zůstávají na Supabase. Jednorázový build hook byl odstraněn.
 7. [Ověřeno v Preview] Server-rendered stránka `/lessons/[id]/worksheet` používá tutéž `readLessonWorksheet` službu, branch-only přepínač, Supabase fallback a produkční pojistku jako PDF endpoint. Sdílí jeho read-only paritní důkaz 31 shodných záznamů a jednoho owner-scoped výsledku; Auth, Terms, trusted-device, entitlement, organizační původ a zápisy zůstávají na Supabase. Samotné zapojení stránky prošlo rozšířeným TypeScript/Next.js buildem.
 8. [Ověřeno v Preview] Oprávnění k opakovanému použití lekcí a `lesson_live_usage` na `/lessons` i `/lessons/[id]` používají společnou serverovou službu, branch-only `NEON_LESSON_REUSE_READS=true`, Supabase fallback, produkční pojistku a parametrizované user/owner/lesson scope. Read-only parita potvrdila 3 shodná oprávnění, 10 shodných usage řádků i jeden přesný owner-scoped výsledek; zápisy a spuštění relací zůstávají na Supabase.
-9. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
+9. [Ověřeno v Preview] Vlastnická brána `/sessions/[id]` a `/sessions/[id]/presenter` používá společnou serverovou službu, branch-only `NEON_SESSION_ACCESS_READS=true`, parametrizovaný Neon SQL, Supabase fallback s retry a produkční pojistku. Read-only parita potvrdila 23 shodných vazeb relace–vlastník, jeden oprávněný a jeden zamítnutý přístup; Auth, Terms, resume ticket, živá data, ovládání, odpovědi, Realtime a zápisy zůstávají na Supabase.
+10. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
