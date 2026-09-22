@@ -61,6 +61,34 @@ function fingerprint(value) {
   return createHash('sha256').update(JSON.stringify(canonicalJson(value))).digest('hex');
 }
 
+function anonymousDelta(sourceRows, targetRows) {
+  const sourceById = new Map(sourceRows.map((row) => [row.id, fingerprint(row)]));
+  const targetById = new Map(targetRows.map((row) => [row.id, fingerprint(row)]));
+  let sourceOnly = 0;
+  let targetOnly = 0;
+  let changed = 0;
+
+  for (const [id, rowFingerprint] of sourceById) {
+    if (!targetById.has(id)) sourceOnly += 1;
+    else if (targetById.get(id) !== rowFingerprint) changed += 1;
+  }
+  for (const id of targetById.keys()) {
+    if (!sourceById.has(id)) targetOnly += 1;
+  }
+
+  const sourceOwners = new Map();
+  const targetOwners = new Map();
+  for (const row of sourceRows) sourceOwners.set(row.owner_id, (sourceOwners.get(row.owner_id) ?? 0) + 1);
+  for (const row of targetRows) targetOwners.set(row.owner_id, (targetOwners.get(row.owner_id) ?? 0) + 1);
+  const owners = new Set([...sourceOwners.keys(), ...targetOwners.keys()]);
+  let ownersWithCountDrift = 0;
+  for (const owner of owners) {
+    if ((sourceOwners.get(owner) ?? 0) !== (targetOwners.get(owner) ?? 0)) ownersWithCountDrift += 1;
+  }
+
+  return { sourceOnly, targetOnly, changed, ownersWithCountDrift };
+}
+
 const sourceUrl = required('SUPABASE_DB_URL');
 const targetUrl = required(
   'NEON_DATABASE_URL',
@@ -115,7 +143,9 @@ try {
   `;
 
   if (fingerprint(canonicalRows(sourceAll.rows)) !== fingerprint(canonicalRows(targetAll))) {
+    const delta = anonymousDelta(sourceAll.rows, targetAll);
     console.error(`Lesson row counts: Supabase ${sourceAll.rows.length}, Neon ${targetAll.length}.`);
+    console.error(`Anonymous delta: Supabase-only ${delta.sourceOnly}, Neon-only ${delta.targetOnly}, changed ${delta.changed}, owners with count drift ${delta.ownersWithCountDrift}.`);
     throw new Error('Supabase and Neon lesson tables have different fingerprints.');
   }
 
