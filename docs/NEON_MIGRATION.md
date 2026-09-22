@@ -1,6 +1,6 @@
 # Přechod Syllonautu ze Supabase na Neon
 
-Aktualizováno: 2026-09-21  
+Aktualizováno: 2026-09-22  
 Výchozí commit auditu: `3e2aa66e740001d9e4d28f9d2630781318d0f569`  
 Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
@@ -8,7 +8,7 @@ Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
 Příprava je implementovaná jako bezpečný, opakovatelný migrační balík. Produkční Supabase ani produkční prostředí Vercelu nebyly změněny. Výchozí `DATABASE_BACKEND` zůstává `supabase`; zapnutí Neonu vyžaduje explicitní runtime gate `NEON_CUTOVER_APPROVED=true`.
 
-Databázová stagingová kopie i bezpečný Auth import byly vytvořeny a validovány. Tři účty mají v Neon Auth zachovaná UUID a e-maily, ale záměrně nemají přenesená hesla ani sessions; před aplikačním refaktorem ještě musí jeden vlastník testovacího účtu dokončit reset hesla a stagingový Auth smoke test. **Není povolen produkční cutover**, dokud neprojdou všechny stop podmínky v tomto dokumentu.
+Databázová stagingová kopie i bezpečný Auth import byly vytvořeny a validovány. Tři účty mají v Neon Auth zachovaná UUID a e-maily, ale záměrně nemají přenesená hesla ani sessions. Jeden testovací účet dokončil reset hesla a celý Preview smoke test login → refresh → logout → refresh. Runtime audit databázových oprávnění následně odstranil implicitní `PUBLIC EXECUTE` ze 178 privilegovaných funkcí a kontrolní audit i aplikační build prošly. **Není povolen produkční cutover**, dokud neprojdou zbývající stop podmínky v tomto dokumentu.
 
 ### Zřízený stagingový cíl
 
@@ -45,7 +45,13 @@ Dne 2026-09-21 proběhl na stejné izolované Preview větvi jednorázový impor
 - nebyla přenesena hesla, session tokeny ani OAuth tokeny a nebyl odeslán žádný e-mail;
 - synchronizační trigger pro `app_identity.users` byl nainstalován a následný Next.js build prošel.
 
-Jednorázový Auth `buildCommand` byl po ověření odstraněn. Další krok je ručně vyvolaný reset hesla jednoho testovacího účtu a ověření loginu, logout, refresh a revokace session.
+Jednorázový Auth `buildCommand` byl po ověření odstraněn. Dne 2026-09-22 jeden importovaný testovací účet dokončil reset hesla; následný browser test ověřil login, zachování relace po úplném refreshi, logout, odstranění relace a nepřihlášený stav po druhém refreshi.
+
+### Ověřený audit databázových oprávnění
+
+Dne 2026-09-22 proběhl proti Preview Neonu metadata-only audit v read-only transakci. Před opravou potvrdil 29 veřejných tabulek, 27 RLS policies, 0 veřejných view a 179 `SECURITY DEFINER` funkcí. Všechny tabulky měly RLS zapnuté, role neměly `LOGIN`, `SUPERUSER` ani `BYPASSRLS`, všechny privilegované funkce měly explicitní `search_path` a žádná neměla přímý grant pro `anonymous` nebo `authenticated`. Jediným tvrdým blokátorem byl výchozí PostgreSQL grant `PUBLIC EXECUTE` na 178 funkcích.
+
+Migrace `0004_harden_security_definer_execute.sql` v jedné transakci odebrala `PUBLIC EXECUTE` ze všech privilegovaných funkcí ve schématech `public`, `private` a `app_identity` a změnila default privileges jejich ownerů, aby se grant nevracel u nových funkcí. Vercel Preview deployment `C8udLTHfiVtsm7FeVUvvkVfCEmx3` z commitu `f1652b9` potvrdil postconditions `PUBLIC execute=0`, `missing search_path=0`, následný audit s 0 tvrdými blokátory a úspěšný Next.js build. Jednorázový zapisující hook byl odstraněn commitem `d7677d7`; jeho běžný Preview deployment skončil stavem `success`.
 
 ## Incident 2026-09-21
 
@@ -67,7 +73,7 @@ Pracovní závěr: kořenem byl přechodný Auth/API stav po validaci JWT; sekve
 | Tabulky volané přes `.from()` | 23 | Neon Postgres + Data API/RLS |
 | RPC jména volaná aplikací | přibližně 70 | stejné PostgreSQL funkce po revizi grantů |
 | SQL migrace v repozitáři | 134 | zdrojové `pg_dump` schéma je kanonické; historie není úplný bootstrap |
-| `SECURITY DEFINER` výskyty v migracích | 280 | jednotlivě auditovat ownera, `search_path`, granty a autorizaci |
+| `SECURITY DEFINER` výskyty v migracích | 280 | runtime metadata audit hotový; `PUBLIC EXECUTE` odstraněn, jednotlivé RPC grantovat až po kontrole actor/owner autorizace |
 | `auth.uid()` výskyty | 92 | Neon Data API / `pg_session_jwt`, ověřit typ UUID |
 | `auth.users` výskyty | 39 | přemapovat na `app_identity.users`; zachovat UUID |
 | Supabase Edge Functions | 2 (`student-session`, `team-edit`) | port do Vercel route/server modulů |
@@ -223,7 +229,7 @@ NEON_AUTH_IMPORT_APPROVED=I_UNDERSTAND_THIS_CREATES_NEON_AUTH_USERS \
 Skript načte ze Supabase pouze UUID a stav ověření, importuje 3 řádky do `neon_auth.user`, porovná fingerprint a nainstaluje synchronizační trigger. Nekopíruje `encrypted_password`, OAuth tokeny ani sessions a neposílá žádný e-mail.
 
 3. [Hotovo] Vercel Preview spustil `scripts/neon/remote-auth-import-build.sh`, který normalizoval prefixované Neon proměnné, dočasně připravil PostgreSQL nástroje a provedl import. Deployment `4FocukAu9w5woHnRgvL9a25h6j7M` z commitu `a0a67ba` potvrdil 3 identity, 0 credential účtů a `PASS`; jednorázový `buildCommand` byl následně odstraněn.
-4. [Připraveno] Preview-only stránka `/auth/neon-staging` používá oficiální Next.js proxy Neon Auth, neobsahuje registraci ani Turnstile a v Production vrací 404. Jeden vlastník testovacího účtu na ní sám spustí obnovu hesla, dokončí reset a ověří login, logout, refresh a revokaci session. Odeslání resetovacího e-mailu nebylo součástí automatického importu.
+4. [Hotovo] Preview-only stránka `/auth/neon-staging` používá oficiální Next.js proxy Neon Auth, neobsahuje registraci ani Turnstile a v Production vrací 404. Vlastník testovacího účtu spustil obnovu hesla a browser smoke test ověřil login, zachování relace po refreshi, logout, odstranění relace a nepřihlášený stav po druhém refreshi. Odeslání resetovacího e-mailu nebylo součástí automatického importu.
 
 Pro aktivaci testovací stránky musí Preview obsahovat serverové proměnné `NEON_AUTH_BASE_URL` a citlivou `NEON_AUTH_COOKIE_SECRET` o délce alespoň 32 znaků. Cookie secret se nesmí prefixovat `NEXT_PUBLIC_`, zapisovat do repozitáře ani sdílet s Production. Klient komunikuje pouze se stejným originem přes `/api/auth/[...path]`.
 5. Samostatně ověřit registraci, verifikaci e-mailu a případný budoucí OAuth callback.
@@ -234,6 +240,13 @@ npm run neon:auth-preflight
 ```
 
 Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_identity.users` a `neon_auth.user` a nula non-UUID ID. Nezobrazuje jednotlivé e-maily.
+
+### 4a. Databázová oprávnění
+
+1. [Hotovo] `npm run neon:security-audit` v read-only transakci ověřil role, RLS, policies, view a `SECURITY DEFINER` funkce.
+2. [Hotovo] `0004_harden_security_definer_execute.sql` odebral implicitní `PUBLIC EXECUTE` ze 178 funkcí a nastavil deny-by-default pro nové funkce.
+3. [Hotovo] Kontrolní audit v témže Preview buildu vrátil 0 tvrdých blokátorů a 0 přímých grantů pro `anonymous`/`authenticated`; standardní build po odstranění jednorázového hooku je zelený.
+4. [Čeká průběžně] Při portování každého RPC explicitně ověřit actor/owner autorizaci a přidat nejmenší nutný grant pouze odpovídající roli. Patnáct RLS tabulek bez policies je nyní server-only deny-by-default; policy se přidá jen tehdy, bude-li tabulka skutečně potřebná přes Data API.
 
 ### 5. Aplikační port
 
