@@ -18,6 +18,7 @@ const authUserImport = read('neon/migrations/0002_neon_auth_user_import.sql');
 const lessonShareReader = read('lib/lesson-share-reader.ts');
 const lessonFolderReader = read('lib/lesson-folder-reader.ts');
 const lessonListReader = read('lib/lesson-list-reader.ts');
+const sessionHistoryReader = read('lib/session-history-reader.ts');
 const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
 
@@ -48,6 +49,11 @@ requireText(lessonListReader, "process.env.VERCEL_ENV === 'production'", 'The Ne
 requireText(lessonListReader, 'where owner_id = ${userId}', 'The Neon lesson-list lookup must remain owner-scoped and parameterized.');
 requireText(lessonsPage, 'readLessonList(supabase, userId)', '/lessons must use the lesson-list reader abstraction.');
 requireText(envExample, 'NEON_LESSON_LIST_READS=false', 'The lesson-list canary must default to disabled.');
+requireText(sessionHistoryReader, "process.env.VERCEL_ENV === 'production'", 'The Neon session-history canary must be isolated from unapproved production use.');
+requireText(sessionHistoryReader, 'where teacher_id = ${userId}', 'The Neon session-history lookup must remain owner-scoped and parameterized.');
+requireText(sessionHistoryReader, "and status = 'ended'", 'The Neon session-history lookup must remain limited to ended sessions.');
+requireText(lessonsPage, 'readSessionHistory(supabase, userId)', '/lessons must use the session-history reader abstraction.');
+requireText(envExample, 'NEON_SESSION_HISTORY_READS=false', 'The session-history canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
 requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
