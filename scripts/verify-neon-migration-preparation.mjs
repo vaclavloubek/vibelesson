@@ -1,0 +1,50 @@
+import { readFileSync } from 'node:fs';
+
+function read(path) {
+  return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+}
+
+function requireText(source, needle, message) {
+  if (!source.includes(needle)) throw new Error(message);
+}
+
+const packageJson = JSON.parse(read('package.json'));
+const envExample = read('.env.example');
+const lessonsPage = read('app/lessons/page.tsx');
+const terms = read('lib/terms-acceptance.ts');
+const migration = read('scripts/neon/migrate.sh');
+const authImport = read('scripts/neon/auth-import.sh');
+const authUserImport = read('neon/migrations/0002_neon_auth_user_import.sql');
+const lessonShareReader = read('lib/lesson-share-reader.ts');
+const runbook = read('docs/NEON_MIGRATION.md');
+const wrangler = read('cloudflare/live-control/wrangler.jsonc');
+
+for (const dependency of ['@neondatabase/serverless', '@neondatabase/auth', '@neondatabase/neon-js']) {
+  const version = packageJson.dependencies?.[dependency];
+  if (!version || /^[~^]/.test(version)) throw new Error(`${dependency} must be installed and pinned exactly.`);
+}
+
+for (const path of ['lib/supabase/server.ts', 'lib/supabase/client.ts', 'lib/supabase/admin.ts', 'lib/supabase/proxy.ts']) {
+  requireText(read(path), 'createFetchWithTimeout(8_000)', `${path} is missing the backend timeout.`);
+}
+
+requireText(lessonsPage, 'Promise.all([', '/lessons must parallelize independent backend calls.');
+requireText(terms, "rpc('has_any_terms_acceptance_for_service'", 'Terms gate must use the batch RPC.');
+requireText(migration, 'NEON_MIGRATION_APPROVED', 'Migration script must have an explicit write gate.');
+requireText(migration, 'Preview only; nothing was changed.', 'Migration script must default to dry-run.');
+requireText(migration, 'Refusing to migrate into a non-empty target', 'Migration script must reject a non-empty target.');
+requireText(authImport, 'NEON_AUTH_IMPORT_APPROVED', 'Auth import must have an explicit write gate.');
+requireText(authImport, 'Password hashes and sessions are never copied', 'Auth import must document credential exclusion.');
+requireText(authUserImport, 'There is intentionally no neon_auth.account insert', 'Auth import must not copy incompatible password hashes.');
+requireText(lessonShareReader, "process.env.VERCEL_ENV === 'production'", 'The Neon read canary must be isolated from unapproved production use.');
+requireText(lessonShareReader, 'where token = ${token}', 'The Neon lesson-share lookup must remain parameterized.');
+requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
+requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
+requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
+requireText(runbook, 'JWT', 'Neon runbook must document the incident evidence.');
+
+if (envExample.includes('NEXT_PUBLIC_NEON_DATABASE_URL')) {
+  throw new Error('A Neon database connection string must never be public.');
+}
+
+console.log('Neon migration preparation verification passed.');

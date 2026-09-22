@@ -27,6 +27,7 @@ const [
   analytics,
   sharedAuthControls,
   importButton,
+  lessonShareReader,
 ] = await Promise.all([
   source('supabase/migrations/20260919105631_add_lesson_sharing_and_session_concurrency.sql'),
   source('app/api/lessons/[id]/share/route.ts'),
@@ -46,6 +47,7 @@ const [
   source('lib/analytics.ts'),
   source('components/SharedLessonAuthControls.tsx'),
   source('components/ImportSharedLessonButton.tsx'),
+  source('lib/lesson-share-reader.ts'),
 ]);
 
 requirePattern(migration, /alter table public\.lesson_shares enable row level security/, 'lesson_shares must have RLS enabled.');
@@ -68,7 +70,10 @@ requirePattern(importRoute, /admin\.rpc\('import_lesson_share_server'[\s\S]*p_de
 requirePattern(importRoute, /headers:[\s\S]*Authorization:[\s\S]*Bearer[\s\S]*accessToken/, 'bearer-authenticated imports must forward the verified user JWT into the Supabase client context.');
 requirePattern(importRoute, /supabase\.auth\.getUser\(accessToken\)/, 'bearer tokens must be verified by Supabase before import.');
 requirePattern(importRoute, /if \(authorization\)[\s\S]*return \{ supabase, userId: data\.user\.id \}/, 'explicit bearer auth must resolve a concrete authenticated user.');
-requirePattern(publicPage, /supabase\.rpc\('get_lesson_share', \{ p_token: token \}\)/, 'the public page must request only the share snapshot through the narrow capability function.');
+requirePattern(publicPage, /readPublicLessonShare\(token\)/, 'the public page must use the isolated share reader.');
+requirePattern(lessonShareReader, /supabase\.rpc\('get_lesson_share', \{ p_token: token \}\)/, 'the Supabase fallback must retain the narrow capability function.');
+requirePattern(lessonShareReader, /where token = \$\{token\}[\s\S]*status = 'active'[\s\S]*organization_origin_id is null/, 'the Neon reader must use a parameterized query and preserve public-share restrictions.');
+requirePattern(lessonShareReader, /VERCEL_ENV === 'production'[\s\S]*NEON_CUTOVER_APPROVED !== 'true'/, 'the Neon read canary must fail closed in production before cutover approval.');
 requirePattern(publicPage, /mode="shared"/, 'the public page must use the read-only lesson preview.');
 requirePattern(publicPage, /robots: \{ index: false, follow: false \}/, 'capability links must not be indexed.');
 requirePattern(publicPage, /referrer: 'no-referrer'/, 'share tokens must not leak through browser referrers.');

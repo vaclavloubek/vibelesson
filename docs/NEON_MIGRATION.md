@@ -1,7 +1,7 @@
 # Přechod Syllonautu ze Supabase na Neon
 
-Aktualizováno: 2026-09-22  
-Výchozí commit auditu: `3e2aa66e740001d9e4d28f9d2630781318d0f569`  
+Aktualizováno: 2026-09-22
+Výchozí commit auditu: `3e2aa66e740001d9e4d28f9d2630781318d0f569`
 Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
 ## Stav
@@ -52,6 +52,12 @@ Jednorázový Auth `buildCommand` byl po ověření odstraněn. Dne 2026-09-22 j
 Dne 2026-09-22 proběhl proti Preview Neonu metadata-only audit v read-only transakci. Před opravou potvrdil 29 veřejných tabulek, 27 RLS policies, 0 veřejných view a 179 `SECURITY DEFINER` funkcí. Všechny tabulky měly RLS zapnuté, role neměly `LOGIN`, `SUPERUSER` ani `BYPASSRLS`, všechny privilegované funkce měly explicitní `search_path` a žádná neměla přímý grant pro `anonymous` nebo `authenticated`. Jediným tvrdým blokátorem byl výchozí PostgreSQL grant `PUBLIC EXECUTE` na 178 funkcích.
 
 Migrace `0004_harden_security_definer_execute.sql` v jedné transakci odebrala `PUBLIC EXECUTE` ze všech privilegovaných funkcí ve schématech `public`, `private` a `app_identity` a změnila default privileges jejich ownerů, aby se grant nevracel u nových funkcí. Vercel Preview deployment `C8udLTHfiVtsm7FeVUvvkVfCEmx3` z commitu `f1652b9` potvrdil postconditions `PUBLIC execute=0`, `missing search_path=0`, následný audit s 0 tvrdými blokátory a úspěšný Next.js build. Jednorázový zapisující hook byl odstraněn commitem `d7677d7`; jeho běžný Preview deployment skončil stavem `success`.
+
+### První aplikační datový řez
+
+Veřejné načtení sdílené lekce `/s/[token]` má samostatnou serverovou datovou službu. Výchozí cesta stále volá úzké Supabase RPC `get_lesson_share`; v Preview lze pouze pro tento read-only tok zapnout přímý parametrizovaný dotaz do Neon Postgres pomocí `NEON_SHARED_LESSON_READS=true`. Dotaz zachovává omezení na aktivní sdílení bez organizačního původu, nevrací metadata vlastníka a connection string zůstává pouze na serveru.
+
+Canary přepínač je oddělený od globálního `DATABASE_BACKEND`, aby nebylo nutné předčasně přepnout ostatní aplikační cesty. Pokud by se omylem objevil v Production, bez `NEON_CUTOVER_APPROVED=true` selže zavřeně. Read-only paritu stejného snapshotu ze Supabase RPC a Neon SQL ověřuje `npm run neon:verify-share-read`; skript nezobrazuje token, obsah lekce ani tajné hodnoty.
 
 ## Incident 2026-09-21
 
@@ -110,6 +116,7 @@ Pro privilegované billingové, právní a organizační operace se nepoužije v
 - idempotentní SQL prerequisites a Neon Auth synchronizační trigger;
 - deklarace Cloudflare Durable Object SQLite migrace;
 - hardening `/lessons` proti opakování incidentu;
+- první izolovaný datový port `/s/[token]` se samostatným Preview canary přepínačem a read-only paritní kontrolou;
 - regresní kontrakt `scripts/verify-neon-migration-preparation.mjs`.
 
 Balíky Neon Auth a Neon JS jsou v této revizi beta a jsou připnuté přesně. Před produkcí musí staging prokázat funkčnost konkrétních verzí; automatický upgrade není povolen.
@@ -125,6 +132,7 @@ NEON_DATABASE_URL_UNPOOLED=
 NEON_DATA_API_URL=
 NEON_AUTH_BASE_URL=
 NEON_AUTH_COOKIE_SECRET=
+NEON_SHARED_LESSON_READS=false|true
 NEON_CUTOVER_APPROVED=false|true
 ```
 
@@ -249,6 +257,9 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 4. [Čeká průběžně] Při portování každého RPC explicitně ověřit actor/owner autorizaci a přidat nejmenší nutný grant pouze odpovídající roli. Patnáct RLS tabulek bez policies je nyní server-only deny-by-default; policy se přidá jen tehdy, bude-li tabulka skutečně potřebná přes Data API.
 
 ### 5. Aplikační port
+
+1. [Připraveno k Preview ověření] `/s/[token]` čte přes serverovou abstrakci. `NEON_SHARED_LESSON_READS=true` přesměruje pouze veřejný snapshot na Neon a zachová Supabase jako automatický fallback po vypnutí přepínače.
+2. [Čeká] Po zelené paritě a browser smoke testu portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
