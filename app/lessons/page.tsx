@@ -14,7 +14,11 @@ import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { LessonFolderReadError, readLessonFolders } from '@/lib/lesson-folder-reader';
 import { LessonListReadError, readLessonList, type LessonCatalogRow } from '@/lib/lesson-list-reader';
 import { readSessionHistory, SessionHistoryReadError, type SessionHistoryRow } from '@/lib/session-history-reader';
-import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
+import {
+  LessonReuseReadError,
+  readLessonLiveUsage,
+  readLessonReuseEntitlement,
+} from '@/lib/lesson-reuse-reader';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
@@ -78,7 +82,13 @@ export default async function LessonsPage({ searchParams }: Props) {
   // critical path to the slowest backend request instead of their total time.
   const [entitlement, reusableLessons, aiBillingState, lessonResult, sessionResult] = await Promise.all([
     getLessonFolderEntitlement(supabase, userId),
-    getLessonReuseEntitlement(supabase),
+    readLessonReuseEntitlement(supabase, userId).catch((reuseError) => {
+      console.error(
+        'load lesson reuse entitlement failed',
+        reuseError instanceof LessonReuseReadError ? reuseError.code : 'LESSON_REUSE_ENTITLEMENT_QUERY_FAILED',
+      );
+      return false;
+    }),
     getEffectiveAiBillingPauseState(userId).catch((billingError) => {
       console.error('load AI billing pause state failed', billingError);
       return defaultAiBillingState;
@@ -112,10 +122,16 @@ export default async function LessonsPage({ searchParams }: Props) {
     })
     : Promise.resolve([]);
   const usagePromise = reusableLessons
-    ? Promise.resolve({ data: [], error: null })
-    : supabase.from('lesson_live_usage').select('lesson_id');
+    ? Promise.resolve([])
+    : readLessonLiveUsage(supabase, userId).catch((usageError) => {
+      console.error(
+        'load lesson live usage failed',
+        usageError instanceof LessonReuseReadError ? usageError.code : 'LESSON_LIVE_USAGE_QUERY_FAILED',
+      );
+      return [];
+    });
 
-  const [folderRows, usageResult, originAccess] = await Promise.all([
+  const [folderRows, usageRows, originAccess] = await Promise.all([
     folderPromise,
     usagePromise,
     getOrganizationOriginAccessMap(userId, originIds),
@@ -125,12 +141,8 @@ export default async function LessonsPage({ searchParams }: Props) {
   if (sessionsError) console.error('load ended sessions failed', sessionsError.code);
 
   const usedLessonIds = new Set<string>();
-  if (usageResult.error) {
-    console.error('load lesson live usage failed', usageResult.error);
-  } else {
-    for (const usage of usageResult.data ?? []) {
-      if (typeof usage.lesson_id === 'string') usedLessonIds.add(usage.lesson_id);
-    }
+  for (const usage of usageRows) {
+    usedLessonIds.add(usage.lesson_id);
   }
 
   const lessons: LessonListItem[] = (rows ?? []).flatMap((row) => {
