@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci && npm install pg@8.23.0 --no-save",
-  "buildCommand": "node scripts/neon/security-audit.mjs && npm run build",
+  "installCommand": "npm ci",
   "crons": [
     {
       "path": "/api/cron/organization-billing",
