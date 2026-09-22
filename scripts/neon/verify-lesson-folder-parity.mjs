@@ -45,6 +45,27 @@ function fingerprint(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+function fingerprintCounts(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const key = fingerprint(row);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function countFingerprintDelta(leftRows, rightRows) {
+  const left = fingerprintCounts(leftRows);
+  const right = fingerprintCounts(rightRows);
+  let leftOnly = 0;
+  let rightOnly = 0;
+
+  for (const [key, count] of left) leftOnly += Math.max(0, count - (right.get(key) ?? 0));
+  for (const [key, count] of right) rightOnly += Math.max(0, count - (left.get(key) ?? 0));
+
+  return { leftOnly, rightOnly };
+}
+
 const sourceUrl = required('SUPABASE_DB_URL');
 const targetUrl = required(
   'NEON_DATABASE_URL',
@@ -80,6 +101,9 @@ try {
   `;
 
   if (fingerprint(sourceAll.rows) !== fingerprint(targetAll)) {
+    const delta = countFingerprintDelta(sourceAll.rows, targetAll);
+    console.error(`Folder row counts: Supabase ${sourceAll.rows.length}, Neon ${targetAll.length}.`);
+    console.error(`Anonymous fingerprint delta: Supabase-only ${delta.leftOnly}, Neon-only ${delta.rightOnly}.`);
     throw new Error('Supabase and Neon lesson-folder tables have different fingerprints.');
   }
 
