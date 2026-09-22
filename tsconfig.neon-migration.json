@@ -17,6 +17,7 @@
     "lib/terms-acceptance.ts",
     "lib/lesson-folder-reader.ts",
     "lib/lesson-list-reader.ts",
+    "lib/session-history-reader.ts",
     "lib/neon/**/*.ts"
   ],
   "exclude": ["node_modules", "supabase/functions", "cloudflare/live-control"]
