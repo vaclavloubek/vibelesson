@@ -270,7 +270,8 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 
 1. [Ověřeno v Preview] `/s/[token]` čte přes serverovou abstrakci. `NEON_SHARED_LESSON_READS=true` přesměruje pouze veřejný snapshot na Neon a zachová Supabase jako automatický fallback po vypnutí přepínače. Paritní test potvrdil shodný výsledek obou backendů.
 2. [Ověřeno v Preview] Seznam složek na `/lessons` používá `NEON_LESSON_FOLDER_READS=true`, parametrizovaný owner-scoped Neon SQL a společné stabilní řazení. Paritní test potvrdil 9 shodných řádků a shodný výsledek pro jednoho vlastníka.
-3. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
+3. [Ověřeno v Preview] Seznam lekcí na `/lessons` používá `NEON_LESSON_LIST_READS=true`, parametrizovaný owner-scoped Neon SQL a Supabase fallback po vypnutí přepínače. Paritní test po jednorázovém srovnání zastaralého stagingového řádku potvrdil 31 shodných lekcí v celé tabulce a 6 shodných řádků pro jednoho vlastníka. Závislý `generation_requests` řádek se přes deklarované `ON DELETE SET NULL` srovnal přesně se zdrojem; transakce byla omezená na konkrétní Preview větev a jednorázový build hook byl odstraněn.
+4. [Čeká] Po zelené paritě portovat další server-only read cestu; klientské Data API granty se neotevírají plošně.
 
 Před cutoverem musí být dokončeno:
 
