@@ -6,7 +6,6 @@ import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/PresenterScoreboard.module.css';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
-import { createClient } from '@/lib/supabase/client';
 
 type PresenterRow = {
   rank: number;
@@ -107,17 +106,6 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [load]);
-
-  useEffect(() => {
-    if (!data?.realtimeKey) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`session:${data.realtimeKey}`)
-      .on('broadcast', { event: 'invalidate' }, () => { void load(); })
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-  }, [data?.realtimeKey, load]);
 
   const phaseLabel = data?.status === 'ended' ? ui('Mise dokončena', 'Lesson completed') : data?.status === 'live' ? ui('Mise probíhá', 'Lesson in progress') : ui('Startovní zóna', 'Starting area');
   const boardTitle = data?.status === 'ended' ? ui('Konečné pořadí', 'Final ranking') : ui('Závod k Měsíci', 'Race to the Moon');

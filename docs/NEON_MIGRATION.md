@@ -150,8 +150,8 @@ Pracovní závěr: kořenem byl přechodný Auth/API stav po validaci JWT; sekve
 | `SECURITY DEFINER` výskyty v migracích | 280 | runtime metadata audit hotový; `PUBLIC EXECUTE` odstraněn, jednotlivé RPC grantovat až po kontrole actor/owner autorizace |
 | `auth.uid()` výskyty | 92 | Neon Data API / `pg_session_jwt`, ověřit typ UUID |
 | `auth.users` výskyty | 39 | přemapovat na `app_identity.users`; zachovat UUID |
-| Supabase Edge Functions | 2 (`student-session`, `team-edit`) | port do Vercel route/server modulů |
-| Supabase Realtime klienti | 4 | Cloudflare Durable Object WebSocket + replay/polling |
+| Supabase Edge Functions | 0 volání v aplikačním runtime; 2 původní implementace zůstávají jen jako rollback reference | Vercel route/server moduly |
+| Supabase Realtime klienti | 0 | Cloudflare Durable Object WebSocket + replay/polling |
 | `pg_net` / outbound HTTP | 3 aktivní dispatch cesty | soukromá DB fronta + Vercel Cron/worker |
 | Supabase Storage | nepoužívá se | žádná migrace souborů |
 
@@ -355,14 +355,15 @@ Auth preflight musí vrátit shodný počet i fingerprint mezi Supabase, `app_id
 13. [Ověřeno v Preview] Mazání vlastní lekce používá branch-only `NEON_LESSON_DELETE_WRITES=true`, owner-scoped parametrizovaný serverový SQL, Supabase fallback a produkční pojistku. Rollback test porovnal zdrojový a stagingový stav, zamítl smazání pod cizím vlastníkem, provedl smazání pod skutečným vlastníkem jen uvnitř transakce a po rollbacku potvrdil přesně nezměněný Neon staging baseline. Drift 32/31 zůstává evidovaný pro finální delta synchronizaci.
 14. [Ověřeno v Preview] Duplikace vlastní lekce používá branch-only `NEON_LESSON_DUPLICATE_WRITES=true` a jedinou server-only funkci `duplicate_lesson_server`. Kontrola vlastníka a organizačního původu, rezervace Free účtové i zařízení kvóty, vložení kopie, zachování lineage a dokončení rezervace proběhnou v jedné databázové transakci. Funkce je `SECURITY INVOKER` a `EXECUTE` je odebrané rolím `PUBLIC`, `anon`, `authenticated` i `service_role`; volá ji jen serverové přímé Postgres spojení. Rollback test porovnal zdroj/staging 32/31, ověřil zamítnutého cizího vlastníka, povinný device cookie, výslednou kopii a oba kvótové ledgery a potvrdil nezměněný staging.
 15. [Ověřeno v Preview] Celý lifecycle sdílení lekce používá dvojici branch-only přepínačů `NEON_LESSON_SHARE_WRITES=true` a `NEON_SHARED_LESSON_IMPORT_WRITES=true`. Vytvoření a revokace sdílení jsou owner-scoped serverové SQL operace; import volá jedinou `SECURITY INVOKER` funkci `import_shared_lesson_neon_server`, která atomicky ověří token, zabrání duplicitě, rezervuje Free účtovou i zařízení kvótu, vloží lekci s provenance a dokončí oba ledgery. `EXECUTE` je odebrané veřejným i klientským rolím a produkční aktivace bez `NEON_CUTOVER_APPROVED=true` selže zavřeně. Rollback test ověřil create/read/revoke/import, zamítnutí cizího vlastníka, idempotenci a nezměněný Neon staging baseline; následný čistý Preview deployment `FKEfVQm26i7zsdtvL1C97KwdrasB` z commitu `4fac1c7` skončil `Ready`.
-16. [Čeká] Další server-only mutaci nebo související RPC portovat až po samostatném owner/actor auditu; klientské Data API granty se neotevírají plošně. Poté následují Edge Functions, Realtime/outbox, závěrečná delta synchronizace a browserová akceptační matice.
+16. [Připraveno k Preview ověření] Studentské akce `join`, `state`, `choose_team`, `respond` a týmové akce `status`, `claim`, `heartbeat`, `save`, `submit`, `release` běží ve Vercel serverových modulech; žádná studentská route už nevolá `/functions/v1/student-session` ani `/functions/v1/team-edit`. Čtyři klientské Supabase Realtime kanály byly odstraněné a teacher/student/presenter ponechávají Cloudflare WebSocket, reconnect/replay a intervalový polling. Databázový backend těchto nových serverových modulů zůstává v této etapě Supabase, takže jde o odstranění Edge/Realtime runtime závislosti, nikoli ještě o finální databázový cutover.
+17. [Čeká] Přesměrovat databázové čtení a zápisy živé relace v nových Vercel modulech ze Supabase admin klienta na server-only Neon SQL/RPC po actor/participant auditu. Klientské Data API granty se neotevírají plošně. Poté následují outbox/background dispatch, závěrečná delta synchronizace a browserová akceptační matice.
 
 Před cutoverem musí být dokončeno:
 
 - nahradit Supabase SSR/Auth helpery Neon Auth middlewarem/handlerem;
 - přesměrovat `.from()` a `.rpc()` na Neon Data API nebo serverové SQL služby;
-- převést `student-session` a `team-edit` z Edge Functions do Vercel serverových modulů;
-- odstranit čtyři Supabase Realtime kanály až po ověření teacher/student/presenter WebSocket reconnectu, replay a fallback pollingu přes Cloudflare;
+- [Připraveno k Preview ověření] `student-session` a `team-edit` jsou převedené z Edge Functions do Vercel serverových modulů; jejich databázový backend se přepne na Neon v navazující etapě;
+- [Připraveno k Preview ověření] čtyři Supabase Realtime kanály jsou odstraněné; teacher/student/presenter zachovávají Cloudflare WebSocket reconnect/replay a fallback polling;
 - nahradit všechny `net.http_post` grading dispatch funkce DB outboxem; samotná existence `private.grading_jobs` nestačí, protože současný worker používá jednorázový plaintext capability token;
 - převést cron úlohy pro grading retry, free-session expiry a billing lifecycle;
 - zachovat append-only právní evidenci, Stripe webhook signature validation, idempotency keys a oddělení test/live klíčů;

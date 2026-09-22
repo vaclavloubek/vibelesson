@@ -243,16 +243,6 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   useEffect(() => {
-    if (!session?.realtimeKey) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`session:${session.realtimeKey}`)
-      .on('broadcast', { event: 'invalidate' }, () => { void refresh(); })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [session?.realtimeKey, refresh]);
-
-  useEffect(() => {
     const timer = window.setInterval(() => { void refresh(); }, 15000);
     return () => window.clearInterval(timer);
   }, [refresh]);

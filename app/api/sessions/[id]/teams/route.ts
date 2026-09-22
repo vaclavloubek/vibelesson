@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { TeamCreateSchema } from '@/lib/live';
-import { broadcastSessionInvalidate } from '@/lib/live-server';
+import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -45,7 +45,15 @@ export async function POST(req: Request, { params }: RouteContext) {
       .order('sort_order', { ascending: true });
     if (insertError) throw insertError;
 
-    await broadcastSessionInvalidate(session.realtime_key as string);
+    await mirrorLiveControlEvent({
+      sessionId: id,
+      role: 'teacher',
+      subject: userId,
+      type: 'teacher.state_patch',
+      payload: {
+        teams: (teams ?? []).map((team) => ({ id: team.id, name: team.name, sortOrder: team.sort_order })),
+      },
+    });
     return NextResponse.json({ teams });
   } catch (error) {
     console.error('create teams failed', error);
@@ -66,7 +74,13 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     const { error: deleteError } = await supabase.from('teams').delete().eq('session_id', id);
     if (deleteError) throw deleteError;
 
-    await broadcastSessionInvalidate(session.realtime_key as string);
+    await mirrorLiveControlEvent({
+      sessionId: id,
+      role: 'teacher',
+      subject: userId,
+      type: 'teacher.state_patch',
+      payload: { teams: [] },
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('reset teams failed', error);

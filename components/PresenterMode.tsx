@@ -16,7 +16,6 @@ import {
   type LiveControlAccess,
   type LiveControlState,
 } from '@/lib/live-control-client';
-import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
@@ -281,16 +280,6 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
     const timer = window.setInterval(() => { void loadFallback(); }, 4000);
     return () => window.clearInterval(timer);
   }, [connectionMode, loadFallback]);
-
-  useEffect(() => {
-    if (!data?.realtimeKey || data.status === 'ended') return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`session:${data.realtimeKey}`)
-      .on('broadcast', { event: 'invalidate' }, () => { void load(); })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [data?.realtimeKey, data?.status, load]);
 
   useEffect(() => {
     if (data?.timer?.status !== 'running') return;

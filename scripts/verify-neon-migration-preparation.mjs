@@ -8,6 +8,10 @@ function requireText(source, needle, message) {
   if (!source.includes(needle)) throw new Error(message);
 }
 
+function forbidText(source, needle, message) {
+  if (source.includes(needle)) throw new Error(message);
+}
+
 const packageJson = JSON.parse(read('package.json'));
 const envExample = read('.env.example');
 const lessonsPage = read('app/lessons/page.tsx');
@@ -26,6 +30,8 @@ const lessonFolderDetailRoute = read('app/api/folders/[id]/route.ts');
 const lessonMoveWriter = read('lib/lesson-move-writer.ts');
 const lessonMoveRoute = read('app/api/lessons/move/route.ts');
 const lessonContentWriter = read('lib/lesson-content-writer.ts');
+const lessonDeleteWriter = read('lib/lesson-delete-writer.ts');
+const lessonDuplicateWriter = read('lib/lesson-duplicate-writer.ts');
 const lessonContentRoute = read('app/api/lessons/[id]/route.ts');
 const lessonListReader = read('lib/lesson-list-reader.ts');
 const sessionHistoryReader = read('lib/session-history-reader.ts');
@@ -37,6 +43,22 @@ const teacherSessionPage = read('app/sessions/[id]/page.tsx');
 const presenterPage = read('app/sessions/[id]/presenter/page.tsx');
 const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
+const studentSessionServer = read('lib/student-session-server.ts');
+const teamEditServer = read('lib/team-edit-server.ts');
+const studentRoutes = [
+  'app/api/student/join/route.ts',
+  'app/api/student/sessions/[id]/route.ts',
+  'app/api/student/sessions/[id]/response/route.ts',
+  'app/api/student/sessions/[id]/team/route.ts',
+  'app/api/student/sessions/[id]/team-response/route.ts',
+  'app/api/student/sessions/[id]/team-edit/route.ts',
+].map(read).join('\n');
+const liveClients = [
+  'components/StudentSession.tsx',
+  'components/TeacherSession.tsx',
+  'components/PresenterMode.tsx',
+  'components/PresenterScoreboard.tsx',
+].map(read).join('\n');
 
 for (const dependency of ['@neondatabase/serverless', '@neondatabase/auth', '@neondatabase/neon-js']) {
   const version = packageJson.dependencies?.[dependency];
@@ -81,6 +103,17 @@ requireText(lessonContentRoute, 'readLessonContentForWrite(supabase, userId, id)
 requireText(lessonContentRoute, 'writeLessonContent(supabase, userId, id, renamedLesson)', 'The lesson rename route must use the write abstraction.');
 requireText(lessonContentRoute, 'writeLessonContent(supabase, userId, id, lesson)', 'The lesson replacement route must use the write abstraction.');
 requireText(envExample, 'NEON_LESSON_CONTENT_WRITES=false', 'The lesson-content canary must default to disabled.');
+requireText(lessonDeleteWriter, "process.env.VERCEL_ENV === 'production'", 'The Neon lesson-delete canary must be isolated from unapproved production use.');
+requireText(lessonDeleteWriter, 'where id = ${lessonId}', 'The Neon lesson delete must remain lesson-scoped and parameterized.');
+requireText(lessonDeleteWriter, 'and owner_id = ${userId}', 'The Neon lesson delete must remain owner-scoped and parameterized.');
+requireText(lessonContentRoute, 'deleteOwnedLesson(supabase, userId, id)', 'The lesson-delete route must use the write abstraction.');
+requireText(envExample, 'NEON_LESSON_DELETE_WRITES=false', 'The lesson-delete canary must default to disabled.');
+requireText(lessonDuplicateWriter, "process.env.VERCEL_ENV === 'production'", 'The Neon lesson-duplicate canary must be isolated from unapproved production use.');
+requireText(lessonDuplicateWriter, 'public.duplicate_lesson_server(', 'The Neon lesson duplicate must use the atomic database operation.');
+requireText(lessonDuplicateWriter, '${userId}::uuid', 'The Neon lesson duplicate must parameterize the authenticated owner.');
+requireText(lessonDuplicateWriter, '${lessonId}::uuid', 'The Neon lesson duplicate must parameterize the source lesson.');
+requireText(lessonContentRoute, 'duplicateOwnedLesson(supabase, userId, id)', 'The lesson-duplicate route must use the write abstraction.');
+requireText(envExample, 'NEON_LESSON_DUPLICATE_WRITES=false', 'The lesson-duplicate canary must default to disabled.');
 requireText(lessonListReader, "process.env.VERCEL_ENV === 'production'", 'The Neon lesson-list canary must be isolated from unapproved production use.');
 requireText(lessonListReader, 'where owner_id = ${userId}', 'The Neon lesson-list lookup must remain owner-scoped and parameterized.');
 requireText(lessonsPage, 'readLessonList(supabase, userId)', '/lessons must use the lesson-list reader abstraction.');
@@ -118,6 +151,17 @@ requireText(presenterPage, 'readOwnedSessionAccess(supabase, userId, id)', 'The 
 requireText(envExample, 'NEON_SESSION_ACCESS_READS=false', 'The session-access canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
+requireText(studentSessionServer, "createAdminClient()", 'Student session logic must run in a Vercel server module.');
+requireText(studentSessionServer, "queue_submitted_response_evaluation", 'Student response submission must preserve the grading queue.');
+requireText(teamEditServer, "claim_team_edit_lock", 'Team editing must preserve the database lock.');
+requireText(teamEditServer, "queue_submitted_team_response_evaluation", 'Team submission must preserve the grading queue.');
+requireText(studentRoutes, 'handleStudentSessionAction', 'Student routes must call the Vercel student-session module.');
+requireText(studentRoutes, 'handleTeamEditAction', 'Team routes must call the Vercel team-edit module.');
+forbidText(studentRoutes, '/functions/v1/student-session', 'Student routes must not call the Supabase student-session Edge Function.');
+forbidText(studentRoutes, '/functions/v1/team-edit', 'Student routes must not call the Supabase team-edit Edge Function.');
+forbidText(liveClients, '.channel(', 'Live clients must not subscribe to Supabase Realtime channels.');
+requireText(liveClients, 'connectLiveControl(', 'Live clients must retain the Cloudflare WebSocket path.');
+requireText(liveClients, 'setInterval(', 'Live clients must retain polling as a reconnect fallback.');
 requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
 requireText(runbook, 'JWT', 'Neon runbook must document the incident evidence.');
 
