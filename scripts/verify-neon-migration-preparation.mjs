@@ -12,6 +12,7 @@ const packageJson = JSON.parse(read('package.json'));
 const envExample = read('.env.example');
 const lessonsPage = read('app/lessons/page.tsx');
 const lessonDetailPage = read('app/lessons/[id]/page.tsx');
+const lessonWorksheetRoute = read('app/api/lessons/[id]/worksheet-pdf/route.ts');
 const terms = read('lib/terms-acceptance.ts');
 const migration = read('scripts/neon/migrate.sh');
 const authImport = read('scripts/neon/auth-import.sh');
@@ -21,6 +22,7 @@ const lessonFolderReader = read('lib/lesson-folder-reader.ts');
 const lessonListReader = read('lib/lesson-list-reader.ts');
 const sessionHistoryReader = read('lib/session-history-reader.ts');
 const lessonDetailReader = read('lib/lesson-detail-reader.ts');
+const lessonWorksheetReader = read('lib/lesson-worksheet-reader.ts');
 const runbook = read('docs/NEON_MIGRATION.md');
 const wrangler = read('cloudflare/live-control/wrangler.jsonc');
 
@@ -61,6 +63,11 @@ requireText(lessonDetailReader, 'where id = ${lessonId}', 'The Neon lesson-detai
 requireText(lessonDetailReader, 'and owner_id = ${userId}', 'The Neon lesson-detail lookup must remain owner-scoped and parameterized.');
 requireText(lessonDetailPage, 'readLessonDetail(supabase, userId, id)', '/lessons/[id] must use the lesson-detail reader abstraction.');
 requireText(envExample, 'NEON_LESSON_DETAIL_READS=false', 'The lesson-detail canary must default to disabled.');
+requireText(lessonWorksheetReader, "process.env.VERCEL_ENV === 'production'", 'The Neon lesson-worksheet canary must be isolated from unapproved production use.');
+requireText(lessonWorksheetReader, 'where id = ${lessonId}', 'The Neon lesson-worksheet lookup must remain lesson-scoped and parameterized.');
+requireText(lessonWorksheetReader, 'and owner_id = ${userId}', 'The Neon lesson-worksheet lookup must remain owner-scoped and parameterized.');
+requireText(lessonWorksheetRoute, 'readLessonWorksheet(supabase, userId, id)', 'The worksheet PDF route must use the lesson-worksheet reader abstraction.');
+requireText(envExample, 'NEON_LESSON_WORKSHEET_READS=false', 'The lesson-worksheet canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
 requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
 requireText(runbook, 'Rollback', 'Neon runbook must include rollback.');
