@@ -9,7 +9,7 @@ import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
-import { getNeonAppUser, requestNeonPasswordResetForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp } from '@/app/auth/neon/actions';
+import { getNeonAppUser, requestNeonPasswordResetForApp, resendNeonEmailVerificationForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp, verifyNeonEmailForApp } from '@/app/auth/neon/actions';
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAE53q_PQeEBM9Y2o';
 const NEON_APP_AUTH = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon';
@@ -50,7 +50,7 @@ type Props = {
   signupRedirectPath?: string;
 };
 
-type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email';
+type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email' | 'verify-email';
 type ChallengeStatus = 'loading' | 'checking' | 'interactive' | 'retrying' | 'verified';
 
 type PopoverPosition = {
@@ -62,7 +62,7 @@ type PopoverPosition = {
 type TurnstileChallengeProps = {
   ready: boolean;
   unavailable: boolean;
-  action: 'signin' | 'signup' | 'recovery';
+  action: 'signin' | 'signup' | 'recovery' | 'verify';
   onToken: (token: string) => void;
 };
 
@@ -160,6 +160,7 @@ export default function AuthControls({
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileUnavailable, setTurnstileUnavailable] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
@@ -389,6 +390,45 @@ export default function AuthControls({
     return new URL(signupRedirectPath, window.location.origin).toString();
   }
 
+  async function verifyEmailCode(e: FormEvent) {
+    e.preventDefault();
+    const code = verificationCode.replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setMessage(english ? 'Enter the 6-digit code from the email.' : 'Zadej šestimístný kód z e-mailu.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    const result = await verifyNeonEmailForApp(email, code);
+    setBusy(false);
+    if (result.error) {
+      setMessage(english ? 'The code is invalid or has expired. Check it or request a new one.' : 'Kód není platný nebo vypršel. Zkontroluj ho, nebo si nech poslat nový.');
+      return;
+    }
+    setVerificationCode('');
+    if (result.signedIn) {
+      window.location.reload();
+      return;
+    }
+    switchMode('signin');
+    setMessage(english ? 'Your email is confirmed. You can sign in now.' : 'E-mail je potvrzený. Teď se můžeš přihlásit.');
+  }
+
+  async function resendEmailCode() {
+    if (!captchaToken) {
+      setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    const result = await resendNeonEmailVerificationForApp(email, captchaToken);
+    setBusy(false);
+    resetCaptcha();
+    setMessage(result.error
+      ? (english ? 'We could not send a new code. Please try again later.' : 'Nový kód se nepodařilo odeslat. Zkus to prosím později.')
+      : (english ? 'If the account still needs confirming, we sent a new code.' : 'Pokud účet ještě čeká na potvrzení, poslali jsme nový kód.'));
+  }
+
   async function signIn(e: FormEvent) {
     e.preventDefault();
     if (!captchaToken) {
@@ -401,6 +441,11 @@ export default function AuthControls({
       const result = await signInWithNeonForApp(email.trim(), password, captchaToken);
       setBusy(false);
       resetCaptcha();
+      if (result.needsVerification) {
+        switchMode('verify-email');
+        setMessage(english ? 'Your email is not confirmed yet. We sent you a new code.' : 'E-mail ještě není potvrzený. Poslali jsme ti nový kód.');
+        return;
+      }
       if (result.error) {
         setMessage(english ? 'Sign-in failed. Check your email and password.' : 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
         return;
@@ -478,9 +523,7 @@ export default function AuthControls({
         window.location.reload();
         return;
       }
-      setMode('check-email');
-      setPassword('');
-      setPasswordConfirm('');
+      switchMode('verify-email');
       return;
     }
     const termsAcceptedAt = new Date().toISOString();
@@ -701,6 +744,22 @@ export default function AuthControls({
                 <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Sending…' : 'Odesílám…') : (english ? 'Send reset link' : 'Poslat odkaz pro obnovu')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>
+            </>
+          ) : null}
+
+          {mode === 'verify-email' ? (
+            <>
+              <strong id={AUTH_POPOVER_TITLE_ID}>{english ? 'Confirm your email' : 'Potvrďte e-mail' }</strong>
+              <p>{english ? `We sent a 6-digit code to ${email}. Enter it to finish creating your account.` : `Na adresu ${email} jsme poslali šestimístný kód. Zadáním kódu dokončíš vytvoření účtu.` }</p>
+              <form onSubmit={verifyEmailCode}>
+                <label>{english ? 'Code from the email' : 'Kód z e-mailu'}<input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} required /></label>
+                <button className="primary" disabled={busy || verificationCode.replace(/\s+/g, '').length !== 6}>{busy ? (english ? 'Confirming…' : 'Potvrzuji…') : (english ? 'Confirm email' : 'Potvrdit e-mail')}</button>
+              </form>
+              <p>{english ? 'Did not get it? Check your spam folder, or request a new code.' : 'Nepřišel? Zkontroluj spam, nebo si nech poslat nový kód.' }</p>
+              <TurnstileChallenge key={`verify-${captchaVersion}`} ready={turnstileReady} unavailable={turnstileUnavailable} action="verify" onToken={setCaptchaToken} />
+              <button type="button" className="auth-link auth-signup" onClick={resendEmailCode} disabled={busy || !captchaToken}>{english ? 'Send a new code' : 'Poslat nový kód' }</button>
+              <span aria-hidden="true"> · </span>
+              <button type="button" className="auth-link" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>
             </>
           ) : null}
 

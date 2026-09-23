@@ -21,6 +21,8 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
 
+Aktualizováno: 2026-09-23 — interní verze **0.9.104**: nová registrace se potvrzuje šestimístným kódem z e-mailu „Dokončete registraci do Syllonautu“ (grafika Syllonautu, jazyk podle profilu); bez potvrzení se nelze přihlásit, neověřený účet při přihlášení dostane nový kód. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
 Aktualizováno: 2026-09-23 — interní verze **0.9.103** uzavírá **LEGAL-020**: doslovné zákonné poučení o online odstoupení podle NV 66/2026 Sb. ve VOP 1.9, smluvním snapshotu a na /withdrawal a přihlášení pro nepřihlášené na /withdrawal; funkce z LEGAL-012 splňuje čl. 11a směrnice 2023/2673. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.102**: odesílatel auth e-mailů z Neon webhooku opraven na `Syllonaut <noreply@syllonaut.com>`; subdoména `auth.syllonaut.com` už v Resendu není ověřená a první produkční pokus skončil 403 (webhook byl hned vypnut, reset hesla dál fungoval přes výchozí e-maily Neonu). Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
@@ -69,6 +71,15 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - změna nezasahuje do databáze ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 - PR **#302** prošel CI (build, source-contracts, axe-public-routes, preview-config) i Vercel Preview; produkční merge commit **107c1c63** má Vercel **success**; živé `/cs|en/requirements` zobrazují prohlížeče i Cloudflare výjimku, `/cs|en/terms` ukazují VOP 1.8 s odkazem na požadavky a Ceník na ně odkazuje.
 
+### Potvrzení registrace kódem 0.9.104 — 2026-09-23
+
+- Neon Auth vyžaduje ověřený e-mail před přihlášením (`require_email_verification`, metoda `otp`); ověřovací odkazy Neon podporuje jen s vlastním SMTP, kód je navíc odolný vůči prefetchi bezpečnostních skenerů;
+- registrace po uložení profilu a právního auditu odešle kód sama (`send-verification-email-on-sign-up` je v Neonu vypnuté), takže webhook už zná jazyk profilu; e-mail „Dokončete registraci do Syllonautu“ používá šablonu Orbital Precision s kódem a platností 15 minut;
+- přihlašovací okno má nový krok „Potvrďte e-mail“ (pole pro 6místný kód, `autocomplete=one-time-code`, nové odeslání kódu přes Turnstile akci `verify`); neověřený účet při přihlášení dostane nový kód (`send-verification-email-on-sign-in`) a přejde do tohoto kroku;
+- veřejný proxy `/api/auth/*` blokuje `email-otp/send-verification-otp` a `email-otp/verify-email`, aby nešlo obejít Turnstile;
+- před zapnutím ověřeno, že všichni 4 stávající uživatelé mají `emailVerified = true`;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+
 ### Auth e-maily v grafice Syllonautu 0.9.100 — 2026-09-23
 
 - po přechodu na Neon posílalo Neon Auth vlastní anglické e-maily s brandingem Neonu (`Reset Your Password - neon-red-ladder`, odesílatel `auth@mail.myneon.app`); původní Supabase šablony v `supabase/auth-templates/` se nepřenesly;
@@ -76,7 +87,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - šablony v `lib/neon-auth-email-core.ts` odpovídají Orbital Precision šablonám (česky s vykáním, anglicky podle `profiles.ui_locale`); pokrývají obnovu hesla, ověření e-mailu a přihlášení, vždy v odkazové i kódové variantě; odkaz na reset vede přímo na `/auth/update-password?token=…`, první GET token nespotřebuje;
 - webhook se v Neon Auth zapíná až po nasazení (bez funkčního endpointu by reset hesla selhal); vypnutí webhooku vrátí výchozí e-maily Neonu;
 - regresní kontrola **scripts/verify-neon-auth-email.mjs** (součást `npm run check`);
-- otevřené: Neon Auth má vypnuté ověření e-mailu při registraci (metoda `otp`, aplikace zatím nemá pole pro kód) — nová registrace proto žádný potvrzovací e-mail nedostává;
+- ověření e-mailu při registraci bylo zapnuto v 0.9.104 (kód z e-mailu, viz níže);
 - veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Evidovaná reklamace 0.9.99 — 2026-09-23

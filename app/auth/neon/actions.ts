@@ -7,6 +7,7 @@ import { verifyNeonAuthChallenge } from '@/lib/neon/turnstile';
 import { TERMS_ACCEPTANCE_KEY, TERMS_VERSION } from '@/lib/legal';
 
 type AuthActionResult = { error?: string };
+type SignInResult = AuthActionResult & { needsVerification?: boolean };
 type SignupResult = AuthActionResult & { checkEmail?: boolean };
 type NeonAppUser = { id: string; email: string; name?: string };
 
@@ -29,15 +30,53 @@ export async function getNeonAppUser(): Promise<NeonAppUser | null> {
   }
 }
 
-export async function signInWithNeonForApp(email: string, password: string, challenge: string): Promise<AuthActionResult> {
+export async function signInWithNeonForApp(email: string, password: string, challenge: string): Promise<SignInResult> {
   if (!neonAppAuthIsAvailable()) return { error: 'Neon Auth is not active for this deployment.' };
   if (!(await verifyNeonAuthChallenge(challenge, 'signin'))) return { error: 'Security verification failed.' };
   try {
     const { error } = await createServerAuth().signIn.email({ email, password });
-    return error ? { error: error.message || 'Sign-in failed.' } : {};
+    if (!error) return {};
+    // Neon Auth checks the password first and only then refuses an unverified
+    // address; with "send on sign-in" it has already emailed a fresh code.
+    const code = (error as { code?: unknown }).code;
+    if (code === 'EMAIL_NOT_VERIFIED') return { error: 'Email not verified.', needsVerification: true };
+    return { error: error.message || 'Sign-in failed.' };
   } catch {
     return { error: 'Sign-in failed.' };
   }
+}
+
+function normalizedAuthEmail(email: string) {
+  const value = email.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254 ? value : null;
+}
+
+export async function verifyNeonEmailForApp(email: string, code: string): Promise<AuthActionResult & { signedIn?: boolean }> {
+  if (!neonAppAuthIsAvailable()) return { error: 'Neon Auth is not active for this deployment.' };
+  const normalizedEmail = normalizedAuthEmail(email);
+  const otp = code.replace(/\s+/g, '');
+  if (!normalizedEmail || !/^\d{6}$/.test(otp)) return { error: 'Invalid verification code.' };
+  try {
+    // Neon Auth limits wrong attempts per code; the user can request a new one.
+    const { data, error } = await createServerAuth().emailOtp.verifyEmail({ email: normalizedEmail, otp });
+    if (error) return { error: 'Invalid verification code.' };
+    return { signedIn: Boolean((data as { token?: unknown } | null)?.token) };
+  } catch {
+    return { error: 'Verification failed.' };
+  }
+}
+
+export async function resendNeonEmailVerificationForApp(email: string, challenge: string): Promise<AuthActionResult> {
+  if (!neonAppAuthIsAvailable()) return { error: 'Neon Auth is not active for this deployment.' };
+  if (!(await verifyNeonAuthChallenge(challenge, 'verify'))) return { error: 'Security verification failed.' };
+  const normalizedEmail = normalizedAuthEmail(email);
+  if (!normalizedEmail) return { error: 'Invalid email.' };
+  try {
+    await createServerAuth().emailOtp.sendVerificationOtp({ email: normalizedEmail, type: 'email-verification' });
+  } catch {
+    // Do not disclose whether this address exists or is already verified.
+  }
+  return {};
 }
 
 export async function signUpWithNeonForApp(input: {
@@ -95,6 +134,15 @@ export async function signUpWithNeonForApp(input: {
         user_id, granted, consent_version, source
       ) values (${userId}::uuid, true, '2026-09-18-v1', 'signup')`] : []),
     ]);
+    if (!result.data.token) {
+      // Neon Auth is configured not to send on sign-up: sending only after the
+      // profile exists lets the email webhook pick the user's UI language.
+      try {
+        await createServerAuth().emailOtp.sendVerificationOtp({ email, type: 'email-verification' });
+      } catch {
+        // The verification form offers "send a new code".
+      }
+    }
     return { checkEmail: !result.data.token };
   } catch {
     // A failed audit write cannot be reported as a completed registration.

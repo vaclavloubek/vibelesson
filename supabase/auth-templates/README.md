@@ -49,4 +49,5 @@ Neon Auth zatím nemá šablony v dashboardu a bez zásahu posílá vlastní e-m
 - Endpoint ověřuje Ed25519 podpis proti JWKS z `NEON_AUTH_BASE_URL`, odmítá doručení starší než 5 minut a odkazy mimo Neon Auth. Idempotence Resendu je `neon-auth/<event_id>`, takže opakované doručení nepošle druhý e-mail.
 - Odkaz pro reset hesla vede přímo na `/auth/update-password?token=…` na povoleném originu; první GET token nespotřebuje.
 - Potřebné proměnné: `RESEND_API_KEY` (ve stejném prostředí jako webhook), volitelně `AUTH_EMAIL_FROM` (výchozí `Syllonaut <noreply@syllonaut.com>`; produkční Resend klíč subdoménu `auth.syllonaut.com` odmítá s 403).
+- Registrace se potvrzuje **kódem** (`send.otp`, `email-verification`), ne odkazem: ověřovací odkazy Neon podporuje jen s vlastním SMTP a kód nelze spotřebovat prefetchem skeneru. Kód odesílá až serverová akce registrace po uložení profilu; zadává se v přihlašovacím okně (krok „Potvrďte e-mail“).
 - `send.otp` a `send.magic_link` jsou blokující události: pokud endpoint neodpoví 2xx, auth flow selže. Webhook proto registrujte až po nasazení a nastavení klíče. Vypnutím webhooku (`enabled: false`) se Neon vrátí ke svým výchozím e-mailům.

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 
-type TurnstileAction = 'signin' | 'signup' | 'recovery';
+type TurnstileAction = 'signin' | 'signup' | 'recovery' | 'verify';
 
 export async function verifyNeonAuthChallenge(token: string, action: TurnstileAction): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
