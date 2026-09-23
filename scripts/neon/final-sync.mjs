@@ -57,8 +57,17 @@ const ident = (value) => `"${String(value).replaceAll('"', '""')}"`;
 const qualified = (schema, table) => `${ident(schema)}.${ident(table)}`;
 const APP_SCHEMAS = ['public', 'private'];
 
-const src = new pg.Client({ connectionString: sourceUrl, application_name: 'syllonaut-final-sync' });
-const dst = new pg.Client({ connectionString: targetUrl, application_name: 'syllonaut-final-sync' });
+// Encrypted like the earlier psql/pg_dump imports (sslmode=require): the Supabase
+// pooler certificate chains to Supabase's own CA, which the build image lacks.
+source.searchParams.delete('sslmode');
+const src = new pg.Client({
+  connectionString: source.toString(), ssl: { rejectUnauthorized: false },
+  application_name: 'syllonaut-final-sync', connectionTimeoutMillis: 20_000,
+});
+const dst = new pg.Client({
+  connectionString: targetUrl, application_name: 'syllonaut-final-sync', connectionTimeoutMillis: 20_000,
+});
+const connected = new Set();
 const failures = [];
 const fail = (message) => { failures.push(message); console.log(`FAIL ${message}`); };
 
@@ -99,8 +108,8 @@ async function identityFingerprint(client, sql) {
 }
 
 try {
-  await src.connect();
-  await dst.connect();
+  await src.connect(); connected.add(src);
+  await dst.connect(); connected.add(dst);
   for (const client of [src, dst]) await client.query(`set time zone 'UTC'`);
 
   const frozen = (await src.query(`select current_setting('default_transaction_read_only') as v`)).rows[0].v;
@@ -303,14 +312,15 @@ try {
   await src.query('rollback');
   process.exitCode = failures.length ? 1 : 0;
 } catch (error) {
-  try { await dst.query('rollback'); } catch {}
-  try { await src.query('rollback'); } catch {}
   // PostgreSQL messages can quote key values; log only structural details.
   const detail = error?.code
     ? `pg ${error.code} ${error.table ?? ''} ${error.constraint ?? ''} ${error.routine ?? ''}`.trim()
     : (error instanceof Error && !/postgres(ql)?:\/\//.test(error.message) ? error.message.slice(0, 200) : 'error');
   console.error(`RESULT FAIL rolled back: ${detail}`);
   process.exitCode = 1;
+  for (const client of connected) {
+    try { await client.query('rollback'); } catch {}
+  }
 } finally {
-  await Promise.allSettled([src.end(), dst.end()]);
+  await Promise.allSettled([...connected].map((client) => client.end()));
 }
