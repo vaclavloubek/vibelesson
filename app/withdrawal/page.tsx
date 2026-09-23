@@ -5,11 +5,13 @@ import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import PrintPageButton from '@/components/PrintPageButton';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
+import SignInControl from '@/components/SignInControl';
 import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { createClient } from '@/lib/supabase/server';
+import { TERMS_ONLINE_WITHDRAWAL_NOTICE } from '@/lib/terms-content';
 import { WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
 import landing from '@/components/LandingPage.module.css';
 import styles from './WithdrawalPage.module.css';
@@ -48,7 +50,7 @@ export default async function WithdrawalPage() {
       <header className={landing.header}>
         <Link href={`/${locale}`} className={landing.brand} aria-label={ui('Syllonaut – domů', 'Syllonaut – home')}><SyllonautMark /><span>Syllonaut</span><span className={landing.beta}>BETA</span></Link>
         <nav className={landing.nav} aria-label={ui('Hlavní navigace', 'Main navigation')}><Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link><Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>{accountUser ? <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link> : null}</nav>
-        <div className={landing.headerActions}><LocaleSwitcher />{accountUser ? <PublicHeaderAccountMenu user={accountUser} /> : null}<Link href="/new" className={landing.headerCta}>{ui('Připravit hodinu', 'Prepare a lesson')}</Link><HeaderMobileNav signedIn={Boolean(accountUser)} /></div>
+        <div className={landing.headerActions}><LocaleSwitcher />{accountUser ? <PublicHeaderAccountMenu user={accountUser} /> : <SignInControl />}<Link href="/new" className={landing.headerCta}>{ui('Připravit hodinu', 'Prepare a lesson')}</Link><HeaderMobileNav signedIn={Boolean(accountUser)} /></div>
       </header>
 
       <article className={styles.page}>
@@ -56,10 +58,16 @@ export default async function WithdrawalPage() {
           <span className={styles.eyebrow}>{ui('Právo spotřebitele', 'Consumer right')}</span>
           <h1>{ui('Odstoupení od smlouvy', 'Withdrawal from contract')}</h1>
           <p>{ui('Níže je zákonný vzorový formulář. Spotřebitel s individuální placenou smlouvou může během 14denní lhůty odstoupit také online ve své správě předplatného.', 'The statutory model form appears below. A consumer with an individual paid contract may also withdraw online from subscription management during the 14-day period.')}</p>
-          <div className={styles.actions}><Link href="/subscription#withdrawal">{ui('Odstoupit online', 'Withdraw online')}</Link><PrintPageButton>{ui('Vytisknout formulář', 'Print form')}</PrintPageButton></div>
+          <div className={styles.actions}>{accountUser ? <Link href="/subscription#withdrawal">{ui('Odstoupit od smlouvy online', 'Withdraw from contract online')}</Link> : null}<PrintPageButton>{ui('Vytisknout formulář', 'Print form')}</PrintPageButton></div>
+          {accountUser ? null : (
+            <p style={{ marginTop: 16 }}>{ui(
+              'Pro online odstoupení se přihlaste ke svému účtu tlačítkem v záhlaví stránky; poté se zde zobrazí tlačítko pro odstoupení od smlouvy.',
+              'To withdraw online, sign in with the button in the page header; the withdrawal button will then appear here.',
+            )}</p>
+          )}
         </div>
 
-        <div className={styles.info}>{ui('Pro dodržení lhůty stačí odstoupení před jejím uplynutím odeslat. Online podání zaznamená obsah, datum a čas a bezodkladně odešle potvrzení e-mailem. Stále můžete použít také e-mail nebo poštu.', 'To meet the deadline, it is sufficient to send the withdrawal before it expires. The online flow records the content, date and time and promptly sends an email confirmation. You may still use email or post.')}</div>
+        <div className={styles.info}>{ui('Pro dodržení lhůty stačí odstoupení před jejím uplynutím odeslat.', 'To meet the deadline, it is sufficient to send the withdrawal before it expires.')} {TERMS_ONLINE_WITHDRAWAL_NOTICE[locale]} {ui('Stále můžete použít také e-mail nebo poštu.', 'You may still use email or post.')}</div>
 
         <section className={styles.form} aria-labelledby="model-withdrawal-title">
           <h2 id="model-withdrawal-title">{copy.title}</h2>

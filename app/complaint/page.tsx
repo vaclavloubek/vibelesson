@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import ComplaintSignIn from '@/components/ComplaintSignIn';
+import SignInControl from '@/components/SignInControl';
 import ComplaintForm from '@/components/ComplaintForm';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
@@ -52,7 +52,7 @@ export default async function ComplaintPage() {
       <header className={landing.header}>
         <Link href={`/${locale}`} className={landing.brand} aria-label={ui('Syllonaut – domů', 'Syllonaut – home')}><SyllonautMark /><span>Syllonaut</span><span className={landing.beta}>BETA</span></Link>
         <nav className={landing.nav} aria-label={ui('Hlavní navigace', 'Main navigation')}><Link href={`/${locale}#jak-to-funguje`}>{ui('Jak to funguje', 'How it works')}</Link><Link href={`/${locale}/pricing`}>{ui('Ceník', 'Pricing')}</Link>{accountUser ? <Link href="/lessons">{ui('Moje lekce', 'My lessons')}</Link> : null}</nav>
-        <div className={landing.headerActions}><LocaleSwitcher />{accountUser ? <PublicHeaderAccountMenu user={accountUser} /> : <ComplaintSignIn />}<HeaderMobileNav signedIn={Boolean(accountUser)} /></div>
+        <div className={landing.headerActions}><LocaleSwitcher />{accountUser ? <PublicHeaderAccountMenu user={accountUser} /> : <SignInControl />}<HeaderMobileNav signedIn={Boolean(accountUser)} /></div>
       </header>
 
       <article className={styles.page}>
