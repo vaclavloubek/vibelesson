@@ -26,6 +26,14 @@ try {
     console.log(`apply diag pg=${version} original_filter=${error.code}`);
   }
   await client.query('rollback to savepoint diag');
+  await client.query('savepoint diag2');
+  try {
+    await client.query(`select public.sync_stripe_subscription_event('not-an-event', null, false, null, null, null, null, false, null, false, null, null, null, null)`);
+    console.log('apply diag stripe_sync=accepted');
+  } catch (error) {
+    console.log(`apply diag stripe_sync=${error.code}`);
+  }
+  await client.query('rollback to savepoint diag2');
   await client.query(sql);
   if (mode === 'execute') { await client.query('commit'); console.log(`APPLY RESULT PASS committed ${file}`); }
   else { await client.query('rollback'); console.log(`APPLY RESULT PASS rolled back (rehearsal) ${file}`); }
