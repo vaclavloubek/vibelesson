@@ -463,6 +463,41 @@ export function normalizeStripeInvoiceEvent(
   };
 }
 
+export type StripeUpcomingInvoiceEventSync = {
+  eventId: string;
+  livemode: boolean;
+  subscriptionId: string;
+};
+
+// invoice.upcoming carries an invoice preview without an id, so it cannot go
+// through normalizeStripeInvoiceEvent. Only the subscription is needed; its
+// owner and plan come from billing_subscriptions.
+export function normalizeStripeUpcomingInvoiceEvent(
+  event: StripeWebhookEvent,
+): StripeUpcomingInvoiceEventSync | null {
+  if (event.type !== 'invoice.upcoming') return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const invoice = objectRecord(event.data.object);
+  if (invoice.object !== 'invoice') throw new Error('stripe_invoice_object_invalid');
+
+  const parent = optionalObjectRecord(invoice.parent);
+  if (!parent || parent.type !== 'subscription_details') return null;
+
+  const subscriptionDetails = objectRecord(parent.subscription_details);
+  const subscriptionId = stringField(
+    subscriptionDetails.subscription,
+    SUBSCRIPTION_ID_RE,
+    'stripe_invoice_subscription_id_invalid',
+  );
+
+  return {
+    eventId: event.id,
+    livemode: event.livemode,
+    subscriptionId,
+  };
+}
+
 export function normalizeStripeDisputeEvent(
   event: StripeWebhookEvent,
 ): StripeDisputeEventSync | null {

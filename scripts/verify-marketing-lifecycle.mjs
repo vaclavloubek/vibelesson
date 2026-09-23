@@ -38,6 +38,7 @@ for (const eventName of [
   'syllonaut.first_live.started',
   'syllonaut.subscription.upgraded',
   'syllonaut.subscription.ended',
+  'syllonaut.subscription.renewing_soon',
   'syllonaut.quota.near_limit',
   'syllonaut.quota.reached',
 ]) {
@@ -68,6 +69,9 @@ requirePattern(billingWebhook, /emitSubscriptionUpgraded\(sync\.userId\)/, 'conf
 requirePattern(billingWebhook, /lifecycleNotification === 'subscription_ended'\) \{\s*await emitSubscriptionEnded\(sync\.userId, sync\.subscriptionId\)/, 'a confirmed subscription end must start the win-back flow.');
 requirePattern(lifecycle, /'syllonaut\.subscription\.ended', \{ plan_code: planCode \}/, 'win-back must receive the ended plan explicitly, not the already-downgraded profile plan.');
 requirePattern(lifecycle, /from public\.billing_subscriptions[\s\S]*?user_id = \$\{userId\}::uuid/, 'ended plan lookup must be bound to the subscription owner.');
+requirePattern(billingWebhook, /if \(upcomingInvoice\.livemode\) \{[\s\S]*?await emitSubscriptionRenewingSoon\(subscriptionId\)/, 'only a LIVE invoice.upcoming may start the renewal reminder.');
+requirePattern(lifecycle, /'syllonaut\.subscription\.renewing_soon', \{ plan_code: subscription\.planCode \}/, 'renewal reminder must receive the renewing plan explicitly.');
+requirePattern(lifecycle, /external_subscription_id = \$\{subscriptionId\}\s+and status = 'active' and cancel_at_period_end = false/, 'renewal reminder must skip subscriptions that will not renew.');
 requirePattern(billingWebhook, /syncMarketingPlan\(sync\.userId\)/, 'other live subscription updates must refresh contact plan state.');
 
 console.log('Marketing lifecycle checks passed.');

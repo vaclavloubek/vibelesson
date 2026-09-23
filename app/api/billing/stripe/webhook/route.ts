@@ -9,7 +9,12 @@ import {
   BillingEmailDeliveryError,
 } from '@/lib/billing-email';
 import { billingRouteForCountry } from '@/lib/billing-region';
-import { emitSubscriptionEnded, emitSubscriptionUpgraded, syncMarketingPlan } from '@/lib/marketing-lifecycle';
+import {
+  emitSubscriptionEnded,
+  emitSubscriptionRenewingSoon,
+  emitSubscriptionUpgraded,
+  syncMarketingPlan,
+} from '@/lib/marketing-lifecycle';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { listStripePaidInvoicePayments } from '@/lib/stripe-invoice-payments';
@@ -23,6 +28,7 @@ import {
   normalizeStripeRefundEvent,
   normalizeStripeOrganizationSubscriptionEvent,
   normalizeStripeSubscriptionEvent,
+  normalizeStripeUpcomingInvoiceEvent,
   verifyStripeWebhook,
 } from '@/lib/stripe-webhook';
 
@@ -447,6 +453,41 @@ export async function POST(request: Request) {
       });
       return jsonError(503, 'billing_not_configured');
     }
+  }
+
+  let upcomingInvoice;
+  try {
+    upcomingInvoice = normalizeStripeUpcomingInvoiceEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'upcoming_invoice_event_invalid';
+    console.warn('stripe upcoming invoice event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_upcoming_invoice_event');
+  }
+
+  if (upcomingInvoice) {
+    // Sandbox and test-clock renewals must never reach marketing.
+    if (upcomingInvoice.livemode) {
+      const { subscriptionId } = upcomingInvoice;
+      after(async () => {
+        try {
+          await emitSubscriptionRenewingSoon(subscriptionId);
+        } catch (marketingError) {
+          console.warn('marketing renewal reminder failed', {
+            code: marketingError instanceof Error ? marketingError.message : 'unknown',
+          });
+        }
+      });
+    }
+
+    return NextResponse.json({ received: true, upcomingInvoice: true }, {
+      status: 200,
+      headers: { 'Cache-Control': 'no-store' },
+    });
   }
 
   let disputeSync;

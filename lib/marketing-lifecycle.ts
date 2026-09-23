@@ -13,6 +13,7 @@ export type MarketingLifecycleEvent =
   | 'syllonaut.first_live.started'
   | 'syllonaut.subscription.upgraded'
   | 'syllonaut.subscription.ended'
+  | 'syllonaut.subscription.renewing_soon'
   | 'syllonaut.quota.near_limit'
   | 'syllonaut.quota.reached';
 
@@ -341,6 +342,58 @@ export async function emitSubscriptionEnded(userId: string, subscriptionId: stri
 
   const planCode = await loadEndedSubscriptionPlanCode(userId, subscriptionId);
   await sendLifecycleEvent(result, 'syllonaut.subscription.ended', { plan_code: planCode });
+  return result;
+}
+
+// invoice.upcoming identifies only the Stripe subscription, so its owner and plan
+// come from the LIVE billing_subscriptions row. Only an active subscription that
+// is not set to cancel at period end will actually renew; anything else (including
+// organization subscriptions, which have no row here) is skipped.
+async function loadRenewingSubscription(subscriptionId: string) {
+  let row: { user_id?: unknown; plan_code?: unknown } | null | undefined;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`
+      select user_id, plan_code from public.billing_subscriptions
+      where provider = 'stripe' and livemode = true
+        and external_subscription_id = ${subscriptionId}
+        and status = 'active' and cancel_at_period_end = false
+      limit 1
+    `;
+    row = rows[0];
+  } else {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('billing_subscriptions')
+      .select('user_id, plan_code')
+      .eq('provider', 'stripe')
+      .eq('livemode', true)
+      .eq('external_subscription_id', subscriptionId)
+      .eq('status', 'active')
+      .eq('cancel_at_period_end', false)
+      .maybeSingle();
+    if (error) throw new MarketingLifecycleError('marketing_renewing_subscription_lookup_failed');
+    row = data;
+  }
+  if (!row) return null;
+  if (typeof row.user_id !== 'string') {
+    throw new MarketingLifecycleError('marketing_renewing_subscription_user_invalid');
+  }
+  if (row.plan_code !== 'teacher' && row.plan_code !== 'teacher_pro') {
+    throw new MarketingLifecycleError('marketing_renewing_subscription_plan_invalid');
+  }
+  return { userId: row.user_id, planCode: row.plan_code };
+}
+
+export async function emitSubscriptionRenewingSoon(subscriptionId: string) {
+  const subscription = await loadRenewingSubscription(subscriptionId);
+  if (!subscription) return null;
+
+  const result = await ensureMarketingContact(subscription.userId);
+  if (result.status !== 'active') return result;
+
+  await sendLifecycleEvent(result, 'syllonaut.subscription.renewing_soon', { plan_code: subscription.planCode });
   return result;
 }
 
