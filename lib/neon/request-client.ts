@@ -1,9 +1,62 @@
 import 'server-only';
 
+import { createHash } from 'node:crypto';
+import { cookies } from 'next/headers';
 import { createClient as createNeonClient } from '@neondatabase/neon-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerAuth } from '@/lib/neon/auth';
 import { createNeonSql } from '@/lib/neon/server';
+
+const SESSION_COOKIE_SUFFIX = 'neon-auth.session_token';
+const tokenCache = new Map<string, { token: string; expiresAt: number }>();
+const pendingTokens = new Map<string, Promise<string | null>>();
+
+function jwtExpiry(token: string) {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    if (typeof payload.exp === 'number') return payload.exp * 1000;
+  } catch {
+    // Fall through to a short default lifetime.
+  }
+  return Date.now() + 60_000;
+}
+
+/**
+ * One Neon Auth /token call per session until the JWT is about to expire.
+ * The teacher live view polls several routes, each issuing several Data API
+ * queries; minting a JWT per query made Neon Auth reject part of them.
+ * Cached by a hash of the session cookie, so a token is only ever returned
+ * to the session that minted it.
+ */
+async function getSessionDataApiToken() {
+  const cookieStore = await cookies();
+  const session = cookieStore.getAll().find((cookie) => cookie.name.endsWith(SESSION_COOKIE_SUFFIX))?.value;
+  if (!session) return null;
+  const key = createHash('sha256').update(session).digest('hex');
+
+  const cached = tokenCache.get(key);
+  if (cached && cached.expiresAt - 30_000 > Date.now()) return cached.token;
+
+  const pending = pendingTokens.get(key);
+  if (pending) return pending;
+
+  const request = (async () => {
+    try {
+      const { data, error } = await createServerAuth().token();
+      if (error || !data?.token) {
+        console.warn('Neon Auth token request failed', { status: (error as { status?: number } | null)?.status });
+        return cached && cached.expiresAt > Date.now() ? cached.token : null;
+      }
+      if (tokenCache.size > 5_000) tokenCache.clear();
+      tokenCache.set(key, { token: data.token, expiresAt: jwtExpiry(data.token) });
+      return data.token;
+    } finally {
+      pendingTokens.delete(key);
+    }
+  })();
+  pendingTokens.set(key, request);
+  return request;
+}
 
 /**
  * User-scoped Data API client. The JWT comes from the Neon Auth session on the
@@ -16,11 +69,7 @@ export function createNeonRequestClient() {
   return createNeonClient({
     dataApi: {
       url,
-      getToken: async () => {
-        const { data, error } = await createServerAuth().token();
-        if (error || !data?.token) return null;
-        return data.token;
-      },
+      getToken: getSessionDataApiToken,
     },
   });
 }
