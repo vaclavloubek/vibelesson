@@ -37,6 +37,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - regresní kontrola **scripts/verify-free-lesson-reuse.mjs** vyžaduje nový CZ/EN claim a poznámku o zařízeních, zakazuje v Ceníku „bez omezení“ / „neomezen“ / „unlimited“ / „without limits“ a hlídá shodu čísel s migracemi;
 - informace o limitu zařízení zatím není ve VOP; doplnit ji při nejbližší plánované změně VOP;
 - veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+- PR **#293** prošel CI (build, source-contracts, axe-public-routes, preview-config) i Vercel Preview; produkční merge commit **36e71ba8** má Vercel **success** a živé `/cs/pricing` i `/en/pricing` obsahují nový claim i poznámku o zařízeních bez „bez omezení“ / „unlimited“.
 
 ### Zákonný formulář a online odstoupení 0.9.92 — 2026-09-21
 
