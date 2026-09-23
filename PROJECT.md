@@ -1,5 +1,17 @@
 # Syllonaut — projektový stav
 
+### Souhrn stavu k 2026-09-23 (konec dne)
+
+- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303). Interní verze **0.9.103**, veřejně zobrazovaná **0.9.30**.
+- **Produkt:** ikona pro kopírování odkazu pro studenty s trvalou potvrzovací fajfkou (#297, #299).
+- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018 a LEGAL-020** (dnes LEGAL-013 až 018 a 020: #293, #294, #296, #298, #300, #302, #304). Aktuální **VOP 1.9** (`2026-09-23-v10`, souhlasy v4–v9 zůstávají dostatečné), **Privacy Notice 1.6**, Neon migrace **0011** (evidence reklamací) aplikovaná v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce) a **LEGAL-021** (AI Act — klasifikační posouzení).
+- **Otevřené provozní body:** za provozu neověřené školní administrace, Stripe webhook (první obnova 18.–19. 10.) a registrace nového uživatele; ostatní 3 účty si musí nastavit heslo; sledovat ojedinělé `P0001` u `/api/ai-quota`; skutečné podání reklamace a e-maily reklamací nebyly zkoušeny (trvalý append-only záznam); přímý Neon re-consent zápis (účty se souhlasem starším než v4) nebyl spuštěn proti DB; limit důvěryhodných zařízení je zatím jen v Ceníku, ne ve VOP; po přijetí českého § 1830a OZ znovu porovnat online odstoupení.
+- **Pracovní postup agentů (dnešní zkušenosti):**
+  - Před sloučením vždy znovu ověřit volné číslo verze na `main`; souběžné chaty dnes obsadily 0.9.95, 0.9.96, 0.9.98, 0.9.100 a 0.9.102 během otevřených PR.
+  - Pracovní kopie pod `~/Documents` je synchronizovaná přes iCloud a `tsc`, `npm run check` i git tam zamrzají (`ETIMEDOUT`, `mmap failed`). Build ověřovat ve worktree nebo klonu mimo Documents (např. scratchpad): `npm ci --ignore-scripts`, `npx tsc --noEmit`, `npm run check`, `npx next build`.
+  - Draft PR a PR s konfliktem nespouštějí GitHub Actions, takže samotný Vercel status nestačí.
+  - Neon a Vercel jsou přístupné přes konektory: u Vercelu používat jen čtecí nástroje, u Neonu DDL nejdřív na dočasné větvi. `prepare_database_migration` dělí SQL podle středníků i uvnitř PL/pgSQL, proto aplikovat přes `run_sql_transaction` po příkazech.
+
 ### Produkční přechod Supabase → Neon dokončen — 2026-09-23
 
 - **Production běží na Neonu:** Neon Postgres + Neon Auth + Data API, Neon projekt `neon-red-ladder`, výchozí (Default) větev `preview/codex/neon-staging-import-20260921-v2` (endpoint `ep-green-hat-b24o0won`). Tuto Neon větev ani stejnojmennou git větev nemazat. PR #284 (cutover), #285, #286 a #287 (opravy po přepnutí) jsou v `main`; produkční nasazení `6e0ddc4` je `Ready`.
@@ -7,7 +19,7 @@
 - **Ověřeno v produkci:** veřejné stránky, přihlášení vlastníka novým heslem, admin oprávnění a AI kvóta, `/lessons`, živá hodina se studentem, odpověď a AI hodnocení (test vlastníka úspěšný), připojení studenta přes Neon SQL, chráněný cron.
 - **Supabase** (`qsjddlgmabgmtssvntmn`) je ponechaná beze změny dat a **jen pro čtení** (`default_transaction_read_only = on`) jako záloha. Nemazat bez samostatného rozhodnutí. Protože Neon už přijal produkční zápisy, prostý návrat na Supabase není povolen (split-brain); postup je v `docs/NEON_MIGRATION.md`.
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
-- **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. Interní verze zůstává **0.9.92** (infrastrukturní přechod bez změny produktu).
+- **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.103** uzavírá **LEGAL-020**: doslovné zákonné poučení o online odstoupení podle NV 66/2026 Sb. ve VOP 1.9, smluvním snapshotu a na /withdrawal a přihlášení pro nepřihlášené na /withdrawal; funkce z LEGAL-012 splňuje čl. 11a směrnice 2023/2673. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
@@ -44,6 +56,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - **právní stav:** směrnice se uplatňuje od 19. 6. 2026; česká novela OZ (§ 1830a) k 10. 7. 2026 podle veřejných zdrojů ještě nebyla přijata — po jejím přijetí porovnat přesné znění (označení tlačítek, obsah potvrzení) a případně doladit;
 - regresní kontrola **scripts/verify-online-withdrawal.mjs** nově hlídá doslovnou větu z NV 66/2026, její použití na všech třech površích a přihlášení na `/withdrawal`; aktualizované **verify-terms** a **verify-provider-contact**;
 - změna nezasahuje do databáze ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+- PR **#304** prošel CI (build, source-contracts, axe-public-routes, preview-config) i Vercel Preview; produkční merge commit **4a8209a9** má Vercel **success**; živé `/cs|en/withdrawal` obsahují zákonnou větu o online odstoupení a výzvu k přihlášení pro nepřihlášené, `/cs|en/terms` ukazují VOP 1.9 se stejnou větou.
 
 ### Technické požadavky před nákupem 0.9.101 — 2026-09-23
 
@@ -357,7 +370,9 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 ### Právní / ČOI launch audit před 1.0 — 2026-09-21
 
-**Stav: OPEN.** Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.\n\n#### Blokátory 1.0
+**Stav k 2026-09-23: 19 z 21 bodů vyřešeno.** Otevřené zůstávají **LEGAL-019** (DPH/OSS, vyžaduje daňového poradce) a **LEGAL-021** (AI Act). Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
+
+#### Blokátory 1.0
 
 - **[LEGAL-001 — RESOLVED 0.9.78] Aktivační e-mail potvrzoval zastaralé a vyšší AI kvóty.** Opraveno: `INDIVIDUAL_PLAN_ALLOWANCES` v `lib/individual-billing-catalog.ts` je společný zdroj pro Pricing i transakční aktivační e-mail. Teacher se potvrzuje jako **10 nových AI lekcí + 20 AI úprav / měsíc**, Teacher Pro jako **25 + 40**. Regresní kontrola vykreslí oba tarify ze sdílených hodnot a zakazuje návrat starých textů **25/100** a **60/250**.
 - **[LEGAL-002 — RESOLVED 0.9.80] Ceník nepravdivě tvrdil, že všechny AI limity se obnovují každý kalendářní měsíc.** Opraveno: Free a sdílené Team / School / Campus kvóty jsou veřejně popsány jako kalendářní; Teacher / Teacher Pro jako kvóty podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. `get_ai_quota()` nyní vrací i autoritativní `quota_window_start`, `quota_window_end` a `quota_source`; přesné datum další obnovy se zobrazuje v účtovém menu a na stránce Předplatné. Regresní test zakazuje návrat původního plošného tvrzení.
@@ -594,6 +609,7 @@ Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravid
 - číslo za druhou tečkou vždy představuje **jednu koherentní funkční změnu**, nikoli jeden commit nebo jeden změněný soubor;
 - čistě dokumentační, testovací, CI, formátovací nebo interní refaktor bez změny produktového chování sám o sobě verzi neposouvá;
 - pracovní Preview větev verzi neposouvá; nová interní verze se stává platnou až po sloučení funkční změny do produkčního `main`;
+- protože na `main` souběžně pracuje více agentů, číslo verze se těsně před sloučením znovu ověří proti aktuálnímu `main`; při kolizi se PR přečísluje na nejbližší volnou verzi (kolizní záznam v `PROJECT.md` se zachová a nový se zařadí nad něj);
 - při každé budoucí produkční funkční změně se má automaticky aktualizovat tento `PROJECT.md`: interní verze + stručný changelog/stav relevantní funkce;
 - při větší úpravě se současně aktualizuje i veřejně zobrazovaná verze na dashboardu; při menší úpravě se veřejně zobrazovaná verze nemění;
 - **verze `1.0.0` je vyhrazena výhradně pro ostrý start produktu**, tedy okamžik, kdy je Syllonaut považován za připravený pro běžný produkční provoz;
