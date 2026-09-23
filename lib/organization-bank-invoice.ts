@@ -1,4 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 type Currency = 'czk' | 'eur' | 'usd';
 
@@ -155,27 +158,67 @@ export function buildOrganizationQrPaymentSpayd(input: {
   ].join('*') + '*';
 }
 
-export async function issueOrganizationBankInvoice(orderId: string) {
-  const admin = createAdminClient();
+async function readInvoiceOrder(orderId: string) {
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const rows = await createNeonSql()`
+      select id, organization_id, plan_code, billing_period, currency,
+        amount_minor, payment_method, status, billing_snapshot, invoice_number,
+        invoice_issued_at, invoice_due_date, invoice_snapshot, livemode, paid_at
+      from public.organization_orders
+      where id = ${orderId}::uuid
+      limit 1
+    `;
+    return { data: rows[0] ?? null, error: null };
+  }
+  return createAdminClient().from('organization_orders')
+    .select('id, organization_id, plan_code, billing_period, currency, amount_minor, payment_method, status, billing_snapshot, invoice_number, invoice_issued_at, invoice_due_date, invoice_snapshot, livemode, paid_at')
+    .eq('id', orderId).maybeSingle();
+}
 
-  const { data: order, error: orderError } = await admin
-    .from('organization_orders')
-    .select(
-      'id, organization_id, plan_code, billing_period, currency, amount_minor, payment_method, status, billing_snapshot, invoice_number, invoice_issued_at, invoice_due_date, invoice_snapshot, livemode',
-    )
-    .eq('id', orderId)
-    .maybeSingle();
+async function readInvoiceOrganization(organizationId: string) {
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const rows = await createNeonSql()`
+      select name, payment_variable_symbol
+      from public.organizations
+      where id = ${organizationId}::uuid
+      limit 1
+    `;
+    return { data: rows[0] ?? null, error: null };
+  }
+  return createAdminClient().from('organizations')
+    .select('name, payment_variable_symbol')
+    .eq('id', organizationId).maybeSingle();
+}
+
+export async function getOrganizationIdForInvoiceOrder(orderId: string): Promise<string | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return null;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const rows = await createNeonSql()`
+      select organization_id
+      from public.organization_orders
+      where id = ${orderId}::uuid
+      limit 1
+    `;
+    return typeof rows[0]?.organization_id === 'string' ? rows[0].organization_id : null;
+  }
+  const { data, error } = await createAdminClient().from('organization_orders')
+    .select('organization_id').eq('id', orderId).maybeSingle();
+  if (error) throw new Error('organization_order_lookup_failed');
+  return data?.organization_id ?? null;
+}
+
+export async function issueOrganizationBankInvoice(orderId: string) {
+  const { data: order, error: orderError } = await readInvoiceOrder(orderId);
 
   if (orderError || !order) throw new Error('organization_order_not_found');
   if (order.payment_method !== 'invoice') {
     throw new Error('organization_order_not_bank_invoice');
   }
 
-  const { data: organization, error: organizationError } = await admin
-    .from('organizations')
-    .select('payment_variable_symbol')
-    .eq('id', order.organization_id)
-    .maybeSingle();
+  const { data: organization, error: organizationError } = await readInvoiceOrganization(order.organization_id);
 
   if (organizationError || !organization) {
     throw new Error('organization_not_found');
@@ -199,7 +242,7 @@ export async function issueOrganizationBankInvoice(orderId: string) {
   snapshot.customer = customer;
   const dueDate = isoDateAfterDays(snapshot.dueDays);
 
-  const { data, error } = await admin.rpc('issue_organization_bank_invoice', {
+  const { data, error } = await createPrivilegedRpcClient().rpc('issue_organization_bank_invoice', {
     p_order_id: order.id,
     p_invoice_snapshot: snapshot,
     p_due_date: dueDate,
@@ -251,24 +294,13 @@ function asSnapshot(value: unknown): OrganizationBankInvoiceSnapshot {
 export async function getOrganizationBankInvoiceData(
   orderId: string,
 ): Promise<OrganizationBankInvoiceData> {
-  const admin = createAdminClient();
-  const { data: order, error: orderError } = await admin
-    .from('organization_orders')
-    .select(
-      'id, organization_id, plan_code, billing_period, currency, amount_minor, status, paid_at, invoice_number, invoice_issued_at, invoice_due_date, invoice_snapshot',
-    )
-    .eq('id', orderId)
-    .maybeSingle();
+  const { data: order, error: orderError } = await readInvoiceOrder(orderId);
 
   if (orderError || !order?.invoice_number || !order.invoice_issued_at || !order.invoice_due_date) {
     throw new Error('organization_bank_invoice_not_found');
   }
 
-  const { data: organization, error: organizationError } = await admin
-    .from('organizations')
-    .select('name, payment_variable_symbol')
-    .eq('id', order.organization_id)
-    .maybeSingle();
+  const { data: organization, error: organizationError } = await readInvoiceOrganization(order.organization_id);
 
   if (organizationError || !organization) {
     throw new Error('organization_not_found');

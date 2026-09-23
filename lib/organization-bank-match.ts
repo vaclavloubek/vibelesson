@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export async function matchOrganizationBankTransaction(input: {
   variableSymbol: string;
@@ -7,7 +7,7 @@ export async function matchOrganizationBankTransaction(input: {
   bankReference: string;
   receivedAt: Date;
 }) {
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { data, error } = await admin.rpc('match_organization_bank_payment', {
     p_variable_symbol: input.variableSymbol,
     p_amount_minor: input.amountMinor,

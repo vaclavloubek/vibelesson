@@ -14,7 +14,7 @@ export class LessonMoveWriteError extends Error {
 }
 
 function shouldWriteToNeon() {
-  const enabled = process.env.NEON_LESSON_MOVE_WRITES;
+  const enabled = process.env.DATABASE_BACKEND === 'neon' ? 'true' : process.env.NEON_LESSON_MOVE_WRITES;
   if (enabled === undefined || enabled === '' || enabled === 'false') return false;
   if (enabled !== 'true') throw new LessonMoveWriteError('INVALID_NEON_LESSON_MOVE_WRITES');
 

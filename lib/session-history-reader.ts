@@ -23,7 +23,7 @@ export class SessionHistoryReadError extends Error {
 }
 
 function shouldReadFromNeon() {
-  const enabled = process.env.NEON_SESSION_HISTORY_READS;
+  const enabled = process.env.DATABASE_BACKEND === 'neon' ? 'true' : process.env.NEON_SESSION_HISTORY_READS;
   if (enabled === undefined || enabled === '' || enabled === 'false') return false;
   if (enabled !== 'true') {
     throw new SessionHistoryReadError('INVALID_NEON_SESSION_HISTORY_READS');

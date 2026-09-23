@@ -14,7 +14,7 @@ export class LessonShareReadError extends Error {
 }
 
 function shouldReadFromNeon() {
-  const enabled = process.env.NEON_SHARED_LESSON_READS;
+  const enabled = process.env.DATABASE_BACKEND === 'neon' ? 'true' : process.env.NEON_SHARED_LESSON_READS;
   if (enabled === undefined || enabled === '' || enabled === 'false') return false;
   if (enabled !== 'true') {
     throw new LessonShareReadError('INVALID_NEON_SHARED_LESSON_READS');

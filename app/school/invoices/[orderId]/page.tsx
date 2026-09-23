@@ -4,9 +4,8 @@ import OrganizationPaymentQr from '@/components/OrganizationPaymentQr';
 import SyllonautMark from '@/components/SyllonautMark';
 import styles from '@/components/SchoolAdmin.module.css';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { getOrganizationBankInvoiceData } from '@/lib/organization-bank-invoice';
+import { getOrganizationBankInvoiceData, getOrganizationIdForInvoiceOrder } from '@/lib/organization-bank-invoice';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperadminUserId } from '@/lib/superadmin';
 
 export const dynamic = 'force-dynamic';
@@ -34,20 +33,14 @@ export default async function OrganizationInvoicePage({
   const { userId } = await getAuthenticatedUserId();
   if (!userId) redirect('/school');
 
-  const admin = createAdminClient();
-  const { data: order } = await admin
-    .from('organization_orders')
-    .select('organization_id')
-    .eq('id', orderId)
-    .maybeSingle();
-
-  if (!order) notFound();
+  const organizationId = await getOrganizationIdForInvoiceOrder(orderId);
+  if (!organizationId) notFound();
 
   if (!isSuperadminUserId(userId)) {
     const organization = await getCurrentOrganizationForUser(userId);
     if (
       !organization
-      || organization.id !== order.organization_id
+      || organization.id !== organizationId
       || !canManageOrganization(organization.role)
     ) {
       notFound();

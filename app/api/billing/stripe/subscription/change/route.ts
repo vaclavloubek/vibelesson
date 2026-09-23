@@ -19,6 +19,8 @@ import {
   updateStripeChangeSchedule,
 } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 import { getIndividualAiBillingPauseReason } from '@/lib/individual-ai-billing';
 import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 
@@ -102,19 +104,39 @@ export async function POST(request: Request) {
     }
   }
 
-  const admin = createAdminClient();
-  const { data: dbSubscription, error: subscriptionError } = await admin
-    .from('billing_subscriptions')
-    .select('external_subscription_id, external_customer_id')
-    .eq('user_id', userId)
-    .eq('provider', 'stripe')
-    .eq('livemode', true)
-    .in('status', ['trialing', 'active', 'past_due'])
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const neonBackend = getDatabaseBackend() === 'neon';
+  if (neonBackend) assertApprovedNeonCutover();
+  const sql = neonBackend ? createNeonSql() : null;
+  const admin = neonBackend ? null : createAdminClient();
+  let dbSubscription: { external_subscription_id: string | null; external_customer_id: string | null } | null;
+  if (sql) {
+    try {
+      const rows = await sql`
+        select external_subscription_id, external_customer_id
+        from public.billing_subscriptions
+        where user_id = ${userId}::uuid and provider = 'stripe' and livemode = true
+          and status in ('trialing', 'active', 'past_due')
+        order by updated_at desc limit 1
+      `;
+      dbSubscription = (rows[0] as typeof dbSubscription | undefined) ?? null;
+    } catch {
+      return jsonError(500, 'billing_subscription_lookup_failed');
+    }
+  } else {
+    const { data, error } = await admin!
+      .from('billing_subscriptions')
+      .select('external_subscription_id, external_customer_id')
+      .eq('user_id', userId)
+      .eq('provider', 'stripe')
+      .eq('livemode', true)
+      .in('status', ['trialing', 'active', 'past_due'])
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) return jsonError(500, 'billing_subscription_lookup_failed');
+    dbSubscription = data;
+  }
 
-  if (subscriptionError) return jsonError(500, 'billing_subscription_lookup_failed');
   if (!dbSubscription?.external_subscription_id || !dbSubscription.external_customer_id) {
     return jsonError(409, 'active_subscription_not_found');
   }
@@ -150,14 +172,20 @@ export async function POST(request: Request) {
     const currentPriceId = item.price?.id;
     if (!currentPriceId) return jsonError(409, 'subscription_price_missing');
 
-    const { data: currentPriceRow, error: currentPriceError } = await admin
-      .from('billing_prices')
-      .select('plan_code, billing_period, currency')
-      .eq('provider', 'stripe')
-      .eq('livemode', true)
-      .eq('external_price_id', currentPriceId)
-      .eq('active', true)
-      .maybeSingle();
+    const { data: currentPriceRow, error: currentPriceError } = sql
+      ? { data: (await sql`
+          select plan_code, billing_period, currency from public.billing_prices
+          where provider = 'stripe' and livemode = true
+            and external_price_id = ${currentPriceId} and active = true limit 1
+        `)[0] as { plan_code: string; billing_period: string; currency: string } | undefined, error: null }
+      : await admin!
+        .from('billing_prices')
+        .select('plan_code, billing_period, currency')
+        .eq('provider', 'stripe')
+        .eq('livemode', true)
+        .eq('external_price_id', currentPriceId)
+        .eq('active', true)
+        .maybeSingle();
 
     if (currentPriceError) return jsonError(500, 'billing_price_lookup_failed');
     if (
@@ -174,16 +202,23 @@ export async function POST(request: Request) {
     const targetPlan: IndividualPlanCode = input.planId === 'teacher-pro' ? 'teacher_pro' : 'teacher';
     const targetPeriod: BillingPeriod = input.billing;
 
-    const { data: targetPriceRow, error: targetPriceError } = await admin
-      .from('billing_prices')
-      .select('external_price_id')
-      .eq('provider', 'stripe')
-      .eq('livemode', true)
-      .eq('plan_code', targetPlan)
-      .eq('billing_period', targetPeriod)
-      .eq('currency', currentPriceRow.currency)
-      .eq('active', true)
-      .maybeSingle();
+    const { data: targetPriceRow, error: targetPriceError } = sql
+      ? { data: (await sql`
+          select external_price_id from public.billing_prices
+          where provider = 'stripe' and livemode = true
+            and plan_code = ${targetPlan} and billing_period = ${targetPeriod}
+            and currency = ${currentPriceRow.currency} and active = true limit 1
+        `)[0] as { external_price_id: string } | undefined, error: null }
+      : await admin!
+        .from('billing_prices')
+        .select('external_price_id')
+        .eq('provider', 'stripe')
+        .eq('livemode', true)
+        .eq('plan_code', targetPlan)
+        .eq('billing_period', targetPeriod)
+        .eq('currency', currentPriceRow.currency)
+        .eq('active', true)
+        .maybeSingle();
 
     if (targetPriceError) return jsonError(500, 'billing_target_price_lookup_failed');
     if (!targetPriceRow?.external_price_id) return jsonError(409, 'billing_target_price_not_configured');

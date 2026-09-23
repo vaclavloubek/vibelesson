@@ -100,6 +100,11 @@ mocks['@/lib/supabase/admin'] = { createAdminClient: () => ({
     throw new Error(name);
   },
 }) };
+mocks['@/lib/neon/config'] = { getDatabaseBackend: () => 'supabase' };
+mocks['@/lib/neon/privileged-rpc'] = {
+  createPrivilegedRpcClient: mocks['@/lib/supabase/admin'].createAdminClient,
+};
+mocks['@/lib/neon/server'] = { createNeonSql: () => { throw new Error('Unexpected Neon access in Supabase regression test.'); } };
 mocks['@/lib/stripe-subscription-management'] = {
   retrieveStripeSubscription: async () => subscription,
   singleSubscriptionItem: s => s.items.data[0], subscriptionCustomerId: s => s.customer,

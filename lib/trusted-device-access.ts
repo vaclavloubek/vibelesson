@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TRUSTED_DEVICE_COOKIE } from '@/lib/device-cookie';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 export type TrustedDeviceScope = 'none' | 'personal' | 'organization';
 
@@ -54,6 +56,26 @@ export async function registerTrustedDeviceHash(
   userId: string,
   tokenHash: string | null,
 ): Promise<TrustedDeviceGate> {
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`
+      select public.register_trusted_device_server(
+        ${userId}::uuid,
+        ${tokenHash}::text
+      ) as gate
+    `;
+    if (
+      rows.length !== 1
+      || !rows[0].gate
+      || typeof rows[0].gate !== 'object'
+      || (rows[0].gate as Record<string, unknown>).code === 'profile_not_found'
+    ) {
+      throw new Error('trusted_device_registration_failed');
+    }
+    return normalizeTrustedDeviceGate(rows[0].gate);
+  }
+
   const admin = createAdminClient();
   const { data, error } = await admin.rpc('register_trusted_device_server', {
     p_user_id: userId,

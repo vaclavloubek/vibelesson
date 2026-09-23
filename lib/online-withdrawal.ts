@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BillingEmailDeliveryError, sendResendEmail } from '@/lib/billing-email';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const OpportunitySchema = z.object({
   snapshotId: z.string().uuid(),
@@ -60,7 +60,7 @@ function escapeHtml(value: string) {
 }
 
 export async function getOnlineWithdrawalOpportunity(userId: string) {
-  const { data, error } = await createAdminClient().rpc('get_online_individual_withdrawal_for_service', { p_user_id: userId });
+  const { data, error } = await createPrivilegedRpcClient().rpc('get_online_individual_withdrawal_for_service', { p_user_id: userId });
   if (error) throw new Error('online_withdrawal_lookup_failed');
   if (!data) return null;
   return OpportunitySchema.parse(data);
@@ -73,7 +73,7 @@ export async function registerOnlineWithdrawal(input: {
   electronicContact: string;
   locale: 'cs' | 'en';
 }) {
-  const { data, error } = await createAdminClient().rpc('register_online_individual_withdrawal_for_service', {
+  const { data, error } = await createPrivilegedRpcClient().rpc('register_online_individual_withdrawal_for_service', {
     p_user_id: input.userId,
     p_snapshot_id: input.snapshotId,
     p_consumer_name: input.consumerName,
@@ -91,7 +91,7 @@ export async function registerOnlineWithdrawal(input: {
 }
 
 export async function deliverOnlineWithdrawalConfirmation(receiptId: string, userId: string) {
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { data, error } = await admin.rpc('get_online_individual_withdrawal_confirmation_for_service', {
     p_receipt_id: receiptId,
     p_user_id: userId,

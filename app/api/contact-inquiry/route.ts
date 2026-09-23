@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
   }
 
   const bucket = Math.floor(Date.now() / RATE_WINDOW_MS);
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { data: reservationId, error: reservationError } = await admin.rpc(
     'reserve_contact_form_rate_limit_server',
     {

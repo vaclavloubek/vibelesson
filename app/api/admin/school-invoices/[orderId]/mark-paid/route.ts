@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { isSuperadminUserId } from '@/lib/superadmin';
 
 export async function POST(
@@ -17,7 +17,7 @@ export async function POST(
     return NextResponse.json({ error: 'superadmin_required' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { data, error } = await admin.rpc(
     'confirm_organization_bank_payment_manual',
     {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getCurrentOrganizationForUser } from '@/lib/organizations';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const InputSchema = z.object({
   newOwnerUserId: z.string().uuid(),
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'new_owner_must_differ' }, { status: 409 });
   }
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { error } = await admin.rpc('transfer_organization_ownership', {
     p_organization_id: organization.id,
     p_current_owner: userId,

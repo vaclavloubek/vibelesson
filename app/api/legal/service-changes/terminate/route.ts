@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { executeServiceChangeTermination } from '@/lib/service-change-termination';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export async function POST(request:Request) {
   const parsed=Input.safeParse(await request.json().catch(()=>null));
   if(!parsed.success) return json({error:'invalid_service_change_termination_request'},400);
   const requestedAt=new Date().toISOString();
-  const {data:id,error}=await createAdminClient().rpc('request_service_change_termination_for_service',{
+  const {data:id,error}=await createPrivilegedRpcClient().rpc('request_service_change_termination_for_service',{
     p_user_id:authenticatedUserId,p_delivery_id:parsed.data.deliveryId,p_requested_at:requestedAt,
     p_immediate_termination_confirmed:parsed.data.confirmImmediateTermination,
   });

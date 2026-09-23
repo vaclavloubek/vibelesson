@@ -6,6 +6,10 @@ import { updateOrganizationSubscriptionCancellation } from '@/lib/organization-s
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { readProfileRole } from '@/lib/neon/profile-role';
 
 const InputSchema = z.object({
   cancelAtPeriodEnd: z.boolean(),
@@ -41,23 +45,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'organization_not_card_subscription' }, { status: 409 });
   }
 
-  const admin = createAdminClient();
-  const { data: order, error: orderError } = await admin
-    .from('organization_orders')
-    .select('external_subscription_id, livemode')
-    .eq('organization_id', organization.id)
-    .not('external_subscription_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const admin = createPrivilegedRpcClient();
+  const { data: order, error: orderError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select external_subscription_id, livemode
+        from public.organization_orders
+        where organization_id = ${organization.id}::uuid
+          and external_subscription_id is not null
+        order by created_at desc limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .select('external_subscription_id, livemode')
+      .eq('organization_id', organization.id)
+      .not('external_subscription_id', 'is', null)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
   if (orderError || !order?.external_subscription_id) {
     return NextResponse.json({ error: 'organization_subscription_not_found' }, { status: 404 });
   }
 
   const livemode = Boolean(order.livemode);
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle();
-  if (livemode && !isPublicSchoolBillingEnabled() && profile?.role !== 'admin') {
+  const profileRole = await readProfileRole(userId);
+  if (livemode && !isPublicSchoolBillingEnabled() && profileRole !== 'admin') {
     return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
   }
 

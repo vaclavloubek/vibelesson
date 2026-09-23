@@ -9,17 +9,33 @@ export function getDatabaseBackend(): DatabaseBackend {
 }
 
 export function requireNeonServerConfig() {
-  const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
+  const databaseUrl = process.env.NEON_DATABASE_URL
+    || process.env.NEON_DATABASE_DATABASE_URL
+    || process.env.DATABASE_URL;
   const authBaseUrl = process.env.NEON_AUTH_BASE_URL;
-  const dataApiUrl = process.env.NEON_DATA_API_URL;
+  const dataApiUrl = process.env.NEON_DATA_API_URL || process.env.NEXT_PUBLIC_NEON_DATA_API_URL;
   if (!databaseUrl || !authBaseUrl || !dataApiUrl) {
     throw new Error('Neon server configuration is incomplete.');
+  }
+  try {
+    const parsed = new URL(databaseUrl);
+    if (!['postgres:', 'postgresql:'].includes(parsed.protocol)
+      || !parsed.hostname.endsWith('.neon.tech')) {
+      throw new Error('wrong_host');
+    }
+  } catch {
+    throw new Error('Neon database connection is invalid or points outside Neon.');
   }
   return { databaseUrl, authBaseUrl, dataApiUrl };
 }
 
 export function assertApprovedNeonCutover() {
-  if (getDatabaseBackend() !== 'neon') return;
+  const serverBackend = getDatabaseBackend();
+  const browserBackend = process.env.NEXT_PUBLIC_DATABASE_BACKEND ?? 'supabase';
+  if (browserBackend !== serverBackend) {
+    throw new Error('Server and browser database backends disagree. Refusing split-backend operation.');
+  }
+  if (serverBackend !== 'neon') return;
   if (process.env.NEON_CUTOVER_APPROVED !== 'true') {
     throw new Error('Neon runtime cutover is not approved. Set NEON_CUTOVER_APPROVED=true only during the runbook cutover.');
   }

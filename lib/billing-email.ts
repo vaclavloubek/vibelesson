@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 import { localeFromCountry, normalizeUiLocale } from '@/lib/i18n';
 import { INDIVIDUAL_PLAN_ALLOWANCES } from '@/lib/individual-billing-catalog';
 import type { StripeSubscriptionSync } from '@/lib/stripe-webhook';
@@ -102,6 +104,17 @@ async function markDeliveryFailure(
   attemptCount: number,
   code: string,
 ) {
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    await sql`
+      update public.billing_email_deliveries
+      set attempt_count = ${attemptCount + 1}, last_error_code = ${code}, updated_at = now()
+      where provider = 'stripe' and livemode = true
+        and external_event_id = ${eventId} and notification_type = ${notification}
+    `;
+    return;
+  }
   const admin = createAdminClient();
   await admin
     .from('billing_email_deliveries')
@@ -122,44 +135,91 @@ export async function deliverBillingLifecycleEmail(
 ) {
   if (!sync.livemode) return { skipped: 'sandbox' as const };
 
-  const admin = createAdminClient();
-  const { error: queueError } = await admin
-    .from('billing_email_deliveries')
-    .upsert({
-      provider: 'stripe',
-      livemode: true,
-      external_event_id: sync.eventId,
-      notification_type: notification,
-      user_id: sync.userId,
-      external_subscription_id: sync.subscriptionId,
-      contract_snapshot_id: sync.contractSnapshotId,
-      status: 'pending',
-    }, {
-      onConflict: 'provider,livemode,external_event_id,notification_type',
-      ignoreDuplicates: true,
-    });
+  const neonBackend = getDatabaseBackend() === 'neon';
+  if (neonBackend) assertApprovedNeonCutover();
+  const sql = neonBackend ? createNeonSql() : null;
+  const admin = neonBackend ? null : createAdminClient();
+  let delivery: { status: string; attempt_count: number } | null;
+  if (sql) {
+    try {
+      await sql`
+        insert into public.billing_email_deliveries
+          (provider, livemode, external_event_id, notification_type, user_id,
+           external_subscription_id, contract_snapshot_id, status)
+        values ('stripe', true, ${sync.eventId}, ${notification}, ${sync.userId}::uuid,
+          ${sync.subscriptionId}, ${sync.contractSnapshotId ?? null}::uuid, 'pending')
+        on conflict (provider, livemode, external_event_id, notification_type) do nothing
+      `;
+    } catch {
+      throw new BillingEmailDeliveryError('billing_email_queue_failed');
+    }
+    try {
+      const rows = await sql`
+        select status, attempt_count from public.billing_email_deliveries
+        where provider = 'stripe' and livemode = true
+          and external_event_id = ${sync.eventId} and notification_type = ${notification}
+      `;
+      delivery = (rows[0] as typeof delivery | undefined) ?? null;
+    } catch {
+      throw new BillingEmailDeliveryError('billing_email_delivery_lookup_failed');
+    }
+  } else {
+    const { error: queueError } = await admin!
+      .from('billing_email_deliveries')
+      .upsert({
+        provider: 'stripe',
+        livemode: true,
+        external_event_id: sync.eventId,
+        notification_type: notification,
+        user_id: sync.userId,
+        external_subscription_id: sync.subscriptionId,
+        contract_snapshot_id: sync.contractSnapshotId,
+        status: 'pending',
+      }, {
+        onConflict: 'provider,livemode,external_event_id,notification_type',
+        ignoreDuplicates: true,
+      });
+    if (queueError) throw new BillingEmailDeliveryError('billing_email_queue_failed');
+    const { data, error } = await admin!
+      .from('billing_email_deliveries')
+      .select('status, attempt_count')
+      .eq('provider', 'stripe')
+      .eq('livemode', true)
+      .eq('external_event_id', sync.eventId)
+      .eq('notification_type', notification)
+      .maybeSingle();
+    if (error) throw new BillingEmailDeliveryError('billing_email_delivery_lookup_failed');
+    delivery = data;
+  }
 
-  if (queueError) throw new BillingEmailDeliveryError('billing_email_queue_failed');
-
-  const { data: delivery, error: deliveryError } = await admin
-    .from('billing_email_deliveries')
-    .select('status, attempt_count')
-    .eq('provider', 'stripe')
-    .eq('livemode', true)
-    .eq('external_event_id', sync.eventId)
-    .eq('notification_type', notification)
-    .maybeSingle();
-
-  if (deliveryError || !delivery) throw new BillingEmailDeliveryError('billing_email_delivery_lookup_failed');
+  if (!delivery) throw new BillingEmailDeliveryError('billing_email_delivery_lookup_failed');
   if (delivery.status === 'sent') return { skipped: 'already_sent' as const };
 
-  const { data: subscription, error: subscriptionError } = await admin
-    .from('billing_subscriptions')
-    .select('plan_code, current_period_end')
-    .eq('provider', 'stripe')
-    .eq('livemode', true)
-    .eq('external_subscription_id', sync.subscriptionId)
-    .maybeSingle();
+  let subscription: { plan_code: string; current_period_end: string | null } | null;
+  let subscriptionError = false;
+  if (sql) {
+    try {
+      const rows = await sql`
+        select plan_code, current_period_end from public.billing_subscriptions
+        where provider = 'stripe' and livemode = true and external_subscription_id = ${sync.subscriptionId}
+        limit 1
+      `;
+      subscription = (rows[0] as typeof subscription | undefined) ?? null;
+    } catch {
+      subscription = null;
+      subscriptionError = true;
+    }
+  } else {
+    const result = await admin!
+      .from('billing_subscriptions')
+      .select('plan_code, current_period_end')
+      .eq('provider', 'stripe')
+      .eq('livemode', true)
+      .eq('external_subscription_id', sync.subscriptionId)
+      .maybeSingle();
+    subscription = result.data;
+    subscriptionError = Boolean(result.error);
+  }
 
   if (subscriptionError || !subscription) {
     await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_email_subscription_lookup_failed');
@@ -175,14 +235,28 @@ export async function deliverBillingLifecycleEmail(
   let contractSnapshot: IndividualContractSnapshotForDelivery | null = null;
 
   if (notification === 'subscription_activated' && sync.contractSnapshotId) {
-    const { data: snapshotData, error: snapshotError } = await admin.rpc(
-      'get_individual_contract_snapshot_for_delivery',
-      {
+    let snapshotData: unknown = null;
+    let snapshotError = false;
+    if (sql) {
+      try {
+        const rows = await sql`
+          select * from public.get_individual_contract_snapshot_for_delivery(
+            ${sync.contractSnapshotId}::uuid, ${sync.userId}::uuid, ${sync.livemode}
+          )
+        `;
+        snapshotData = rows;
+      } catch {
+        snapshotError = true;
+      }
+    } else {
+      const result = await admin!.rpc('get_individual_contract_snapshot_for_delivery', {
         p_snapshot_id: sync.contractSnapshotId,
         p_user_id: sync.userId,
         p_livemode: sync.livemode,
-      },
-    );
+      });
+      snapshotData = result.data;
+      snapshotError = Boolean(result.error);
+    }
     const row = (Array.isArray(snapshotData) ? snapshotData[0] : snapshotData) as IndividualContractSnapshotForDelivery | null;
     if (snapshotError || !row) {
       await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_contract_snapshot_lookup_failed');
@@ -208,26 +282,58 @@ export async function deliverBillingLifecycleEmail(
     contractSnapshot = row;
   }
 
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('ui_locale')
-    .eq('id', sync.userId)
-    .maybeSingle();
+  let profile: { ui_locale: string | null } | null;
+  let profileError = false;
+  if (sql) {
+    try {
+      const rows = await sql`select ui_locale from public.profiles where id = ${sync.userId}::uuid limit 1`;
+      profile = (rows[0] as typeof profile | undefined) ?? null;
+    } catch {
+      profile = null;
+      profileError = true;
+    }
+  } else {
+    const result = await admin!
+      .from('profiles')
+      .select('ui_locale')
+      .eq('id', sync.userId)
+      .maybeSingle();
+    profile = result.data;
+    profileError = Boolean(result.error);
+  }
 
   if (profileError) {
     await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_email_locale_lookup_failed');
     throw new BillingEmailDeliveryError('billing_email_locale_lookup_failed');
   }
 
-  const { data: authUser, error: authError } = await admin.auth.admin.getUserById(sync.userId);
-  const recipient = authUser.user?.email?.trim();
+  let recipient: string | undefined;
+  let userMetadata: Record<string, unknown> | null = null;
+  let authError = false;
+  if (sql) {
+    try {
+      const rows = await sql`
+        select email, raw_user_meta_data from app_identity.users
+        where id = ${sync.userId}::uuid and deleted_at is null limit 1
+      `;
+      recipient = (rows[0]?.email as string | undefined)?.trim();
+      userMetadata = (rows[0]?.raw_user_meta_data as Record<string, unknown> | null | undefined) ?? null;
+    } catch {
+      authError = true;
+    }
+  } else {
+    const result = await admin!.auth.admin.getUserById(sync.userId);
+    recipient = result.data.user?.email?.trim();
+    userMetadata = result.data.user?.user_metadata ?? null;
+    authError = Boolean(result.error);
+  }
   if (authError || !recipient) {
     await markDeliveryFailure(sync.eventId, notification, delivery.attempt_count, 'billing_email_recipient_missing');
     throw new BillingEmailDeliveryError('billing_email_recipient_missing');
   }
 
-  const metadataLocale = typeof authUser.user?.user_metadata?.ui_locale === 'string'
-    ? normalizeUiLocale(authUser.user.user_metadata.ui_locale)
+  const metadataLocale = typeof userMetadata?.ui_locale === 'string'
+    ? normalizeUiLocale(userMetadata.ui_locale)
     : null;
   const locale = contractSnapshot?.locale
     ?? normalizeUiLocale(profile?.ui_locale)
@@ -295,20 +401,39 @@ export async function deliverBillingLifecycleEmail(
     throw error;
   }
 
-  const { error: sentError } = await admin
-    .from('billing_email_deliveries')
-    .update({
-      status: 'sent',
-      attempt_count: delivery.attempt_count + 1,
-      resend_email_id: resendEmailId,
-      last_error_code: null,
-      sent_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('provider', 'stripe')
-    .eq('livemode', true)
-    .eq('external_event_id', sync.eventId)
-    .eq('notification_type', notification);
+  let sentError = false;
+  if (sql) {
+    try {
+      const rows = await sql`
+        update public.billing_email_deliveries
+        set status = 'sent', attempt_count = ${delivery.attempt_count + 1},
+          resend_email_id = ${resendEmailId}, last_error_code = null,
+          sent_at = now(), updated_at = now()
+        where provider = 'stripe' and livemode = true
+          and external_event_id = ${sync.eventId} and notification_type = ${notification}
+        returning external_event_id
+      `;
+      sentError = rows.length !== 1;
+    } catch {
+      sentError = true;
+    }
+  } else {
+    const result = await admin!
+      .from('billing_email_deliveries')
+      .update({
+        status: 'sent',
+        attempt_count: delivery.attempt_count + 1,
+        resend_email_id: resendEmailId,
+        last_error_code: null,
+        sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('provider', 'stripe')
+      .eq('livemode', true)
+      .eq('external_event_id', sync.eventId)
+      .eq('notification_type', notification);
+    sentError = Boolean(result.error);
+  }
 
   if (sentError) throw new BillingEmailDeliveryError('billing_email_sent_state_failed');
 

@@ -6,6 +6,7 @@ import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/
 import { freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
 import { importSharedLesson } from '@/lib/shared-lesson-import-writer';
+import { getDatabaseBackend } from '@/lib/neon/config';
 
 type RouteContext = {
   params: Promise<{ token: string }>;
@@ -16,6 +17,14 @@ const BEARER_PATTERN = /^Bearer\s+(.+)$/i;
 
 async function authenticatedRequestClient(request: Request) {
   const authorization = request.headers.get('authorization');
+
+  if (getDatabaseBackend() === 'neon') {
+    // The Neon session is kept in an httpOnly first-party cookie. Never
+    // interpret a Supabase bearer token as a Neon identity.
+    if (authorization) return { supabase: null, userId: null };
+    const { supabase, userId } = await getAuthenticatedUserId();
+    return { supabase, userId };
+  }
 
   if (authorization) {
     const match = authorization.match(BEARER_PATTERN);

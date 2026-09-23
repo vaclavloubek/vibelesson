@@ -15,6 +15,10 @@ import { startOrganizationPayment } from '@/lib/organization-payment';
 import { OrganizationStripeError } from '@/lib/organization-stripe';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { readProfileRole } from '@/lib/neon/profile-role';
 
 function paymentDiagnostic(error: unknown) {
   if (error instanceof OrganizationStripeError) {
@@ -74,24 +78,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'unsupported_billing_country' }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (profileError) {
+  const admin = createPrivilegedRpcClient();
+  let profileRole: string | null;
+  try {
+    profileRole = await readProfileRole(userId);
+  } catch {
     return NextResponse.json({ error: 'profile_lookup_failed' }, { status: 500 });
   }
 
-  if (input.environment === 'sandbox' && profile?.role !== 'admin') {
+  if (input.environment === 'sandbox' && profileRole !== 'admin') {
     return NextResponse.json({ error: 'school_sandbox_billing_forbidden' }, { status: 403 });
   }
   if (
     input.environment === 'live'
     && !isPublicSchoolBillingEnabled()
-    && profile?.role !== 'admin'
+    && profileRole !== 'admin'
   ) {
     return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
   }
@@ -144,12 +145,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: createdOrder, error: createdOrderError } = await admin
-    .from('organization_orders')
-    .select('billing_snapshot')
-    .eq('id', orderId)
-    .eq('organization_id', organizationId)
-    .maybeSingle();
+  const { data: createdOrder, error: createdOrderError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select billing_snapshot from public.organization_orders
+        where id = ${orderId}::uuid and organization_id = ${organizationId}::uuid
+        limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .select('billing_snapshot').eq('id', orderId).eq('organization_id', organizationId).maybeSingle();
 
   if (createdOrderError || !createdOrder) {
     return NextResponse.json({ error: 'organization_order_snapshot_failed', orderCreated: true, organizationId, orderId }, { status: 500 });
@@ -159,36 +166,44 @@ export async function POST(request: Request) {
     ? createdOrder.billing_snapshot as Record<string, unknown>
     : {};
   const acceptedAt = new Date().toISOString();
-  const { error: environmentError } = await admin
-    .from('organization_orders')
-    .update({
-      livemode: input.environment === 'live',
-      billing_snapshot: {
-        ...existingSnapshot,
-        providerContact: {
-          legalName: PROVIDER_CONTACT.legalName,
-          businessId: PROVIDER_CONTACT.businessId,
-          addressLine1: PROVIDER_CONTACT.addressLine1,
-          postalCity: PROVIDER_CONTACT.postalCity,
-          country: PROVIDER_CONTACT.countryEn,
-          phone: PROVIDER_CONTACT.phoneE164,
-          email: PROVIDER_CONTACT.email,
-          website: PROVIDER_CONTACT.website,
-        },
-        legalAcceptance: {
-          termsAccepted: true,
-          termsVersion: input.termsVersion,
-          acceptedAt,
-          acceptedByUserId: userId,
-          dpaAccepted: true,
-          dpaVersion: input.dpaVersion,
-          dpaAcceptedAt: acceptedAt,
-          dpaAcceptedByUserId: userId,
-        },
-      },
-    })
-    .eq('id', orderId)
-    .eq('organization_id', organizationId);
+  const nextSnapshot = {
+    ...existingSnapshot,
+    providerContact: {
+      legalName: PROVIDER_CONTACT.legalName,
+      businessId: PROVIDER_CONTACT.businessId,
+      addressLine1: PROVIDER_CONTACT.addressLine1,
+      postalCity: PROVIDER_CONTACT.postalCity,
+      country: PROVIDER_CONTACT.countryEn,
+      phone: PROVIDER_CONTACT.phoneE164,
+      email: PROVIDER_CONTACT.email,
+      website: PROVIDER_CONTACT.website,
+    },
+    legalAcceptance: {
+      termsAccepted: true,
+      termsVersion: input.termsVersion,
+      acceptedAt,
+      acceptedByUserId: userId,
+      dpaAccepted: true,
+      dpaVersion: input.dpaVersion,
+      dpaAcceptedAt: acceptedAt,
+      dpaAcceptedByUserId: userId,
+    },
+  };
+  const { error: environmentError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        update public.organization_orders
+        set livemode = ${input.environment === 'live'},
+          billing_snapshot = ${JSON.stringify(nextSnapshot)}::jsonb
+        where id = ${orderId}::uuid and organization_id = ${organizationId}::uuid
+        returning id
+      `;
+      return { error: rows.length === 1 ? null : { code: 'organization_order_not_found' } };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .update({ livemode: input.environment === 'live', billing_snapshot: nextSnapshot })
+      .eq('id', orderId).eq('organization_id', organizationId);
 
   if (environmentError) {
     console.error('organization order environment persist failed', {
@@ -231,7 +246,7 @@ export async function POST(request: Request) {
         orderCreated: true,
         organizationId,
         orderId,
-        ...(input.environment === 'sandbox' && profile?.role === 'admin'
+        ...(input.environment === 'sandbox' && profileRole === 'admin'
           ? { diagnostic: { code, stripeType: null, stripeCode: null } }
           : {}),
       }, { status: 502 });
@@ -273,7 +288,7 @@ export async function POST(request: Request) {
       paymentKind: payment.paymentKind,
     }, { status: 201 });
   } catch (paymentError) {
-    const diagnostic = input.environment === 'sandbox' && profile?.role === 'admin'
+    const diagnostic = input.environment === 'sandbox' && profileRole === 'admin'
       ? paymentDiagnostic(paymentError)
       : null;
 

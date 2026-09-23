@@ -14,14 +14,26 @@ export async function fetchWithTimeout(
   timeoutMs = 8_000,
 ) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const abortFromCaller = () => controller.abort(init.signal?.reason);
+  if (init.signal?.aborted) abortFromCaller();
+  else init.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
 
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
-    if (controller.signal.aborted) throw new FetchTimeoutError(timeoutMs);
+    if (timedOut) throw new FetchTimeoutError(timeoutMs);
     throw error;
   } finally {
     clearTimeout(timer);
+    init.signal?.removeEventListener('abort', abortFromCaller);
   }
+}
+
+export function createFetchWithTimeout(timeoutMs = 8_000): typeof fetch {
+  return (input, init) => fetchWithTimeout(input, init, timeoutMs);
 }

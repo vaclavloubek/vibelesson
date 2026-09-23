@@ -9,7 +9,7 @@ import {
   type OrganizationBillingPeriod,
 } from '@/lib/organization-billing-catalog';
 import { createOrganizationQuotePdfBuffer } from '@/lib/organization-quote-pdf';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { readProfileRole } from '@/lib/neon/profile-role';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,16 +60,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'unsupported_billing_country' }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle();
+  const role = await readProfileRole(userId);
 
   if (
     process.env.STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED !== 'true'
-    && profile?.role !== 'admin'
+    && role !== 'admin'
   ) {
     return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
   }

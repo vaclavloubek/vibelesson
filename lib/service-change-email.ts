@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { renderServiceChangeEmail } from '@/lib/service-change-email-core';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const Delivery=z.object({
   deliveryId:z.string().uuid(),leaseToken:z.string().uuid(),recipientKind:z.enum(['individual','organization']),
@@ -27,7 +27,7 @@ async function send(to:string,rendered:{subject:string;text:string;html:string},
 }
 
 export async function deliverPendingServiceChangeNotices(limit=25) {
-  const admin=createAdminClient();
+  const admin=createPrivilegedRpcClient();
   const {data,error}=await admin.rpc('claim_service_change_deliveries_for_service',{p_limit:limit});
   if(error) throw new Error('service_change_delivery_claim_failed');
   const deliveries=z.array(Delivery).parse(data??[]); let sent=0,failed=0;

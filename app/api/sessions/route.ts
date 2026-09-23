@@ -6,7 +6,7 @@ import { generateJoinCode, generateRealtimeKey } from '@/lib/live-identifiers';
 import { LessonSchema } from '@/lib/schema';
 import { bootstrapLiveControl, publicLessonSnapshot } from '@/lib/live-control-server';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const CreateSessionSchema = z.object({ lessonId: z.string().uuid() });
 
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
 
-    const admin = createAdminClient();
+    const admin = createPrivilegedRpcClient();
     const deviceHash = await currentTrustedDeviceHash();
 
     for (let attempt = 0; attempt < 5; attempt += 1) {

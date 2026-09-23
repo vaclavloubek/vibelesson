@@ -4,7 +4,8 @@ import { createLesson, type LessonGenerationStage } from '@/lib/ai';
 import { CollaborationModeSchema, GradingStrictnessSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { saveGeneratedLesson } from '@/lib/neon/generated-lesson-writer';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   let requestId: string | null = null;
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
 
   try {
     const input = InputSchema.parse(await req.json());
@@ -247,23 +248,13 @@ export async function POST(req: Request) {
             costUsd = generated.costUsd;
 
             send({ type: 'progress', stage: 'saving' });
-            const { data: savedLesson, error: saveError } = await admin
-              .from('lessons')
-              .insert({
-                owner_id: userId,
-                title: lesson.title,
-                source_prompt: input.prompt,
-                lesson,
-                folder_id: input.folderId,
-              })
-              .select('id')
-              .single();
-
-            if (saveError || !savedLesson?.id) {
-              throw saveError ?? new Error('Generated lesson was not persisted.');
-            }
-
-            const lessonId = savedLesson.id as string;
+            const lessonId = await saveGeneratedLesson({
+              ownerId: userId,
+              title: lesson.title,
+              sourcePrompt: input.prompt,
+              lesson,
+              folderId: input.folderId,
+            });
             const { error: finishError } = await admin.rpc('finish_generation_request_server', {
               p_user_id: userId,
               p_request_id: requestId,

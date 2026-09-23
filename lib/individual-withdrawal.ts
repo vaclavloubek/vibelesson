@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { calculateWithdrawal } from '@/lib/withdrawal-calculation';
 import {
   retrieveStripeSubscription, singleSubscriptionItem, subscriptionCustomerId,
@@ -50,7 +53,7 @@ const EvidenceSchema = z.object({
 });
 
 async function rpc(name:string,params:Record<string,unknown>) {
-  const {data,error}=await createAdminClient().rpc(name,params);
+  const {data,error}=await createPrivilegedRpcClient().rpc(name,params);
   if(error) throw new Error('withdrawal_evidence_operation_failed');
   return data;
 }
@@ -62,9 +65,20 @@ export async function getWithdrawalState(id:string) {
 export async function prepareWithdrawal(id:string,key:string) {
   const state=await getWithdrawalState(id);
   if(state.request?.calculation_evidence) return state.request.calculation_evidence;
-  const snapshots=await rpc('get_individual_contract_snapshot_for_delivery',{
-    p_snapshot_id:state.receipt.snapshot_id,p_user_id:state.receipt.user_id,p_livemode:true,
-  });
+  const snapshots = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      return createNeonSql()`
+        select * from public.get_individual_contract_snapshot_for_delivery(
+          ${state.receipt.snapshot_id}::uuid,
+          ${state.receipt.user_id}::uuid,
+          ${true}::boolean
+        )
+      `;
+    })()
+    : await rpc('get_individual_contract_snapshot_for_delivery',{
+      p_snapshot_id:state.receipt.snapshot_id,p_user_id:state.receipt.user_id,p_livemode:true,
+    });
   const snapshot=SnapshotSchema.parse(snapshots?.[0]);
   const snapshotHash=createHash('sha256').update(snapshot.contract_html,'utf8')
     .update('\n--syllonaut-withdrawal-form--\n','utf8').update(snapshot.withdrawal_form_html,'utf8').digest('hex');
@@ -96,10 +110,26 @@ export async function prepareWithdrawal(id:string,key:string) {
   }
   const period=invoice.lines.data[0].period;
   if(period.start!==item.current_period_start || period.end!==item.current_period_end) throw new Error('withdrawal_period_review_required');
-  const {data:activation,error:activationError}=await createAdminClient().from('billing_email_deliveries')
-    .select('created_at, external_event_id').eq('user_id',state.receipt.user_id).eq('external_subscription_id',subscriptionId)
-    .eq('contract_snapshot_id',state.receipt.snapshot_id).eq('livemode',true).eq('notification_type','subscription_activated')
-    .order('created_at',{ascending:true}).limit(1).maybeSingle();
+  const {data:activation,error:activationError} = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select created_at, external_event_id
+        from public.billing_email_deliveries
+        where user_id = ${state.receipt.user_id}::uuid
+          and external_subscription_id = ${subscriptionId}
+          and contract_snapshot_id = ${state.receipt.snapshot_id}::uuid
+          and livemode = true
+          and notification_type = 'subscription_activated'
+        order by created_at asc
+        limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('billing_email_deliveries')
+      .select('created_at, external_event_id').eq('user_id',state.receipt.user_id).eq('external_subscription_id',subscriptionId)
+      .eq('contract_snapshot_id',state.receipt.snapshot_id).eq('livemode',true).eq('notification_type','subscription_activated')
+      .order('created_at',{ascending:true}).limit(1).maybeSingle();
   if(activationError || !activation) throw new Error('withdrawal_activation_evidence_required');
   const iso=(seconds:number)=>new Date(seconds*1000).toISOString();
   const serviceStartedAt=Math.max(period.start,invoice.status_transitions.paid_at,Date.parse(activation.created_at)/1000);

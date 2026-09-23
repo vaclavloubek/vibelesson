@@ -29,7 +29,7 @@ export class SharedLessonImportWriteError extends Error {
 }
 
 function shouldImportInNeon() {
-  const enabled = process.env.NEON_SHARED_LESSON_IMPORT_WRITES;
+  const enabled = process.env.DATABASE_BACKEND === 'neon' ? 'true' : process.env.NEON_SHARED_LESSON_IMPORT_WRITES;
   if (enabled === undefined || enabled === '' || enabled === 'false') return false;
   if (enabled !== 'true') {
     throw new SharedLessonImportWriteError('INVALID_NEON_SHARED_LESSON_IMPORT_WRITES');

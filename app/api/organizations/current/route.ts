@@ -4,6 +4,9 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { ORGANIZATION_PLANS } from '@/lib/organization-billing-catalog';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +34,10 @@ export async function GET() {
 
   if (!organization) return NextResponse.json({ organization: null });
 
-  const admin = createAdminClient();
+  const neon = getDatabaseBackend() === 'neon';
+  if (neon) assertApprovedNeonCutover();
+  const admin = neon ? null : createAdminClient();
+  const rpc = createPrivilegedRpcClient();
   const plan = ORGANIZATION_PLANS[organization.planCode];
   const manager = canManageOrganization(organization.role);
   const devicePolicyActive = organization.status === 'active';
@@ -39,13 +45,19 @@ export async function GET() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const lifecycleResult = await admin
-    .from('organizations')
-    .select('renewal_mode, cancel_at_period_end, past_due_at')
-    .eq('id', organization.id)
-    .maybeSingle();
+  const lifecycleResult = neon
+    ? await (async () => {
+      const rows = await createNeonSql()`
+        select renewal_mode, cancel_at_period_end, past_due_at
+        from public.organizations where id = ${organization.id}::uuid limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await admin!.from('organizations')
+      .select('renewal_mode, cancel_at_period_end, past_due_at')
+      .eq('id', organization.id).maybeSingle();
 
-  const billingPauseResult = await admin.rpc('get_organization_ai_billing_pause_reason_server', {
+  const billingPauseResult = await rpc.rpc('get_organization_ai_billing_pause_reason_server', {
     p_organization_id: organization.id,
   });
   if (billingPauseResult.error) {
@@ -55,64 +67,109 @@ export async function GET() {
     });
   }
 
-  const membersResult = await admin
-    .from('organization_memberships')
-    .select('user_id, role, joined_at')
-    .eq('organization_id', organization.id)
-    .eq('status', 'active')
-    .order('joined_at', { ascending: true });
+  const membersResult = neon
+    ? await (async () => {
+      const rows = await createNeonSql()`
+        select user_id, role, joined_at from public.organization_memberships
+        where organization_id = ${organization.id}::uuid and status = 'active'
+        order by joined_at asc
+      `;
+      return { data: rows, error: null };
+    })()
+    : await admin!.from('organization_memberships')
+      .select('user_id, role, joined_at')
+      .eq('organization_id', organization.id).eq('status', 'active')
+      .order('joined_at', { ascending: true });
 
   const invitesResult = manager
-    ? await admin
-      .from('organization_invitations')
-      .select('id, email_normalized, role, expires_at, created_at')
-      .eq('organization_id', organization.id)
-      .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
+    ? neon
+      ? await (async () => {
+        const rows = await createNeonSql()`
+          select id, email_normalized, role, expires_at, created_at
+          from public.organization_invitations
+          where organization_id = ${organization.id}::uuid
+            and status = 'pending' and expires_at > now()
+          order by created_at desc
+        `;
+        return { data: rows, error: null };
+      })()
+      : await admin!.from('organization_invitations')
+        .select('id, email_normalized, role, expires_at, created_at')
+        .eq('organization_id', organization.id).eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
     : { data: [], error: null };
 
-  const requestsResult = await admin
-    .from('generation_requests')
-    .select('user_id, action, status')
-    .eq('organization_id', organization.id)
-    .gte('created_at', monthStart.toISOString())
-    .in('status', ['pending', 'succeeded']);
+  const requestsResult = neon
+    ? await (async () => {
+      const rows = await createNeonSql()`
+        select user_id, action, status from public.generation_requests
+        where organization_id = ${organization.id}::uuid
+          and created_at >= ${monthStart.toISOString()}::timestamptz
+          and status in ('pending', 'succeeded')
+      `;
+      return { data: rows, error: null };
+    })()
+    : await admin!.from('generation_requests')
+      .select('user_id, action, status').eq('organization_id', organization.id)
+      .gte('created_at', monthStart.toISOString()).in('status', ['pending', 'succeeded']);
 
   const libraryResult = plan.libraryEnabled
-    ? await admin
-      .from('organization_lesson_library')
-      .select('id, title, subject, published_by, created_at')
-      .eq('organization_id', organization.id)
-      .order('created_at', { ascending: false })
+    ? neon
+      ? await (async () => {
+        const rows = await createNeonSql()`
+          select id, title, subject, published_by, created_at
+          from public.organization_lesson_library
+          where organization_id = ${organization.id}::uuid order by created_at desc
+        `;
+        return { data: rows, error: null };
+      })()
+      : await admin!.from('organization_lesson_library')
+        .select('id, title, subject, published_by, created_at')
+        .eq('organization_id', organization.id).order('created_at', { ascending: false })
     : { data: [], error: null };
 
   const ownLessonsResult = plan.libraryEnabled
-    ? await admin
-      .from('lessons')
-      .select('id, title, updated_at')
-      .eq('owner_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(200)
+    ? neon
+      ? await (async () => {
+        const rows = await createNeonSql()`
+          select id, title, updated_at from public.lessons
+          where owner_id = ${userId}::uuid order by updated_at desc limit 200
+        `;
+        return { data: rows, error: null };
+      })()
+      : await admin!.from('lessons').select('id, title, updated_at')
+        .eq('owner_id', userId).order('updated_at', { ascending: false }).limit(200)
     : { data: [], error: null };
 
-  const seatUsageResult = await admin.rpc('get_organization_seat_usage', {
+  const seatUsageResult = await rpc.rpc('get_organization_seat_usage', {
     p_organization_id: organization.id,
   });
 
   const deviceUsageResult = manager && devicePolicyActive
-    ? await admin.rpc('get_organization_member_device_usage_server', {
+    ? await rpc.rpc('get_organization_member_device_usage_server', {
       p_actor_id: userId,
       p_organization_id: organization.id,
     })
     : { data: [], error: null };
 
   const ordersResult = manager
-    ? await admin
-      .from('organization_orders')
-      .select('id, status, payment_method, amount_minor, currency, billing_period, created_at, paid_at, hosted_invoice_url, invoice_pdf_url, external_subscription_id, livemode, invoice_number, invoice_issued_at, invoice_due_date, payment_confirmation_source, bank_transaction_reference')
-      .eq('organization_id', organization.id)
-      .order('created_at', { ascending: false })
+    ? neon
+      ? await (async () => {
+        const rows = await createNeonSql()`
+          select id, status, payment_method, amount_minor, currency,
+            billing_period, created_at, paid_at, hosted_invoice_url,
+            invoice_pdf_url, external_subscription_id, livemode,
+            invoice_number, invoice_issued_at, invoice_due_date,
+            payment_confirmation_source, bank_transaction_reference
+          from public.organization_orders
+          where organization_id = ${organization.id}::uuid order by created_at desc
+        `;
+        return { data: rows, error: null };
+      })()
+      : await admin!.from('organization_orders')
+        .select('id, status, payment_method, amount_minor, currency, billing_period, created_at, paid_at, hosted_invoice_url, invoice_pdf_url, external_subscription_id, livemode, invoice_number, invoice_issued_at, invoice_due_date, payment_confirmation_source, bank_transaction_reference')
+        .eq('organization_id', organization.id).order('created_at', { ascending: false })
     : { data: [], error: null };
 
   if (
@@ -142,6 +199,16 @@ export async function GET() {
   }
 
   const memberRows = membersResult.data ?? [];
+  const identityRows = neon && manager && memberRows.length
+    ? await createNeonSql()`
+      select id, email from app_identity.users
+      where id = any(${memberRows.map((row) => String(row.user_id))}::uuid[])
+        and deleted_at is null
+    `
+    : [];
+  const memberEmailById = new Map(
+    identityRows.map((row) => [String(row.id), String(row.email)]),
+  );
   const deviceUsageRows = Array.isArray(deviceUsageResult.data)
     ? deviceUsageResult.data as Array<{
       userId?: string;
@@ -159,11 +226,13 @@ export async function GET() {
 
   const members = manager
     ? await Promise.all(memberRows.map(async (row) => {
-      const { data } = await admin.auth.admin.getUserById(row.user_id);
+      const email = neon
+        ? memberEmailById.get(String(row.user_id)) ?? null
+        : (await admin!.auth.admin.getUserById(row.user_id)).data.user?.email ?? null;
       const devices = deviceUsageByUser.get(row.user_id);
       return {
         userId: row.user_id,
-        email: data.user?.email ?? null,
+        email,
         role: row.role,
         joinedAt: row.joined_at,
         devices: devicePolicyActive ? {
@@ -292,11 +361,28 @@ export async function PATCH(request: Request) {
   if (input.vatId !== undefined) patch.vat_id = input.vatId || null;
   if (input.billingEmail !== undefined) patch.billing_email = input.billingEmail.toLowerCase();
 
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from('organizations')
-    .update(patch)
-    .eq('id', organization.id);
+  const { error } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        update public.organizations
+        set name = case when ${input.name !== undefined} then ${input.name ?? null}::text else name end,
+          legal_name = case when ${input.legalName !== undefined}
+            then ${input.legalName || null}::text else legal_name end,
+          registration_number = case when ${input.registrationNumber !== undefined}
+            then ${input.registrationNumber || null}::text else registration_number end,
+          vat_id = case when ${input.vatId !== undefined}
+            then ${input.vatId || null}::text else vat_id end,
+          billing_email = case when ${input.billingEmail !== undefined}
+            then ${input.billingEmail?.toLowerCase() ?? null}::text else billing_email end,
+          updated_at = now()
+        where id = ${organization.id}::uuid
+        returning id
+      `;
+      return { error: rows.length === 1 ? null : { code: 'organization_not_found' } };
+    })()
+    : await createAdminClient().from('organizations')
+      .update(patch).eq('id', organization.id);
 
   if (error) {
     console.error('organization update failed', error.code);

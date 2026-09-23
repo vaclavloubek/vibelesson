@@ -5,6 +5,9 @@ import { updateOrganizationSubscriptionCancellation } from '@/lib/organization-s
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const InputSchema = z.object({
   cancelAtPeriodEnd: z.boolean(),
@@ -39,12 +42,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
-  const { data: organizationRow, error: organizationError } = await admin
-    .from('organizations')
-    .select('renewal_mode, status')
-    .eq('id', organization.id)
-    .maybeSingle();
+  const admin = createPrivilegedRpcClient();
+  const { data: organizationRow, error: organizationError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select renewal_mode, status from public.organizations
+        where id = ${organization.id}::uuid limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organizations')
+      .select('renewal_mode, status').eq('id', organization.id).maybeSingle();
 
   if (organizationError || !organizationRow) {
     return NextResponse.json({ error: 'organization_not_found' }, { status: 404 });
@@ -56,14 +65,23 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'organization_not_cancellable' }, { status: 409 });
   }
 
-  const { data: order, error: orderError } = await admin
-    .from('organization_orders')
-    .select('external_subscription_id, livemode')
-    .eq('organization_id', organization.id)
-    .not('external_subscription_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: order, error: orderError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select external_subscription_id, livemode
+        from public.organization_orders
+        where organization_id = ${organization.id}::uuid
+          and external_subscription_id is not null
+        order by created_at desc limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .select('external_subscription_id, livemode')
+      .eq('organization_id', organization.id)
+      .not('external_subscription_id', 'is', null)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
   if (orderError || !order?.external_subscription_id) {
     return NextResponse.json({ error: 'organization_subscription_not_ready' }, { status: 409 });

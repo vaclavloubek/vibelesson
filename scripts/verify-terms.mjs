@@ -20,6 +20,7 @@ const terms11Migration = read('supabase/migrations/20260921071533_update_terms_1
 const terms13Migration = read('supabase/migrations/20260921100214_update_terms_1_3_legal_010.sql');
 const terms14Migration = read('supabase/migrations/20260921114500_update_terms_1_4_legal_011.sql');
 const terms15Migration = read('supabase/migrations/20260921133000_add_online_withdrawal_legal_012.sql');
+const batchTermsMigration = read('supabase/migrations/20260921131556_batch_terms_acceptance_lookup.sql');
 const termsRolloutGuardMigration = read('supabase/migrations/20260921072059_restore_terms_1_0_rollout_guard.sql');
 const versionedTermsMigration = read('supabase/migrations/20260921072159_add_versioned_terms_acceptance_rpcs.sql');
 const termsContent = read('lib/terms-content.ts');
@@ -128,9 +129,11 @@ for (const [functionName, signature] of [
   if (!versionedTermsMigration.includes(`grant execute on function public.${functionName}(${signature}) to service_role`)) fail('versioned Terms RPC must be service-role only: ' + functionName);
 }
 if (!reconsentMigration.includes("and tae.source = 'reconsent'")) fail('historical re-consent API must return the re-consent event timestamp');
-if (!termsAcceptance.includes("admin.rpc('has_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('record_terms_reconsent_for_service'")) fail('server Terms helper must use versioned service-only RPCs');
+if (!termsAcceptance.includes("admin.rpc('has_any_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('has_terms_acceptance_for_service'") || !termsAcceptance.includes("admin.rpc('record_terms_reconsent_for_service'")) fail('server Terms helper must use batch and backward-compatible versioned service-only RPCs');
 if (!termsAcceptance.includes('p_acceptance_key: TERMS_ACCEPTANCE_KEY')) fail('server Terms helper must pass the exact active acceptance key');
-if (!termsAcceptance.includes('for (const acceptanceKey of TERMS_PRODUCT_ACCESS_KEYS)')) fail('ordinary product access must check the approved non-adverse Terms compatibility keys');
+if (!termsAcceptance.includes('p_acceptance_keys: [...TERMS_PRODUCT_ACCESS_KEYS]') || !termsAcceptance.includes('TERMS_PRODUCT_ACCESS_KEYS.map((acceptanceKey)')) fail('ordinary product access must check every approved non-adverse Terms compatibility key');
+if (!batchTermsMigration.includes('function public.has_any_terms_acceptance_for_service') || !batchTermsMigration.includes('tae.acceptance_key = any (p_acceptance_keys)')) fail('batch Terms migration must test the supplied compatibility keys in one query');
+if (!batchTermsMigration.includes('from public, anon, authenticated') || !batchTermsMigration.includes('to service_role')) fail('batch Terms RPC must be service-role only');
 if (!reconsentApi.includes('termsAccepted: z.literal(true)') || !reconsentApi.includes('termsVersion: z.literal(TERMS_ACCEPTANCE_KEY)')) fail('re-consent API must fail closed on explicit current Terms acceptance');
 if (!reconsentApi.includes('recordCurrentTermsReconsent(userId)')) fail('re-consent API must persist server audit');
 if (!reconsentForm.includes('useState(false)') || !reconsentForm.includes('TERMS_ACCEPTANCE_KEY') || !reconsentForm.includes('/api/legal/terms/reconsent')) fail('re-consent form must be explicit, versioned and server-recorded');

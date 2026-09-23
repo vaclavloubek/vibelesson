@@ -109,8 +109,9 @@ export default function ImportSharedLessonButton({
       : '');
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token ?? null;
+      const accessToken = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon'
+        ? null
+        : (await supabase.auth.getSession()).data.session?.access_token ?? null;
       const response = await fetch(`/api/lesson-shares/${token}/import`, {
         method: 'POST',
         cache: 'no-store',

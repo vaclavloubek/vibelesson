@@ -1,4 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 export const AI_BILLING_PAYMENT_REQUIRED_CODE = 'billing_payment_required';
 
@@ -73,13 +75,25 @@ export function aiBillingPausedMessage(
 export async function getIndividualAiBillingPauseReason(
   userId: string,
 ): Promise<AiBillingPauseReason | null> {
-  const admin = createAdminClient();
-  const { data, error } = await admin.rpc('get_individual_ai_billing_pause_reason_server', {
-    p_user_id: userId,
-  });
-  if (error) {
-    console.error('individual AI billing state lookup failed', { userId, code: error.code });
-    throw new Error('ai_billing_state_lookup_failed');
+  let data: unknown;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`
+      select public.get_individual_ai_billing_pause_reason_server(${userId}::uuid) as reason
+    `;
+    if (rows.length !== 1) throw new Error('ai_billing_state_lookup_failed');
+    data = rows[0].reason;
+  } else {
+    const admin = createAdminClient();
+    const result = await admin.rpc('get_individual_ai_billing_pause_reason_server', {
+      p_user_id: userId,
+    });
+    if (result.error) {
+      console.error('individual AI billing state lookup failed', { userId, code: result.error.code });
+      throw new Error('ai_billing_state_lookup_failed');
+    }
+    data = result.data;
   }
   if (data === null) return null;
   if (data === 'past_due' || data === 'dispute' || data === 'refund') return data;
@@ -94,25 +108,37 @@ export async function isIndividualAiBillingPaused(userId: string) {
 export async function getEffectiveAiBillingPauseState(
   userId: string,
 ): Promise<EffectiveAiBillingPauseState> {
-  const admin = createAdminClient();
-  const { data, error } = await admin.rpc('get_effective_ai_billing_pause_state_server', {
-    p_user_id: userId,
-  });
-  if (error) {
-    // Safe app-first rollout: the new RPC can be briefly absent from PostgREST
-    // before the matching DB migration is applied. Fall back only for that
-    // explicit schema-cache condition; all other lookup errors remain fail-closed.
-    if (error.code === 'PGRST202' || error.message?.includes('get_effective_ai_billing_pause_state_server')) {
-      const reason = await getIndividualAiBillingPauseReason(userId);
-      return {
-        reason,
-        scope: reason ? 'individual' : null,
-        organizationId: null,
-        manager: false,
-      };
+  let data: unknown;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`
+      select public.get_effective_ai_billing_pause_state_server(${userId}::uuid) as state
+    `;
+    if (rows.length !== 1) throw new Error('ai_billing_state_lookup_failed');
+    data = rows[0].state;
+  } else {
+    const admin = createAdminClient();
+    const result = await admin.rpc('get_effective_ai_billing_pause_state_server', {
+      p_user_id: userId,
+    });
+    const error = result.error;
+    if (!error) {
+      data = result.data;
+    } else {
+      // Keep the original Supabase-only schema-cache fallback during rollout.
+      if (error.code === 'PGRST202' || error.message?.includes('get_effective_ai_billing_pause_state_server')) {
+        const reason = await getIndividualAiBillingPauseReason(userId);
+        return {
+          reason,
+          scope: reason ? 'individual' : null,
+          organizationId: null,
+          manager: false,
+        };
+      }
+      console.error('effective AI billing state lookup failed', { userId, code: error.code });
+      throw new Error('ai_billing_state_lookup_failed');
     }
-    console.error('effective AI billing state lookup failed', { userId, code: error.code });
-    throw new Error('ai_billing_state_lookup_failed');
   }
 
   const value = data as Partial<EffectiveAiBillingPauseState> | null;

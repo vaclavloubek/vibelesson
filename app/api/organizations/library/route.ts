@@ -5,6 +5,8 @@ import { getAuthenticatedUserId } from '@/lib/auth';
 import { ORGANIZATION_PLANS } from '@/lib/organization-billing-catalog';
 import { getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 const InputSchema = z.object({
   lessonId: z.string().uuid(),
@@ -39,13 +41,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createAdminClient();
-  const { data: lesson, error: lessonError } = await admin
-    .from('lessons')
-    .select('id, title, lesson, organization_origin_id')
-    .eq('id', input.lessonId)
-    .eq('owner_id', userId)
-    .maybeSingle();
+  const { data: lesson, error: lessonError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select id, title, lesson, organization_origin_id
+        from public.lessons where id = ${input.lessonId}::uuid
+          and owner_id = ${userId}::uuid limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('lessons')
+      .select('id, title, lesson, organization_origin_id')
+      .eq('id', input.lessonId).eq('owner_id', userId).maybeSingle();
 
   if (lessonError) {
     return NextResponse.json({ error: 'lesson_lookup_failed' }, { status: 500 });
@@ -67,18 +75,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'lesson_snapshot_invalid' }, { status: 409 });
   }
 
-  const { data: created, error } = await admin
-    .from('organization_lesson_library')
-    .insert({
-      organization_id: organization.id,
-      source_lesson_id: lesson.id,
-      published_by: userId,
-      title: lesson.title,
-      subject: snapshot.subject?.replace(/\s+/g, ' ').trim() || null,
-      snapshot,
-    })
-    .select('id, title, subject, published_by, created_at')
-    .single();
+  const subject = snapshot.subject?.replace(/\s+/g, ' ').trim() || null;
+  const { data: created, error } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      try {
+        assertApprovedNeonCutover();
+        const rows = await createNeonSql()`
+          insert into public.organization_lesson_library
+            (organization_id, source_lesson_id, published_by, title, subject, snapshot)
+          values (${organization.id}::uuid, ${String(lesson.id)}::uuid,
+            ${userId}::uuid, ${String(lesson.title)}, ${subject}, ${JSON.stringify(snapshot)}::jsonb)
+          returning id, title, subject, published_by, created_at
+        `;
+        return { data: rows[0] ?? null, error: null };
+      } catch (cause) {
+        return { data: null, error: { code: cause && typeof cause === 'object' && 'code' in cause
+          ? String(cause.code) : 'neon_library_publish_failed' } };
+      }
+    })()
+    : await createAdminClient().from('organization_lesson_library')
+      .insert({
+        organization_id: organization.id,
+        source_lesson_id: lesson.id,
+        published_by: userId,
+        title: lesson.title,
+        subject,
+        snapshot,
+      })
+      .select('id, title, subject, published_by, created_at').single();
 
   if (error?.code === '23505') {
     return NextResponse.json({ error: 'lesson_already_in_school_library' }, { status: 409 });

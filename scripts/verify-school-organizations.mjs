@@ -251,7 +251,7 @@ for (const needle of [
 
 for (const needle of [
   'OrganizationStripeError',
-  "input.environment === 'sandbox' && profile?.role === 'admin'",
+  "input.environment === 'sandbox' && profileRole === 'admin'",
   'stripeType',
   'stripeCode',
   'diagnostic',
@@ -267,7 +267,7 @@ const organizationPaymentRoute = fs.readFileSync(
 );
 for (const needle of [
   'OrganizationStripeError',
-  "!livemode && profile?.role === 'admin'",
+  "!livemode && profileRole === 'admin'",
   'stripeType',
   'stripeCode',
   'diagnostic',

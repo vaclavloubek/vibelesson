@@ -8,6 +8,8 @@ import type {
   OrganizationPlanCode,
 } from '@/lib/organization-billing-catalog';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 type BillingEnvironment = 'sandbox' | 'live';
 
@@ -59,18 +61,30 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
       : 'school_sandbox_billing_not_configured');
   }
 
-  const admin = createAdminClient();
-
-  const { data: catalogPrice, error: catalogPriceError } = await admin
-    .from('billing_prices')
-    .select('external_price_id')
-    .eq('provider', 'stripe')
-    .eq('livemode', livemode)
-    .eq('plan_code', input.organization.planCode)
-    .eq('billing_period', input.order.billingPeriod)
-    .eq('currency', input.order.currency)
-    .eq('active', true)
-    .maybeSingle();
+  const { data: catalogPrice, error: catalogPriceError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select external_price_id from public.billing_prices
+        where provider = 'stripe' and livemode = ${livemode}
+          and plan_code = ${input.organization.planCode}
+          and billing_period = ${input.order.billingPeriod}
+          and currency = ${input.order.currency}
+          and active = true
+        limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient()
+      .from('billing_prices')
+      .select('external_price_id')
+      .eq('provider', 'stripe')
+      .eq('livemode', livemode)
+      .eq('plan_code', input.organization.planCode)
+      .eq('billing_period', input.order.billingPeriod)
+      .eq('currency', input.order.currency)
+      .eq('active', true)
+      .maybeSingle();
 
   if (catalogPriceError) {
     throw new Error('organization_price_lookup_failed');
@@ -94,16 +108,23 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
       address: input.organization.billingAddress,
     });
 
-    const { error } = await admin
-      .from('organization_orders')
-      .update({
-        external_customer_id: customerId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', input.order.id)
-      .eq('organization_id', input.organization.id);
-
-    if (error) throw new Error('organization_customer_link_failed');
+    if (getDatabaseBackend() === 'neon') {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        update public.organization_orders
+        set external_customer_id = ${customerId}, updated_at = now()
+        where id = ${input.order.id}::uuid
+          and organization_id = ${input.organization.id}::uuid
+        returning id
+      `;
+      if (rows.length !== 1) throw new Error('organization_customer_link_failed');
+    } else {
+      const { error } = await createAdminClient()
+        .from('organization_orders')
+        .update({ external_customer_id: customerId, updated_at: new Date().toISOString() })
+        .eq('id', input.order.id).eq('organization_id', input.organization.id);
+      if (error) throw new Error('organization_customer_link_failed');
+    }
   }
 
   if (input.order.externalCheckoutSessionId && input.order.externalCheckoutUrl) {
@@ -128,17 +149,28 @@ export async function startOrganizationPayment(input: OrganizationPaymentInput) 
     managedPayments: route.managedPayments,
   });
 
-  const { error } = await admin
-    .from('organization_orders')
-    .update({
-      external_checkout_session_id: checkout.sessionId,
-      external_checkout_url: checkout.url,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', input.order.id)
-    .eq('organization_id', input.organization.id);
-
-  if (error) throw new Error('organization_checkout_link_failed');
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const rows = await createNeonSql()`
+      update public.organization_orders
+      set external_checkout_session_id = ${checkout.sessionId},
+        external_checkout_url = ${checkout.url}, updated_at = now()
+      where id = ${input.order.id}::uuid
+        and organization_id = ${input.organization.id}::uuid
+      returning id
+    `;
+    if (rows.length !== 1) throw new Error('organization_checkout_link_failed');
+  } else {
+    const { error } = await createAdminClient()
+      .from('organization_orders')
+      .update({
+        external_checkout_session_id: checkout.sessionId,
+        external_checkout_url: checkout.url,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', input.order.id).eq('organization_id', input.organization.id);
+    if (error) throw new Error('organization_checkout_link_failed');
+  }
 
   return {
     paymentUrl: checkout.url,

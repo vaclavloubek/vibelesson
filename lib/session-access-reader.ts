@@ -22,7 +22,7 @@ function sleep(ms: number) {
 }
 
 function shouldReadFromNeon() {
-  const enabled = process.env.NEON_SESSION_ACCESS_READS;
+  const enabled = process.env.DATABASE_BACKEND === 'neon' ? 'true' : process.env.NEON_SESSION_ACCESS_READS;
   if (enabled === undefined || enabled === '' || enabled === 'false') return false;
   if (enabled !== 'true') {
     throw new SessionAccessReadError('INVALID_NEON_SESSION_ACCESS_READS');

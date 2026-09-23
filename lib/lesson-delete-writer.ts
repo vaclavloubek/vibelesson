@@ -14,7 +14,7 @@ export class LessonDeleteWriteError extends Error {
 }
 
 function shouldDeleteFromNeon() {
-  const enabled = process.env.NEON_LESSON_DELETE_WRITES;
+  const enabled = process.env.DATABASE_BACKEND === 'neon' ? 'true' : process.env.NEON_LESSON_DELETE_WRITES;
   if (enabled === undefined || enabled === '' || enabled === 'false') return false;
   if (enabled !== 'true') {
     throw new LessonDeleteWriteError('INVALID_NEON_LESSON_DELETE_WRITES');

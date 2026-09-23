@@ -9,8 +9,10 @@ import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { signInWithNeonForApp, signOutFromNeonApp } from '@/app/auth/neon/actions';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
+const NEON_APP_AUTH = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon';
 const AUTH_POPOVER_ID = 'auth-popover';
 const AUTH_POPOVER_TITLE_ID = 'auth-popover-title';
 
@@ -147,7 +149,7 @@ export default function AuthControls({
   const [user, setUser] = useState<User | null>(null);
   const [quota, setQuota] = useState<AiQuotaSnapshot | null>(null);
   const [open, setOpen] = useState(initialOpen);
-  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [mode, setMode] = useState<AuthMode>(NEON_APP_AUTH ? 'signin' : initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -319,7 +321,7 @@ export default function AuthControls({
   }, [mode, open]);
 
   useEffect(() => {
-    if (!initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
+    if (NEON_APP_AUTH || !initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
     signupStartedRef.current = true;
     trackEvent('signup_started');
   }, [initialMode, initialOpen]);
@@ -338,6 +340,10 @@ export default function AuthControls({
   }
 
   function startSignupFromAuth() {
+    if (NEON_APP_AUTH) {
+      setMessage(english ? 'Account creation is temporarily unavailable.' : 'Vytvoření účtu je dočasně nedostupné.');
+      return;
+    }
     trackEvent('free_signup_click', { location: 'auth' });
     if (!signupStartedRef.current) {
       signupStartedRef.current = true;
@@ -357,6 +363,19 @@ export default function AuthControls({
 
   async function signIn(e: FormEvent) {
     e.preventDefault();
+    if (NEON_APP_AUTH) {
+      setBusy(true);
+      setMessage('');
+      const result = await signInWithNeonForApp(email.trim(), password);
+      setBusy(false);
+      if (result.error) {
+        setMessage(english ? 'Sign-in failed. Check your email and password.' : 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
+        return;
+      }
+      trackEvent('login_completed');
+      window.location.reload();
+      return;
+    }
     if (!captchaToken) {
       setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
@@ -389,6 +408,10 @@ export default function AuthControls({
 
   async function signUp(e: FormEvent) {
     e.preventDefault();
+    if (NEON_APP_AUTH) {
+      setMessage(english ? 'Account creation is temporarily unavailable.' : 'Vytvoření účtu je dočasně nedostupné.');
+      return;
+    }
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail || password.length < 8) {
@@ -451,6 +474,10 @@ export default function AuthControls({
 
   async function requestPasswordReset(e: FormEvent) {
     e.preventDefault();
+    if (NEON_APP_AUTH) {
+      setMessage(english ? 'Password recovery is temporarily unavailable here.' : 'Obnovení hesla zde zatím není dostupné.');
+      return;
+    }
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
       setMessage(english ? 'Enter the email address you use to sign in.' : 'Zadej e-mail, který používáš pro přihlášení.');
@@ -487,7 +514,9 @@ export default function AuthControls({
       // Logout still clears the primary Supabase session. Live recovery tickets
       // are short-lived and the server endpoint will be retried on a later logout.
     }
-    const { error } = await supabase.auth.signOut();
+    const { error } = NEON_APP_AUTH
+      ? await signOutFromNeonApp()
+      : await supabase.auth.signOut();
     setBusy(false);
     setOpen(false);
     switchMode('signin');
@@ -552,12 +581,16 @@ export default function AuthControls({
               <form onSubmit={signIn}>
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required />
-                <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} />
-                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Signing in…' : 'Přihlašuji…') : (english ? 'Sign in' : 'Přihlásit se')}</button>
+                {!NEON_APP_AUTH ? <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} /> : null}
+                <button className="primary" disabled={busy || (!NEON_APP_AUTH && !captchaToken)}>{busy ? (english ? 'Signing in…' : 'Přihlašuji…') : (english ? 'Sign in' : 'Přihlásit se')}</button>
               </form>
-              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>{english ? 'Forgot password' : 'Zapomenuté heslo' }</button>
-              <span aria-hidden="true"> · </span>
-              <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</button>
+              {!NEON_APP_AUTH ? (
+                <>
+                  <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>{english ? 'Forgot password' : 'Zapomenuté heslo' }</button>
+                  <span aria-hidden="true"> · </span>
+                  <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</button>
+                </>
+              ) : null}
             </>
           ) : null}
 

@@ -6,6 +6,10 @@ import { organizationMinorUnitPrice } from '@/lib/organization-billing-catalog';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { readProfileRole } from '@/lib/neon/profile-role';
 
 export async function POST() {
   const { userId } = await getAuthenticatedUserId();
@@ -24,11 +28,22 @@ export async function POST() {
     return NextResponse.json({ error: 'organization_billing_route_mismatch' }, { status: 409 });
   }
 
-  const admin = createAdminClient();
-  const [previousOrderResult, profileResult] = await Promise.all([
-    admin.from('organization_orders').select('livemode').eq('organization_id', organization.id)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    admin.from('profiles').select('role').eq('id', userId).maybeSingle(),
+  const admin = createPrivilegedRpcClient();
+  const [previousOrderResult, profileRole] = await Promise.all([
+    getDatabaseBackend() === 'neon'
+      ? (async () => {
+        assertApprovedNeonCutover();
+        const rows = await createNeonSql()`
+          select livemode from public.organization_orders
+          where organization_id = ${organization.id}::uuid
+          order by created_at desc limit 1
+        `;
+        return { data: rows[0] ?? null, error: null };
+      })()
+      : createAdminClient().from('organization_orders').select('livemode')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    readProfileRole(userId),
   ]);
 
   if (previousOrderResult.error) {
@@ -36,7 +51,7 @@ export async function POST() {
   }
 
   const livemode = previousOrderResult.data?.livemode !== false;
-  if (livemode && !isPublicSchoolBillingEnabled() && profileResult.data?.role !== 'admin') {
+  if (livemode && !isPublicSchoolBillingEnabled() && profileRole !== 'admin') {
     return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
   }
 
@@ -68,11 +83,21 @@ export async function POST() {
     );
   }
 
-  const { error: environmentError } = await admin
-    .from('organization_orders')
-    .update({ livemode, updated_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .eq('organization_id', organization.id);
+  const { error: environmentError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        update public.organization_orders
+        set livemode = ${livemode}, updated_at = now()
+        where id = ${String(orderId)}::uuid
+          and organization_id = ${organization.id}::uuid
+        returning id
+      `;
+      return { error: rows.length === 1 ? null : { code: 'order_not_found' } };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .update({ livemode, updated_at: new Date().toISOString() })
+      .eq('id', orderId).eq('organization_id', organization.id);
 
   if (environmentError) {
     return NextResponse.json({ error: 'organization_renewal_link_failed' }, { status: 500 });

@@ -5,6 +5,8 @@ import { createStripePortalSession, StripePortalApiError } from '@/lib/stripe-po
 import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isStripeLiveSecretKey, isStripeSandboxSecretKey } from '@/lib/stripe-checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,12 +48,31 @@ export async function POST(request: Request) {
   const publicLiveBillingEnabled = isPublicLiveBillingEnabled();
   if (livemode && !publicLiveBillingEnabled && profile?.role !== 'admin') return jsonError(403, 'live_portal_acceptance_only');
 
-  const admin = createAdminClient();
-  const { data: billingCustomer, error: customerError } = await admin.from('billing_customers').select('external_customer_id')
-    .eq('user_id', userId).eq('provider', 'stripe').eq('livemode', livemode).maybeSingle();
-  if (customerError) {
-    console.error('billing portal customer lookup failed', { code: customerError.code, livemode });
-    return jsonError(500, 'billing_customer_lookup_failed');
+  let billingCustomer: { external_customer_id: string | null } | null;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    try {
+      const sql = createNeonSql();
+      const rows = await sql`
+        select external_customer_id from public.billing_customers
+        where user_id = ${userId}::uuid and provider = 'stripe' and livemode = ${livemode}
+        limit 2
+      `;
+      if (rows.length > 1) throw new Error('duplicate_billing_customers');
+      billingCustomer = (rows[0] as { external_customer_id: string | null } | undefined) ?? null;
+    } catch (error) {
+      console.error('billing portal customer lookup failed', { code: error instanceof Error ? error.name : 'unknown', livemode });
+      return jsonError(500, 'billing_customer_lookup_failed');
+    }
+  } else {
+    const admin = createAdminClient();
+    const { data, error } = await admin.from('billing_customers').select('external_customer_id')
+      .eq('user_id', userId).eq('provider', 'stripe').eq('livemode', livemode).maybeSingle();
+    if (error) {
+      console.error('billing portal customer lookup failed', { code: error.code, livemode });
+      return jsonError(500, 'billing_customer_lookup_failed');
+    }
+    billingCustomer = data;
   }
   if (!billingCustomer?.external_customer_id) return jsonError(409, 'billing_customer_not_found');
 

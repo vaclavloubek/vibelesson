@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { data, error } = await admin.rpc('expire_organization_licenses');
   if (error) {
     console.error('school lifecycle cron failed', error);

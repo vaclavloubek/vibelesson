@@ -5,7 +5,7 @@ import { reviseLesson } from '@/lib/ai';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
   let requestId: string | null = null;
   let costUsd: number | null = null;
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
 
   try {
     const { instruction, lesson, lessonId = null } = InputSchema.parse(await req.json());
