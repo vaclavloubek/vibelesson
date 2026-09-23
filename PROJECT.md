@@ -9,6 +9,8 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. Interní verze zůstává **0.9.92** (infrastrukturní přechod bez změny produktu).
 
+Aktualizováno: 2026-09-23 — interní verze **0.9.98**: potvrzovací fajfka u ikony pro kopírování odkazu pro studenty zůstává, dokud se na stránce nezkopíruje nebo nevyjme něco jiného. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
 Aktualizováno: 2026-09-23 — interní verze **0.9.97** uzavírá **LEGAL-016** schválenou variantou B: VOP 1.6 zavazují Syllonaut před zrušením účtu sám ukončit automatické obnovení; postup je v ACCOUNT_DELETION_RUNBOOK.md. Stávající souhlasy v4–v6 zůstávají platné. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.96**: na stránce živé hodiny je vedle odkazu pro připojení studentů ikona pro zkopírování odkazu do schránky. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
@@ -22,6 +24,12 @@ Aktualizováno: 2026-09-23 — interní verze **0.9.93** uzavírá **LEGAL-013**
 Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: minimální scope, práce po malých krocích, úsporné používání kontextu a nástrojů, zákaz nevyžádaných refaktorů a opakovaných spekulativních pokusů. Kořenový `AGENTS.md` je nově stručným závazným vstupním bodem pro agentní práci; `PROJECT.md` zůstává zdrojem projektového stavu a načítá se cíleně podle úkolu. Jde pouze o dokumentační/procesní změnu, interní verze zůstává **0.9.92** a veřejně zobrazovaná verze 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Trvalá fajfka u kopírování odkazu pro studenty 0.9.98 — 2026-09-23
+
+- potvrzovací fajfka ikony `CopyableJoinLink` už nezmizí po 2,2 s; zůstává, dokud na stránce nenastane jiná událost `copy` nebo `cut`, a pak se vrátí ikona pro kopírování;
+- kopírování mimo stránku Syllonautu nelze bez dotazu na oprávnění ke čtení schránky zjistit, proto se schránka záměrně nečte;
+- změna nezasahuje do databáze, API ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Ukončení obnovení při zrušení účtu 0.9.97 — 2026-09-23
 
@@ -37,7 +45,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 ### Kopírování odkazu pro studenty ikonou 0.9.96 — 2026-09-23
 
 - ve Startovní zóně i v panelu **Připojit další studenty** živé hodiny je hned vedle textového odkazu `/join/<kód>` ikonové tlačítko pro zkopírování odkazu do schránky (komponenta `CopyableJoinLink`);
-- po zkopírování se ikona na 2,2 s změní na potvrzovací fajfku; tooltip, `aria-label` a `aria-live` oznámení jsou v češtině i angličtině;
+- po zkopírování se ikona změní na potvrzovací fajfku (od 0.9.98 trvale do dalšího kopírování na stránce); tooltip, `aria-label` a `aria-live` oznámení jsou v češtině i angličtině;
 - stávající tlačítko **Kopírovat odkaz** pod QR kódem zůstává beze změny;
 - změna nezasahuje do databáze, API ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
