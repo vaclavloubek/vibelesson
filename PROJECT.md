@@ -11,9 +11,11 @@
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.103** uzavírá **LEGAL-020**: doslovné zákonné poučení o online odstoupení podle NV 66/2026 Sb. ve VOP 1.9, smluvním snapshotu a na /withdrawal a přihlášení pro nepřihlášené na /withdrawal; funkce z LEGAL-012 splňuje čl. 11a směrnice 2023/2673. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
+Aktualizováno: 2026-09-23 — interní verze **0.9.102**: odesílatel auth e-mailů z Neon webhooku opraven na `Syllonaut <noreply@syllonaut.com>`; subdoména `auth.syllonaut.com` už v Resendu není ověřená a první produkční pokus skončil 403 (webhook byl hned vypnut, reset hesla dál fungoval přes výchozí e-maily Neonu). Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
 Aktualizováno: 2026-09-23 — interní verze **0.9.101** uzavírá **LEGAL-018** schválenou variantou B: veřejné technické požadavky před nákupem (prohlížeče, zařízení, cookies, síť, formáty, interoperabilita), odkazy v Ceníku, checkoutu a školní objednávce, začlenění do VOP 1.8 a smluvního snapshotu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
-Aktualizováno: 2026-09-23 — interní verze **0.9.100**: auth e-maily Neon Auth (obnovení hesla, ověření e-mailu, přihlášení) znovu chodí v grafice Syllonautu z `noreply@auth.syllonaut.com` místo výchozích e-mailů Neonu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-23 — interní verze **0.9.100**: auth e-maily Neon Auth (obnovení hesla, ověření e-mailu, přihlášení) znovu chodí v grafice Syllonautu z `noreply@syllonaut.com` místo výchozích e-mailů Neonu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.99** uzavírá **LEGAL-017** schválenou variantou B: online reklamace s písemným potvrzením přijetí i vyřízení, neměnnou evidencí v Neon a hlídáním 30denní lhůty; VOP 1.7, Privacy Notice 1.6. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 

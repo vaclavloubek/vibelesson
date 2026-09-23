@@ -70,7 +70,7 @@ export async function sendNeonAuthEmail(input: {
         'Idempotency-Key': input.idempotencyKey,
       },
       body: JSON.stringify({
-        from: process.env.AUTH_EMAIL_FROM ?? 'Syllonaut <noreply@auth.syllonaut.com>',
+        from: process.env.AUTH_EMAIL_FROM ?? 'Syllonaut <noreply@syllonaut.com>',
         to: [input.to],
         subject: input.rendered.subject,
         text: input.rendered.text,
@@ -81,5 +81,11 @@ export async function sendNeonAuthEmail(input: {
   } catch {
     throw new NeonAuthEmailDeliveryError('resend_network_error');
   }
-  if (!response.ok) throw new NeonAuthEmailDeliveryError(`resend_http_${response.status}`);
+  if (!response.ok) {
+    // Resend's error name (e.g. validation_error) is safe to log and tells a
+    // rejected sender apart from a bad key; the body never includes the key.
+    const body = await response.json().catch(() => null) as { name?: unknown } | null;
+    const name = typeof body?.name === 'string' && /^[a-z_]{1,40}$/.test(body.name) ? `_${body.name}` : '';
+    throw new NeonAuthEmailDeliveryError(`resend_http_${response.status}${name}`);
+  }
 }
