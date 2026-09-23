@@ -47,6 +47,24 @@ type Plan = {
   free?: boolean;
 };
 
+// LEGAL-013: precise paid-reuse claim; trusted-device guards still apply to paid use.
+const REUSE_CLAIM = {
+  cs: 'Opakované spouštění hotových lekcí bez čerpání AI limitu',
+  en: 'Repeated launches of finished lessons without using the AI allowance',
+} as const;
+
+// Must match register_personal_trusted_device / register_trusted_device_server.
+const TRUSTED_DEVICE_NOTICE = {
+  cs: {
+    title: 'Zařízení u placených účtů',
+    body: 'Z bezpečnostních důvodů lze placené funkce, včetně spouštění lekcí, používat jen na důvěryhodných zařízeních. Teacher a Teacher Pro: nejvýše 3 aktivní zařízení a 5 nově přidaných za 30 dní. Team, School a Campus: nejvýše 5 aktivních zařízení a 10 nově přidaných za 30 dní na každý učitelský účet. Starší zařízení lze odebrat ve správě předplatného, u školních účtů ve správě školy. Studenti se připojují bez účtu a do limitu se nepočítají.',
+  },
+  en: {
+    title: 'Devices on paid accounts',
+    body: 'For security reasons, paid features, including launching lessons, can be used only on trusted devices. Teacher and Teacher Pro: up to 3 active devices and 5 newly added within 30 days. Team, School and Campus: up to 5 active devices and 10 newly added within 30 days per teacher account. Older devices can be removed in subscription management, or in school management for school accounts. Students join without an account and do not count toward the limit.',
+  },
+} as const;
+
 const teacherPlansCs: Plan[] = [
   {
     id: 'free',
@@ -68,14 +86,13 @@ const teacherPlansCs: Plan[] = [
   {
     id: 'teacher',
     name: 'Teacher',
-    description: 'Pro pravidelnou výuku: nové lekce tvoříte s AI, hotové pak učíte opakovaně bez omezení.',
+    description: 'Pro pravidelnou výuku: nové lekce tvoříte s AI, hotové pak učíte opakovaně bez čerpání AI limitu.',
     price: pricingPagePrice('teacher'),
     features: [
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.lessonGenerations} nových AI lekcí za měsíc`,
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.aiEdits} AI úprav za měsíc`,
       'Lekce v libovolném jazyce',
-      'Opakované používání lekcí bez omezení',
-      'Živé spuštění hotové lekce nespotřebovává AI limit',
+      REUSE_CLAIM.cs,
       'Studenti se připojují bez plnohodnotného účtu',
       'Automatické bodování kvízů',
       'Ruční hodnocení otevřených a týmových odpovědí',
@@ -95,8 +112,7 @@ const teacherPlansCs: Plan[] = [
       `${AI_GRADING_ALLOWANCES.teacher_pro} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za období`,
       AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
-      'Opakované používání lekcí bez omezení',
-      'Živé spuštění hotové lekce nespotřebovává AI limit',
+      REUSE_CLAIM.cs,
       'Studenti se připojují bez plnohodnotného účtu',
     ],
   },
@@ -115,8 +131,7 @@ const schoolPlansCs: Plan[] = [
       `${ORGANIZATION_PLANS.team.monthlyLessonLimit} nových AI lekcí za měsíc společně`,
       `${ORGANIZATION_PLANS.team.monthlyRevisionLimit} AI úprav za měsíc společně`,
       'Lekce v libovolném jazyce',
-      'Opakované používání lekcí bez omezení',
-      'Živé spuštění hotové lekce nespotřebovává AI limit',
+      REUSE_CLAIM.cs,
       'Sdílený měsíční AI limit pro celý tým',
     ],
   },
@@ -136,8 +151,7 @@ const schoolPlansCs: Plan[] = [
       `${AI_GRADING_ALLOWANCES.school} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
       AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
-      'Opakované používání lekcí bez omezení',
-      'Živé spuštění hotové lekce nespotřebovává AI limit',
+      REUSE_CLAIM.cs,
       'Sdílená knihovna lekcí',
       'Licenční zámek školních lekcí',
       'Sdílený měsíční AI limit pro celou školu',
@@ -160,8 +174,7 @@ const schoolPlansCs: Plan[] = [
       `${AI_GRADING_ALLOWANCES.campus} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
       AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
-      'Opakované používání lekcí bez omezení',
-      'Živé spuštění hotové lekce nespotřebovává AI limit',
+      REUSE_CLAIM.cs,
       'Sdílená knihovna lekcí',
       'Licenční zámek školních lekcí',
       'Sdílený měsíční AI limit pro celou organizaci',
@@ -184,13 +197,12 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     ],
   },
   teacher: {
-    description: 'For regular teaching: create new lessons with AI, then teach the finished lessons again without limits.',
+    description: 'For regular teaching: create new lessons with AI, then teach the finished lessons again without using the AI allowance.',
     features: [
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.lessonGenerations} new AI lessons per month`,
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher.aiEdits} AI edits per month`,
       'Lessons in any language',
-      'Unlimited repeated use of lessons',
-      'Running a finished lesson live does not use the AI allowance',
+      REUSE_CLAIM.en,
       'Students join without a full account',
       'Automatic quiz scoring',
       'Manual grading of open and team responses',
@@ -206,8 +218,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.teacher_pro} per allowance period`,
       AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
-      'Unlimited repeated use of lessons',
-      'Running a finished lesson live does not use the AI allowance',
+      REUSE_CLAIM.en,
       'Students join without a full account',
     ],
   },
@@ -220,8 +231,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `${ORGANIZATION_PLANS.team.monthlyLessonLimit} new AI lessons per month shared`,
       `${ORGANIZATION_PLANS.team.monthlyRevisionLimit} AI edits per month shared`,
       'Lessons in any language',
-      'Unlimited repeated use of lessons',
-      'Running a finished lesson live does not use the AI allowance',
+      REUSE_CLAIM.en,
       'Shared monthly AI allowance for the whole team',
     ],
   },
@@ -238,8 +248,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.school} per month shared`,
       AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
-      'Unlimited repeated use of lessons',
-      'Running a finished lesson live does not use the AI allowance',
+      REUSE_CLAIM.en,
       'Shared lesson library',
       'School lesson license lock',
       'Shared monthly AI allowance for the whole school',
@@ -258,8 +267,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.campus} per month shared`,
       AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
-      'Unlimited repeated use of lessons',
-      'Running a finished lesson live does not use the AI allowance',
+      REUSE_CLAIM.en,
       'Shared lesson library',
       'School lesson license lock',
       'Shared monthly AI allowance for the whole organisation',
@@ -340,13 +348,12 @@ function PlanCard({
             && (feature === 'Lekce v libovolném jazyce' || feature === 'Lessons in any language');
           const worksheetHook = feature.startsWith('Pracovní listy')
             || feature.startsWith('Printable worksheets');
-          const unlimitedReuseHook = feature === 'Opakované používání lekcí bez omezení'
-            || feature === 'Unlimited repeated use of lessons';
+          const reuseHook = feature === REUSE_CLAIM.cs || feature === REUSE_CLAIM.en;
           const premiumHook = multilingualTeacherHook
             || feature.startsWith('Celý tok')
             || feature.startsWith('Full workflow')
             || worksheetHook
-            || unlimitedReuseHook
+            || reuseHook
             || feature.startsWith('AI hodnocení')
             || feature === AI_INTEGRITY_NOTICE.cs
             || feature.startsWith('Složky a podsložky')
@@ -752,8 +759,8 @@ export default function PricingPage({
       </section>
 
       <p className={styles.usagePromise}>{ui(
-        'Jedna AI lekce není jednorázový materiál. AI limit se čerpá jen při nové tvorbě a AI úpravách; hotové lekce můžete v placených tarifech spouštět a učit znovu bez omezení.',
-        'An AI lesson is not a one-off material. The AI allowance is used only for new creation and AI edits; finished lessons can be launched and taught repeatedly without limits on paid plans.'
+        'Jedna AI lekce není jednorázový materiál. AI limit se čerpá jen při nové tvorbě a AI úpravách; hotové lekce můžete v placených tarifech spouštět a učit opakovaně bez čerpání AI limitu.',
+        'An AI lesson is not a one-off material. The AI allowance is used only for new creation and AI edits; on paid plans, finished lessons can be launched and taught repeatedly without using the AI allowance.'
       )}</p>
 
       {checkoutResult && (sandboxCheckoutEnabled || publicLiveBillingEnabled) ? (
@@ -856,6 +863,11 @@ export default function PricingPage({
       <p className={styles.usagePromise}>
         <strong>{AI_INTEGRITY_NOTICE[english ? 'en' : 'cs']}:</strong>{' '}
         {AI_INTEGRITY_NOTICE_EXPLANATION[english ? 'en' : 'cs']}
+      </p>
+
+      <p className={styles.usagePromise}>
+        <strong>{TRUSTED_DEVICE_NOTICE[english ? 'en' : 'cs'].title}:</strong>{' '}
+        {TRUSTED_DEVICE_NOTICE[english ? 'en' : 'cs'].body}
       </p>
 
       {checkoutPlan && checkoutRoute ? (
