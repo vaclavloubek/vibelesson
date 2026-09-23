@@ -16,7 +16,7 @@ for (const [needle, label] of [
   ["check (outcome = 'rejected' or remedy_applied is not null)", 'accepted outcomes state the remedy provided'],
   ['explanation text not null', 'every resolution has a written explanation'],
   ['alter table private.customer_complaints enable row level security', 'RLS on complaint receipts'],
-  ["array['anon', 'anonymous', 'authenticated', 'authenticator']", 'Data API roles lose table access'],
+  ['from anon, anonymous, authenticated, authenticator;', 'Data API roles lose table access'],
 ]) {
   assert.ok(migration.includes(needle), `migration is missing: ${label}`);
 }

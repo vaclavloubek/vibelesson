@@ -4,9 +4,9 @@
 -- was exercised, what the complaint says, which remedy was requested, and how
 -- and when it was resolved (§ 19 zákona o ochraně spotřebitele). Only email
 -- delivery state is mutable. No FK to user tables, so evidence survives
--- account deletion; retention follows the Privacy Notice.
+-- account deletion. Retention follows the Privacy Notice.
 --
--- Server-only: the app reaches these tables over the owner connection; Data
+-- Server-only: the app reaches these tables over the owner connection. Data
 -- API roles get no privileges. Idempotent.
 
 create table if not exists private.customer_complaints (
@@ -86,23 +86,14 @@ revoke all on table private.customer_complaint_resolutions from public;
 revoke all on table private.customer_complaint_email_deliveries from public;
 revoke execute on function private.reject_customer_complaint_evidence_mutation() from public;
 
-do $grants$
-declare
-  v_role text;
-begin
-  foreach v_role in array array['anon', 'anonymous', 'authenticated', 'authenticator'] loop
-    if exists (select 1 from pg_catalog.pg_roles where rolname = v_role) then
-      execute format('revoke all on table private.customer_complaints from %I', v_role);
-      execute format('revoke all on table private.customer_complaint_resolutions from %I', v_role);
-      execute format('revoke all on table private.customer_complaint_email_deliveries from %I', v_role);
-    end if;
-  end loop;
-end;
-$grants$;
+-- The Data API roles exist on Neon (verified before applying).
+revoke all on table private.customer_complaints from anon, anonymous, authenticated, authenticator;
+revoke all on table private.customer_complaint_resolutions from anon, anonymous, authenticated, authenticator;
+revoke all on table private.customer_complaint_email_deliveries from anon, anonymous, authenticated, authenticator;
 
 comment on table private.customer_complaints is
   'LEGAL-017 append-only complaint receipts: submission time, content, requested remedy and 30-day resolution deadline. No FK to user tables so evidence survives account deletion.';
 comment on table private.customer_complaint_resolutions is
   'LEGAL-017 append-only complaint resolutions: outcome, applied remedy or written justification of rejection, time and resolving admin.';
 comment on table private.customer_complaint_email_deliveries is
-  'LEGAL-017 delivery state of the durable receipt and resolution confirmations; the only mutable complaint table.';
+  'LEGAL-017 delivery state of the durable receipt and resolution confirmations, the only mutable complaint table.';
