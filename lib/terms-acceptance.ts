@@ -14,9 +14,12 @@ export async function hasCurrentTermsAcceptance(userId: string) {
     assertApprovedNeonCutover();
     const sql = createNeonSql();
     const rows = await sql`
-      select public.has_any_terms_acceptance_for_service(
-        ${userId}::uuid,
-        array(select jsonb_array_elements_text(${JSON.stringify(TERMS_PRODUCT_ACCESS_KEYS)}::jsonb))
+      select exists (
+        select 1 from private.terms_acceptance_events tae
+        where tae.user_id = ${userId}::uuid
+          and tae.acceptance_key = any (
+            array(select jsonb_array_elements_text(${JSON.stringify(TERMS_PRODUCT_ACCESS_KEYS)}::jsonb))
+          )
       ) as accepted
     `;
     return rows[0]?.accepted === true;
