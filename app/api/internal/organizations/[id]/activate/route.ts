@@ -5,6 +5,10 @@ import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config
 import { createNeonSql } from '@/lib/neon/server';
 import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { readProfileRole } from '@/lib/neon/profile-role';
+import {
+  loadOrganizationFirstActivation,
+  scheduleOrganizationOwnerActivated,
+} from '@/lib/marketing-lifecycle';
 
 export async function POST(
   _request: Request,
@@ -48,6 +52,7 @@ export async function POST(
   if (order.billing_period === 'annual') end.setUTCFullYear(end.getUTCFullYear() + 1);
   else end.setUTCMonth(end.getUTCMonth() + 1);
 
+  const firstActivation = await loadOrganizationFirstActivation({ orderId: order.id });
   const { error } = await admin.rpc('activate_organization_order', {
     p_organization_id: id,
     p_order_id: order.id,
@@ -59,6 +64,8 @@ export async function POST(
     console.error('organization manual activation failed', error);
     return NextResponse.json({ error: 'organization_activation_failed' }, { status: 500 });
   }
+
+  scheduleOrganizationOwnerActivated(firstActivation);
 
   return NextResponse.json({
     activated: true,

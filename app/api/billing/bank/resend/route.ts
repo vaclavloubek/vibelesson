@@ -5,6 +5,10 @@ import {
   verifyResendBankWebhook,
 } from '@/lib/organization-bank-email';
 import { matchOrganizationBankTransaction } from '@/lib/organization-bank-match';
+import {
+  loadOrganizationFirstActivation,
+  scheduleOrganizationOwnerActivated,
+} from '@/lib/marketing-lifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -132,6 +136,9 @@ export async function POST(request: Request) {
   }
 
   try {
+    const firstActivation = await loadOrganizationFirstActivation({
+      variableSymbol: transaction.variableSymbol,
+    });
     const result = await matchOrganizationBankTransaction(transaction);
     if (!result?.processed) {
       console.warn('bank webhook transaction unmatched', {
@@ -146,6 +153,8 @@ export async function POST(request: Request) {
         reason: result?.reason ?? 'match_result_missing',
       });
     }
+
+    scheduleOrganizationOwnerActivated(firstActivation);
 
     console.info('bank webhook transaction matched', {
       webhookId,
