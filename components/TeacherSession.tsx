@@ -12,6 +12,7 @@ import {
   type LiveControlAccess,
 } from '@/lib/live-control-client';
 import JoinQrCode from '@/components/JoinQrCode';
+import CopyableJoinLink from '@/components/CopyableJoinLink';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -516,7 +517,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                 <span className="eyebrow">{ui('Kód pro studenty', 'Student code')}</span>
                 <div className="live-code">{session.joinCode}</div>
-                <p className="muted-copy" style={{ wordBreak: 'break-all', marginBottom: 0 }}>{joinUrl || `/join/${session.joinCode}`}</p>
+                <CopyableJoinLink url={joinUrl} fallback={`/join/${session.joinCode}`} />
               </div>
               {joinUrl ? <JoinQrCode value={joinUrl} /> : null}
             </div>
@@ -620,7 +621,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22, alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
               <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                 <p className="muted-copy">{ui('Pozdní příchod je povolený i během probíhající hodiny. Student může zadat kód nebo naskenovat QR.', 'Students can join late while the lesson is running. They can enter the code or scan the QR code.')}</p>
-                <p className="muted-copy" style={{ wordBreak: 'break-all', marginBottom: 0 }}>{joinUrl || `/join/${session.joinCode}`}</p>
+                <CopyableJoinLink url={joinUrl} fallback={`/join/${session.joinCode}`} />
               </div>
               {joinUrl ? <JoinQrCode value={joinUrl} /> : null}
             </div>

@@ -939,6 +939,33 @@ body:has(.teacher-live-shell) {
   line-height: 1;
   color: #fff;
 }
+.copyable-join-link { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.copy-link-icon-button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.copy-link-icon-button:hover:not(:disabled) { color: var(--ink); border-color: var(--line); }
+.copy-link-icon-button.copied { color: var(--success); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .live-status-dot {
   display: inline-block;
   width: 7px;

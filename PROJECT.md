@@ -9,7 +9,9 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. Interní verze zůstává **0.9.92** (infrastrukturní přechod bez změny produktu).
 
-Aktualizováno: 2026-09-23 — interní verze **0.9.96** uzavírá **LEGAL-016** schválenou variantou B: VOP 1.6 zavazují Syllonaut před zrušením účtu sám ukončit automatické obnovení; postup je v ACCOUNT_DELETION_RUNBOOK.md. Stávající souhlasy v4–v6 zůstávají platné. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-23 — interní verze **0.9.97** uzavírá **LEGAL-016** schválenou variantou B: VOP 1.6 zavazují Syllonaut před zrušením účtu sám ukončit automatické obnovení; postup je v ACCOUNT_DELETION_RUNBOOK.md. Stávající souhlasy v4–v6 zůstávají platné. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
+Aktualizováno: 2026-09-23 — interní verze **0.9.96**: na stránce živé hodiny je vedle odkazu pro připojení studentů ikona pro zkopírování odkazu do schránky. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.95** uzavírá **LEGAL-015** schválenou variantou B: fakturační školní objednávka vyžaduje IČO a u českých organizací se identita ověřuje v registru ARES; faktura nese oficiální název a sídlo z registru. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
@@ -21,7 +23,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
-### Ukončení obnovení při zrušení účtu 0.9.96 — 2026-09-23
+### Ukončení obnovení při zrušení účtu 0.9.97 — 2026-09-23
 
 - uzavřen právní auditní bod **LEGAL-016** schválenou variantou B (runbook + změna VOP ve prospěch uživatele);
 - čl. 11 VOP má jeden sdílený CZ/EN zdroj `TERMS_ACCOUNT_DELETION_CLAUSE` v **lib/terms-content.ts**, který používá veřejná stránka VOP i neměnný individuální smluvní snapshot; původní věta přenášející zrušení obnovení na uživatele je odstraněna;
@@ -31,6 +33,13 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - provozní postup **ACCOUNT_DELETION_RUNBOOK.md**: ověření žádosti, kontrola předplatného a organizací, upozornění uživatele, ukončení obnovení ve Stripe / předání vlastnictví školy, teprve poté smazání a e-mailové potvrzení;
 - regresní kontroly **scripts/verify-terms.mjs** a **scripts/verify-provider-contact.mjs** hlídají VOP 1.6/v7, zachování v6–v4, sdílenou klauzuli na obou površích, zákaz původní věty a přímý Neon re-consent zápis;
 - veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+
+### Kopírování odkazu pro studenty ikonou 0.9.96 — 2026-09-23
+
+- ve Startovní zóně i v panelu **Připojit další studenty** živé hodiny je hned vedle textového odkazu `/join/<kód>` ikonové tlačítko pro zkopírování odkazu do schránky (komponenta `CopyableJoinLink`);
+- po zkopírování se ikona na 2,2 s změní na potvrzovací fajfku; tooltip, `aria-label` a `aria-live` oznámení jsou v češtině i angličtině;
+- stávající tlačítko **Kopírovat odkaz** pod QR kódem zůstává beze změny;
+- změna nezasahuje do databáze, API ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Ověření identity organizace u fakturační objednávky 0.9.95 — 2026-09-23
 
@@ -306,7 +315,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 - **[LEGAL-014 — RESOLVED 0.9.94] Školní objednávka neukazovala konkrétní cenu bezprostředně u finálního tlačítka.** Formulář má nově přímo nad tlačítkem **Objednat s povinností platby** / **Objednat a pokračovat k platbě** pevný **Souhrn objednávky**: tarif a počet učitelů, cenu v měně určené fakturační zemí (stejný výpočet jako server), období od aktivace po potvrzené platbě, způsob platby a režim obnovení (karta automaticky, faktura bez automatického obnovení). U karetní platby přes Stripe managed payments souhrn upozorňuje, že konečnou částku včetně případných daní zobrazí Stripe Checkout.
 - **[LEGAL-015 — RESOLVED 0.9.95] U školní fakturační objednávky šlo deklarovat cizí nebo neexistující školu bez ověření.** Platba fakturou nově vyžaduje IČO / registrační číslo. U českých organizací server před vytvořením objednávky a faktury ověří IČO (kontrolní číslice + registr **ARES**), odmítne neexistující a zaniklé subjekty a fakturuje výhradně na oficiální název a sídlo z registru; výsledek ověření ukládá do `billing_snapshot.registryVerification`. Při nedostupnosti ARES se fakturační objednávka nevytvoří (nabídne se karta / pozdější pokus). U organizací s obnovou na fakturu nejde ověřený název a IČO později přepsat přes API. Oprávnění konkrétní osoby jednat za školu technicky ověřit nelze; smluvně ho dál kryje povinný checkbox. Karetní objednávky beze změny.
-- **[LEGAL-016 — RESOLVED 0.9.96] Smazání účtu a zrušení předplatného byly ve VOP oddělené a povinnost ukončit obnovení nesl uživatel.** Aplikace nemá samoobslužné mazání účtu; žádosti vyřizuje poskytovatel ručně. VOP 1.6 (čl. 11) nově zavazují Syllonaut před zrušením účtu sám ukončit automatické obnovení, upozornit na zánik přístupu ke zbytku zaplaceného období s nabídkou ponechat účet do jeho konce, u vlastníka školy zajistit předání vlastnictví nebo ukončení obnovení licence a zrušení potvrdit e-mailem. Postup je v **ACCOUNT_DELETION_RUNBOOK.md**.
+- **[LEGAL-016 — RESOLVED 0.9.97] Smazání účtu a zrušení předplatného byly ve VOP oddělené a povinnost ukončit obnovení nesl uživatel.** Aplikace nemá samoobslužné mazání účtu; žádosti vyřizuje poskytovatel ručně. VOP 1.6 (čl. 11) nově zavazují Syllonaut před zrušením účtu sám ukončit automatické obnovení, upozornit na zánik přístupu ke zbytku zaplaceného období s nabídkou ponechat účet do jeho konce, u vlastníka školy zajistit předání vlastnictví nebo ukončení obnovení licence a zrušení potvrdit e-mailem. Postup je v **ACCOUNT_DELETION_RUNBOOK.md**.
 - **[LEGAL-017] Reklamace je popsaná jen jako e-mail na podporu.** Chybí explicitní automatizovaný proces potvrzení přijetí reklamace a doložitelné evidence výsledku. **Náprava:** přidat reklamační workflow / šablonu transakčního potvrzení, stav a archivaci.
 - **[LEGAL-018] Technické požadavky / kompatibilita nejsou dostatečně shrnuté před nákupem.** **Náprava:** veřejná sekce s podporovanými moderními browsery, JavaScriptem/cookies, připojením, relevantními mobilními omezeními a další funkční interoperabilitou.
 - **[LEGAL-019] Mezinárodní prodej v EUR/USD otevírá daňový/OSS risk.** Samotná věta „nejsme plátci DPH“ není dlouhodobá univerzální odpověď pro přeshraniční B2C digitální služby. **Náprava:** před větší zahraniční akvizicí ověřit s českým daňovým poradcem konkrétní Stripe / Merchant-of-Record model, obratové prahy, místo plnění a případný OSS režim.
