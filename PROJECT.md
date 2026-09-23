@@ -1,6 +1,6 @@
 # Syllonaut — projektový stav
 
-Aktualizováno: 2026-09-21 — interní verze **0.9.92** uzavírá **LEGAL-012** schválenou variantou C: aktuální zákonný vzorový formulář je ve VOP, na veřejné tisknutelné stránce i v neměnném smluvním snapshotu; spotřebitel může během lhůty odstoupit také online ze správy předplatného a dostane trvalé e-mailové potvrzení. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: minimální scope, práce po malých krocích, úsporné používání kontextu a nástrojů, zákaz nevyžádaných refaktorů a opakovaných spekulativních pokusů. Kořenový `AGENTS.md` je nově stručným závazným vstupním bodem pro agentní práci; `PROJECT.md` zůstává zdrojem projektového stavu a načítá se cíleně podle úkolu. Jde pouze o dokumentační/procesní změnu, interní verze zůstává **0.9.92** a veřejně zobrazovaná verze 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
@@ -2010,6 +2010,16 @@ Další významné změny 2026-09-18:
 - pokud jedno konkrétní volání nástroje blokuje průběžné zprávy, po jeho návratu bez prodlení oznámit výsledek a pokračovat v heartbeat režimu; mezi samostatnými voláními nástrojů heartbeat nevynechávat;
 - heartbeat neposílat jako nízkoúrovňový log každého kliknutí: cílem je průběžná orientace uživatele v **reálných významných krocích, nálezech, problémech a dokončených částech**;
 - `PROJECT.md` jinak měnit pouze na výslovný pokyn uživatele.
+- kořenový `AGENTS.md` je závazný provozní vstup pro Work/agenty; při zahájení nové práce nebo nového turnu se řídit jeho aktuální verzí. `PROJECT.md` nečíst mechanicky celý: načíst jen části potřebné pro konkrétní úkol, pokud už relevantní stav není známý z aktuálního kontextu;
+- **scope lock:** implementovat pouze výslovně zadaný nebo předem schválený problém a jeho nezbytné technické důsledky. Nedělat „když už jsme tady“ refaktory, redesign, další hardening, nové abstractions, migrace, testovací infrastrukturu ani jiné vedlejší zlepšení bez jasné nutnosti pro schválený úkol;
+- preferovat **nejmenší bezpečnou změnu**, která splní acceptance kritéria a zachová existující architekturu, API a paralelní práci. Novou architekturu nebo širší přepis navrhovat jen tehdy, když minimální zásah prokazatelně nestačí;
+- pokud první zvolený postup selže, nejdřív zjistit konkrétní příčinu a ověřit skutečný stav. **Nespouštět sérii alternativních pokusů naslepo.** Druhý přístup má vycházet z nového důkazu, ne z hádání;
+- neopravovat automaticky cizí nebo nesouvisející chybu nalezenou během práce. Zaznamenat ji a pokračovat v původním scope, pokud přímo neblokuje jeho dokončení nebo nepředstavuje okamžité bezpečnostní/datové riziko;
+- **credit/tool discipline:** preferovat cílené čtení konkrétních souborů, diffů, logů a relevantních částí dokumentace před opakovaným plošným skenováním repozitáře. Neopakovat drahé kontroly, pokud se vstupy od posledního úspěšného běhu nezměnily a opakování není nutné pro merge/acceptance;
+- testovat od nejlevnějšího relevantního důkazu k širším kontrolám: nejdřív cílený verifier/test daného problému, potom povinné projektové checky před merge. Nepouštět paralelně více nákladných testů jen „pro jistotu“;
+- subagenty, paralelní agentní větve, zvýšený reasoning nebo dražší režim používat jen tehdy, když je přínos pro konkrétní složitost úkolu zřejmý. Výchozí je jeden agent a sekvenční práce; nepoužívat další agenty k opakování stejné analýzy;
+- po splnění schválených acceptance kritérií, zelených povinných kontrolách a aktualizaci požadované dokumentace **ukončit práci**. Neprovádět následný proaktivní hardening, cleanup nebo „bonusové“ změny bez nového zadání;
+- běžné implementační kroky nevyžadují průběžné schvalování uživatelem; souhlas je potřeba vyžádat jen tehdy, když je nutné změnit schválenou variantu, produktovou/politickou logiku, architekturu s širším dopadem nebo provést rizikový/destruktivní krok. Heartbeat má informovat o kroku a jeho dokončení, ne blokovat práci čekáním na souhlas.
 
 ## 22. Bezprostřední další krok
 
