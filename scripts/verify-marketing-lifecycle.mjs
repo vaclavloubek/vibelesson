@@ -37,6 +37,7 @@ for (const eventName of [
   'syllonaut.first_lesson.created',
   'syllonaut.first_live.started',
   'syllonaut.subscription.upgraded',
+  'syllonaut.subscription.ended',
   'syllonaut.quota.near_limit',
   'syllonaut.quota.reached',
 ]) {
@@ -64,6 +65,9 @@ requirePattern(generateRoute, /emitFreeLessonQuotaLifecycle\(userId, quotaUsed, 
 requirePattern(importRoute, /emitFirstLessonCreatedIfNeeded\(userId\)/, 'shared lesson import must satisfy the first-lesson outcome.');
 requirePattern(sessionRoute, /emitFirstLiveStartedIfNeeded\(userId\)/, 'server-confirmed first live start must satisfy the classroom outcome.');
 requirePattern(billingWebhook, /emitSubscriptionUpgraded\(sync\.userId\)/, 'confirmed subscription activation must exit Free conversion.');
+requirePattern(billingWebhook, /lifecycleNotification === 'subscription_ended'\) \{\s*await emitSubscriptionEnded\(sync\.userId, sync\.subscriptionId\)/, 'a confirmed subscription end must start the win-back flow.');
+requirePattern(lifecycle, /'syllonaut\.subscription\.ended', \{ plan_code: planCode \}/, 'win-back must receive the ended plan explicitly, not the already-downgraded profile plan.');
+requirePattern(lifecycle, /from public\.billing_subscriptions[\s\S]*?user_id = \$\{userId\}::uuid/, 'ended plan lookup must be bound to the subscription owner.');
 requirePattern(billingWebhook, /syncMarketingPlan\(sync\.userId\)/, 'other live subscription updates must refresh contact plan state.');
 
 console.log('Marketing lifecycle checks passed.');

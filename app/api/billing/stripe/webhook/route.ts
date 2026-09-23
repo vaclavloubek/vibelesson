@@ -9,7 +9,7 @@ import {
   BillingEmailDeliveryError,
 } from '@/lib/billing-email';
 import { billingRouteForCountry } from '@/lib/billing-region';
-import { emitSubscriptionUpgraded, syncMarketingPlan } from '@/lib/marketing-lifecycle';
+import { emitSubscriptionEnded, emitSubscriptionUpgraded, syncMarketingPlan } from '@/lib/marketing-lifecycle';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { listStripePaidInvoicePayments } from '@/lib/stripe-invoice-payments';
@@ -796,6 +796,8 @@ export async function POST(request: Request) {
         try {
           if (lifecycleNotification === 'subscription_activated') {
             await emitSubscriptionUpgraded(sync.userId);
+          } else if (lifecycleNotification === 'subscription_ended') {
+            await emitSubscriptionEnded(sync.userId, sync.subscriptionId);
           } else {
             await syncMarketingPlan(sync.userId);
           }
