@@ -12,6 +12,7 @@ export type MarketingLifecycleEvent =
   | 'syllonaut.first_lesson.created'
   | 'syllonaut.first_live.started'
   | 'syllonaut.subscription.upgraded'
+  | 'syllonaut.subscription.ended'
   | 'syllonaut.quota.near_limit'
   | 'syllonaut.quota.reached';
 
@@ -296,6 +297,50 @@ export async function emitSubscriptionUpgraded(userId: string) {
   if (result.status !== 'active') return result;
 
   await sendLifecycleEvent(result, 'syllonaut.subscription.upgraded');
+  return result;
+}
+
+// The profile is already back on Free when a subscription ends, so the plan the
+// user had comes from the ended subscription row itself (derived from its Stripe
+// price by sync_stripe_subscription_event and kept after cancellation).
+async function loadEndedSubscriptionPlanCode(userId: string, subscriptionId: string) {
+  let planCode: unknown;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`
+      select plan_code from public.billing_subscriptions
+      where provider = 'stripe' and livemode = true
+        and external_subscription_id = ${subscriptionId}
+        and user_id = ${userId}::uuid
+      limit 1
+    `;
+    planCode = rows[0]?.plan_code;
+  } else {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('billing_subscriptions')
+      .select('plan_code')
+      .eq('provider', 'stripe')
+      .eq('livemode', true)
+      .eq('external_subscription_id', subscriptionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw new MarketingLifecycleError('marketing_ended_subscription_lookup_failed');
+    planCode = data?.plan_code;
+  }
+  if (planCode !== 'teacher' && planCode !== 'teacher_pro') {
+    throw new MarketingLifecycleError('marketing_ended_subscription_plan_invalid');
+  }
+  return planCode;
+}
+
+export async function emitSubscriptionEnded(userId: string, subscriptionId: string) {
+  const result = await ensureMarketingContact(userId);
+  if (result.status !== 'active') return result;
+
+  const planCode = await loadEndedSubscriptionPlanCode(userId, subscriptionId);
+  await sendLifecycleEvent(result, 'syllonaut.subscription.ended', { plan_code: planCode });
   return result;
 }
 
