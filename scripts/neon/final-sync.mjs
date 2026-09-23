@@ -222,11 +222,30 @@ try {
     const ready = [...pending].filter((key) => !edges.some((edge) =>
       edge.child === key && edge.parent !== key && pending.has(edge.parent)));
     if (!ready.length) {
-      if (!replicaMode) throw new Error(`Foreign-key cycle between: ${[...pending].join(', ')}`);
+      // Cycles are fine: foreign keys are dropped for the load and re-validated below.
       order.push(...pending);
       break;
     }
     for (const key of ready) { order.push(key); pending.delete(key); }
+  }
+
+  // Without replica mode, drop the application foreign keys for the load and
+  // recreate them afterwards; ADD CONSTRAINT re-validates every row.
+  const droppedForeignKeys = [];
+  if (!replicaMode) {
+    const { rows } = await dst.query(`
+      select k.conname, n.nspname as schema, c.relname as table_name, pg_get_constraintdef(k.oid) as definition
+      from pg_constraint k
+      join pg_class c on c.oid = k.conrelid join pg_namespace n on n.oid = c.relnamespace
+      join pg_class p on p.oid = k.confrelid join pg_namespace pn on pn.oid = p.relnamespace
+      where k.contype = 'f'
+        and ((n.nspname || '.' || c.relname) = any($1) or (pn.nspname || '.' || p.relname) = any($1))`,
+    [[...synced, ...targetOnly]]);
+    for (const row of rows) {
+      await dst.query(`alter table ${qualified(row.schema, row.table_name)} drop constraint ${ident(row.conname)}`);
+      droppedForeignKeys.push(row);
+    }
+    console.log(`foreign_keys dropped_for_load=${droppedForeignKeys.length}`);
   }
 
   await dst.query(`truncate ${[...synced, ...targetOnly].map((key) => qualified(...key.split('.'))).join(', ')}`);
@@ -266,6 +285,10 @@ try {
   }
   console.log(`sequences set=${sequencesSet}`);
 
+  for (const row of droppedForeignKeys) {
+    await dst.query(`alter table ${qualified(row.schema, row.table_name)} add constraint ${ident(row.conname)} ${row.definition}`);
+  }
+  if (droppedForeignKeys.length) console.log(`PASS foreign_keys recreated_and_validated=${droppedForeignKeys.length}`);
   if (replicaMode) await dst.query(`set local session_replication_role = origin`);
   for (const row of disabledTriggers) {
     await dst.query(`alter table ${qualified(row.schema, row.table_name)} enable trigger ${ident(row.trigger_name)}`);
