@@ -156,7 +156,7 @@ requireText(teacherSessionPage, 'readOwnedSessionAccess(supabase, userId, id)', 
 requireText(presenterPage, 'readOwnedSessionAccess(supabase, userId, id)', 'The presenter page must use the session-access reader abstraction.');
 requireText(envExample, 'NEON_SESSION_ACCESS_READS=false', 'The session-access canary must default to disabled.');
 requireText(read('lib/neon/server.ts'), 'AbortSignal.timeout(8_000)', 'Neon server reads must have a bounded timeout.');
-requireText(wrangler, 'new_sqlite_classes', 'Durable Object migration declaration is missing.');
+requireText(wrangler, '"type": "durable-object"', 'Durable Object declaration is missing.');
 requireText(studentSessionServer, "createAdminClient()", 'Student session logic must run in a Vercel server module.');
 requireText(studentSessionServer, "queue_submitted_response_evaluation", 'Student response submission must preserve the grading queue.');
 requireText(teamEditServer, "claim_team_edit_lock", 'Team editing must preserve the database lock.');

@@ -11,12 +11,6 @@
       }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["LiveSession"]
-    }
-  ],
   "exports": {
     "LiveSession": {
       "type": "durable-object",
