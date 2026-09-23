@@ -1,0 +1,13 @@
+.fields{display:grid;gap:18px;margin-top:20px}
+.field{display:grid;gap:6px;font-size:14px;font-weight:700}
+.field input,.field select,.field textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:11px;background:#fff;color:var(--ink);font:inherit;font-weight:400}
+.field textarea{min-height:160px;resize:vertical;line-height:1.5}
+.hint{color:var(--muted);font-size:12px;font-weight:400;line-height:1.5}
+.submit{justify-self:start;min-height:46px;padding:0 20px;border:1px solid var(--accent);border-radius:11px;background:var(--accent);color:#fff;font:inherit;font-size:14px;font-weight:760;cursor:pointer}
+.submit:disabled{opacity:.6;cursor:progress}
+.error{padding:12px 14px;border:1px solid #e3b4b4;border-radius:12px;background:#fdf2f2;color:#8a1f1f;font-size:14px;line-height:1.5}
+.receipt{padding:20px;border:1px solid #bfe0c8;border-radius:16px;background:#f2fbf4;color:#1d4b2a;font-size:14px;line-height:1.6}
+.receipt dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:12px 0 0}
+.receipt dt{font-weight:700}
+.receipt dd{margin:0;overflow-wrap:anywhere}
+@media(max-width:720px){.submit{width:100%;justify-self:stretch}.receipt dl{grid-template-columns:1fr}}

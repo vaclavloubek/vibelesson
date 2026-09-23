@@ -26,8 +26,9 @@ for (const [path, requirements] of Object.entries({
 }
 
 const legal = read('lib/legal.ts');
-assert.ok(legal.includes("TERMS_VERSION = '1.6'"));
-assert.ok(legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-23-v7'"));
+assert.ok(legal.includes("TERMS_VERSION = '1.7'"));
+assert.ok(legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-23-v8'"));
+assert.ok(legal.includes("'2026-09-23-v7'"), 'Terms 1.6 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-21-v6'"), 'Terms 1.5 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-21-v5'"), 'Terms 1.4 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-21-v4'"), 'Terms 1.3 access compatibility must be retained');

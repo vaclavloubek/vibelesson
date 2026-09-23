@@ -11,6 +11,7 @@ import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
   TERMS_WITHDRAWAL_CLAUSE,
@@ -192,10 +193,9 @@ export default async function TermsPage() {
 
         <section>
           <h2>{ui('8. Vady, reklamace a dostupnost služby', '8. Defects, complaints and service availability')}</h2>
-          <p>{ui(
-            'Pokud služba neodpovídá smluveným vlastnostem nebo nefunguje, napište na vaclav@syllonaut.com a popište problém, použitý účet a okolnosti chyby bez zbytečných osobních údajů studentů. Zákonná práva z vadného plnění a zvláštní práva spotřebitelů k digitálním službám zůstávají zachována.',
-            'If the service does not conform to the agreed features or fails to work, email vaclav@syllonaut.com and describe the issue, the account used and the circumstances without unnecessary student personal data. Statutory rights relating to defective performance and consumer rights for digital services remain unaffected.'
-          )}</p>
+          {TERMS_COMPLAINT_CLAUSE[english ? 'en' : 'cs'].map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
           <p>{ui(
             'Syllonaut je průběžně vyvíjená online služba. Krátkodobé výpadky mohou nastat kvůli údržbě, bezpečnosti nebo závislosti na externích poskytovatelích. Poskytovatel bude usilovat o rozumnou dostupnost a nápravu závažných poruch, negarantuje však nepřetržitý provoz bez výpadku.',
             'Syllonaut is an online service under continuous development. Temporary interruptions may occur for maintenance, security or because of external providers. The provider will use reasonable efforts to maintain availability and remedy material failures but does not guarantee uninterrupted operation.'
