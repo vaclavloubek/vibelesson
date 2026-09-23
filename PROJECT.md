@@ -59,7 +59,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 - na šířce do 560 px se hlavička skládá pod sebe a tlačítko účtu (iniciála) je u levého okraje, zatímco panel `.auth-account-popover` zůstával zarovnaný `right: 0`; 292 px široký panel se proto otevíral doleva mimo obrazovku (nahlášeno na iPhonu 17, 402 px);
 - `PublicHeaderAccountMenu` po otevření a při změně velikosti okna panel změří a posune `translateX` tak, aby zůstal alespoň 12 px od okraje viewportu; řešení funguje ve všech hlavičkách (landing, pracovní plocha, Moje lekce, školní administrace), ať je tlačítko vlevo, nebo vpravo;
-- ověřeno při 402 × 874 px se skutečným `globals.css` (panel `left: 12`, `right: 304`); na fyzickém iPhonu zatím neověřeno;
+- ověřeno při 402 × 874 px se skutečným `globals.css` (panel `left: 12`, `right: 304`); po nasazení ověřeno uživatelem na fyzickém iPhonu 17 v Safari;
 - změna nezasahuje do databáze, API ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Zákonné poučení o online odstoupení 0.9.103 — 2026-09-23
