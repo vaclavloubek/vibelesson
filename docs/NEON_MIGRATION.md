@@ -8,7 +8,7 @@ Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
 Příprava je implementovaná jako bezpečný, opakovatelný migrační balík. Produkční Supabase ani produkční prostředí Vercelu nebyly změněny. Výchozí `DATABASE_BACKEND` zůstává `supabase`; zapnutí Neonu vyžaduje explicitní runtime gate `NEON_CUTOVER_APPROVED=true`.
 
-Databázová stagingová kopie i bezpečný Auth import byly vytvořeny a validovány. Tři účty mají v Neon Auth zachovaná UUID a e-maily, ale záměrně nemají přenesená hesla ani sessions. Jeden testovací účet dokončil reset hesla a celý Preview smoke test login → refresh → logout → refresh. Runtime audit databázových oprávnění následně odstranil implicitní `PUBLIC EXECUTE` ze 178 privilegovaných funkcí a kontrolní audit i aplikační build prošly. **Není povolen produkční cutover**, dokud neprojdou zbývající stop podmínky v tomto dokumentu.
+Databázová stagingová kopie i bezpečný Auth import byly vytvořeny a validovány. Tři účty mají v Neon Auth zachovaná UUID a e-maily, ale záměrně nemají přenesená hesla ani sessions. Jeden testovací účet dokončil reset hesla a celý Preview smoke test login → refresh → logout → refresh. Runtime audit databázových oprávnění následně odstranil implicitní `PUBLIC EXECUTE` ze 178 privilegovaných funkcí a kontrolní audit i aplikační build prošly. Produkční cutover proběhl 2026-09-23, viz sekce „Produkční cutover — proveden 2026-09-23“.
 
 Read-only inventura 2026-09-23 porovnala počty ve všech aplikačních tabulkách `public` a `private`, nejen v původních 14 kontrolních tabulkách. Zdrojový Supabase má 55 tabulek, Preview Neon 56 (navíc novou `private.grading_dispatch_outbox`). V deseti společných tabulkách se počty liší: `private.free_device_budget_devices` 1/0, `private.free_device_budget_requests` 3/0, `private.marketing_consent_events` 1/0, `private.terms_acceptance_events` 2/1, `public.generation_requests` 66/61, `public.lesson_shares` 9/8, `public.lessons` 33/31, `public.profiles` 4/3, `public.sessions` 24/23 a `public.team_edit_locks` 0/6 (zdroj/cíl). Stejné počty ostatních tabulek **neprokazují** shodu jejich obsahu. Produkční zdroj je nadále zapisovatelný, takže finální dosynchronizace ani cutover neproběhly. Znovuspuštění původního celého importu na neprázdném stagingu by mohlo poškodit Neon Auth heslo a stagingová data; je nutný kontrolovaný postup se zálohou, krátkým zastavením produkčních zápisů a závěrečnou kontrolou všech tabulek.
 
@@ -417,6 +417,26 @@ Minimální testovací matice:
 | Výkon | `/lessons` p95, počet backend round-tripů, timeout/error UX |
 
 Každý test musí projít přes browser → Vercel route → Neon/Auth/Data API → odpověď v UI. Nestačí pouze SQL dotaz.
+
+## Produkční cutover — proveden 2026-09-23
+
+Production běží na Neonu od nasazení PR #284 (`fea5cfe`); následné opravy #285 (SSR browser klient), #286 (AI kvóta v menu) a #287 (cache Data API JWT na session) jsou nasazené, poslední produkční nasazení `6e0ddc4`.
+
+Průběh:
+
+1. Zkouška `final-sync.mjs` v Preview buildu s rollbackem: PASS (55/55 checksumů, 104 FK, identity, granty `0008`). Neon nedovoluje `session_replication_role`, proto skript dočasně vypíná uživatelské triggery a odebírá/obnovuje cizí klíče v téže transakci.
+2. Vlastník nastavil v Supabase `alter database postgres set default_transaction_read_only = on` a ukončil klientská spojení (SQL Editor; CLI přes pooler z lokálního stroje timeoutoval).
+3. Ostrá synchronizace: `RESULT PASS committed`, záloha `migration_backup_20260923083128`.
+4. Sloučení PR #284 → produkční nasazení s `DATABASE_BACKEND=neon`, `NEXT_PUBLIC_DATABASE_BACKEND=neon`, `NEON_CUTOVER_APPROVED=true` a URL Neon Auth/Data API větve `ep-green-hat-b24o0won`.
+5. Po přepnutí: `pg_dump --no-acl` import neobsahoval granty role `authenticated`; `scripts/neon/mirror-authenticated-grants.mjs` je převzal ze Supabase (22 tabulkových, 11 sloupcových, 16 funkcí, jen RLS tabulky). Tím se opravilo načítání oprávnění (účet se hlásil jako Free).
+6. Test vlastníka v produkci: přihlášení, lekce, živá hodina se studentem, odpověď a AI hodnocení — úspěšný.
+
+Stav po cutoveru:
+
+- Supabase zůstává jen pro čtení a beze změny dat. Nemazat bez samostatného schválení.
+- Neon větev `preview/codex/neon-staging-import-20260921-v2` je Default a produkční; git větev stejného jména nemazat. Její `vercel.json` stále obsahuje zabezpečený build hook (spouští se jen s `NEON_FINAL_SYNC_MODE`/`NEON_GRANT_MIRROR_MODE`, obě proměnné jsou smazané).
+- Rollback: Neon už přijal produkční zápisy, prostý návrat Vercelu na `main@4edc533` by vytvořil split-brain. Při nutnosti: zmrazit zápisy do Neonu, přenést Neon-only deltu podle času/ID do Supabase, zrušit read-only v Supabase (`set default_transaction_read_only = off; alter database postgres reset default_transaction_read_only`) a teprve pak přepnout Production.
+- Otevřené: `reconcile_live_control_snapshot` na Neonu padá (`operator does not exist: text = jsonb`); za provozu neověřené školní administrace, Stripe webhook a registrace; ostatní účty resetují heslo; Neon Free limity (100 CU-h/měsíc, 0,5 GB).
 
 ## Stop podmínky před produkcí
 
