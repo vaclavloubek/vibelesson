@@ -7,10 +7,17 @@ export default function CopyableJoinLink({ url, fallback }: { url: string; fallb
   const english = useUiLocale() === 'en';
   const [copied, setCopied] = useState(false);
 
+  // The check mark stays until something else is copied or cut on this page.
+  // Copies outside the page cannot be detected without a clipboard-read prompt.
   useEffect(() => {
     if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 2200);
-    return () => window.clearTimeout(timer);
+    const reset = () => setCopied(false);
+    document.addEventListener('copy', reset);
+    document.addEventListener('cut', reset);
+    return () => {
+      document.removeEventListener('copy', reset);
+      document.removeEventListener('cut', reset);
+    };
   }, [copied]);
 
   async function copyLink() {
