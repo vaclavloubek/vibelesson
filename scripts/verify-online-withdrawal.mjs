@@ -29,6 +29,14 @@ assert.ok(contract.includes('buildStatutoryWithdrawalFormHtml'), 'contract attac
 assert.ok(terms.includes('WITHDRAWAL_FORM_COPY') && terms.includes('/withdrawal'), 'Terms must expose the shared form and public route');
 assert.ok(publicPage.includes('WITHDRAWAL_FORM_COPY') && publicPage.includes('PrintPageButton'), 'public printable form is missing');
 assert.ok(proxy.includes("pathname === '/withdrawal'"), 'public form must use the locale gateway');
+// LEGAL-020: statutory notice per NV 29/2023 Sb. as amended by 66/2026 Sb. (withdrawal function).
+const termsContent = fs.readFileSync('lib/terms-content.ts', 'utf8');
+assert.ok(termsContent.includes('Můžete rovněž odstoupit od smlouvy online na syllonaut.com/cs/subscription'), 'statutory online-withdrawal sentence must name where the button is');
+assert.ok(termsContent.includes('Využijete-li této možnosti, bez zbytečného odkladu Vám potvrdíme přijetí prohlášení o odstoupení od smlouvy v textové podobě (například prostřednictvím elektronické pošty), včetně jeho obsahu a data a času jeho odeslání.'), 'statutory acknowledgment wording from NV 66/2026 must be verbatim');
+for (const [source, label] of [[terms, 'Terms'], [contract, 'contract snapshot'], [publicPage, 'public withdrawal page']]) {
+  assert.ok(source.includes('TERMS_ONLINE_WITHDRAWAL_NOTICE'), `${label} must use the statutory online-withdrawal notice`);
+}
+assert.ok(publicPage.includes('<SignInControl />') && publicPage.includes('accountUser ? <Link href="/subscription#withdrawal">'), 'signed-out visitors must be offered sign-in instead of a dead-end withdrawal link');
 
 assert.ok(subscriptionPage.includes('getOnlineWithdrawalOpportunity(userId)'), 'subscription page must load the contract-specific opportunity');
 assert.ok(subscription.includes("ui('Odstoupit od smlouvy', 'Withdraw from contract')"), 'first statutory online button is missing');

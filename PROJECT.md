@@ -9,6 +9,8 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. Interní verze zůstává **0.9.92** (infrastrukturní přechod bez změny produktu).
 
+Aktualizováno: 2026-09-23 — interní verze **0.9.102** uzavírá **LEGAL-020**: doslovné zákonné poučení o online odstoupení podle NV 66/2026 Sb. ve VOP 1.9, smluvním snapshotu a na /withdrawal a přihlášení pro nepřihlášené na /withdrawal; funkce z LEGAL-012 splňuje čl. 11a směrnice 2023/2673. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
 Aktualizováno: 2026-09-23 — interní verze **0.9.101** uzavírá **LEGAL-018** schválenou variantou B: veřejné technické požadavky před nákupem (prohlížeče, zařízení, cookies, síť, formáty, interoperabilita), odkazy v Ceníku, checkoutu a školní objednávce, začlenění do VOP 1.8 a smluvního snapshotu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.100**: auth e-maily Neon Auth (obnovení hesla, ověření e-mailu, přihlášení) znovu chodí v grafice Syllonautu z `noreply@auth.syllonaut.com` místo výchozích e-mailů Neonu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
@@ -31,6 +33,16 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
 
+### Zákonné poučení o online odstoupení 0.9.102 — 2026-09-23
+
+- uzavřen právní auditní bod **LEGAL-020** (funkce pro odstoupení podle směrnice 2023/2673); srovnání s požadavky čl. 11a: dvoukrokové tlačítko, údaje, trvalá dostupnost v lhůtě, potvrzení na trvalém nosiči s obsahem, datem a časem a časem odeslání pro lhůtu byly splněny již v **LEGAL-012**;
+- nový sdílený text `TERMS_ONLINE_WITHDRAWAL_NOTICE` (**lib/terms-content.ts**) přebírá doslovně větu, kterou do bodu 4 vzorového poučení doplnilo **NV 66/2026 Sb.** (účinné 19. 6. 2026): kde se tlačítko nachází (`syllonaut.com/cs/subscription`, Předplatné, obě tlačítka) a že přijetí prohlášení potvrdíme bez zbytečného odkladu v textové podobě včetně obsahu a data a času odeslání; používá ho čl. 7 VOP, individuální smluvní snapshot i stránka `/withdrawal`;
+- `/withdrawal` už nepřihlášeného návštěvníka neposílá odkazem na `/subscription`, který by ho přesměroval na úvod: nabídne přihlášení v záhlaví a po přihlášení zobrazí tlačítko **„Odstoupit od smlouvy online“**; obal přihlášení je nyní obecná komponenta `SignInControl` (sdílená s reklamací);
+- VOP **1.9** (`2026-09-23-v10`); v9–v4 zůstávají dostatečné (změna ve prospěch uživatele);
+- **právní stav:** směrnice se uplatňuje od 19. 6. 2026; česká novela OZ (§ 1830a) k 10. 7. 2026 podle veřejných zdrojů ještě nebyla přijata — po jejím přijetí porovnat přesné znění (označení tlačítek, obsah potvrzení) a případně doladit;
+- regresní kontrola **scripts/verify-online-withdrawal.mjs** nově hlídá doslovnou větu z NV 66/2026, její použití na všech třech površích a přihlášení na `/withdrawal`; aktualizované **verify-terms** a **verify-provider-contact**;
+- změna nezasahuje do databáze ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+
 ### Technické požadavky před nákupem 0.9.101 — 2026-09-23
 
 - uzavřen právní auditní bod **LEGAL-018** schválenou variantou B (veřejná stránka + součást smlouvy);
@@ -40,6 +52,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - individuální smluvní snapshot obsahuje za shrnutím objednávky celý seznam technických požadavků, takže zákazník je má na trvalém nosiči;
 - regresní kontrola **scripts/verify-technical-requirements.mjs** (součást `npm run check`) hlídá shodu verzí prohlížečů s Next.js, formátů uploadu a Turnstile hostu s kódem a odkazy na všech předsmluvních površích; aktualizované **verify-terms** a **verify-provider-contact**;
 - změna nezasahuje do databáze ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+- PR **#302** prošel CI (build, source-contracts, axe-public-routes, preview-config) i Vercel Preview; produkční merge commit **107c1c63** má Vercel **success**; živé `/cs|en/requirements` zobrazují prohlížeče i Cloudflare výjimku, `/cs|en/terms` ukazují VOP 1.8 s odkazem na požadavky a Ceník na ně odkazuje.
 
 ### Auth e-maily v grafice Syllonautu 0.9.100 — 2026-09-23
 
@@ -372,7 +385,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 #### Budoucí regulatorní body, které nesmí zapadnout
 
-- **[LEGAL-020] Online odstoupení od 1. 1. 2027.** Česká úprava zavádí pro spotřebitelské distanční smlouvy uzavírané přes online rozhraní povinnou snadno dostupnou online funkci pro odstoupení, včetně potvrzení odstoupení. **Termín:** implementovat a otestovat před 1. 1. 2027; samotný e-mail nebude dostačující jako jediná cesta.
+- **[LEGAL-020 — RESOLVED 0.9.102] Online funkce pro odstoupení (směrnice 2023/2673, čl. 11a směrnice 2011/83/EU).** Původní termín „od 1. 1. 2027“ byl nepřesný: směrnice se uplatňuje od **19. 6. 2026** a k témuž dni nabylo účinnosti **nařízení vlády č. 66/2026 Sb.**, které doplnilo vzorové poučení o online odstoupení; česká novela občanského zákoníku (navrhovaný § 1830a) podle veřejných zdrojů k 10. 7. 2026 ještě nebyla přijata. Funkce z LEGAL-012 splňuje dvoukrokové označení „Odstoupit od smlouvy“ / „Potvrdit odstoupení od smlouvy“, údaje (jméno, smlouva, e-mail), dostupnost po celou lhůtu a potvrzení s obsahem, datem a časem. Doplněno doslovné poučení podle NV 66/2026 (VOP 1.9, smluvní snapshot, /withdrawal) a přihlášení přímo na /withdrawal pro nepřihlášené. **Po přijetí § 1830a znovu porovnat se zněním zákona.**
 - **[LEGAL-021] AI Act classification.** AI grading výsledků učení a integrity signalizace ve vzdělávání se musí formálně klasifikovat vůči AI Act / Annex III. Současný produkt nesmí předpokládat, že marketingové označení „asistent učitele“ automaticky znamená výjimku. **Náprava:** samostatný AI Act classification assessment, dokumentace intended purpose, human oversight a případných high-risk povinností v dostatečném předstihu před relevantní účinností.
 
 #### Rozhodnutí pro release
@@ -380,7 +393,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
 - body **LEGAL-009 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
-- body **LEGAL-020 až LEGAL-021** mají vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
+- bod **LEGAL-020** je vyřešen (0.9.102), po přijetí českého § 1830a OZ znovu ověřit; bod **LEGAL-021** má vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
 - po opravách provést nový **legal offer-vs-contract-vs-runtime audit**: Homepage → Pricing → Signup → Checkout → Stripe → potvrzovací e-mail → Subscription/School UI → VOP → GDPR → skutečné DB/backend entitlementy.
 
 ### Intuitivní start týmové hodiny 0.9.76 — 2026-09-21

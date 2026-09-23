@@ -4,6 +4,7 @@ import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TECHNICAL_REQUIREMENTS } from '@/lib/technical-requirements';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
@@ -105,7 +106,7 @@ const TERMS_CURRENT_CS = `
 <h2>7. Spotřebitelé: právo odstoupit do 14 dnů</h2>
 <p>Jste-li spotřebitel, můžete od smlouvy uzavřené na dálku zpravidla odstoupit do 14 dnů od jejího uzavření bez uvedení důvodu. Odstoupení stačí v této lhůtě odeslat na vaclav@syllonaut.com jednoznačným prohlášením.</p>
 <p>${escapeHtml(TERMS_WITHDRAWAL_CLAUSE.cs)}</p>
-<p>Zákonný vzorový formulář je přiložen k tomuto potvrzení a trvale dostupný na syllonaut.com/cs/withdrawal. Spotřebitel s individuálním placeným účtem může v zákonné lhůtě odstoupit také online v části Předplatné tlačítkem „Odstoupit od smlouvy“. Přijetí online podání bezodkladně potvrdíme e-mailem s jeho obsahem, datem a časem.</p>
+<p>Zákonný vzorový formulář je přiložen k tomuto potvrzení a trvale dostupný na syllonaut.com/cs/withdrawal. ${escapeHtml(TERMS_ONLINE_WITHDRAWAL_NOTICE.cs)}</p>
 <p>Toto právo se vztahuje pouze na spotřebitele. Práva spotřebitele, která nelze smluvně omezit, zůstávají těmito podmínkami nedotčena.</p>
 </section>
 <section>
@@ -184,7 +185,7 @@ const TERMS_CURRENT_EN = `
 <h2>7. Consumers: 14-day withdrawal right</h2>
 <p>If you are a consumer, you generally have 14 days from conclusion of a distance contract to withdraw without giving a reason. It is sufficient to send an unequivocal withdrawal statement within that period to vaclav@syllonaut.com.</p>
 <p>${escapeHtml(TERMS_WITHDRAWAL_CLAUSE.en)}</p>
-<p>The statutory model form is attached to this confirmation and remains available at syllonaut.com/en/withdrawal. A consumer with an individual paid account may also withdraw online during the statutory period in Subscription by using the “Withdraw from contract” button. We promptly confirm receipt by email with the submission content, date and time.</p>
+<p>The statutory model form is attached to this confirmation and remains available at syllonaut.com/en/withdrawal. ${escapeHtml(TERMS_ONLINE_WITHDRAWAL_NOTICE.en)}</p>
 <p>This right applies only to consumers. Statutory consumer rights that cannot be contractually restricted remain unaffected by these Terms.</p>
 </section>
 <section>
@@ -223,9 +224,9 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.8'
+    TERMS_VERSION !== '1.9'
     || TERMS_EFFECTIVE_DATE !== '2026-09-23'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v9'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v10'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }

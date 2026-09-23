@@ -11,6 +11,7 @@ import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
@@ -175,9 +176,9 @@ export default async function TermsPage() {
             TERMS_WITHDRAWAL_CLAUSE.cs,
             TERMS_WITHDRAWAL_CLAUSE.en
           )}</p>
-          <p>{ui(
-            'Spotřebitel s individuální placenou smlouvou může během 14denní lhůty odstoupit také online v části Předplatné tlačítkem „Odstoupit od smlouvy“ a následným tlačítkem „Potvrdit odstoupení od smlouvy“. Přijetí online podání bezodkladně potvrdíme e-mailem s jeho obsahem, datem a časem. Tím nejsou omezeny možnosti odstoupit e-mailem nebo poštou.',
-            'A consumer with an individual paid contract may also withdraw online during the 14-day period in Subscription using “Withdraw from contract” followed by “Confirm withdrawal from contract”. We promptly confirm receipt by email with the content, date and time. Withdrawal by email or post remains available.'
+          <p>{TERMS_ONLINE_WITHDRAWAL_NOTICE[english ? 'en' : 'cs']} {ui(
+            'Tato funkce je určena spotřebitelům s individuální placenou smlouvou a je dostupná po celou 14denní lhůtu. Odstoupení e-mailem nebo poštou zůstává možné.',
+            'This function is intended for consumers with an individual paid contract and is available throughout the 14-day period. Withdrawal by email or post remains available.',
           )}</p>
           <h3>{withdrawalForm.title}</h3>
           <p>{withdrawalForm.instruction}</p>
