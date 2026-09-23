@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
-import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
+import {
+  TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_PLAN_PRICING_CLAUSE,
+  TERMS_SERVICE_CHANGE_CLAUSE,
+  TERMS_WITHDRAWAL_CLAUSE,
+} from '@/lib/terms-content';
 import { buildStatutoryWithdrawalFormHtml, WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
@@ -115,7 +120,7 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}
 </section>
 <section>
 <h2>11. Ukončení účtu</h2>
-<p>Uživatel může přestat službu používat a požádat o zrušení účtu. Zrušení účtu samo o sobě nenahrazuje zrušení aktivního placeného předplatného, pokud aplikace výslovně nepotvrdí opak; nejprve je proto třeba ukončit automatické obnovení placeného tarifu.</p>
+${TERMS_ACCOUNT_DELETION_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 <p>Poskytovatel může účet nebo jeho funkce omezit při závažném či opakovaném porušování těchto podmínek, zneužití služby nebo z bezpečnostních důvodů. Pokud to situace dovoluje, uživatele předem upozorní.</p>
 </section>
 <section>
@@ -130,7 +135,7 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}
 <section>
 <h2>14. Ochrana osobních údajů a závěrečná ustanovení</h2>
 <p>Zpracování osobních údajů upravuje samostatná stránka Ochrana osobních údajů (GDPR) na syllonaut.com.</p>
-<p>Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od 21. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
+<p>Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od 23. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
 </section>`;
 
 const TERMS_CURRENT_EN = `
@@ -193,7 +198,7 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}
 </section>
 <section>
 <h2>11. Account termination</h2>
-<p>A user may stop using the service and request account deletion. Deleting an account does not by itself replace cancellation of an active paid subscription unless the application expressly confirms otherwise; automatic renewal should therefore be cancelled first.</p>
+${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 <p>The provider may restrict an account or its features for serious or repeated breaches of these Terms, abuse of the service or security reasons. Where circumstances allow, the user will be notified in advance.</p>
 </section>
 <section>
@@ -208,14 +213,14 @@ ${TERMS_SERVICE_CHANGE_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}
 <section>
 <h2>14. Privacy and final provisions</h2>
 <p>Personal-data processing is described in the separate Privacy Notice on syllonaut.com.</p>
-<p>The current version of these Terms is ${TERMS_VERSION}, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
+<p>The current version of these Terms is ${TERMS_VERSION}, effective from 23 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
 </section>`;
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.5'
-    || TERMS_EFFECTIVE_DATE !== '2026-09-21'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-21-v6'
+    TERMS_VERSION !== '1.6'
+    || TERMS_EFFECTIVE_DATE !== '2026-09-23'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v7'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
@@ -265,7 +270,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 </table>
 <hr>
 <h1>Obchodní podmínky Syllonaut</h1>
-<p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 21. 9. 2026</p>${termsCurrent(locale)}`
+<p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 23. 9. 2026</p>${termsCurrent(locale)}`
     : `<h1>Syllonaut contract information confirmation</h1>
 <p class="muted">Immutable snapshot prepared before redirecting to Stripe Checkout: ${escapeHtml(capturedAt)}.</p>
 <div class="box"><strong>This document records the offer and Terms accepted before the order.</strong> Paid entitlements activate after payment is confirmed.</div>
@@ -283,7 +288,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 </table>
 <hr>
 <h1>Syllonaut Terms of Service</h1>
-<p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 21 September 2026</p>${termsCurrent(locale)}`;
+<p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 23 September 2026</p>${termsCurrent(locale)}`;
 
   const contractHtml = documentShell(locale, locale === 'cs' ? 'Potvrzení smluvních informací Syllonaut' : 'Syllonaut contract information confirmation', summary);
   const withdrawalFormHtml = buildWithdrawalForm(locale);
