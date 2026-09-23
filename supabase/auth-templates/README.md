@@ -40,3 +40,13 @@ Odkaz z těchto dvou e-mailů token nespotřebuje při prvním GET. `/auth/confi
 - Šablony jsou česky a používají vykání, stejně jako veřejný auth mailingový tok.
 - Bezpečnostní maily mají srozumitelnost před kosmickou metaforou; výraznější brandová metafora je pouze u welcome/invite mailu.
 - Při změně HTML je potřeba zachovat Supabase template proměnné doslova včetně složených závorek.
+
+## Neon Auth (Managed Better Auth)
+
+Neon Auth zatím nemá šablony v dashboardu a bez zásahu posílá vlastní e-maily s brandingem Neonu z `auth@mail.myneon.app`. Syllonaut proto odebírá webhook události `send.magic_link` a `send.otp` na `POST /api/webhooks/neon-auth`; Neon pak svůj e-mail neodešle a aplikace pošle vlastní přes Resend.
+
+- Šablony jsou v `lib/neon-auth-email-core.ts` a vizuálně i textově odpovídají souborům v této složce (česky s vykáním, anglicky podle `profiles.ui_locale`; nový účet bez profilu dostane češtinu).
+- Endpoint ověřuje Ed25519 podpis proti JWKS z `NEON_AUTH_BASE_URL`, odmítá doručení starší než 5 minut a odkazy mimo Neon Auth. Idempotence Resendu je `neon-auth/<event_id>`, takže opakované doručení nepošle druhý e-mail.
+- Odkaz pro reset hesla vede přímo na `/auth/update-password?token=…` na povoleném originu; první GET token nespotřebuje.
+- Potřebné proměnné: `RESEND_API_KEY` (ve stejném prostředí jako webhook), volitelně `AUTH_EMAIL_FROM` (výchozí `Syllonaut <noreply@auth.syllonaut.com>`).
+- `send.otp` a `send.magic_link` jsou blokující události: pokud endpoint neodpoví 2xx, auth flow selže. Webhook proto registrujte až po nasazení a nastavení klíče. Vypnutím webhooku (`enabled: false`) se Neon vrátí ke svým výchozím e-mailům.

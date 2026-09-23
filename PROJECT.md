@@ -9,6 +9,8 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. Interní verze zůstává **0.9.92** (infrastrukturní přechod bez změny produktu).
 
+Aktualizováno: 2026-09-23 — interní verze **0.9.100**: auth e-maily Neon Auth (obnovení hesla, ověření e-mailu, přihlášení) znovu chodí v grafice Syllonautu z `noreply@auth.syllonaut.com` místo výchozích e-mailů Neonu. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
 Aktualizováno: 2026-09-23 — interní verze **0.9.99** uzavírá **LEGAL-017** schválenou variantou B: online reklamace s písemným potvrzením přijetí i vyřízení, neměnnou evidencí v Neon a hlídáním 30denní lhůty; VOP 1.7, Privacy Notice 1.6. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.98**: potvrzovací fajfka u ikony pro kopírování odkazu pro studenty zůstává, dokud se na stránce nezkopíruje nebo nevyjme něco jiného. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
@@ -26,6 +28,16 @@ Aktualizováno: 2026-09-23 — interní verze **0.9.93** uzavírá **LEGAL-013**
 Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: minimální scope, práce po malých krocích, úsporné používání kontextu a nástrojů, zákaz nevyžádaných refaktorů a opakovaných spekulativních pokusů. Kořenový `AGENTS.md` je nově stručným závazným vstupním bodem pro agentní práci; `PROJECT.md` zůstává zdrojem projektového stavu a načítá se cíleně podle úkolu. Jde pouze o dokumentační/procesní změnu, interní verze zůstává **0.9.92** a veřejně zobrazovaná verze 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Auth e-maily v grafice Syllonautu 0.9.100 — 2026-09-23
+
+- po přechodu na Neon posílalo Neon Auth vlastní anglické e-maily s brandingem Neonu (`Reset Your Password - neon-red-ladder`, odesílatel `auth@mail.myneon.app`); původní Supabase šablony v `supabase/auth-templates/` se nepřenesly;
+- nový endpoint **POST /api/webhooks/neon-auth** přijímá blokující události Neon Auth `send.magic_link` a `send.otp`, ověřuje Ed25519 podpis proti JWKS Neon Auth (max. stáří 5 minut), přijímá jen odkazy na vlastní Neon Auth endpoint a e-mail odesílá přes Resend s idempotencí `neon-auth/<event_id>`;
+- šablony v `lib/neon-auth-email-core.ts` odpovídají Orbital Precision šablonám (česky s vykáním, anglicky podle `profiles.ui_locale`); pokrývají obnovu hesla, ověření e-mailu a přihlášení, vždy v odkazové i kódové variantě; odkaz na reset vede přímo na `/auth/update-password?token=…`, první GET token nespotřebuje;
+- webhook se v Neon Auth zapíná až po nasazení (bez funkčního endpointu by reset hesla selhal); vypnutí webhooku vrátí výchozí e-maily Neonu;
+- regresní kontrola **scripts/verify-neon-auth-email.mjs** (součást `npm run check`);
+- otevřené: Neon Auth má vypnuté ověření e-mailu při registraci (metoda `otp`, aplikace zatím nemá pole pro kód) — nová registrace proto žádný potvrzovací e-mail nedostává;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Evidovaná reklamace 0.9.99 — 2026-09-23
 
