@@ -494,3 +494,45 @@ const subscriptionRoute = fs.readFileSync(
 if (!subscriptionRoute.includes('cancelAtPeriodEnd')) {
   throw new Error('Card school subscriptions must support period-end cancellation.');
 }
+
+// LEGAL-015: invoice orders require an identified organisation; Czech ones are verified in ARES.
+const aresRegistry = fs.readFileSync('lib/ares-registry.ts', 'utf8');
+for (const [needle, label] of [
+  ["import 'server-only';", 'ARES lookup stays server-only'],
+  ['https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/', 'official ARES REST endpoint'],
+  ['AbortSignal.timeout(ARES_TIMEOUT_MS)', 'ARES lookup has a timeout'],
+  ["remainder === 0 ? 1 : remainder === 1 ? 0 : 11 - remainder", 'IČO checksum is validated before lookup'],
+  ["throw new AresRegistryError('registration_number_inactive')", 'dissolved organisations are rejected'],
+]) {
+  if (!aresRegistry.includes(needle)) throw new Error(`LEGAL-015: missing ${label}.`);
+}
+
+const orderRoute = fs.readFileSync('app/api/organizations/route.ts', 'utf8');
+for (const [needle, label] of [
+  ["if (input.paymentMethod === 'invoice') {", 'identity check is scoped to invoice orders'],
+  ["if (input.billingCountry === 'CZ') {", 'Czech invoice orders use ARES'],
+  ['input.legalName = verified.legalName;', 'invoice legal name comes from the register'],
+  ['input.billingAddress = verified.billingAddress;', 'invoice address comes from the register'],
+  ["registryError.code === 'registry_unavailable' ? 503 : 422", 'registry outage blocks invoice orders instead of skipping verification'],
+  ["error: 'registration_number_required'", 'non-Czech invoice orders require a registration number'],
+  ['...(registryVerification ? { registryVerification } : {}),', 'verification result is stored in the order snapshot'],
+]) {
+  if (!orderRoute.includes(needle)) throw new Error(`LEGAL-015: order route is missing: ${label}.`);
+}
+if (orderRoute.indexOf('verifyCzechOrganization(') > orderRoute.indexOf("admin.rpc('create_organization_order'")) {
+  throw new Error('LEGAL-015: ARES verification must happen before the order and invoice are created.');
+}
+
+const identityCurrentRoute = fs.readFileSync('app/api/organizations/current/route.ts', 'utf8');
+if (!identityCurrentRoute.includes("organization.renewalMode === 'manual_invoice'") || !identityCurrentRoute.includes("'organization_billing_identity_locked'")) {
+  throw new Error('LEGAL-015: invoice-renewed organisations must not change their verified billing identity via PATCH.');
+}
+
+const identitySchoolAdmin = fs.readFileSync('components/SchoolAdmin.tsx', 'utf8');
+for (const needle of [
+  "required={paymentMethod === 'invoice'}",
+  'Oficiální název a sídlo na faktuře převezmeme z registru ARES podle IČO.',
+  'registry_unavailable: [',
+]) {
+  if (!identitySchoolAdmin.includes(needle)) throw new Error(`LEGAL-015: school order form is missing: ${needle}`);
+}

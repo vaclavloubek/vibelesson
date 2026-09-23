@@ -575,9 +575,34 @@ export default function SchoolAdmin({
         await load();
         return;
       }
+      const registryMessages: Record<string, [string, string]> = {
+        registration_number_required: [
+          'Pro platbu fakturou vyplňte IČO / registrační číslo organizace.',
+          'Enter the organisation registration number to pay by invoice.',
+        ],
+        registration_number_invalid: [
+          'IČO nemá platný tvar. Zkontrolujte ho prosím.',
+          'The Czech registration number (IČO) is not valid. Please check it.',
+        ],
+        registration_number_not_found: [
+          'Organizaci s tímto IČO jsme v registru ARES nenašli.',
+          'No organisation with this registration number was found in the ARES register.',
+        ],
+        registration_number_inactive: [
+          'Organizace s tímto IČO je v registru ARES vedena jako zaniklá.',
+          'The organisation with this registration number is listed as dissolved in the ARES register.',
+        ],
+        registry_unavailable: [
+          'Registr ARES se teď nepodařilo ověřit. Zkuste to prosím později, nebo zvolte platbu kartou.',
+          'The ARES register could not be checked right now. Please try again later or pay by card.',
+        ],
+      };
+      const registryMessage = payload.error ? registryMessages[payload.error] : undefined;
       setMessageKind('error');
       setMessage(
-        payload.error === 'active_organization_membership_exists'
+        registryMessage
+          ? ui(registryMessage[0], registryMessage[1])
+          : payload.error === 'active_organization_membership_exists'
           ? ui(
             'Tento účet už patří do jiné školní organizace.',
             'This account already belongs to another school organization.',
@@ -1313,16 +1338,31 @@ export default function SchoolAdmin({
               </div>
 
               <div className={styles.field}>
-                <label>
-                  {ui(
-                    'IČO / registrační číslo (volitelné)',
-                    'Registration number (optional)',
-                  )}
+                <label htmlFor="school-order-registration-number">
+                  {paymentMethod === 'invoice'
+                    ? ui('IČO / registrační číslo *', 'Registration number *')
+                    : ui('IČO / registrační číslo (volitelné)', 'Registration number (optional)')}
                 </label>
                 <input
+                  id="school-order-registration-number"
+                  required={paymentMethod === 'invoice'}
+                  aria-describedby={paymentMethod === 'invoice' ? 'school-order-registration-hint' : undefined}
                   value={registrationNumber}
                   onChange={(event) => setRegistrationNumber(event.target.value)}
                 />
+                {paymentMethod === 'invoice' ? (
+                  <small id="school-order-registration-hint" style={{ display: 'block', marginTop: 6, lineHeight: 1.45 }}>
+                    {billingCountry.trim().toUpperCase() === 'CZ'
+                      ? ui(
+                        'Povinné pro platbu fakturou. Oficiální název a sídlo na faktuře převezmeme z registru ARES podle IČO.',
+                        'Required to pay by invoice. The official name and registered address on the invoice are taken from the ARES register.',
+                      )
+                      : ui(
+                        'Povinné pro platbu fakturou: registrační číslo organizace ve státě sídla.',
+                        'Required to pay by invoice: the organisation registration number in its country of registration.',
+                      )}
+                  </small>
+                ) : null}
               </div>
 
               <div className={styles.field}>
