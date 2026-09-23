@@ -1978,7 +1978,7 @@ Další významné změny 2026-09-18:
 
 ## 21. Pravidla další práce
 
-- nejdřív načíst aktuální `PROJECT.md`, `main` a relevantní soubory;
+- nejdřív ověřit aktuální `main`, relevantní soubory a pouze ty části `PROJECT.md`, které jsou potřeba pro konkrétní úkol;
 - vždy zkontrolovat, zda se `main` neposunul kvůli paralelnímu chatu;
 - **TEST / OVĚŘENÍ → ÚPRAVA → OVĚŘENÍ**;
 - security findings řešit jednotlivě, ne hromadným refaktorem;
