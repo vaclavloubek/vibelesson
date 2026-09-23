@@ -22,4 +22,12 @@ if [[ -n "${NEON_GRANT_MIRROR_MODE:-}" ]]; then
   node scripts/neon/mirror-authenticated-grants.mjs
 fi
 
+if [[ -n "${NEON_APPLY_MODE:-}" ]]; then
+  if [[ "${VERCEL_ENV:-}" != "preview" || "${VERCEL_GIT_COMMIT_REF:-}" != "codex/neon-staging-import-20260921-v2" ]]; then
+    echo 'Refusing migration apply outside the migration Preview branch.' >&2
+    exit 2
+  fi
+  node scripts/neon/apply-migration.mjs
+fi
+
 npm run build
