@@ -825,9 +825,19 @@ export default function LessonWorkspace({
             <div className="panel current-lesson-panel">
               <span className="eyebrow">{ui('Uložená lekce', 'Saved lesson')}</span>
               <h1>{lesson.title}</h1>
-              <p className="muted-copy">{licenseLocked
-                ? ui('Lekce je nyní pouze pro čtení. Obsah se znovu odemkne po obnovení školní licence.', 'This lesson is currently read-only. Its content unlocks again when the school licence is restored.')
-                : ui('Pokračuj AI úpravami níže. Každá úspěšná změna se ukládá automaticky.', 'Continue with AI edits below. Every successful change is saved automatically.')}</p>
+              {licenseLocked ? (
+                <p className="muted-copy">{ui('Lekce je nyní pouze pro čtení. Obsah se znovu odemkne po obnovení školní licence.', 'This lesson is currently read-only. Its content unlocks again when the school licence is restored.')}</p>
+              ) : (
+                <div className="language-plan-notice" role="note">
+                  <div>
+                    <strong>{ui('Než lekci pustíš do třídy, projdi ji.', 'Review it before it reaches your class.')}</strong>
+                    <p>{ui(
+                      'AI je rychlá, ale ne neomylná. Umí splést fakt, přestřelit čas nebo netrefit úroveň třídy. Co nesedí, oprav níže: celkový směr v boxu „Uprav celou lekci“, detaily kliknutím na aktivitu v náhledu. Každá úspěšná změna se ukládá automaticky.',
+                      'AI is fast, not infallible. It can get a fact wrong, misjudge timing or miss your students’ level. Fix what doesn’t fit below: the overall direction in “Edit the whole lesson”, the details by clicking an activity in the preview. Every successful change is saved automatically.',
+                    )}</p>
+                  </div>
+                </div>
+              )}
               {licenseLocked ? (
                 <div className="language-plan-notice" role="status" aria-live="polite">
                   <div>
