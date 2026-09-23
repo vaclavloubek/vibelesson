@@ -354,6 +354,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
 
+  // LEGAL-015: renewal invoices reuse the organisation identity verified at order time.
+  if (
+    organization.renewalMode === 'manual_invoice'
+    && (input.legalName !== undefined || input.registrationNumber !== undefined)
+  ) {
+    return NextResponse.json({ error: 'organization_billing_identity_locked' }, { status: 409 });
+  }
+
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.name !== undefined) patch.name = input.name;
   if (input.legalName !== undefined) patch.legal_name = input.legalName || null;

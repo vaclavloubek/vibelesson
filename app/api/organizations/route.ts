@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { billingRouteForCountry } from '@/lib/billing-region';
 import { isSupportedCountryCode } from '@/lib/countries';
+import { AresRegistryError, verifyCzechOrganization, type AresVerifiedOrganization } from '@/lib/ares-registry';
 import { DPA_ACCEPTANCE_KEY, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
@@ -97,6 +98,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
   }
 
+  // LEGAL-015: invoice orders need an identified organisation; Czech ones are
+  // invoiced only under the official name and seat from ARES.
+  let registryVerification: AresVerifiedOrganization | { source: 'self_declared'; registrationNumber: string } | null = null;
+  if (input.paymentMethod === 'invoice') {
+    if (input.billingCountry === 'CZ') {
+      try {
+        const verified = await verifyCzechOrganization(input.registrationNumber);
+        input = {
+          ...input,
+          legalName: verified.legalName,
+          registrationNumber: verified.registrationNumber,
+          billingAddress: verified.billingAddress,
+        };
+        registryVerification = verified;
+      } catch (registryError) {
+        if (!(registryError instanceof AresRegistryError)) throw registryError;
+        return NextResponse.json(
+          { error: registryError.code },
+          { status: registryError.code === 'registry_unavailable' ? 503 : 422 },
+        );
+      }
+    } else if (input.registrationNumber.length < 2) {
+      return NextResponse.json({ error: 'registration_number_required' }, { status: 422 });
+    } else {
+      registryVerification = { source: 'self_declared', registrationNumber: input.registrationNumber };
+    }
+  }
+
   const route = billingRouteForCountry(input.billingCountry);
   const billingPeriod = input.billingPeriod as OrganizationBillingPeriod;
   const amountMinor = organizationMinorUnitPrice(
@@ -188,6 +217,7 @@ export async function POST(request: Request) {
       dpaAcceptedAt: acceptedAt,
       dpaAcceptedByUserId: userId,
     },
+    ...(registryVerification ? { registryVerification } : {}),
   };
   const { error: environmentError } = getDatabaseBackend() === 'neon'
     ? await (async () => {
