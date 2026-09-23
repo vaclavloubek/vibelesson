@@ -12,8 +12,10 @@ import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 import { DPA_ACCEPTANCE_KEY, TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { termsReconsentPath } from '@/lib/terms-gate';
+import { billingRouteForCountry } from '@/lib/billing-region';
 import {
   ORGANIZATION_PLANS,
+  organizationMinorUnitPrice,
   type OrganizationBillingPeriod,
   type OrganizationPlanCode,
 } from '@/lib/organization-billing-catalog';
@@ -1106,6 +1108,9 @@ export default function SchoolAdmin({
   }
 
   const selectedPlan = ORGANIZATION_PLANS[planCode];
+  // LEGAL-014: same currency and amount derivation as POST /api/organizations.
+  const orderRoute = billingRouteForCountry(billingCountry);
+  const orderAmountMinor = organizationMinorUnitPrice(planCode, billingPeriod, orderRoute.currency);
   const pendingOrder = summary?.orders.find(
     (order) => order.status === 'awaiting_payment' || order.status === 'ordered',
   ) ?? null;
@@ -1420,6 +1425,45 @@ export default function SchoolAdmin({
                     ' for personal data that Syllonaut processes on behalf of the organisation.',
                   )}</span>
                 </label>
+              </div>
+
+              <div className={styles.full + ' ' + styles.planNote} role="group" aria-labelledby="school-order-summary-title" aria-live="polite">
+                <strong id="school-order-summary-title">{ui('Souhrn objednávky', 'Order summary')}</strong>
+                <p style={{ margin: '8px 0 0', lineHeight: 1.6 }}>
+                  {ui('Tarif:', 'Plan:')} <strong>{selectedPlan.name}</strong>{' · '}{ui('až', 'up to')} {selectedPlan.seatLimit} {ui('učitelů', 'teachers')}<br />
+                  {ui('Cena:', 'Price:')}{' '}
+                  <strong>
+                    {money(orderAmountMinor, orderRoute.currency, locale)}
+                    {' '}
+                    {billingPeriod === 'annual' ? ui('za rok', 'per year') : ui('za měsíc', 'per month')}
+                  </strong><br />
+                  {ui('Období:', 'Period:')}{' '}
+                  {billingPeriod === 'annual'
+                    ? ui('12 měsíců od aktivace licence po potvrzené platbě', '12 months from licence activation after confirmed payment')
+                    : ui('1 měsíc od aktivace licence po potvrzené platbě', '1 month from licence activation after confirmed payment')}<br />
+                  {ui('Platba:', 'Payment:')}{' '}
+                  {paymentMethod === 'invoice'
+                    ? ui('faktura / bankovní převod', 'invoice / bank transfer')
+                    : ui('platební karta přes Stripe', 'payment card via Stripe')}<br />
+                  {ui('Obnovení:', 'Renewal:')}{' '}
+                  {paymentMethod === 'invoice'
+                    ? ui(
+                      'neobnovuje se automaticky; na další období lze vystavit obnovovací fakturu nejdříve 90 dní před koncem licence.',
+                      'does not renew automatically; a renewal invoice for the next period can be issued no earlier than 90 days before the licence ends.',
+                    )
+                    : ui(
+                      'automaticky kartou na další stejné období, dokud automatické obnovení nevypnete ve správě školy.',
+                      'automatically by card for another period of the same length until you turn off automatic renewal in school management.',
+                    )}
+                </p>
+                {paymentMethod === 'card' && orderRoute.managedPayments ? (
+                  <p style={{ margin: '8px 0 0', lineHeight: 1.5 }}>
+                    {ui(
+                      'Konečnou částku k úhradě včetně případných daní zobrazí Stripe Checkout před potvrzením platby.',
+                      'Stripe Checkout shows the final amount due, including any applicable taxes, before you confirm payment.',
+                    )}
+                  </p>
+                ) : null}
               </div>
 
               <div className={styles.full}>
