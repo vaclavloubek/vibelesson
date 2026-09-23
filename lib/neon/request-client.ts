@@ -28,11 +28,15 @@ function jwtExpiry(token: string) {
  * Cached by a hash of the session cookie, so a token is only ever returned
  * to the session that minted it.
  */
-async function getSessionDataApiToken() {
+async function sessionCacheKey() {
   const cookieStore = await cookies();
   const session = cookieStore.getAll().find((cookie) => cookie.name.endsWith(SESSION_COOKIE_SUFFIX))?.value;
-  if (!session) return null;
-  const key = createHash('sha256').update(session).digest('hex');
+  return session ? createHash('sha256').update(session).digest('hex') : null;
+}
+
+async function getSessionDataApiToken() {
+  const key = await sessionCacheKey();
+  if (!key) return null;
 
   const cached = tokenCache.get(key);
   if (cached && cached.expiresAt - 30_000 > Date.now()) return cached.token;
@@ -74,8 +78,54 @@ export function createNeonRequestClient() {
   });
 }
 
+type NeonSessionResult = Awaited<ReturnType<ReturnType<typeof createServerAuth>['getSession']>>;
+const SESSION_CACHE_MS = 60_000;
+const SESSION_STALE_MS = 300_000;
+const sessionCache = new Map<string, { result: NeonSessionResult; verifiedAt: number }>();
+const pendingSessions = new Map<string, Promise<NeonSessionResult>>();
+
+/**
+ * The signed session_data cookie expires after sessionDataTtl and is not
+ * refreshed for API requests, after which every call verified the session
+ * upstream; the polling teacher view then got part of them rejected (401).
+ * Successful verifications are reused for 60 s per session (keyed by a hash
+ * of the session cookie); a transient upstream failure falls back to the last
+ * verification for up to 5 minutes. Signing out removes the cookie and key.
+ */
+async function getVerifiedNeonSession(): Promise<NeonSessionResult> {
+  const key = await sessionCacheKey();
+  if (!key) return createServerAuth().getSession();
+
+  const cached = sessionCache.get(key);
+  if (cached && Date.now() - cached.verifiedAt < SESSION_CACHE_MS) return cached.result;
+
+  const pending = pendingSessions.get(key);
+  if (pending) return pending;
+
+  const request = (async () => {
+    try {
+      const result = await createServerAuth().getSession();
+      if (!result.error && result.data?.user) {
+        if (sessionCache.size > 5_000) sessionCache.clear();
+        sessionCache.set(key, { result, verifiedAt: Date.now() });
+        return result;
+      }
+      if (result.error && cached && Date.now() - cached.verifiedAt < SESSION_STALE_MS) {
+        console.warn('Neon Auth session check failed; using recent verification');
+        return cached.result;
+      }
+      sessionCache.delete(key);
+      return result;
+    } finally {
+      pendingSessions.delete(key);
+    }
+  })();
+  pendingSessions.set(key, request);
+  return request;
+}
+
 export async function getNeonRequestUser() {
-  const { data, error } = await createServerAuth().getSession();
+  const { data, error } = await getVerifiedNeonSession();
   if (error) return { user: null, error };
   const user = data?.user;
   if (!user) return { user: null, error: null };
