@@ -436,7 +436,8 @@ Stav po cutoveru:
 - Supabase zůstává jen pro čtení a beze změny dat. Nemazat bez samostatného schválení.
 - Neon větev `preview/codex/neon-staging-import-20260921-v2` je Default a produkční; git větev stejného jména nemazat. Její `vercel.json` stále obsahuje zabezpečený build hook (spouští se jen s `NEON_FINAL_SYNC_MODE`/`NEON_GRANT_MIRROR_MODE`, obě proměnné jsou smazané).
 - Rollback: Neon už přijal produkční zápisy, prostý návrat Vercelu na `main@4edc533` by vytvořil split-brain. Při nutnosti: zmrazit zápisy do Neonu, přenést Neon-only deltu podle času/ID do Supabase, zrušit read-only v Supabase (`set default_transaction_read_only = off; alter database postgres reset default_transaction_read_only`) a teprve pak přepnout Production.
-- Otevřené: `reconcile_live_control_snapshot` na Neonu padá (`operator does not exist: text = jsonb`); za provozu neověřené školní administrace, Stripe webhook a registrace; ostatní účty resetují heslo; Neon Free limity (100 CU-h/měsíc, 0,5 GB).
+- Opraveno 2026-09-23: `reconcile_live_control_snapshot` na Neonu padal (`operator does not exist: text = jsonb`). PostgreSQL 18 váže nekvalifikované `value` na vnitřní jsonb sloupec; migrace `0009_pg18_live_reconciliation.sql` alias kvalifikuje a triggery živých zápisů místo role `postgres` rozpoznávají vlastníka rekonciliační funkce. Aplikováno ostře po zkoušce s rollbackem (diagnostika na PG 18.6 potvrdila `42883` u původního dotazu). Trigger `private.reject_individual_contract_evidence_mutation` stále povoluje DELETE jen roli `postgres`, na Neonu tedy nikomu (samostatný bod).
+- Otevřené: za provozu neověřené školní administrace, Stripe webhook a registrace; ostatní účty resetují heslo; Neon Free limity (100 CU-h/měsíc, 0,5 GB).
 
 ## Stop podmínky před produkcí
 
