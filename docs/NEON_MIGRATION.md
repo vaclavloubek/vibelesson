@@ -1,6 +1,6 @@
 # Přechod Syllonautu ze Supabase na Neon
 
-Aktualizováno: 2026-09-22
+Aktualizováno: 2026-09-23
 Výchozí commit auditu: `3e2aa66e740001d9e4d28f9d2630781318d0f569`
 Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 
@@ -9,6 +9,8 @@ Pracovní větev ověřeného importu: `codex/neon-staging-import-20260921-v2`
 Příprava je implementovaná jako bezpečný, opakovatelný migrační balík. Produkční Supabase ani produkční prostředí Vercelu nebyly změněny. Výchozí `DATABASE_BACKEND` zůstává `supabase`; zapnutí Neonu vyžaduje explicitní runtime gate `NEON_CUTOVER_APPROVED=true`.
 
 Databázová stagingová kopie i bezpečný Auth import byly vytvořeny a validovány. Tři účty mají v Neon Auth zachovaná UUID a e-maily, ale záměrně nemají přenesená hesla ani sessions. Jeden testovací účet dokončil reset hesla a celý Preview smoke test login → refresh → logout → refresh. Runtime audit databázových oprávnění následně odstranil implicitní `PUBLIC EXECUTE` ze 178 privilegovaných funkcí a kontrolní audit i aplikační build prošly. **Není povolen produkční cutover**, dokud neprojdou zbývající stop podmínky v tomto dokumentu.
+
+Read-only inventura 2026-09-23 porovnala počty ve všech aplikačních tabulkách `public` a `private`, nejen v původních 14 kontrolních tabulkách. Zdrojový Supabase má 55 tabulek, Preview Neon 56 (navíc novou `private.grading_dispatch_outbox`). V deseti společných tabulkách se počty liší: `private.free_device_budget_devices` 1/0, `private.free_device_budget_requests` 3/0, `private.marketing_consent_events` 1/0, `private.terms_acceptance_events` 2/1, `public.generation_requests` 66/61, `public.lesson_shares` 9/8, `public.lessons` 33/31, `public.profiles` 4/3, `public.sessions` 24/23 a `public.team_edit_locks` 0/6 (zdroj/cíl). Stejné počty ostatních tabulek **neprokazují** shodu jejich obsahu. Produkční zdroj je nadále zapisovatelný, takže finální dosynchronizace ani cutover neproběhly. Znovuspuštění původního celého importu na neprázdném stagingu by mohlo poškodit Neon Auth heslo a stagingová data; je nutný kontrolovaný postup se zálohou, krátkým zastavením produkčních zápisů a závěrečnou kontrolou všech tabulek.
 
 ### Zřízený stagingový cíl
 
