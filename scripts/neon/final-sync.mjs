@@ -326,9 +326,9 @@ try {
   const { rows: foreignKeys } = await dst.query(`
     select k.conname, cn.nspname as cs, c.relname as ct, pn.nspname as ps, p.relname as pt,
       array(select a.attname from unnest(k.conkey) with ordinality u(n, i)
-            join pg_attribute a on a.attrelid = k.conrelid and a.attnum = u.n order by u.i) as ccols,
+            join pg_attribute a on a.attrelid = k.conrelid and a.attnum = u.n order by u.i)::text[] as ccols,
       array(select a.attname from unnest(k.confkey) with ordinality u(n, i)
-            join pg_attribute a on a.attrelid = k.confrelid and a.attnum = u.n order by u.i) as pcols
+            join pg_attribute a on a.attrelid = k.confrelid and a.attnum = u.n order by u.i)::text[] as pcols
     from pg_constraint k
     join pg_class c on c.oid = k.conrelid join pg_namespace cn on cn.oid = c.relnamespace
     join pg_class p on p.oid = k.confrelid join pg_namespace pn on pn.oid = p.relnamespace
