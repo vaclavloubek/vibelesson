@@ -59,9 +59,10 @@ const APP_SCHEMAS = ['public', 'private'];
 
 // Encrypted like the earlier psql/pg_dump imports (sslmode=require): the Supabase
 // pooler certificate chains to Supabase's own CA, which the build image lacks.
-source.searchParams.delete('sslmode');
+// The raw string is kept intact so password encoding is exactly what psql saw.
+const sourceConnection = sourceUrl.replace(/([?&])sslmode=[^&#]*&?/, '$1').replace(/[?&]$/, '');
 const src = new pg.Client({
-  connectionString: source.toString(), ssl: { rejectUnauthorized: false },
+  connectionString: `${sourceConnection}${sourceConnection.includes('?') ? '&' : '?'}sslmode=no-verify`,
   application_name: 'syllonaut-final-sync', connectionTimeoutMillis: 20_000,
 });
 const dst = new pg.Client({
@@ -108,8 +109,15 @@ async function identityFingerprint(client, sql) {
 }
 
 try {
-  await src.connect(); connected.add(src);
-  await dst.connect(); connected.add(dst);
+  let phase = 'connect source';
+  try {
+    await src.connect(); connected.add(src);
+    phase = 'connect target';
+    await dst.connect(); connected.add(dst);
+  } catch (error) {
+    error.phase = phase;
+    throw error;
+  }
   for (const client of [src, dst]) await client.query(`set time zone 'UTC'`);
 
   const frozen = (await src.query(`select current_setting('default_transaction_read_only') as v`)).rows[0].v;
@@ -314,7 +322,7 @@ try {
 } catch (error) {
   // PostgreSQL messages can quote key values; log only structural details.
   const detail = error?.code
-    ? `pg ${error.code} ${error.table ?? ''} ${error.constraint ?? ''} ${error.routine ?? ''}`.trim()
+    ? `${error.phase ?? ''} pg ${error.code} ${error.table ?? ''} ${error.constraint ?? ''} ${error.routine ?? ''}`.trim()
     : (error instanceof Error && !/postgres(ql)?:\/\//.test(error.message) ? error.message.slice(0, 200) : 'error');
   console.error(`RESULT FAIL rolled back: ${detail}`);
   process.exitCode = 1;
