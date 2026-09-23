@@ -59,8 +59,8 @@ if (!individualApi.includes('create_and_link_individual_contract_snapshot')) fai
 if (!individualApi.includes('contract_snapshot_store_failed')) fail('individual checkout must fail closed when immutable contract evidence cannot be stored');
 if (!individualApi.includes('contractSnapshotId: snapshotId')) fail('Stripe checkout must carry the immutable contract snapshot ID');
 if (!school.includes('termsAccepted') || !schoolApi.includes('termsAccepted: z.literal(true)')) fail('school ordering must require Terms on client and server');
-if (!legal.includes("TERMS_VERSION = '1.6'") || !legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-23-v7'")) fail('shared Terms version/key is missing');
-if (!legal.includes('TERMS_PRODUCT_ACCESS_KEYS') || !legal.includes("'2026-09-21-v6'") || !legal.includes("'2026-09-21-v5'") || !legal.includes("'2026-09-21-v4'")) fail('Terms 1.5, 1.4 and 1.3 must remain sufficient for ordinary product access');
+if (!legal.includes("TERMS_VERSION = '1.7'") || !legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-23-v8'")) fail('shared Terms version/key is missing');
+if (!legal.includes('TERMS_PRODUCT_ACCESS_KEYS') || !legal.includes("'2026-09-23-v7'") || !legal.includes("'2026-09-21-v6'") || !legal.includes("'2026-09-21-v5'") || !legal.includes("'2026-09-21-v4'")) fail('Terms 1.6, 1.5, 1.4 and 1.3 must remain sufficient for ordinary product access');
 if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANCE_KEY') || !school.includes('TERMS_ACCEPTANCE_KEY')) fail('client flows must use the shared Terms acceptance key');
 if (!individualApi.includes('TERMS_ACCEPTANCE_KEY') || !schoolApi.includes('TERMS_ACCEPTANCE_KEY')) fail('server flows must use the shared Terms acceptance key');
 if (!schoolApi.includes('acceptedByUserId: userId')) fail('school Terms acceptance must record the accepting account');
@@ -75,7 +75,10 @@ if (!terms11Migration.includes("current_terms_version constant text := '1.1'") |
 if (!termsRolloutGuardMigration.includes("current_terms_version constant text := '1.0'") || !termsRolloutGuardMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('rollout guard must preserve the still-running Terms 1.0 build');
 if (!versionedTermsMigration.includes("when '2026-09-21-v1' then '1.0'") || !versionedTermsMigration.includes("when '2026-09-21-v2' then '1.1'")) fail('versioned signup audit must map exact acceptance keys to exact Terms versions');
 if (!termsAuditMigration.includes('requested_terms_acceptance and requested_terms_acceptance_key = current_terms_acceptance_key')) fail('signup audit must only mirror explicit acceptance of the active Terms key');
-if (!contractSnapshot.includes("TERMS_VERSION !== '1.6'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-23-v7'")) fail('immutable contract builder must hard-pin the supported Terms version');
+if (!contractSnapshot.includes("TERMS_VERSION !== '1.7'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-23-v8'")) fail('immutable contract builder must hard-pin the supported Terms version');
+// LEGAL-017: evidenced complaint process with written receipt, 30-day resolution and written resolution.
+if (!terms.includes('TERMS_COMPLAINT_CLAUSE') || !contractSnapshot.includes('TERMS_COMPLAINT_CLAUSE')) fail('public Terms and immutable contract snapshot must share the complaint clause');
+if (!termsContent.includes('nejpozději do 30 dnů od jejího uplatnění') || !termsContent.includes('syllonaut.com/cs/complaint') || !termsContent.includes('zamítnutí písemně odůvodní')) fail('complaint clause must promise written receipt, 30-day resolution and justified rejection');
 // LEGAL-016: account deletion ends automatic renewal; one shared clause for the public Terms and the contract snapshot.
 if (!terms.includes('TERMS_ACCOUNT_DELETION_CLAUSE') || !contractSnapshot.includes('TERMS_ACCOUNT_DELETION_CLAUSE')) fail('public Terms and immutable contract snapshot must share the account deletion clause');
 if (!termsContent.includes('Syllonaut před zrušením účtu automatické obnovení sám ukončí') || !termsContent.includes('Syllonaut itself ends automatic renewal before deleting the account')) fail('account deletion clause must commit Syllonaut to ending automatic renewal');

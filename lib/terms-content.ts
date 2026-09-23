@@ -36,3 +36,15 @@ export const TERMS_ACCOUNT_DELETION_CLAUSE = {
     'If the user owns a school organisation, deleting their account does not by itself end the organisation licence. Before deleting the account, Syllonaut arranges the transfer of organisation ownership to another administrator or, at the organisation’s request, ends automatic renewal of the school licence.',
   ],
 } as const;
+
+// LEGAL-017: evidenced complaint process with written receipt and resolution.
+export const TERMS_COMPLAINT_CLAUSE = {
+  cs: [
+    'Pokud služba neodpovídá smlouvě nebo nefunguje, může uživatel uplatnit reklamaci online na stránce Reklamace (syllonaut.com/cs/complaint), e-mailem na vaclav@syllonaut.com nebo poštou na adresu poskytovatele. V reklamaci popište vadu, použitý účet, okolnosti chyby a požadovaný způsob vyřízení, bez zbytečných osobních údajů studentů.',
+    'Syllonaut uživateli bezodkladně písemně potvrdí, kdy reklamaci uplatnil, co je jejím obsahem a jaký způsob vyřízení požaduje. Reklamaci vyřídí bez zbytečného odkladu, nejpozději do 30 dnů od jejího uplatnění, a písemně potvrdí datum a způsob vyřízení; zamítnutí písemně odůvodní. Zákonná práva z vadného plnění a zvláštní práva spotřebitelů k digitálním službám zůstávají zachována.',
+  ],
+  en: [
+    'If the service does not conform to the contract or fails to work, a user may submit a complaint online on the Complaint page (syllonaut.com/en/complaint), by email to vaclav@syllonaut.com or by post to the provider address. Describe the defect, the account used, the circumstances and the requested remedy, without unnecessary student personal data.',
+    'Syllonaut promptly confirms in writing when the complaint was submitted, what it contains and which remedy is requested. It resolves the complaint without undue delay and no later than 30 days after submission, and confirms the date and manner of resolution in writing; a rejection is justified in writing. Statutory rights relating to defective performance and consumer rights for digital services remain unaffected.',
+  ],
+} as const;

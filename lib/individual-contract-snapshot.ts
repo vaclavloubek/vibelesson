@@ -3,6 +3,7 @@ import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
   TERMS_WITHDRAWAL_CLAUSE,
@@ -106,7 +107,7 @@ const TERMS_CURRENT_CS = `
 </section>
 <section>
 <h2>8. Vady, reklamace a dostupnost služby</h2>
-<p>Pokud služba neodpovídá smluveným vlastnostem nebo nefunguje, napište na vaclav@syllonaut.com a popište problém, použitý účet a okolnosti chyby bez zbytečných osobních údajů studentů. Zákonná práva z vadného plnění a zvláštní práva spotřebitelů k digitálním službám zůstávají zachována.</p>
+${TERMS_COMPLAINT_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 <p>Syllonaut je průběžně vyvíjená online služba. Krátkodobé výpadky mohou nastat kvůli údržbě, bezpečnosti nebo závislosti na externích poskytovatelích. Poskytovatel bude usilovat o rozumnou dostupnost a nápravu závažných poruch, negarantuje však nepřetržitý provoz bez výpadku.</p>
 </section>
 <section>
@@ -184,7 +185,7 @@ const TERMS_CURRENT_EN = `
 </section>
 <section>
 <h2>8. Defects, complaints and service availability</h2>
-<p>If the service does not conform to the agreed features or fails to work, email vaclav@syllonaut.com and describe the issue, the account used and the circumstances without unnecessary student personal data. Statutory rights relating to defective performance and consumer rights for digital services remain unaffected.</p>
+${TERMS_COMPLAINT_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
 <p>Syllonaut is an online service under continuous development. Temporary interruptions may occur for maintenance, security or because of external providers. The provider will use reasonable efforts to maintain availability and remedy material failures but does not guarantee uninterrupted operation.</p>
 </section>
 <section>
@@ -218,9 +219,9 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.6'
+    TERMS_VERSION !== '1.7'
     || TERMS_EFFECTIVE_DATE !== '2026-09-23'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v7'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v8'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
