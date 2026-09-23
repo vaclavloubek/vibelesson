@@ -47,7 +47,31 @@ requireText(library, 'Stále je můžeš otevírat a upravovat ručně i pomocí
 const pricing = read('components/PricingPage.tsx');
 requireText(pricing, '2 importy nebo kopie lekcí za měsíc', 'Free pricing states the separate import/copy quota');
 requireText(pricing, 'Každou lekci lze živě použít jednou', 'Free pricing states one live use per lesson');
-requireText(pricing, 'Opakované používání lekcí bez omezení', 'paid pricing highlights repeat use');
+requireText(pricing, 'Opakované spouštění hotových lekcí bez čerpání AI limitu', 'paid pricing highlights repeat use with the precise LEGAL-013 claim');
+requireText(pricing, 'Repeated launches of finished lessons without using the AI allowance', 'English paid pricing uses the precise LEGAL-013 claim');
+
+// LEGAL-013: trusted-device guards apply to paid use, so the offer must not promise absolute "unlimited" reuse.
+for (const forbidden of [/bez omezení/i, /neomezen/i, /unlimited/i, /without limits?/i]) {
+  if (forbidden.test(pricing)) {
+    throw new Error(`LEGAL-013: Pricing must not return to an absolute unlimited-use claim (${forbidden}).`);
+  }
+}
+
+const personalDeviceMigration = read('supabase/migrations/20260919220000_add_individual_trusted_devices.sql');
+const organizationDeviceMigration = read('supabase/migrations/20260920072500_harden_organization_device_admin_reset.sql');
+for (const [content, needle, label] of [
+  [personalDeviceMigration, "'maxActive', 3", 'individual paid accounts allow 3 active devices'],
+  [personalDeviceMigration, "'maxNewIn30Days', 5", 'individual paid accounts allow 5 new devices per 30 days'],
+  [organizationDeviceMigration, "'maxActive', 5", 'organization members allow 5 active devices'],
+  [organizationDeviceMigration, "'maxNewIn30Days', 10", 'organization members allow 10 new devices per 30 days'],
+  [pricing, 'Teacher a Teacher Pro: nejvýše 3 aktivní zařízení a 5 nově přidaných za 30 dní', 'Pricing discloses individual device limits'],
+  [pricing, 'Team, School a Campus: nejvýše 5 aktivních zařízení a 10 nově přidaných za 30 dní', 'Pricing discloses organization device limits'],
+  [pricing, 'Teacher and Teacher Pro: up to 3 active devices and 5 newly added within 30 days', 'English Pricing discloses individual device limits'],
+  [pricing, 'Team, School and Campus: up to 5 active devices and 10 newly added within 30 days', 'English Pricing discloses organization device limits'],
+  [pricing, 'TRUSTED_DEVICE_NOTICE[english ?', 'Pricing renders the trusted-device notice'],
+]) {
+  requireText(content, needle, label);
+}
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migration = fs.readdirSync(migrationDir)
