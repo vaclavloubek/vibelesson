@@ -9,11 +9,23 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. Interní verze zůstává **0.9.92** (infrastrukturní přechod bez změny produktu).
 
+Aktualizováno: 2026-09-23 — interní verze **0.9.94** uzavírá **LEGAL-014**: školní objednávka ukazuje přímo nad finálním tlačítkem souhrn s cenou, měnou, obdobím, způsobem platby a režimem obnovení. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
+
 Aktualizováno: 2026-09-23 — interní verze **0.9.93** uzavírá **LEGAL-013** schválenou variantou B: Ceník místo absolutního „bez omezení“ používá přesný claim o opakovaném spouštění hotových lekcí bez čerpání AI limitu a viditelně uvádí limity důvěryhodných zařízení placených účtů. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: minimální scope, práce po malých krocích, úsporné používání kontextu a nástrojů, zákaz nevyžádaných refaktorů a opakovaných spekulativních pokusů. Kořenový `AGENTS.md` je nově stručným závazným vstupním bodem pro agentní práci; `PROJECT.md` zůstává zdrojem projektového stavu a načítá se cíleně podle úkolu. Jde pouze o dokumentační/procesní změnu, interní verze zůstává **0.9.92** a veřejně zobrazovaná verze 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Souhrn školní objednávky u finálního tlačítka 0.9.94 — 2026-09-23
+
+- uzavřen právní auditní bod **LEGAL-014**;
+- školní objednávkový formulář zobrazuje přímo nad finálním tlačítkem **Souhrn objednávky** pro fakturu i kartu: tarif a počet učitelů, cenu s měnou a obdobím (**za rok / za měsíc**), délku licence **12 měsíců / 1 měsíc od aktivace po potvrzené platbě**, způsob platby a režim obnovení;
+- cena a měna se počítají stejnými funkcemi `billingRouteForCountry` a `organizationMinorUnitPrice` jako serverový `POST /api/organizations`, takže souhrn odpovídá částce uložené do objednávky;
+- obnovení: karta = automaticky na další stejné období, dokud ho správce nevypne ve správě školy; faktura = bez automatického obnovení, obnovovací fakturu lze vystavit nejdříve 90 dní před koncem licence;
+- u karetní platby v EUR/USD (Stripe managed payments) souhrn uvádí, že konečnou částku včetně případných daní zobrazí Stripe Checkout; daňový model zůstává otevřený v **LEGAL-019**;
+- regresní kontrola **scripts/verify-offer-contract-consistency.mjs** hlídá shodný výpočet s API, pořadí souhrnu před tlačítkem a texty období a obnovení;
+- změna nezasahuje do databáze, cen ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Přesný claim opakovaného používání lekcí 0.9.93 — 2026-09-23
 
@@ -25,6 +37,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - regresní kontrola **scripts/verify-free-lesson-reuse.mjs** vyžaduje nový CZ/EN claim a poznámku o zařízeních, zakazuje v Ceníku „bez omezení“ / „neomezen“ / „unlimited“ / „without limits“ a hlídá shodu čísel s migracemi;
 - informace o limitu zařízení zatím není ve VOP; doplnit ji při nejbližší plánované změně VOP;
 - veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
+- PR **#293** prošel CI (build, source-contracts, axe-public-routes, preview-config) i Vercel Preview; produkční merge commit **36e71ba8** má Vercel **success** a živé `/cs/pricing` i `/en/pricing` obsahují nový claim i poznámku o zařízeních bez „bez omezení“ / „unlimited“.
 
 ### Zákonný formulář a online odstoupení 0.9.92 — 2026-09-21
 
@@ -262,7 +275,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 #### Střední / provozní rizika
 
-- **[LEGAL-014] Školní objednávka neukazuje konkrétní cenu bezprostředně u finálního tlačítka.** Formulář ukazuje tarif, počet učitelů a AI kvóty, ale finální souhrn před **Objednat s povinností platby** nemá cenu, měnu, celkové období a renewal mode. **Náprava:** přidat pevný order summary přímo nad tlačítko pro fakturu i kartu.
+- **[LEGAL-014 — RESOLVED 0.9.94] Školní objednávka neukazovala konkrétní cenu bezprostředně u finálního tlačítka.** Formulář má nově přímo nad tlačítkem **Objednat s povinností platby** / **Objednat a pokračovat k platbě** pevný **Souhrn objednávky**: tarif a počet učitelů, cenu v měně určené fakturační zemí (stejný výpočet jako server), období od aktivace po potvrzené platbě, způsob platby a režim obnovení (karta automaticky, faktura bez automatického obnovení). U karetní platby přes Stripe managed payments souhrn upozorňuje, že konečnou částku včetně případných daní zobrazí Stripe Checkout.
 - **[LEGAL-015] U školní fakturační objednávky lze deklarovat cizí školu bez silnějšího ověření oprávnění.** Checkbox o oprávnění pomáhá smluvně, ale IČO je volitelné a technicky se neověřuje oprávnění osoby jednat. **Náprava:** pro fakturační B2B objednávky vyžadovat identifikaci organizace; pro vyšší tarify zvážit verifikaci billing e-mailu/domény nebo ruční kontrolu.
 - **[LEGAL-016] Smazání účtu a zrušení předplatného jsou ve VOP oddělené.** Scénář, kdy je účet smazaný, ale Stripe dál obnovuje placenou službu, je UX i právně obtížně obhajitelný. **Náprava:** account deletion flow musí aktivní renewal explicitně ukončit nebo uživatele nepustit ke smazání bez bezpečného billing vypořádání.
 - **[LEGAL-017] Reklamace je popsaná jen jako e-mail na podporu.** Chybí explicitní automatizovaný proces potvrzení přijetí reklamace a doložitelné evidence výsledku. **Náprava:** přidat reklamační workflow / šablonu transakčního potvrzení, stav a archivaci.

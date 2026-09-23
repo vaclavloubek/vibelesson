@@ -100,4 +100,27 @@ for (const planCode of ['teacher', 'teacher_pro']) {
   assert(INDIVIDUAL_PLAN_ALLOWANCES[planCode].aiEdits > 0);
 }
 
+// LEGAL-014: the school order shows price, currency, period and renewal mode right above the final button,
+// derived exactly like the server-side order amount.
+const schoolAdminSource = await source('components/SchoolAdmin.tsx');
+assert(organizationOrderSource.includes('billingRouteForCountry(input.billingCountry)'));
+assert(organizationOrderSource.includes('organizationMinorUnitPrice('));
+assert(schoolAdminSource.includes('const orderRoute = billingRouteForCountry(billingCountry);'));
+assert(schoolAdminSource.includes('organizationMinorUnitPrice(planCode, billingPeriod, orderRoute.currency)'));
+assert(schoolAdminSource.includes('money(orderAmountMinor, orderRoute.currency, locale)'));
+const summaryIndex = schoolAdminSource.indexOf("ui('Souhrn objednávky', 'Order summary')");
+const submitIndex = schoolAdminSource.indexOf("ui('Objednat s povinností platby', 'Order with obligation to pay')");
+assert(summaryIndex > 0 && submitIndex > summaryIndex, 'school order summary must precede the final order button');
+for (const needle of [
+  "ui('za rok', 'per year')",
+  "ui('za měsíc', 'per month')",
+  '12 měsíců od aktivace licence po potvrzené platbě',
+  '1 měsíc od aktivace licence po potvrzené platbě',
+  'neobnovuje se automaticky; na další období lze vystavit obnovovací fakturu nejdříve 90 dní před koncem licence.',
+  'automaticky kartou na další stejné období, dokud automatické obnovení nevypnete ve správě školy.',
+  "paymentMethod === 'card' && orderRoute.managedPayments",
+]) {
+  assert(schoolAdminSource.includes(needle), `school order summary is missing: ${needle}`);
+}
+
 console.log('Offer → checkout → contract snapshot → email consistency: OK');
