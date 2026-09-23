@@ -30,6 +30,8 @@ async function handle(method: HandlerMethod, request: Request, context: RouteCon
     || (getDatabaseBackend() === 'neon' && (
       path.join('/') === 'sign-in/email'
       || path.join('/') === 'request-password-reset'
+      || path.join('/') === 'email-otp/send-verification-otp'
+      || path.join('/') === 'email-otp/verify-email'
     ))
   )) {
     // These public entry points would bypass the app's Turnstile and signup

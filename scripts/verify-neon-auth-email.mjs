@@ -137,4 +137,24 @@ assert(route.includes("idempotencyKey: `neon-auth/${eventId}`"), 'Resend idempot
 const proxy = await readFile(new URL('../proxy.ts', import.meta.url), 'utf8');
 assert(proxy.includes('api/webhooks/neon-auth'), 'proxy must not touch the webhook');
 
+// --- Signup email verification (code) -------------------------------------------
+const actionsSource = await readFile(new URL('../app/auth/neon/actions.ts', import.meta.url), 'utf8');
+const profileInsert = actionsSource.indexOf('insert into public.profiles');
+const signupSend = actionsSource.indexOf("sendVerificationOtp({ email, type: 'email-verification' })");
+assert(profileInsert > 0 && signupSend > profileInsert, 'signup code must be sent after the profile (and its locale) exists');
+assert(actionsSource.includes("code === 'EMAIL_NOT_VERIFIED'") && actionsSource.includes('needsVerification: true'),
+  'unverified sign-in must lead to code entry');
+assert(/verifyNeonAuthChallenge\(challenge, 'verify'\)[\s\S]*sendVerificationOtp/.test(actionsSource), 'resending a code must require Turnstile');
+assert(/\^\\d\{6\}\$/.test(actionsSource), 'only 6-digit codes may reach Neon Auth');
+const authProxy = await readFile(new URL('../app/api/auth/[...path]/route.ts', import.meta.url), 'utf8');
+assert(authProxy.includes("'email-otp/send-verification-otp'") && authProxy.includes("'email-otp/verify-email'"),
+  'public auth proxy must not bypass Turnstile for OTP endpoints');
+const authControls = await readFile(new URL('../components/AuthControls.tsx', import.meta.url), 'utf8');
+assert(authControls.includes("mode === 'verify-email'") && authControls.includes('autoComplete="one-time-code"'),
+  'the auth popover must offer code entry');
+assert(authControls.includes("switchMode('verify-email')"), 'signup must switch to code entry');
+const signupCode = renderNeonAuthEmail({ channel: 'code', purpose: 'email-verification', code: '123456', expiresAt: new Date(now + 15 * 60_000).toISOString() }, 'cs', new Date(now));
+assert(signupCode.subject === 'Dokončete registraci do Syllonautu' && signupCode.text.includes('Platnost vyprší za 15 minut.'),
+  'signup code email must match the confirm-signup template and state the 15-minute validity');
+
 console.log('Neon Auth branded email checks passed.');
