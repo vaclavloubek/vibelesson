@@ -72,11 +72,24 @@ export async function recordCurrentTermsReconsent(userId: string) {
   if (getDatabaseBackend() === 'neon') {
     assertApprovedNeonCutover();
     const sql = createNeonSql();
+    // Like Neon signup, write the append-only audit row directly so a new
+    // Terms version needs no database key/version mapping.
     const rows = await sql`
-      select public.record_terms_reconsent_for_service(
-        ${userId}::uuid,
-        ${TERMS_ACCEPTANCE_KEY}::text
-      ) as accepted_at
+      with inserted as (
+        insert into private.terms_acceptance_events (user_id, terms_version, acceptance_key, source)
+        select ${userId}::uuid, ${TERMS_VERSION}::text, ${TERMS_ACCEPTANCE_KEY}::text, ${TERMS_RECONSENT_SOURCE}::text
+        where exists (select 1 from public.profiles p where p.id = ${userId}::uuid)
+        on conflict (user_id, acceptance_key, source) do nothing
+        returning accepted_at
+      )
+      select accepted_at from inserted
+      union all
+      select tae.accepted_at from private.terms_acceptance_events tae
+      where tae.user_id = ${userId}::uuid
+        and tae.acceptance_key = ${TERMS_ACCEPTANCE_KEY}::text
+        and tae.source = ${TERMS_RECONSENT_SOURCE}::text
+      order by accepted_at asc
+      limit 1
     `;
     const acceptedAt = rows[0]?.accepted_at;
     if (acceptedAt instanceof Date) return acceptedAt.toISOString();

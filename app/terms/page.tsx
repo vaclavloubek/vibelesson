@@ -9,7 +9,12 @@ import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
-import { TERMS_PLAN_PRICING_CLAUSE, TERMS_SERVICE_CHANGE_CLAUSE, TERMS_WITHDRAWAL_CLAUSE } from '@/lib/terms-content';
+import {
+  TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_PLAN_PRICING_CLAUSE,
+  TERMS_SERVICE_CHANGE_CLAUSE,
+  TERMS_WITHDRAWAL_CLAUSE,
+} from '@/lib/terms-content';
 import { WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
@@ -75,8 +80,8 @@ export default async function TermsPage() {
             'These Terms govern use of Syllonaut, including Free accounts and paid plans for individuals and organizations.'
           )}</p>
           <div className={styles.meta}>{ui(
-            `Verze ${TERMS_VERSION} · účinná od 21. 9. 2026`,
-            `Version ${TERMS_VERSION} · effective 21 September 2026`
+            `Verze ${TERMS_VERSION} · účinná od 23. 9. 2026`,
+            `Version ${TERMS_VERSION} · effective 23 September 2026`
           )}</div>
         </div>
 
@@ -217,10 +222,9 @@ export default async function TermsPage() {
 
         <section>
           <h2>{ui('11. Ukončení účtu', '11. Account termination')}</h2>
-          <p>{ui(
-            'Uživatel může přestat službu používat a požádat o zrušení účtu. Zrušení účtu samo o sobě nenahrazuje zrušení aktivního placeného předplatného, pokud aplikace výslovně nepotvrdí opak; nejprve je proto třeba ukončit automatické obnovení placeného tarifu.',
-            'A user may stop using the service and request account deletion. Deleting an account does not by itself replace cancellation of an active paid subscription unless the application expressly confirms otherwise; automatic renewal should therefore be cancelled first.'
-          )}</p>
+          {TERMS_ACCOUNT_DELETION_CLAUSE[english ? 'en' : 'cs'].map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
           <p>{ui(
             'Poskytovatel může účet nebo jeho funkce omezit při závažném či opakovaném porušování těchto podmínek, zneužití služby nebo z bezpečnostních důvodů. Pokud to situace dovoluje, uživatele předem upozorní.',
             'The provider may restrict an account or its features for serious or repeated breaches of these Terms, abuse of the service or security reasons. Where circumstances allow, the user will be notified in advance.'
@@ -256,7 +260,7 @@ export default async function TermsPage() {
           )} <Link href={`/${locale}/dpa`}>{ui('zpracovatelskou smlouvou (DPA)', 'Data Processing Agreement (DPA)')}</Link>.</p>
           <p>{ui(
             `Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od ${new Intl.DateTimeFormat('cs-CZ').format(new Date(TERMS_EFFECTIVE_DATE + 'T12:00:00Z'))}. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.`,
-            `The current version of these Terms is ${TERMS_VERSION}, effective from 21 September 2026. For a specific order, the version accepted when the order was placed is retained.`
+            `The current version of these Terms is ${TERMS_VERSION}, effective from 23 September 2026. For a specific order, the version accepted when the order was placed is retained.`
           )}</p>
         </section>
       </article>

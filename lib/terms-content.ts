@@ -22,3 +22,17 @@ export const TERMS_SERVICE_CHANGE_CLAUSE = {
     'The right to terminate and to turn off renewal remains available without accepting new Terms. Where the contractual change itself requires renewed consent, Syllonaut will request it before the change becomes binding on the relevant user.',
   ],
 } as const;
+
+// LEGAL-016: account deletion never leaves a paid renewal running.
+export const TERMS_ACCOUNT_DELETION_CLAUSE = {
+  cs: [
+    'Uživatel může přestat službu používat a požádat o zrušení účtu. Má-li účet aktivní placený tarif s automatickým obnovením, Syllonaut před zrušením účtu automatické obnovení sám ukončí, takže po zrušení účtu již nedojde k další platbě; uživatel je nemusí předem rušit sám. Zrušení účtu Syllonaut potvrdí e-mailem.',
+    'Před zrušením účtu Syllonaut uživatele upozorní, že zrušením účtu zanikne přístup i ke zbývající části již zaplaceného období, a nabídne mu možnost ponechat účet do konce tohoto období. Tím nejsou dotčena zákonná práva spotřebitele, zejména právo odstoupit od smlouvy podle článku 7 a práva podle článku 10.',
+    'Je-li uživatel vlastníkem školní organizace, zrušení jeho účtu samo neukončuje licenci organizace. Syllonaut před zrušením účtu zajistí předání vlastnictví organizace jinému správci, nebo na žádost organizace ukončí automatické obnovení školní licence.',
+  ],
+  en: [
+    'A user may stop using the service and request account deletion. If the account has an active paid plan with automatic renewal, Syllonaut itself ends automatic renewal before deleting the account, so no further payment is taken after deletion; the user does not need to cancel it first. Syllonaut confirms the deletion by email.',
+    'Before deleting the account, Syllonaut informs the user that deletion also ends access to any remaining part of an already paid period and offers to keep the account until the end of that period. This does not affect statutory consumer rights, in particular the right of withdrawal under section 7 and the rights under section 10.',
+    'If the user owns a school organisation, deleting their account does not by itself end the organisation licence. Before deleting the account, Syllonaut arranges the transfer of organisation ownership to another administrator or, at the organisation’s request, ends automatic renewal of the school licence.',
+  ],
+} as const;
