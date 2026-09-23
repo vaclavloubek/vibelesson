@@ -511,8 +511,8 @@ const orderRoute = fs.readFileSync('app/api/organizations/route.ts', 'utf8');
 for (const [needle, label] of [
   ["if (input.paymentMethod === 'invoice') {", 'identity check is scoped to invoice orders'],
   ["if (input.billingCountry === 'CZ') {", 'Czech invoice orders use ARES'],
-  ['legalName: verified.legalName,', 'invoice legal name comes from the register'],
-  ['billingAddress: verified.billingAddress,', 'invoice address comes from the register'],
+  ['input.legalName = verified.legalName;', 'invoice legal name comes from the register'],
+  ['input.billingAddress = verified.billingAddress;', 'invoice address comes from the register'],
   ["registryError.code === 'registry_unavailable' ? 503 : 422", 'registry outage blocks invoice orders instead of skipping verification'],
   ["error: 'registration_number_required'", 'non-Czech invoice orders require a registration number'],
   ['...(registryVerification ? { registryVerification } : {}),', 'verification result is stored in the order snapshot'],

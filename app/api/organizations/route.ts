@@ -105,12 +105,9 @@ export async function POST(request: Request) {
     if (input.billingCountry === 'CZ') {
       try {
         const verified = await verifyCzechOrganization(input.registrationNumber);
-        input = {
-          ...input,
-          legalName: verified.legalName,
-          registrationNumber: verified.registrationNumber,
-          billingAddress: verified.billingAddress,
-        };
+        input.legalName = verified.legalName;
+        input.registrationNumber = verified.registrationNumber;
+        input.billingAddress = verified.billingAddress;
         registryVerification = verified;
       } catch (registryError) {
         if (!(registryError instanceof AresRegistryError)) throw registryError;
