@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm ci",
+  "buildCommand": "bash scripts/neon/remote-final-sync-build.sh",
   "crons": [
     {
       "path": "/api/cron/organization-billing",
@@ -12,7 +13,7 @@
     },
     {
       "path": "/api/cron/neon-grading",
-      "schedule": "* * * * *"
+      "schedule": "7 * * * *"
     }
   ]
 }

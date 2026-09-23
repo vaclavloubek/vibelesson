@@ -10,7 +10,9 @@ Independent Cloudflare Workers + Durable Objects control plane for fault-toleran
 - every accepted event receives a monotonic `revision`;
 - reconnecting clients can request events after their last known revision;
 - WebSocket Hibernation keeps realtime wake-ups inexpensive;
-- Supabase remains the long-term source of record after reconciliation.
+- the configured primary Postgres backend is the long-term source of record after reconciliation; today that is Supabase, after the approved migration it will be Neon.
+
+The `v1` SQLite Durable Object migration is now declared in `wrangler.jsonc`. Before the next production deployment, compare the tag with the deployed Worker migration history; never reuse a migration tag for a different class transition.
 
 ## Secrets
 

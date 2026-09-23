@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createHash } from 'node:crypto';
+import { scheduleNeonGradingDrain } from '@/lib/neon/grading-outbox-worker';
 import { createNeonSql } from '@/lib/neon/server';
 
 const LOCK_TTL_SECONDS = 60;
@@ -240,6 +241,7 @@ async function submit(body: Record<string, unknown>) {
     const queuedRows = await sql`
       select public.queue_submitted_team_response_evaluation(${String(saved.id)}::uuid) as queued
     `;
+    if (queuedRows[0]?.queued) scheduleNeonGradingDrain();
     return json({
       ok: true,
       submitted: true,

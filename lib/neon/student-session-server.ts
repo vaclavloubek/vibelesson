@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
+import { scheduleNeonGradingDrain } from '@/lib/neon/grading-outbox-worker';
 import { createNeonSql } from '@/lib/neon/server';
 
 type Block = Record<string, unknown>;
@@ -397,6 +398,7 @@ async function respond(body: Record<string, unknown>) {
         select public.queue_submitted_response_evaluation(${String(saved.id)}::uuid) as queued
       `;
       queuedForEvaluation = Boolean(queued[0]?.queued);
+      if (queuedForEvaluation) scheduleNeonGradingDrain();
     }
     return json({
       ok: true,

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { randomUUID } from 'node:crypto';
+import { after } from 'next/server';
 import { z } from 'zod';
 import { gradeResponseWithAI } from '@/lib/grading';
 import { createNeonSql } from '@/lib/neon/server';
@@ -28,7 +29,8 @@ function safeErrorMessage(error: unknown) {
 }
 
 export function useNeonGradingOutboxWorker() {
-  if (process.env.NEON_GRADING_OUTBOX_WORKER !== 'true') return false;
+  // Neon has no pg_net dispatcher: in the global Neon backend this worker is the only grader.
+  if (process.env.DATABASE_BACKEND !== 'neon' && process.env.NEON_GRADING_OUTBOX_WORKER !== 'true') return false;
   if (process.env.VERCEL_ENV === 'production' && process.env.NEON_CUTOVER_APPROVED !== 'true') {
     throw new Error('Neon grading outbox worker is not approved for production.');
   }
@@ -114,4 +116,41 @@ export async function processOneNeonGradingOutboxJob() {
     }
     return { processed: 1, status: 'failed' as const };
   }
+}
+
+/**
+ * Replaces the Supabase pg_cron retry job: re-queues due or stale evaluations,
+ * then grades queued jobs in a few concurrent lanes until idle or out of time.
+ */
+export async function drainNeonGradingOutbox(budgetMs: number, lanes = 4) {
+  const sql = createNeonSql();
+  await sql`select private.redispatch_server_grading_jobs()`;
+  const deadline = Date.now() + budgetMs;
+  let processed = 0;
+  const lane = async () => {
+    while (Date.now() < deadline) {
+      const result = await processOneNeonGradingOutboxJob();
+      if (result.processed === 0) return;
+      processed += 1;
+    }
+  };
+  await Promise.all(Array.from({ length: lanes }, lane));
+  return { processed };
+}
+
+/**
+ * Grades a just-submitted answer right after the response is sent, instead of
+ * waiting for the sparse safety-net cron. The short delay covers the 2.5 s
+ * debounce in private.redispatch_server_grading_jobs().
+ */
+export function scheduleNeonGradingDrain() {
+  if (!useNeonGradingOutboxWorker()) return;
+  after(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    try {
+      await drainNeonGradingOutbox(40_000);
+    } catch (error) {
+      console.error('Neon grading drain failed', { error: safeErrorMessage(error) });
+    }
+  });
 }
