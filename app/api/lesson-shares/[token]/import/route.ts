@@ -3,9 +3,10 @@ import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { emitFirstLessonCreatedIfNeeded } from '@/lib/marketing-lifecycle';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import { freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
+import { importSharedLesson } from '@/lib/shared-lesson-import-writer';
+import { getDatabaseBackend } from '@/lib/neon/config';
 
 type RouteContext = {
   params: Promise<{ token: string }>;
@@ -16,6 +17,14 @@ const BEARER_PATTERN = /^Bearer\s+(.+)$/i;
 
 async function authenticatedRequestClient(request: Request) {
   const authorization = request.headers.get('authorization');
+
+  if (getDatabaseBackend() === 'neon') {
+    // The Neon session is kept in an httpOnly first-party cookie. Never
+    // interpret a Supabase bearer token as a Neon identity.
+    if (authorization) return { supabase: null, userId: null };
+    const { supabase, userId } = await getAuthenticatedUserId();
+    return { supabase, userId };
+  }
 
   if (authorization) {
     const match = authorization.match(BEARER_PATTERN);
@@ -78,49 +87,46 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Sdílená lekce nebyla nalezena.' }, { status: 404 });
   }
 
-  const admin = createAdminClient();
-  const deviceHash = await currentFreeDeviceBudgetHash();
-  const { data, error } = await admin.rpc('import_lesson_share_server', {
-    p_user_id: userId,
-    p_token: token,
-    p_device_token_hash: deviceHash,
-  });
-  if (error) {
-    if (error.code === 'P0002') {
-      return NextResponse.json({ error: 'Sdílená lekce nebyla nalezena.' }, { status: 404 });
+  try {
+    const result = await importSharedLesson(userId, token);
+    if (!result.allowed) {
+      if (result.denialCode === 'share_not_found') {
+        return NextResponse.json({ error: 'Sdílená lekce nebyla nalezena.' }, { status: 404 });
+      }
+      if (result.denialCode === 'free_lesson_import_quota_exhausted') {
+        return NextResponse.json({
+          error: 'Měsíční limit 2 importů nebo kopií je vyčerpaný. Další sdílenou lekci můžeš importovat příští měsíc.',
+          code: 'free_lesson_import_quota_exhausted',
+        }, { status: 429 });
+      }
+      if (result.denialCode === 'free_device_budget_exhausted') {
+        return NextResponse.json({
+          error: freeDeviceBudgetMessage('free_device_budget_exhausted', 'import', 4),
+          code: 'free_device_budget_exhausted',
+        }, { status: 429 });
+      }
+      if (result.denialCode === 'free_device_cookie_required') {
+        return NextResponse.json({
+          error: freeDeviceBudgetMessage('free_device_cookie_required', 'import', 4),
+          code: 'free_device_cookie_required',
+        }, { status: 409 });
+      }
+      throw new Error(`Unexpected shared lesson import denial: ${result.denialCode ?? 'unknown'}`);
     }
-    if (error.message?.includes('free_lesson_import_quota_exhausted')) {
-      return NextResponse.json({
-        error: 'Měsíční limit 2 importů nebo kopií je vyčerpaný. Další sdílenou lekci můžeš importovat příští měsíc.',
-        code: 'free_lesson_import_quota_exhausted',
-      }, { status: 429 });
+
+    if (!result.lessonId) {
+      throw new Error('Shared lesson import returned no lesson id.');
     }
-    if (error.message?.includes('free_device_budget_exhausted')) {
-      return NextResponse.json({
-        error: freeDeviceBudgetMessage('free_device_budget_exhausted', 'import', 4),
-        code: 'free_device_budget_exhausted',
-      }, { status: 429 });
-    }
-    if (error.message?.includes('free_device_cookie_required')) {
-      return NextResponse.json({
-        error: freeDeviceBudgetMessage('free_device_cookie_required', 'import', 4),
-        code: 'free_device_cookie_required',
-      }, { status: 409 });
-    }
-    console.error('import lesson share failed', { code: error.code });
+
+    after(async () => {
+      await Promise.allSettled([
+        emitFirstLessonCreatedIfNeeded(userId),
+      ]);
+    });
+
+    return NextResponse.json({ lessonId: result.lessonId });
+  } catch (error) {
+    console.error('import lesson share failed', error);
     return NextResponse.json({ error: 'Kopii lekce se nepodařilo uložit.' }, { status: 500 });
   }
-
-  if (typeof data !== 'string') {
-    console.error('import lesson share returned an invalid lesson id');
-    return NextResponse.json({ error: 'Kopii lekce se nepodařilo uložit.' }, { status: 500 });
-  }
-
-  after(async () => {
-    await Promise.allSettled([
-      emitFirstLessonCreatedIfNeeded(userId),
-    ]);
-  });
-
-  return NextResponse.json({ lessonId: data });
 }

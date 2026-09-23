@@ -18,7 +18,7 @@ Název spojuje *syllabus* a *astronaut*. Kosmická metafora se v produktu použ�
 - spuštění živé hodiny a studentské připojení přes krátký kód;
 - živé řízení postupu a sběr odpovědí;
 - demo lekce bez AI;
-- Vercel AI Gateway + Supabase.
+- Vercel AI Gateway + Supabase; připravuje se řízený přechod na Neon Postgres/Auth.
 
 ## Lokální spuštění
 
@@ -33,6 +33,18 @@ Pro lokální AI nastav `AI_GATEWAY_API_KEY`. Model lze změnit přes `AI_MODEL`
 ## Architektura
 
 AI generuje validovaný `Lesson` JSON podle Zod schématu. UI jej vykresluje pomocí pevné sady interaktivních komponent. Učitel tak získává pocit vibecodingu, ale model negeneruje libovolný frontendový kód. Díky tomu má být výstup stabilnější, bezpečnější a lépe testovatelný.
+
+### Přechod na Neon
+
+Migrační příprava je v `docs/NEON_MIGRATION.md`. Obsahuje audit Supabase závislostí, cílovou architekturu, dry-run-first nástroje, validaci dat a identity, staging testy, cutover i rollback. Produkce zůstává na Supabase, dokud neprojdou všechny stop podmínky a cutover nebude výslovně schválen.
+
+```bash
+npm run neon:preflight
+npm run neon:migrate
+npm run neon:auth-import
+```
+
+Všechny tři příkazy jsou bez dalších přepínačů pouze informativní a nic nezapisují. Databázový staging import je ověřený; Auth import je připravený na izolované Preview větvi se zachováním UUID a bez kopírování hesel či sessions.
 
 ## Produktový směr
 

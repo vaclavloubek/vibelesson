@@ -5,5 +5,8 @@ node_modules
 .vercel
 .DS_Store
 npm-debug.log*
+*.tsbuildinfo
 
 public/pdf.worker.mjs
+supabase/.temp/
+.env*

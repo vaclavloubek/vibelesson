@@ -11,6 +11,8 @@ import { individualMinorUnitPrice } from '@/lib/individual-billing-catalog';
 import { createStripeCheckout, isStripeLiveSecretKey, isStripeSandboxSecretKey, StripeCheckoutApiError } from '@/lib/stripe-checkout';
 import { retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -63,15 +65,55 @@ export async function POST(request: Request) {
   if (!isSupportedCountryCode(input.country)) return jsonError(400, 'unsupported_billing_country');
   const route = billingRouteForCountry(input.country);
   const planCode = input.planId === 'teacher-pro' ? 'teacher_pro' : 'teacher';
-  const admin = createAdminClient();
+  const neonBackend = getDatabaseBackend() === 'neon';
+  if (neonBackend) assertApprovedNeonCutover();
+  const sql = neonBackend ? createNeonSql() : null;
+  const admin = neonBackend ? null : createAdminClient();
 
-  const [priceResult, customerResult, subscriptionResult] = await Promise.all([
-    admin.from('billing_prices').select('external_price_id').eq('provider', 'stripe').eq('livemode', livemode).eq('plan_code', planCode).eq('billing_period', input.billing).eq('currency', route.currency).eq('active', true).maybeSingle(),
-    admin.from('billing_customers').select('external_customer_id').eq('user_id', userId).eq('provider', 'stripe').eq('livemode', livemode).maybeSingle(),
-    livemode
-      ? admin.from('billing_subscriptions').select('currency,status').eq('user_id', userId).eq('provider', 'stripe').eq('livemode', true).in('status', ['trialing', 'active', 'past_due']).limit(1).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-  ]);
+  let priceResult: { data: { external_price_id: string } | null; error: { code: string } | null };
+  let customerResult: { data: { external_customer_id: string | null } | null; error: { code: string } | null };
+  let subscriptionResult: { data: { currency: string; status: string } | null; error: { code: string } | null };
+  if (sql) {
+    try {
+      const [prices, customers, subscriptions] = await Promise.all([
+        sql`
+          select external_price_id from public.billing_prices
+          where provider = 'stripe' and livemode = ${livemode}
+            and plan_code = ${planCode} and billing_period = ${input.billing}
+            and currency = ${route.currency} and active = true limit 2
+        `,
+        sql`
+          select external_customer_id from public.billing_customers
+          where user_id = ${userId}::uuid and provider = 'stripe' and livemode = ${livemode} limit 2
+        `,
+        livemode
+          ? sql`
+            select currency, status from public.billing_subscriptions
+            where user_id = ${userId}::uuid and provider = 'stripe' and livemode = true
+              and status in ('trialing', 'active', 'past_due') limit 1
+          `
+          : Promise.resolve([]),
+      ]);
+      priceResult = prices.length > 1
+        ? { data: null, error: { code: 'duplicate_price' } }
+        : { data: (prices[0] as { external_price_id: string } | undefined) ?? null, error: null };
+      customerResult = customers.length > 1
+        ? { data: null, error: { code: 'duplicate_customer' } }
+        : { data: (customers[0] as { external_customer_id: string | null } | undefined) ?? null, error: null };
+      subscriptionResult = { data: (subscriptions[0] as { currency: string; status: string } | undefined) ?? null, error: null };
+    } catch (error) {
+      console.error('billing checkout Neon lookup failed', { code: error instanceof Error ? error.name : 'unknown', livemode });
+      return jsonError(500, 'billing_lookup_failed');
+    }
+  } else {
+    [priceResult, customerResult, subscriptionResult] = await Promise.all([
+      admin!.from('billing_prices').select('external_price_id').eq('provider', 'stripe').eq('livemode', livemode).eq('plan_code', planCode).eq('billing_period', input.billing).eq('currency', route.currency).eq('active', true).maybeSingle(),
+      admin!.from('billing_customers').select('external_customer_id').eq('user_id', userId).eq('provider', 'stripe').eq('livemode', livemode).maybeSingle(),
+      livemode
+        ? admin!.from('billing_subscriptions').select('currency,status').eq('user_id', userId).eq('provider', 'stripe').eq('livemode', true).in('status', ['trialing', 'active', 'past_due']).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+  }
 
   if (priceResult.error) {
     console.error('billing checkout price lookup failed', { code: priceResult.error.code, livemode });
@@ -88,16 +130,23 @@ export async function POST(request: Request) {
   }
   if (livemode && subscriptionResult.data) {
     try {
-      const { data: liveSubscriptionRow, error: liveSubscriptionError } = await admin
-        .from('billing_subscriptions')
-        .select('external_subscription_id')
-        .eq('user_id', userId)
-        .eq('provider', 'stripe')
-        .eq('livemode', true)
-        .in('status', ['trialing', 'active', 'past_due'])
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: liveSubscriptionRow, error: liveSubscriptionError } = sql
+        ? { data: (await sql`
+            select external_subscription_id from public.billing_subscriptions
+            where user_id = ${userId}::uuid and provider = 'stripe' and livemode = true
+              and status in ('trialing', 'active', 'past_due')
+            order by updated_at desc limit 1
+          `)[0] as { external_subscription_id: string | null } | undefined, error: null }
+        : await admin!
+          .from('billing_subscriptions')
+          .select('external_subscription_id')
+          .eq('user_id', userId)
+          .eq('provider', 'stripe')
+          .eq('livemode', true)
+          .in('status', ['trialing', 'active', 'past_due'])
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
       if (liveSubscriptionError) return jsonError(500, 'billing_subscription_lookup_failed');
       if (liveSubscriptionRow?.external_subscription_id) {
@@ -157,23 +206,44 @@ export async function POST(request: Request) {
       contractSnapshotId: snapshotId,
     });
 
-    const { error: snapshotError } = await admin.rpc('create_and_link_individual_contract_snapshot', {
-      p_snapshot_id: snapshotId,
-      p_user_id: userId,
-      p_livemode: livemode,
-      p_plan_code: planCode,
-      p_billing_period: input.billing,
-      p_currency: route.currency,
-      p_amount_minor: amountMinor,
-      p_terms_version: TERMS_VERSION,
-      p_terms_acceptance_key: input.termsVersion,
-      p_locale: input.locale,
-      p_immediate_performance_requested: input.immediatePerformanceRequested,
-      p_contract_html: contractDocuments.contractHtml,
-      p_withdrawal_form_html: contractDocuments.withdrawalFormHtml,
-      p_content_sha256: contractDocuments.contentSha256,
-      p_checkout_session_id: session.id,
-    });
+    let snapshotError: { code?: string } | null = null;
+    if (sql) {
+      try {
+        const rows = await sql`
+          select snapshot_id from public.create_and_link_individual_contract_snapshot(
+            ${snapshotId}::uuid, ${userId}::uuid, ${livemode}, ${planCode},
+            ${input.billing}, ${route.currency}, ${amountMinor}, ${TERMS_VERSION},
+            ${input.termsVersion}, ${input.locale}, ${input.immediatePerformanceRequested},
+            ${contractDocuments.contractHtml}, ${contractDocuments.withdrawalFormHtml},
+            ${contractDocuments.contentSha256}, ${session.id}
+          )
+        `;
+        if (rows.length !== 1 || rows[0].snapshot_id !== snapshotId) {
+          snapshotError = { code: 'unexpected_snapshot_result' };
+        }
+      } catch (error) {
+        snapshotError = { code: error instanceof Error ? error.name : 'unknown' };
+      }
+    } else {
+      const result = await admin!.rpc('create_and_link_individual_contract_snapshot', {
+        p_snapshot_id: snapshotId,
+        p_user_id: userId,
+        p_livemode: livemode,
+        p_plan_code: planCode,
+        p_billing_period: input.billing,
+        p_currency: route.currency,
+        p_amount_minor: amountMinor,
+        p_terms_version: TERMS_VERSION,
+        p_terms_acceptance_key: input.termsVersion,
+        p_locale: input.locale,
+        p_immediate_performance_requested: input.immediatePerformanceRequested,
+        p_contract_html: contractDocuments.contractHtml,
+        p_withdrawal_form_html: contractDocuments.withdrawalFormHtml,
+        p_content_sha256: contractDocuments.contentSha256,
+        p_checkout_session_id: session.id,
+      });
+      snapshotError = result.error;
+    }
     if (snapshotError) {
       console.error('billing contract snapshot store failed', {
         code: snapshotError.code,

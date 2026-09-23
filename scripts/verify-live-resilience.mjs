@@ -22,7 +22,7 @@ const [
   teacherPage,
   presenterPage,
   serviceWorker,
-  liveServer,
+  liveIdentifiers,
   presenterStyles,
 ] = await Promise.all([
   source('lib/fetch-with-timeout.ts'),
@@ -38,12 +38,12 @@ const [
   source('app/sessions/[id]/page.tsx'),
   source('app/sessions/[id]/presenter/page.tsx'),
   source('public/sw.js'),
-  source('lib/live-server.ts'),
+  source('lib/live-identifiers.ts'),
   source('components/PresenterSession.module.css'),
 ]);
 
 requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be normalized before reaching live UI.');
-requirePattern(liveServer, /randomInt\(JOIN_ALPHABET\.length\)/, 'join code generation must sample only valid alphabet indexes.');
+requirePattern(liveIdentifiers, /randomInt\(JOIN_ALPHABET\.length\)/, 'join code generation must sample only valid alphabet indexes.');
 requirePattern(presenterStyles, /grid-template-columns:\s*minmax\(220px, 340px\) minmax\(0, 1fr\)/, 'Presenter lobby join panel must allow the details column to shrink safely.');
 requirePattern(presenterStyles, /\.joinCode[^}]*white-space:\s*nowrap/s, 'Presenter lesson code must stay on one line.');
 requirePattern(presenterStyles, /\.joinLink[^}]*white-space:\s*nowrap/s, 'Presenter join address must stay on one line.');
@@ -53,7 +53,7 @@ if (/\.joinLink[^}]*overflow-wrap:\s*anywhere/s.test(presenterStyles)) {
 }
 requirePattern(presenterStyles, /font-size:\s*clamp\(44px, 4\.2vw, 72px\)/, 'Presenter lesson code must use the bounded projector-safe scale.');
 requirePattern(presenterStyles, /@media \(max-width:\s*1200px\)[\s\S]*\.joinPanel \{ grid-template-columns: 1fr;/, 'Presenter join card must stack QR and details on narrower projection layouts.');
-if (/byte\s*&\s*31/.test(liveServer)) {
+if (/byte\s*&\s*31/.test(liveIdentifiers)) {
   throw new Error('Live resilience regression: join code generation must not use a 32-value bitmask with the 31-character alphabet.');
 }
 requirePattern(resume, /httpOnly:\s*true/, 'teacher live resume cookie must remain HttpOnly.');

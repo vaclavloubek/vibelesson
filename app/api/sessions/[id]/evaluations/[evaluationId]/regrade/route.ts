@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { currentTrustedDeviceHash, requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { isIndividualAiBillingPaused } from '@/lib/individual-ai-billing';
 
 type RouteContext = { params: Promise<{ id: string; evaluationId: string }> };
@@ -50,7 +50,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
 
   const aiGradingEnabled = Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled));
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const deviceHash = await currentTrustedDeviceHash();
   const { data: requeued, error } = await admin.rpc('requeue_response_evaluation_server', {
     p_user_id: userId,

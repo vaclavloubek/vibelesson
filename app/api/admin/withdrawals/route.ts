@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { isSuperadminUserId } from '@/lib/superadmin';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { executeWithdrawal, getWithdrawalState, prepareWithdrawal } from '@/lib/individual-withdrawal';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   try {
     if (input.action === 'register') {
-      const { data, error } = await createAdminClient().rpc('register_individual_withdrawal_receipt_for_service', {
+      const { data, error } = await createPrivilegedRpcClient().rpc('register_individual_withdrawal_receipt_for_service', {
         p_user_id: input.userId,p_snapshot_id: input.snapshotId,p_sent_at:input.sentAt,p_received_at: input.receivedAt,
         p_notice_sha256: input.noticeSha256,p_actor_user_id: userId,
       });

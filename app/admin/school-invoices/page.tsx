@@ -7,6 +7,8 @@ import styles from '@/components/SchoolAdmin.module.css';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperadminUserId } from '@/lib/superadmin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,14 +39,23 @@ export default async function SchoolInvoicesAdminPage() {
     );
   }
 
-  const admin = createAdminClient();
-  const { data: orders, error } = await admin
-    .from('organization_orders')
-    .select(
-      'id, organization_id, invoice_number, invoice_issued_at, invoice_due_date, amount_minor, currency, status, paid_at, payment_confirmation_source, livemode',
-    )
-    .not('invoice_number', 'is', null)
-    .order('invoice_issued_at', { ascending: false });
+  const { data: orders, error } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select id, organization_id, invoice_number, invoice_issued_at,
+          invoice_due_date, amount_minor, currency, status, paid_at,
+          payment_confirmation_source, livemode
+        from public.organization_orders
+        where invoice_number is not null
+        order by invoice_issued_at desc
+      `;
+      return { data: rows, error: null };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .select('id, organization_id, invoice_number, invoice_issued_at, invoice_due_date, amount_minor, currency, status, paid_at, payment_confirmation_source, livemode')
+      .not('invoice_number', 'is', null)
+      .order('invoice_issued_at', { ascending: false });
 
   if (error) {
     throw new Error('school_invoice_admin_lookup_failed');
@@ -52,10 +63,18 @@ export default async function SchoolInvoicesAdminPage() {
 
   const organizationIds = [...new Set((orders ?? []).map((order) => order.organization_id))];
   const { data: organizations, error: organizationsError } = organizationIds.length
-    ? await admin
-      .from('organizations')
-      .select('id, name, payment_variable_symbol')
-      .in('id', organizationIds)
+    ? getDatabaseBackend() === 'neon'
+      ? await (async () => {
+        assertApprovedNeonCutover();
+        const rows = await createNeonSql()`
+          select id, name, payment_variable_symbol
+          from public.organizations
+          where id = any(${organizationIds}::uuid[])
+        `;
+        return { data: rows, error: null };
+      })()
+      : await createAdminClient().from('organizations')
+        .select('id, name, payment_variable_symbol').in('id', organizationIds)
     : { data: [], error: null };
 
   if (organizationsError) {

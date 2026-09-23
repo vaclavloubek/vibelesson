@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
+import { LessonMoveWriteError, moveLessonsToFolder } from '@/lib/lesson-move-writer';
 import { getOrganizationOriginAccessMap } from '@/lib/organization-origin-access';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
 
@@ -51,34 +52,20 @@ export async function PATCH(req: Request) {
       }, { status: 403 });
     }
 
-    if (input.folderId) {
-      const { data: folder, error: folderError } = await supabase
-        .from('lesson_folders')
-        .select('id')
-        .eq('id', input.folderId)
-        .eq('owner_id', userId)
-        .maybeSingle();
-
-      if (folderError) throw folderError;
-      if (!folder) return NextResponse.json({ error: 'Cílová složka nebyla nalezena.' }, { status: 404 });
-    }
-
-    const { data: moved, error: moveError } = await supabase
-      .from('lessons')
-      .update({ folder_id: input.folderId })
-      .eq('owner_id', userId)
-      .in('id', lessonIds)
-      .select('id');
-
-    if (moveError) throw moveError;
-    if ((moved ?? []).length !== lessonIds.length) {
-      return NextResponse.json({ error: 'Přesun se nepodařilo dokončit pro všechny lekce.' }, { status: 409 });
-    }
+    const moved = await moveLessonsToFolder(supabase, userId, lessonIds, input.folderId);
 
     return NextResponse.json({ moved: moved.length, folderId: input.folderId });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Zkontroluj vybrané lekce a cílovou složku.' }, { status: 400 });
+    }
+    if (error instanceof LessonMoveWriteError) {
+      if (error.code === 'FOLDER_NOT_FOUND') {
+        return NextResponse.json({ error: 'Cílová složka nebyla nalezena.' }, { status: 404 });
+      }
+      if (error.code === 'MOVE_INCOMPLETE') {
+        return NextResponse.json({ error: 'Přesun se nepodařilo dokončit pro všechny lekce.' }, { status: 409 });
+      }
     }
     console.error('move lessons failed', error);
     return NextResponse.json({ error: 'Lekce se nepodařilo přesunout.' }, { status: 500 });

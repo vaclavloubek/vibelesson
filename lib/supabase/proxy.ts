@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { createFetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 export async function updateSession(request: NextRequest, forwardedHeaders = new Headers(request.headers)) {
   let response = NextResponse.next({ request: { headers: forwardedHeaders } });
@@ -8,6 +9,7 @@ export async function updateSession(request: NextRequest, forwardedHeaders = new
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      global: { fetch: createFetchWithTimeout(8_000) },
       cookies: {
         getAll() {
           return request.cookies.getAll();

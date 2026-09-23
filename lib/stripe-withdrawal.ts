@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isStripeLiveSecretKey } from '@/lib/stripe-checkout';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const Id = z.string();
 const Reference = z.union([Id, z.object({ id: Id })]);
@@ -133,7 +133,7 @@ export async function reconcileWithdrawalRefundEvent(key: string, object: unknow
   const id = refund.metadata.syllonaut_withdrawal_id;
   if (!id) return;
   if (!z.string().uuid().safeParse(id).success) throw new Error('withdrawal_refund_metadata_invalid');
-  const {error}=await createAdminClient().rpc('reconcile_individual_withdrawal_refund_for_service',{
+  const {error}=await createPrivilegedRpcClient().rpc('reconcile_individual_withdrawal_refund_for_service',{
     p_request_id:id,p_lease_token:null,p_refund_id:refund.id,p_payment_intent_id:stripeReference(refund.payment_intent),
     p_amount:refund.amount,p_currency:refund.currency,p_status:refund.status,
   });
@@ -147,7 +147,7 @@ export async function reconcileServiceChangeRefundEvent(key: string, object: unk
   const id = refund.metadata.syllonaut_service_change_termination_id;
   if (!id) return;
   if (!z.string().uuid().safeParse(id).success) throw new Error('service_change_refund_metadata_invalid');
-  const {error}=await createAdminClient().rpc('reconcile_service_change_termination_refund_for_service',{
+  const {error}=await createPrivilegedRpcClient().rpc('reconcile_service_change_termination_refund_for_service',{
     p_request_id:id,p_lease_token:null,p_refund_id:refund.id,p_payment_intent_id:stripeReference(refund.payment_intent),
     p_amount:refund.amount,p_currency:refund.currency,p_status:refund.status,
   });

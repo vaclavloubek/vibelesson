@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/proxy';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
 import { CURRENT_TERMS_REQUIRED_HEADER, requestRequiresCurrentTerms } from '@/lib/terms-gate';
 import {
   TRUSTED_DEVICE_COOKIE,
@@ -101,7 +102,13 @@ export async function proxy(request: NextRequest) {
   if (requestRequiresCurrentTerms(pathname, request.method)) {
     forwardedHeaders.set(CURRENT_TERMS_REQUIRED_HEADER, '1');
   }
-  const response = await updateSession(request, forwardedHeaders);
+  assertApprovedNeonCutover();
+  let response: NextResponse;
+  if (getDatabaseBackend() === 'neon') {
+    response = NextResponse.next({ request: { headers: forwardedHeaders } });
+  } else {
+    response = await updateSession(request, forwardedHeaders);
+  }
 
   if (pathLocale && cookieLocale !== pathLocale) {
     persistLocale(response, request, pathLocale);

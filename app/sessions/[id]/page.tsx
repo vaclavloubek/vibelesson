@@ -9,6 +9,7 @@ import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import { readLiveResume } from '@/lib/live-resume';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { readOwnedSessionAccess } from '@/lib/session-access-reader';
 import { getEffectiveAiBillingPauseState, type EffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
 import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
@@ -37,26 +38,6 @@ async function getTeacherUserId(supabase: SupabaseServerClient) {
   }
 
   throw lastError ?? new Error('Teacher auth lookup failed.');
-}
-
-async function loadOwnedSession(supabase: SupabaseServerClient, id: string, userId: string) {
-  let lastError: unknown = null;
-
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
-    const { data, error } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('id', id)
-      .eq('teacher_id', userId)
-      .maybeSingle();
-
-    if (!error) return data;
-
-    lastError = error;
-    if (attempt < RETRY_DELAYS_MS.length) await sleep(RETRY_DELAYS_MS[attempt]);
-  }
-
-  throw lastError ?? new Error('Teacher session lookup failed.');
 }
 
 async function loadAiBillingPauseState(userId: string | null): Promise<EffectiveAiBillingPauseState> {
@@ -124,7 +105,7 @@ export default async function TeacherSessionPage({ params }: Props) {
 
   let session: { id: string } | null = null;
   try {
-    session = await loadOwnedSession(supabase, id, userId);
+    session = await readOwnedSessionAccess(supabase, userId, id);
   } catch (error) {
     if (resume?.userId !== userId) throw error;
     console.warn('teacher live ownership lookup degraded; using resume ticket', { sessionId: id });
@@ -134,4 +115,3 @@ export default async function TeacherSessionPage({ params }: Props) {
   if (!session) notFound();
   return teacherSurface(id, userId, await loadAiBillingPauseState(userId));
 }
-

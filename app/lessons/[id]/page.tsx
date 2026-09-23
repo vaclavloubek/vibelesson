@@ -1,7 +1,12 @@
 import { notFound, redirect } from 'next/navigation';
 import LessonWorkspace from '@/components/LessonWorkspace';
 import StartSessionButton from '@/components/StartSessionButton';
-import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
+import {
+  LessonReuseReadError,
+  readLessonLiveUsage,
+  readLessonReuseEntitlement,
+} from '@/lib/lesson-reuse-reader';
+import { LessonDetailReadError, readLessonDetail } from '@/lib/lesson-detail-reader';
 import { LessonSchema } from '@/lib/schema';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createClient } from '@/lib/supabase/server';
@@ -21,37 +26,41 @@ export default async function LessonPage({ params }: Props) {
   if (!userId) redirect('/');
   await requireCurrentTermsForPage(userId, `/lessons/${id}`);
 
-  const { data: row, error } = await supabase
-    .from('lessons')
-    .select('id, source_prompt, lesson')
-    .eq('id', id)
-    .eq('owner_id', userId)
-    .single();
+  const row = await readLessonDetail(supabase, userId, id).catch((lessonError: unknown) => {
+    console.error(
+      'load lesson detail failed',
+      lessonError instanceof LessonDetailReadError ? lessonError.code : 'LESSON_DETAIL_QUERY_FAILED',
+    );
+    return null;
+  });
 
-  if (error || !row) notFound();
+  if (!row) notFound();
 
   const parsed = LessonSchema.safeParse(row.lesson);
   if (!parsed.success) notFound();
 
   const [reusableLessons, originAccess] = await Promise.all([
-    getLessonReuseEntitlement(supabase),
+    readLessonReuseEntitlement(supabase, userId).catch((reuseError) => {
+      console.error(
+        'load lesson reuse entitlement failed',
+        reuseError instanceof LessonReuseReadError ? reuseError.code : 'LESSON_REUSE_ENTITLEMENT_QUERY_FAILED',
+      );
+      return false;
+    }),
     getLessonOrganizationOriginAccess(userId, id),
   ]);
   const licenseLocked = Boolean(originAccess?.locked);
   let liveLocked = false;
 
   if (!reusableLessons) {
-    const { data: usage, error: usageError } = await supabase
-      .from('lesson_live_usage')
-      .select('lesson_id')
-      .eq('lesson_id', id)
-      .maybeSingle();
-
-    if (usageError) {
-      console.error('load lesson live usage failed', usageError);
-    } else {
-      liveLocked = Boolean(usage);
-    }
+    const usage = await readLessonLiveUsage(supabase, userId, id).catch((usageError) => {
+      console.error(
+        'load lesson live usage failed',
+        usageError instanceof LessonReuseReadError ? usageError.code : 'LESSON_LIVE_USAGE_QUERY_FAILED',
+      );
+      return [];
+    });
+    liveLocked = usage.length > 0;
   }
 
   return (

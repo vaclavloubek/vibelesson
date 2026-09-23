@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const Notice=z.object({
   deliveryId:z.string().uuid(),changeKey:z.string(),classification:z.string(),strategy:z.string(),
@@ -10,7 +10,7 @@ const Notice=z.object({
 export type ServiceChangeNotice=z.infer<typeof Notice>;
 
 export async function getServiceChangeNotices(userId:string):Promise<ServiceChangeNotice[]> {
-  const {data,error}=await createAdminClient().rpc('get_service_change_notices_for_user_service',{p_user_id:userId});
+  const {data,error}=await createPrivilegedRpcClient().rpc('get_service_change_notices_for_user_service',{p_user_id:userId});
   if(error) throw new Error('service_change_notice_lookup_failed');
   return z.array(Notice).parse(data??[]);
 }

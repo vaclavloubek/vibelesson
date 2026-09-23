@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { LessonSchema } from '@/lib/schema';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { getLessonReuseEntitlement } from '@/lib/lesson-reuse';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { getLessonOrganizationOriginAccess, organizationOriginLockedMessage } from '@/lib/organization-origin-access';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
-import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import { freeDeviceBudgetMessage } from '@/lib/free-device-budget';
+import {
+  LessonContentWriteError,
+  readLessonContentForWrite,
+  writeLessonContent,
+} from '@/lib/lesson-content-writer';
+import { deleteOwnedLesson, LessonDeleteWriteError } from '@/lib/lesson-delete-writer';
+import { duplicateOwnedLesson, LessonDuplicateWriteError } from '@/lib/lesson-duplicate-writer';
 
 const RenameSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -50,29 +55,14 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     if (locked) return locked;
     const { title } = RenameSchema.parse(await req.json());
 
-    const { data: current, error: readError } = await supabase
-      .from('lessons')
-      .select('lesson')
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .single();
-
-    if (readError || !current) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
-
-    const lesson = LessonSchema.parse(current.lesson);
+    const lesson = LessonSchema.parse(await readLessonContentForWrite(supabase, userId, id));
     const renamedLesson = LessonSchema.parse({ ...lesson, title });
-
-    const { data: updated, error: updateError } = await supabase
-      .from('lessons')
-      .update({ title, lesson: renamedLesson, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
-
-    if (updateError || !updated) throw updateError ?? new Error('Rename returned no row.');
+    await writeLessonContent(supabase, userId, id, renamedLesson);
     return NextResponse.json({ lessonId: id, lesson: renamedLesson });
   } catch (error) {
+    if (error instanceof LessonContentWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
     console.error('rename lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo přejmenovat.' }, { status: 500 });
   }
@@ -90,18 +80,7 @@ export async function PUT(req: Request, { params }: RouteContext) {
     if (locked) return locked;
     const { lesson } = ReplaceLessonSchema.parse(await req.json());
 
-    const { data: current, error: readError } = await supabase
-      .from('lessons')
-      .select('lesson')
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .maybeSingle();
-
-    if (readError || !current) {
-      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
-    }
-
-    const currentLesson = LessonSchema.parse(current.lesson);
+    const currentLesson = LessonSchema.parse(await readLessonContentForWrite(supabase, userId, id));
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -121,17 +100,12 @@ export async function PUT(req: Request, { params }: RouteContext) {
       );
     }
 
-    const { data: updated, error: updateError } = await supabase
-      .from('lessons')
-      .update({ title: lesson.title, lesson, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
-
-    if (updateError || !updated) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    await writeLessonContent(supabase, userId, id, lesson);
     return NextResponse.json({ lessonId: id, lesson });
   } catch (error) {
+    if (error instanceof LessonContentWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
     console.error('replace lesson failed', error);
     return NextResponse.json({ error: 'Předchozí verzi se nepodařilo obnovit.' }, { status: 500 });
   }
@@ -143,109 +117,50 @@ export async function POST(_req: Request, { params }: RouteContext) {
   const deviceLocked = await trustedDeviceLockResponse(userId);
   if (deviceLocked) return deviceLocked;
 
-  let requestId: string | null = null;
-
   try {
     const { id } = await params;
     const locked = await schoolLicenseLockResponse(userId, id);
     if (locked) return locked;
-    const { data: current, error: readError } = await supabase
-      .from('lessons')
-      .select('title, source_prompt, lesson, folder_id')
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .single();
+    const result = await duplicateOwnedLesson(supabase, userId, id);
 
-    if (readError || !current) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
-
-    const admin = createAdminClient();
-    const reusableLessons = await getLessonReuseEntitlement(supabase);
-    if (!reusableLessons) {
-      const deviceHash = await currentFreeDeviceBudgetHash();
-      const { data: quotaData, error: quotaError } = await admin.rpc('reserve_lesson_import_server', {
-        p_user_id: userId,
-        p_device_token_hash: deviceHash,
-      });
-      if (quotaError) throw quotaError;
-
-      const quota = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as {
-        request_id?: string | null;
-        allowed?: boolean;
-        used?: number;
-        monthly_limit?: number | null;
-        denial_code?: string | null;
-        device_used?: number | null;
-        device_limit?: number | null;
-      } | null;
-
-      if (!quota?.allowed) {
-        const deviceMessage = freeDeviceBudgetMessage(
-          quota?.denial_code,
-          'import',
-          quota?.device_limit,
-        );
-        if (deviceMessage) {
-          return NextResponse.json({
-            error: deviceMessage,
-            code: quota?.denial_code,
-          }, { status: quota?.denial_code === 'free_device_cookie_required' ? 409 : 429 });
-        }
-
+    if (!result.allowed) {
+      if (result.denialCode === 'lesson_not_found') {
+        return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+      }
+      if (result.denialCode === 'organization_origin_access_required') {
         return NextResponse.json({
-          error: `Měsíční limit ${quota?.monthly_limit ?? 2} importů nebo kopií je vyčerpaný. Další import nebo kopii můžeš vytvořit příští měsíc.`,
-          quota: {
-            used: quota?.used ?? quota?.monthly_limit ?? 2,
-            monthlyLimit: quota?.monthly_limit ?? 3,
-            remaining: 0,
-          },
-        }, { status: 429 });
+          error: organizationOriginLockedMessage(null),
+          code: result.denialCode,
+        }, { status: 403 });
       }
 
-      requestId = typeof quota.request_id === 'string' ? quota.request_id : null;
-      if (!requestId) throw new Error('Duplicate quota reservation is missing request id.');
+      const deviceMessage = freeDeviceBudgetMessage(
+        result.denialCode,
+        'import',
+        result.deviceLimit,
+      );
+      if (deviceMessage) {
+        return NextResponse.json({
+          error: deviceMessage,
+          code: result.denialCode,
+        }, { status: result.denialCode === 'free_device_cookie_required' ? 409 : 429 });
+      }
+
+      return NextResponse.json({
+        error: `Měsíční limit ${result.monthlyLimit ?? 2} importů nebo kopií je vyčerpaný. Další import nebo kopii můžeš vytvořit příští měsíc.`,
+        quota: {
+          used: result.used ?? result.monthlyLimit ?? 2,
+          monthlyLimit: result.monthlyLimit ?? 2,
+          remaining: 0,
+        },
+      }, { status: 429 });
     }
 
-    const lesson = LessonSchema.parse(current.lesson);
-    const copyTitle = `${current.title} – kopie`.slice(0, 200);
-    const copiedLesson = LessonSchema.parse({ ...lesson, title: copyTitle });
-
-    const { data: copy, error: insertError } = await admin
-      .from('lessons')
-      .insert({
-        owner_id: userId,
-        title: copyTitle,
-        source_prompt: current.source_prompt,
-        lesson: copiedLesson,
-        folder_id: current.folder_id,
-        source_lesson_id: id,
-      })
-      .select('id')
-      .single();
-
-    if (insertError || !copy?.id) throw insertError ?? new Error('Duplicate returned no row.');
-
-    if (requestId) {
-      const { error: finishError } = await supabase.rpc('finish_generation_request', {
-        p_request_id: requestId,
-        p_status: 'succeeded',
-        p_cost_usd: 0,
-        p_lesson_id: copy.id,
-      });
-      if (finishError) console.error('finish duplicate quota request failed', finishError);
-    }
-
-    return NextResponse.json({ lessonId: copy.id });
+    return NextResponse.json({ lessonId: result.lessonId });
   } catch (error) {
-    if (requestId) {
-      const { error: finishError } = await supabase.rpc('finish_generation_request', {
-        p_request_id: requestId,
-        p_status: 'failed',
-        p_cost_usd: 0,
-        p_lesson_id: null,
-      });
-      if (finishError) console.error('fail duplicate quota request cleanup failed', finishError);
+    if (error instanceof LessonDuplicateWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
     }
-
     console.error('duplicate lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo duplikovat.' }, { status: 500 });
   }
@@ -257,17 +172,12 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
 
   try {
     const { id } = await params;
-    const { data: deleted, error: deleteError } = await supabase
-      .from('lessons')
-      .delete()
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select('id')
-      .single();
-
-    if (deleteError || !deleted) return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    await deleteOwnedLesson(supabase, userId, id);
     return NextResponse.json({ deleted: true });
   } catch (error) {
+    if (error instanceof LessonDeleteWriteError && error.code === 'LESSON_NOT_FOUND') {
+      return NextResponse.json({ error: 'Lekce nebyla nalezena.' }, { status: 404 });
+    }
     console.error('delete lesson failed', error);
     return NextResponse.json({ error: 'Lekci se nepodařilo smazat.' }, { status: 500 });
   }

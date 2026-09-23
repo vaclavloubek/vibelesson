@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { restartSyllonautGuideForCurrentContext } from '@/lib/onboarding-guide';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 import { quotaSourceLabel, type AiQuotaSnapshot } from '@/lib/ai-quota';
+import { signOutFromNeonApp } from '@/app/auth/neon/actions';
 
 export type HeaderAccountUser = Pick<User, 'id' | 'email' | 'user_metadata'>;
 
@@ -182,7 +183,9 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
     } catch {
       // Primary Supabase sign-out remains authoritative.
     }
-    const { error } = await supabase.auth.signOut();
+    const { error } = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon'
+      ? await signOutFromNeonApp()
+      : await supabase.auth.signOut();
     if (error) {
       setBusy(false);
       return;

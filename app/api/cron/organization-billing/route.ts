@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sendOrganizationRenewalReminderEmail } from '@/lib/organization-email';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +15,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
 
   const [expiredResult, suspendedResult] = await Promise.all([
     admin.rpc('expire_organization_licenses'),
@@ -33,13 +36,25 @@ export async function GET(request: Request) {
   const now = new Date();
   const reminderEnd = new Date(now.getTime() + 61 * 24 * 60 * 60 * 1000);
 
-  const { data: reminderOrganizations, error: reminderLookupError } = await admin
-    .from('organizations')
-    .select('id, name, billing_email, billing_country, current_period_end')
-    .eq('status', 'active')
-    .eq('renewal_mode', 'manual_invoice')
-    .gt('current_period_end', now.toISOString())
-    .lte('current_period_end', reminderEnd.toISOString());
+  const { data: reminderOrganizations, error: reminderLookupError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select id, name, billing_email, billing_country, current_period_end
+        from public.organizations
+        where status = 'active' and renewal_mode = 'manual_invoice'
+          and current_period_end > ${now.toISOString()}::timestamptz
+          and current_period_end <= ${reminderEnd.toISOString()}::timestamptz
+      `;
+      return { data: rows, error: null };
+    })()
+    : await createAdminClient()
+      .from('organizations')
+      .select('id, name, billing_email, billing_country, current_period_end')
+      .eq('status', 'active')
+      .eq('renewal_mode', 'manual_invoice')
+      .gt('current_period_end', now.toISOString())
+      .lte('current_period_end', reminderEnd.toISOString());
 
   if (reminderLookupError) {
     console.error('organization renewal reminder lookup failed', reminderLookupError.code);
@@ -82,6 +97,7 @@ export async function GET(request: Request) {
 
     if (!reserved) continue;
 
+    let emailDelivered = false;
     try {
       const messageId = await sendOrganizationRenewalReminderEmail({
         organizationId: organization.id,
@@ -91,13 +107,25 @@ export async function GET(request: Request) {
         days: days as 60 | 30 | 7,
         locale: organization.billing_country === 'CZ' ? 'cs' : 'en',
       });
+      emailDelivered = true;
 
-      await admin
-        .from('organization_billing_notifications')
-        .update({ provider_message_id: messageId })
-        .eq('organization_id', organization.id)
-        .eq('notification_type', notificationType)
-        .eq('period_end', organization.current_period_end);
+      if (getDatabaseBackend() === 'neon') {
+        assertApprovedNeonCutover();
+        await createNeonSql()`
+          update public.organization_billing_notifications
+          set provider_message_id = ${messageId}
+          where organization_id = ${organization.id}::uuid
+            and notification_type = ${notificationType}
+            and period_end = ${organization.current_period_end}::timestamptz
+        `;
+      } else {
+        await createAdminClient()
+          .from('organization_billing_notifications')
+          .update({ provider_message_id: messageId })
+          .eq('organization_id', organization.id)
+          .eq('notification_type', notificationType)
+          .eq('period_end', organization.current_period_end);
+      }
 
       remindersSent += 1;
     } catch (error) {
@@ -106,12 +134,25 @@ export async function GET(request: Request) {
         organizationId: organization.id,
         error: error instanceof Error ? error.message : 'unknown',
       });
-      await admin
-        .from('organization_billing_notifications')
-        .delete()
-        .eq('organization_id', organization.id)
-        .eq('notification_type', notificationType)
-        .eq('period_end', organization.current_period_end);
+      // If delivery succeeded but evidence persistence failed, keep the
+      // reservation. Releasing it could send the same legal reminder twice.
+      if (emailDelivered) continue;
+      if (getDatabaseBackend() === 'neon') {
+        assertApprovedNeonCutover();
+        await createNeonSql()`
+          delete from public.organization_billing_notifications
+          where organization_id = ${organization.id}::uuid
+            and notification_type = ${notificationType}
+            and period_end = ${organization.current_period_end}::timestamptz
+        `;
+      } else {
+        await createAdminClient()
+          .from('organization_billing_notifications')
+          .delete()
+          .eq('organization_id', organization.id)
+          .eq('notification_type', notificationType)
+          .eq('period_end', organization.current_period_end);
+      }
     }
   }
 

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const InputSchema = z.object({
   token: z.string().min(20).max(200),
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'authentication_required' }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const tokenHash = createHash('sha256').update(input.token).digest('hex');
   const { data, error } = await admin.rpc('accept_organization_invitation', {
     p_user_id: userId,

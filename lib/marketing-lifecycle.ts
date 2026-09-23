@@ -1,6 +1,8 @@
 import { normalizeUiLocale } from '@/lib/i18n';
 import { getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 const RESEND_API_BASE = 'https://api.resend.com';
 const RESEND_REQUEST_TIMEOUT_MS = 8_000;
@@ -93,24 +95,48 @@ async function resendRequest(
 }
 
 async function loadMarketingContext(userId: string): Promise<MarketingContext | null> {
-  const admin = createAdminClient();
-  const [{ data: profile, error: profileError }, { data: authData, error: authError }] = await Promise.all([
-    admin
-      .from('profiles')
-      .select('marketing_email_consent, ui_locale, active_plan_code')
-      .eq('id', userId)
-      .maybeSingle(),
-    admin.auth.admin.getUserById(userId),
-  ]);
+  let profile: { marketing_email_consent: boolean; ui_locale: string | null; active_plan_code: string | null } | null;
+  let email: string | undefined;
+  let metadata: Record<string, unknown> | null = null;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const [profileRows, identityRows] = await Promise.all([
+      sql`
+        select marketing_email_consent, ui_locale, active_plan_code
+        from public.profiles where id = ${userId}::uuid limit 1
+      `,
+      sql`
+        select email, raw_user_meta_data from app_identity.users
+        where id = ${userId}::uuid and deleted_at is null limit 1
+      `,
+    ]);
+    profile = (profileRows[0] as typeof profile | undefined) ?? null;
+    email = (identityRows[0]?.email as string | undefined)?.trim().toLowerCase();
+    metadata = (identityRows[0]?.raw_user_meta_data as Record<string, unknown> | null | undefined) ?? null;
+    if (!identityRows[0]) throw new MarketingLifecycleError('marketing_user_lookup_failed');
+  } else {
+    const admin = createAdminClient();
+    const [{ data, error: profileError }, { data: authData, error: authError }] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('marketing_email_consent, ui_locale, active_plan_code')
+        .eq('id', userId)
+        .maybeSingle(),
+      admin.auth.admin.getUserById(userId),
+    ]);
+    if (profileError) throw new MarketingLifecycleError('marketing_profile_lookup_failed');
+    if (authError) throw new MarketingLifecycleError('marketing_user_lookup_failed');
+    profile = data;
+    email = authData.user?.email?.trim().toLowerCase();
+    metadata = authData.user?.user_metadata ?? null;
+  }
 
-  if (profileError || !profile) throw new MarketingLifecycleError('marketing_profile_lookup_failed');
-  if (authError) throw new MarketingLifecycleError('marketing_user_lookup_failed');
-
-  const email = authData.user?.email?.trim().toLowerCase();
+  if (!profile) throw new MarketingLifecycleError('marketing_profile_lookup_failed');
   if (!email) return null;
 
-  const metadataLocale = typeof authData.user?.user_metadata?.ui_locale === 'string'
-    ? normalizeUiLocale(authData.user.user_metadata.ui_locale)
+  const metadataLocale = typeof metadata?.ui_locale === 'string'
+    ? normalizeUiLocale(metadata.ui_locale)
     : null;
   const locale = normalizeUiLocale(profile.ui_locale) ?? metadataLocale ?? 'cs';
 
@@ -274,13 +300,22 @@ export async function emitSubscriptionUpgraded(userId: string) {
 }
 
 export async function emitFirstLessonCreatedIfNeeded(userId: string) {
-  const admin = createAdminClient();
-  const { count, error } = await admin
-    .from('lessons')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', userId);
-
-  if (error) throw new MarketingLifecycleError('marketing_first_lesson_lookup_failed');
+  let count: number;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`select count(*)::integer as count from public.lessons where owner_id = ${userId}::uuid`;
+    count = Number(rows[0]?.count);
+  } else {
+    const admin = createAdminClient();
+    const result = await admin
+      .from('lessons')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', userId);
+    if (result.error) throw new MarketingLifecycleError('marketing_first_lesson_lookup_failed');
+    count = result.count ?? 0;
+  }
+  if (!Number.isFinite(count)) throw new MarketingLifecycleError('marketing_first_lesson_lookup_failed');
   if (count !== 1) return { status: 'not_first' as const };
 
   const result = await ensureMarketingContact(userId);
@@ -291,14 +326,26 @@ export async function emitFirstLessonCreatedIfNeeded(userId: string) {
 }
 
 export async function emitFirstLiveStartedIfNeeded(userId: string) {
-  const admin = createAdminClient();
-  const { count, error } = await admin
-    .from('sessions')
-    .select('id', { count: 'exact', head: true })
-    .eq('teacher_id', userId)
-    .not('started_at', 'is', null);
-
-  if (error) throw new MarketingLifecycleError('marketing_first_live_lookup_failed');
+  let count: number;
+  if (getDatabaseBackend() === 'neon') {
+    assertApprovedNeonCutover();
+    const sql = createNeonSql();
+    const rows = await sql`
+      select count(*)::integer as count from public.sessions
+      where teacher_id = ${userId}::uuid and started_at is not null
+    `;
+    count = Number(rows[0]?.count);
+  } else {
+    const admin = createAdminClient();
+    const result = await admin
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('teacher_id', userId)
+      .not('started_at', 'is', null);
+    if (result.error) throw new MarketingLifecycleError('marketing_first_live_lookup_failed');
+    count = result.count ?? 0;
+  }
+  if (!Number.isFinite(count)) throw new MarketingLifecycleError('marketing_first_live_lookup_failed');
   if (count !== 1) return { status: 'not_first' as const };
 
   const result = await ensureMarketingContact(userId);

@@ -7,6 +7,9 @@ import {
 import { issueOrganizationBankInvoice } from '@/lib/organization-bank-invoice';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export async function POST() {
   const { userId } = await getAuthenticatedUserId();
@@ -22,12 +25,18 @@ export async function POST() {
     return NextResponse.json({ error: 'internal_test_organization_not_billable' }, { status: 409 });
   }
 
-  const admin = createAdminClient();
-  const { data: organizationRow, error: organizationError } = await admin
-    .from('organizations')
-    .select('renewal_mode')
-    .eq('id', organization.id)
-    .maybeSingle();
+  const admin = createPrivilegedRpcClient();
+  const { data: organizationRow, error: organizationError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select renewal_mode from public.organizations
+        where id = ${organization.id}::uuid limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organizations')
+      .select('renewal_mode').eq('id', organization.id).maybeSingle();
 
   if (organizationError || !organizationRow) {
     return NextResponse.json({ error: 'organization_not_found' }, { status: 404 });
@@ -36,14 +45,20 @@ export async function POST() {
     return NextResponse.json({ error: 'organization_renews_automatically' }, { status: 409 });
   }
 
-  const { data: previousOrder } = await admin
-    .from('organization_orders')
-    .select('livemode')
-    .eq('organization_id', organization.id)
-    .eq('status', 'paid')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: previousOrder } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select livemode from public.organization_orders
+        where organization_id = ${organization.id}::uuid and status = 'paid'
+        order by created_at desc limit 1
+      `;
+      return { data: rows[0] ?? null };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .select('livemode').eq('organization_id', organization.id)
+      .eq('status', 'paid').order('created_at', { ascending: false })
+      .limit(1).maybeSingle();
 
   const amountMinor = organizationMinorUnitPrice(
     organization.planCode,
@@ -76,11 +91,21 @@ export async function POST() {
   }
 
   const livemode = previousOrder?.livemode ?? true;
-  const { error: environmentError } = await admin
-    .from('organization_orders')
-    .update({ livemode, updated_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .eq('organization_id', organization.id);
+  const { error: environmentError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        update public.organization_orders
+        set livemode = ${livemode}, updated_at = now()
+        where id = ${String(orderId)}::uuid
+          and organization_id = ${organization.id}::uuid
+        returning id
+      `;
+      return { error: rows.length === 1 ? null : { code: 'order_not_found' } };
+    })()
+    : await createAdminClient().from('organization_orders')
+      .update({ livemode, updated_at: new Date().toISOString() })
+      .eq('id', orderId).eq('organization_id', organization.id);
 
   if (environmentError) {
     return NextResponse.json({ error: 'organization_renewal_link_failed' }, { status: 500 });

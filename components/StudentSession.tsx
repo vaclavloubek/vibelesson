@@ -20,7 +20,6 @@ import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
-import { createClient } from '@/lib/supabase/client';
 import { localizedApiError } from '@/lib/i18n';
 
 type Team = { id: string; name: string; memberCount: number };
@@ -188,25 +187,6 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     const timer = window.setTimeout(() => setConnectionStatus('connected'), 2500);
     return () => window.clearTimeout(timer);
   }, [connectionStatus]);
-
-  useEffect(() => {
-    if (!state?.realtimeKey) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`session:${state.realtimeKey}`)
-      .on('broadcast', { event: 'invalidate' }, () => { void refresh(); })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          if (disconnectedRef.current) void refresh();
-          return;
-        }
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          disconnectedRef.current = true;
-          setConnectionStatus('reconnecting');
-        }
-      });
-    return () => { void supabase.removeChannel(channel); };
-  }, [state?.realtimeKey, refresh]);
 
   useEffect(() => {
     const intervalMs = connectionStatus === 'reconnecting' ? 4_000 : 20_000;

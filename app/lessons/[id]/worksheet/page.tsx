@@ -5,6 +5,7 @@ import FormattedInstructions from '@/components/FormattedInstructions';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { LessonSchema, type LessonBlock } from '@/lib/schema';
+import { readLessonWorksheet } from '@/lib/lesson-worksheet-reader';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockIds, worksheetAnswerLineCount, worksheetBlockLabel } from '@/lib/worksheet';
 import WorksheetPrintToolbar from './WorksheetPrintToolbar';
@@ -49,7 +50,9 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
   if (!deviceGate.allowed) redirect(`/${locale}/subscription`);
 
   const [lessonResult, profileResult] = await Promise.all([
-    supabase.from('lessons').select('id, lesson').eq('id', id).eq('owner_id', userId).maybeSingle(),
+    readLessonWorksheet(supabase, userId, id)
+      .then((data) => ({ data, error: null }))
+      .catch((error: unknown) => ({ data: null, error })),
     supabase.from('profiles').select('role, worksheet_export_enabled').eq('id', userId).maybeSingle(),
   ]);
   if (lessonResult.error || !lessonResult.data) notFound();

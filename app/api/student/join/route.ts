@@ -1,8 +1,8 @@
 import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { participantCookieName } from '@/lib/live';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { mintLiveCapability, mirrorLiveControlEvent } from '@/lib/live-control-server';
+import { handleStudentSessionAction } from '@/lib/student-session-server';
 
 const JoinSchema = z.object({
   joinCode: z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{7}$/),
@@ -26,23 +26,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error('Supabase environment is missing.');
+    const serviceResponse = await handleStudentSessionAction({ action: 'join', ...body });
+    const data = await serviceResponse.json() as EdgeJoinResponse;
 
-    const edgeResponse = await fetchWithTimeout(`${url}/functions/v1/student-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: key,
-      },
-      body: JSON.stringify({ action: 'join', ...body }),
-      cache: 'no-store',
-    }, 8_000);
-    const data = await edgeResponse.json() as EdgeJoinResponse;
-
-    if (!edgeResponse.ok || !data.sessionId || !data.participantToken || !data.participantTokenExpiresAt) {
-      return NextResponse.json({ error: data.error || 'Ke hodině se nepodařilo připojit.' }, { status: edgeResponse.status || 500 });
+    if (!serviceResponse.ok || !data.sessionId || !data.participantToken || !data.participantTokenExpiresAt) {
+      return NextResponse.json({ error: data.error || 'Ke hodině se nepodařilo připojit.' }, { status: serviceResponse.status || 500 });
     }
 
     const expiresAt = new Date(data.participantTokenExpiresAt);

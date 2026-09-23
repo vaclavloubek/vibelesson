@@ -9,8 +9,10 @@ import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { getNeonAppUser, requestNeonPasswordResetForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp } from '@/app/auth/neon/actions';
 
-const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAE53q_PQeEBM9Y2o';
+const NEON_APP_AUTH = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon';
 const AUTH_POPOVER_ID = 'auth-popover';
 const AUTH_POPOVER_TITLE_ID = 'auth-popover-title';
 
@@ -59,11 +61,12 @@ type PopoverPosition = {
 
 type TurnstileChallengeProps = {
   ready: boolean;
+  unavailable: boolean;
   action: 'signin' | 'signup' | 'recovery';
   onToken: (token: string) => void;
 };
 
-function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps) {
+function TurnstileChallenge({ ready, unavailable, action, onToken }: TurnstileChallengeProps) {
   const english = useUiLocale() === 'en';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<ChallengeStatus>('loading');
@@ -107,7 +110,9 @@ function TurnstileChallenge({ ready, action, onToken }: TurnstileChallengeProps)
     };
   }, [action, onToken, ready]);
 
-  const statusText = !ready || status === 'loading'
+  const statusText = unavailable
+    ? (english ? 'Security verification is unavailable. Please reload the page or try another browser.' : 'Bezpečnostní ověření není dostupné. Obnovte stránku nebo zkuste jiný prohlížeč.')
+    : !ready || status === 'loading'
     ? (english ? 'Loading security verification…' : 'Načítám bezpečnostní ověření…')
     : status === 'checking'
       ? (english ? 'Checking security…' : 'Kontroluji zabezpečení…')
@@ -156,6 +161,7 @@ export default function AuthControls({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileUnavailable, setTurnstileUnavailable] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaVersion, setCaptchaVersion] = useState(0);
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
@@ -166,6 +172,10 @@ export default function AuthControls({
   const signupStartedRef = useRef(false);
 
   async function loadQuota(nextUser: User | null) {
+    if (NEON_APP_AUTH) {
+      setQuota(null);
+      return;
+    }
     if (!nextUser) {
       setQuota(null);
       return;
@@ -184,6 +194,18 @@ export default function AuthControls({
 
   useEffect(() => {
     let mounted = true;
+
+    if (NEON_APP_AUTH) {
+      void getNeonAppUser().then((neonUser) => {
+        if (!mounted) return;
+        const nextUser = neonUser
+          ? { id: neonUser.id, email: neonUser.email, user_metadata: neonUser.name ? { full_name: neonUser.name } : {} } as User
+          : null;
+        setUser(nextUser);
+        onAuthChange(nextUser);
+      });
+      return () => { mounted = false; };
+    }
 
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
@@ -213,17 +235,20 @@ export default function AuthControls({
   useEffect(() => {
     if (window.turnstile) {
       setTurnstileReady(true);
+      setTurnstileUnavailable(false);
       return;
     }
 
     const interval = window.setInterval(() => {
       if (!window.turnstile) return;
       setTurnstileReady(true);
+      setTurnstileUnavailable(false);
       window.clearInterval(interval);
     }, 50);
 
     const timeout = window.setTimeout(() => {
       window.clearInterval(interval);
+      if (!window.turnstile) setTurnstileUnavailable(true);
     }, 10000);
 
     return () => {
@@ -361,7 +386,20 @@ export default function AuthControls({
       setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
       return;
     }
-
+    if (NEON_APP_AUTH) {
+      setBusy(true);
+      setMessage('');
+      const result = await signInWithNeonForApp(email.trim(), password, captchaToken);
+      setBusy(false);
+      resetCaptcha();
+      if (result.error) {
+        setMessage(english ? 'Sign-in failed. Check your email and password.' : 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
+        return;
+      }
+      trackEvent('login_completed');
+      window.location.reload();
+      return;
+    }
     const token = captchaToken;
     setBusy(true);
     setMessage('');
@@ -411,6 +449,31 @@ export default function AuthControls({
     const token = captchaToken;
     setBusy(true);
     setMessage('');
+    if (NEON_APP_AUTH) {
+      const result = await signUpWithNeonForApp({
+        email: normalizedEmail,
+        password,
+        termsAccepted,
+        marketingConsent,
+        locale,
+        challenge: token,
+      });
+      setBusy(false);
+      resetCaptcha();
+      if (result.error) {
+        setMessage(english ? 'We could not complete the registration. Please try again later.' : 'Registraci se nepodařilo dokončit. Zkus to prosím později.');
+        return;
+      }
+      trackEvent('signup_completed');
+      if (!result.checkEmail) {
+        window.location.reload();
+        return;
+      }
+      setMode('check-email');
+      setPassword('');
+      setPasswordConfirm('');
+      return;
+    }
     const termsAcceptedAt = new Date().toISOString();
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
@@ -464,6 +527,18 @@ export default function AuthControls({
     const token = captchaToken;
     setBusy(true);
     setMessage('');
+    if (NEON_APP_AUTH) {
+      const result = await requestNeonPasswordResetForApp(normalizedEmail, token);
+      setBusy(false);
+      resetCaptcha();
+      if (result.error) {
+        setMessage(english ? 'Security verification failed. Please try again.' : 'Bezpečnostní ověření se nezdařilo. Zkus to prosím znovu.');
+        return;
+      }
+      setMode('check-email');
+      setMessage(english ? 'If an account exists for this address, we will send a link to set a new password.' : 'Pokud pro tuto adresu existuje účet, pošleme na ni odkaz pro nastavení nového hesla.');
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: authRedirectOrigin(),
       captchaToken: token,
@@ -487,7 +562,9 @@ export default function AuthControls({
       // Logout still clears the primary Supabase session. Live recovery tickets
       // are short-lived and the server endpoint will be retried on a later logout.
     }
-    const { error } = await supabase.auth.signOut();
+    const { error } = NEON_APP_AUTH
+      ? await signOutFromNeonApp()
+      : await supabase.auth.signOut();
     setBusy(false);
     setOpen(false);
     switchMode('signin');
@@ -552,7 +629,7 @@ export default function AuthControls({
               <form onSubmit={signIn}>
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required />
-                <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} />
+                <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} unavailable={turnstileUnavailable} action="signin" onToken={setCaptchaToken} />
                 <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Signing in…' : 'Přihlašuji…') : (english ? 'Sign in' : 'Přihlásit se')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>{english ? 'Forgot password' : 'Zapomenuté heslo' }</button>
@@ -598,7 +675,7 @@ export default function AuthControls({
                     <a href={`/${locale}/gdpr`} target="_blank" rel="noreferrer">{english ? 'More about data processing.' : 'Více o zpracování údajů.'}</a>
                   </label>
                 </div>
-                <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} action="signup" onToken={setCaptchaToken} />
+                <TurnstileChallenge key={`signup-${captchaVersion}`} ready={turnstileReady} unavailable={turnstileUnavailable} action="signup" onToken={setCaptchaToken} />
                 <button className="primary" disabled={busy || !captchaToken || !termsAccepted}>{busy ? (english ? 'Creating account…' : 'Vytvářím účet…') : (english ? 'Create account' : 'Vytvořit účet')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'I already have an account' : 'Už mám účet' }</button>
@@ -611,7 +688,7 @@ export default function AuthControls({
               <p>{english ? 'Enter the email address for your account. To protect privacy, we do not reveal whether an address is registered.' : 'Zadej e-mail k účtu. Kvůli ochraně soukromí neprozrazujeme, zda je adresa v systému registrovaná.' }</p>
               <form onSubmit={requestPasswordReset}>
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-                <TurnstileChallenge key={`recovery-${captchaVersion}`} ready={turnstileReady} action="recovery" onToken={setCaptchaToken} />
+                <TurnstileChallenge key={`recovery-${captchaVersion}`} ready={turnstileReady} unavailable={turnstileUnavailable} action="recovery" onToken={setCaptchaToken} />
                 <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Sending…' : 'Odesílám…') : (english ? 'Send reset link' : 'Poslat odkaz pro obnovu')}</button>
               </form>
               <button type="button" className="auth-link auth-signup" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>

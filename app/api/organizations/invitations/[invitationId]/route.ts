@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 
 const ParamsSchema = z.object({
   invitationId: z.string().uuid(),
@@ -29,14 +31,21 @@ export async function DELETE(
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
-  const { data: invitation, error: lookupError } = await admin
-    .from('organization_invitations')
-    .select('id')
-    .eq('id', invitationId)
-    .eq('organization_id', organization.id)
-    .eq('status', 'pending')
-    .maybeSingle();
+  const { data: invitation, error: lookupError } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select id from public.organization_invitations
+        where id = ${invitationId}::uuid
+          and organization_id = ${organization.id}::uuid
+          and status = 'pending'
+        limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organization_invitations')
+      .select('id').eq('id', invitationId)
+      .eq('organization_id', organization.id).eq('status', 'pending').maybeSingle();
 
   if (lookupError) {
     console.error('organization invitation revoke lookup failed', lookupError.code);
@@ -46,15 +55,23 @@ export async function DELETE(
     return NextResponse.json({ error: 'pending_invitation_not_found' }, { status: 404 });
   }
 
-  const now = new Date().toISOString();
-  const { data: revokedInvitation, error } = await admin
-    .from('organization_invitations')
-    .update({ status: 'revoked', updated_at: now })
-    .eq('id', invitationId)
-    .eq('organization_id', organization.id)
-    .eq('status', 'pending')
-    .select('id')
-    .maybeSingle();
+  const { data: revokedInvitation, error } = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        update public.organization_invitations
+        set status = 'revoked', updated_at = now()
+        where id = ${invitationId}::uuid
+          and organization_id = ${organization.id}::uuid
+          and status = 'pending'
+        returning id
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('organization_invitations')
+      .update({ status: 'revoked', updated_at: new Date().toISOString() })
+      .eq('id', invitationId).eq('organization_id', organization.id)
+      .eq('status', 'pending').select('id').maybeSingle();
 
   if (error) {
     console.error('organization invitation revoke failed', error.code);

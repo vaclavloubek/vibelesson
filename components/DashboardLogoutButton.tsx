@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUiLocale } from '@/components/LocaleProvider';
+import { signOutFromNeonApp } from '@/app/auth/neon/actions';
 
 export default function DashboardLogoutButton() {
   const locale = useUiLocale();
@@ -22,7 +23,9 @@ export default function DashboardLogoutButton() {
       // Supabase sign-out remains authoritative; resume cleanup is best effort.
     }
 
-    const { error } = await supabase.auth.signOut();
+    const { error } = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon'
+      ? await signOutFromNeonApp()
+      : await supabase.auth.signOut();
     if (error) {
       setBusy(false);
       return;

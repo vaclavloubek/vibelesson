@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { participantCookieName, StudentTeamChoiceSchema } from '@/lib/live';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { handleStudentSessionAction } from '@/lib/student-session-server';
 
 type RouteContext = { params: Promise<{ id: string }> };
 type EdgeResponse = { error?: string; [key: string]: unknown };
@@ -14,18 +14,15 @@ export async function POST(req: Request, { params }: RouteContext) {
 
   try {
     const input = StudentTeamChoiceSchema.parse(await req.json());
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error('Supabase environment is missing.');
-
-    const edgeResponse = await fetchWithTimeout(`${url}/functions/v1/student-session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: key },
-      body: JSON.stringify({ action: 'choose_team', sessionId: id, participantToken, teamId: input.teamId, operationId: input.operationId }),
-      cache: 'no-store',
-    }, 8_000);
-    const data = await edgeResponse.json() as EdgeResponse;
-    return NextResponse.json(data, { status: edgeResponse.status });
+    const serviceResponse = await handleStudentSessionAction({
+      action: 'choose_team',
+      sessionId: id,
+      participantToken,
+      teamId: input.teamId,
+      operationId: input.operationId,
+    });
+    const data = await serviceResponse.json() as EdgeResponse;
+    return NextResponse.json(data, { status: serviceResponse.status });
   } catch (error) {
     console.error('student choose team failed', error);
     return NextResponse.json({ error: 'Výběr týmu je dočasně nedostupný.' }, { status: 503 });

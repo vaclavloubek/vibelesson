@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 export async function POST(
   _request: Request,
@@ -18,7 +18,7 @@ export async function POST(
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
+  const admin = createPrivilegedRpcClient();
   const { data, error } = await admin.rpc('reset_organization_member_devices_server', {
     p_actor_id: actorId,
     p_organization_id: organization.id,

@@ -17,20 +17,27 @@ const sessionsRoute = read('app/api/sessions/route.ts');
 requireText(sessionsRoute, 'free_lesson_replay_locked', 'session API maps the database replay lock');
 
 const lessonRoute = read('app/api/lessons/[id]/route.ts');
-requireText(lessonRoute, 'getLessonReuseEntitlement', 'duplication charges a creation slot only on Free');
-requireText(lessonRoute, "admin.rpc('reserve_lesson_import_server'", 'Free duplication reserves an import/copy slot through the server-authoritative device-aware path');
-requireText(lessonRoute, "createAdminClient", 'duplication uses a server-only insert path');
-requireText(lessonRoute, "p_status: 'succeeded'", 'successful duplication finishes its quota reservation');
-requireText(lessonRoute, "p_status: 'failed'", 'failed duplication releases its quota reservation');
+requireText(lessonRoute, 'duplicateOwnedLesson', 'duplication uses the selected atomic write backend');
+
+const lessonDuplicateWriter = read('lib/lesson-duplicate-writer.ts');
+requireText(lessonDuplicateWriter, 'getLessonReuseEntitlement', 'Supabase fallback charges a creation slot only on Free');
+requireText(lessonDuplicateWriter, "admin.rpc('reserve_lesson_import_server'", 'Supabase fallback reserves an import/copy slot through the server-authoritative device-aware path');
+requireText(lessonDuplicateWriter, 'public.duplicate_lesson_server(', 'Neon duplication reserves quota and inserts the copy atomically');
+requireText(lessonDuplicateWriter, "p_status: 'succeeded'", 'Supabase fallback finishes a successful quota reservation');
+requireText(lessonDuplicateWriter, "p_status: 'failed'", 'Supabase fallback releases a failed quota reservation');
 
 const shareImportRoute = read('app/api/lesson-shares/[token]/import/route.ts');
 requireText(shareImportRoute, 'free_lesson_import_quota_exhausted', 'shared lesson imports expose the separate Free import quota');
 
 const generateRoute = read('app/api/generate/route.ts');
-requireText(generateRoute, 'createAdminClient', 'AI generation uses a server-only insert path');
+requireText(generateRoute, 'saveGeneratedLesson', 'AI generation uses a server-only insert path');
+const generatedLessonWriter = read('lib/neon/generated-lesson-writer.ts');
+requireText(generatedLessonWriter, "import 'server-only'", 'AI lesson insert remains server-only');
+requireText(generatedLessonWriter, 'insert into public.lessons', 'Neon AI generation inserts only through server SQL');
+requireText(generatedLessonWriter, "createAdminClient().from('lessons')", 'Supabase AI generation retains its server-only insert');
 
 const lessonPage = read('app/lessons/[id]/page.tsx');
-requireText(lessonPage, "from('lesson_live_usage')", 'lesson detail reads live-use history');
+requireText(lessonPage, 'readLessonLiveUsage(supabase, userId, id)', 'lesson detail reads owner-scoped live-use history');
 requireText(lessonPage, 'liveLocked={liveLocked}', 'lesson detail disables repeat Free live use');
 
 const library = read('app/lessons/LessonLibrary.tsx');

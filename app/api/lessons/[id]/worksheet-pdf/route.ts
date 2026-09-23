@@ -5,6 +5,7 @@ import { normalizeWorksheetMode, normalizeWorksheetSpace, resolveWorksheetBlockI
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createWorksheetPdfBuffer } from '@/lib/worksheet-pdf';
 import { requireTrustedDeviceForPaidAccess, trustedDeviceErrorMessage } from '@/lib/trusted-device-access';
+import { readLessonWorksheet } from '@/lib/lesson-worksheet-reader';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 
   const [lessonResult, profileResult] = await Promise.all([
-    supabase.from('lessons').select('id, lesson').eq('id', id).eq('owner_id', userId).maybeSingle(),
+    readLessonWorksheet(supabase, userId, id)
+      .then((data) => ({ data, error: null }))
+      .catch((error: unknown) => ({ data: null, error })),
     supabase.from('profiles').select('role, worksheet_export_enabled').eq('id', userId).maybeSingle(),
   ]);
 

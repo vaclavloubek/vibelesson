@@ -1,6 +1,5 @@
 import { after, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { broadcastSessionInvalidate } from '@/lib/live-server';
 import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 import { emitFirstLiveStartedIfNeeded } from '@/lib/marketing-lifecycle';
 import { clearLiveResumeCookie } from '@/lib/live-resume';
@@ -289,7 +288,6 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     if (updateError || !updated) throw updateError ?? new Error('Session update returned no row.');
     after(async () => {
       await Promise.allSettled([
-        broadcastSessionInvalidate(updated.realtime_key as string),
         mirrorLiveControlEvent({
           sessionId: id,
           role: 'teacher',

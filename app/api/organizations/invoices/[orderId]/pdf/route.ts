@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
-import { getOrganizationBankInvoiceData } from '@/lib/organization-bank-invoice';
+import { getOrganizationBankInvoiceData, getOrganizationIdForInvoiceOrder } from '@/lib/organization-bank-invoice';
 import { createOrganizationInvoicePdfBuffer } from '@/lib/organization-invoice-pdf';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperadminUserId } from '@/lib/superadmin';
 
 export const dynamic = 'force-dynamic';
@@ -19,14 +18,8 @@ export async function GET(
     return NextResponse.json({ error: 'authentication_required' }, { status: 401 });
   }
 
-  const admin = createAdminClient();
-  const { data: order } = await admin
-    .from('organization_orders')
-    .select('organization_id')
-    .eq('id', orderId)
-    .maybeSingle();
-
-  if (!order) {
+  const organizationId = await getOrganizationIdForInvoiceOrder(orderId);
+  if (!organizationId) {
     return NextResponse.json({ error: 'invoice_not_found' }, { status: 404 });
   }
 
@@ -34,7 +27,7 @@ export async function GET(
     const organization = await getCurrentOrganizationForUser(userId);
     if (
       !organization
-      || organization.id !== order.organization_id
+      || organization.id !== organizationId
       || !canManageOrganization(organization.role)
     ) {
       return NextResponse.json({ error: 'invoice_not_found' }, { status: 404 });

@@ -9,6 +9,7 @@ import SharedLessonAuthControls from '@/components/SharedLessonAuthControls';
 import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { LessonShareReadError, readPublicLessonShare } from '@/lib/lesson-share-reader';
 import { LessonSchema } from '@/lib/schema';
 import { createClient } from '@/lib/supabase/server';
 import { hasCurrentTermsAcceptance } from '@/lib/terms-acceptance';
@@ -38,10 +39,13 @@ export default async function SharedLessonPage({ params, searchParams }: Props) 
   const english = locale === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('get_lesson_share', { p_token: token });
-
-  if (error) {
-    console.error('load public lesson share failed', { code: error.code });
+  let data: unknown;
+  try {
+    data = await readPublicLessonShare(token);
+  } catch (error) {
+    console.error('load public lesson share failed', {
+      code: error instanceof LessonShareReadError ? error.code : 'UNKNOWN_LESSON_SHARE_READ_ERROR',
+    });
     notFound();
   }
 

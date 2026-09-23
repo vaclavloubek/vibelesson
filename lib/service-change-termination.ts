@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 import { calculateUnusedServiceChangeRefund } from '@/lib/service-change-policy';
 import {
   retrieveStripeSubscription,
@@ -47,14 +50,14 @@ const Invoice = z.object({
 });
 
 async function state(id: string) {
-  const {data,error}=await createAdminClient().rpc('get_service_change_termination_for_service',{p_request_id:id});
+  const {data,error}=await createPrivilegedRpcClient().rpc('get_service_change_termination_for_service',{p_request_id:id});
   if(error || !data) throw new Error('service_change_termination_lookup_failed');
   return RequestState.parse(data);
 }
 
 async function fail(id: string, token: string, stage: 'refund'|'cancellation'|'finalize', error: unknown) {
   const code=error instanceof Error ? error.message : 'service_change_termination_failed';
-  await createAdminClient().rpc('fail_service_change_termination_for_service',{
+  await createPrivilegedRpcClient().rpc('fail_service_change_termination_for_service',{
     p_request_id:id,p_lease_token:token,p_failure_stage:stage,p_failure_code:code,
   });
 }
@@ -73,9 +76,21 @@ export async function prepareServiceChangeTermination(id: string, key: string) {
   if(subscription.pending_update || subscription.schedule) throw new Error('service_change_subscription_history_review_required');
   const item=singleSubscriptionItem(subscription);
   if(!item.current_period_start || !item.current_period_end) throw new Error('service_change_subscription_period_missing');
-  const {data:price,error:priceError}=await createAdminClient().from('billing_prices')
-    .select('plan_code,billing_period,currency').eq('provider','stripe').eq('livemode',true)
-    .eq('external_price_id',item.price!.id!).maybeSingle();
+  const {data:price,error:priceError} = getDatabaseBackend() === 'neon'
+    ? await (async () => {
+      assertApprovedNeonCutover();
+      const rows = await createNeonSql()`
+        select plan_code, billing_period, currency
+        from public.billing_prices
+        where provider = 'stripe' and livemode = true
+          and external_price_id = ${item.price!.id!}
+        limit 1
+      `;
+      return { data: rows[0] ?? null, error: null };
+    })()
+    : await createAdminClient().from('billing_prices')
+      .select('plan_code,billing_period,currency').eq('provider','stripe').eq('livemode',true)
+      .eq('external_price_id',item.price!.id!).maybeSingle();
   if(priceError || !price || price.plan_code!==current.delivery.plan_code
     || price.billing_period!==current.delivery.billing_period || price.currency!==item.price?.currency) {
     throw new Error('service_change_plan_history_review_required');
@@ -100,7 +115,7 @@ export async function prepareServiceChangeTermination(id: string, key: string) {
     retainedMinor:calculation.retainedMinor,totalRefundEntitlementMinor:calculation.totalRefundEntitlementMinor,
     refundDueMinor:calculation.refundDueMinor,rounding:calculation.rounding,
   };
-  const {error}=await createAdminClient().rpc('reserve_service_change_termination_refund_for_service',{
+  const {error}=await createPrivilegedRpcClient().rpc('reserve_service_change_termination_refund_for_service',{
     p_request_id:id,p_invoice_id:invoice.id,p_payment_intent_id:paymentIntentId,p_charge_id:charge.id,
     p_currency:invoice.currency,p_payment_amount_minor:invoice.amount_paid,p_prior_refunded_minor:charge.amount_refunded,
     p_retained_amount_minor:calculation.retainedMinor,p_target_total_refund_minor:calculation.totalRefundEntitlementMinor,
@@ -114,7 +129,7 @@ export async function prepareServiceChangeTermination(id: string, key: string) {
 export async function executeServiceChangeTermination(id: string, key: string) {
   let current=await prepareServiceChangeTermination(id,key);
   if(current.request.status==='completed') return current;
-  const {data:token,error:claimError}=await createAdminClient().rpc('claim_service_change_termination_for_service',{p_request_id:id});
+  const {data:token,error:claimError}=await createPrivilegedRpcClient().rpc('claim_service_change_termination_for_service',{p_request_id:id});
   if(claimError || typeof token!=='string') throw new Error('service_change_termination_busy');
   current=await state(id);
   const request=current.request;
@@ -132,7 +147,7 @@ export async function executeServiceChangeTermination(id: string, key: string) {
       });
     }
     if(refund) {
-      const {error}=await createAdminClient().rpc('reconcile_service_change_termination_refund_for_service',{
+      const {error}=await createPrivilegedRpcClient().rpc('reconcile_service_change_termination_refund_for_service',{
         p_request_id:id,p_lease_token:token,p_refund_id:refund.id,
         p_payment_intent_id:stripeReference(refund.payment_intent),p_amount:refund.amount,
         p_currency:refund.currency,p_status:refund.status,
@@ -146,7 +161,7 @@ export async function executeServiceChangeTermination(id: string, key: string) {
   try {
     if(!request.subscription_cancelled_at) {
       const canceled=await cancelWithdrawnSubscription(key,request.external_subscription_id);
-      const {error}=await createAdminClient().rpc('record_service_change_termination_cancellation_for_service',{
+      const {error}=await createPrivilegedRpcClient().rpc('record_service_change_termination_cancellation_for_service',{
         p_request_id:id,p_lease_token:token,p_cancelled_at:canceled.canceledAt,
       });
       if(error) throw new Error('service_change_cancellation_reconciliation_failed');

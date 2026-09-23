@@ -5,6 +5,7 @@ import PresenterMode from '@/components/PresenterMode';
 import { readLiveResume } from '@/lib/live-resume';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
+import { readOwnedSessionAccess } from '@/lib/session-access-reader';
 import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
@@ -39,15 +40,11 @@ export default async function PresenterPage({ params }: Props) {
 
   await requireCurrentTermsForPage(userId, `/sessions/${id}/presenter`);
 
-  const { data: session, error: sessionError } = await supabase
-    .from('sessions')
-    .select('id')
-    .eq('id', id)
-    .eq('teacher_id', userId)
-    .maybeSingle();
-
-  if (sessionError) {
-    if (resume?.userId !== userId) throw sessionError;
+  let session: { id: string } | null = null;
+  try {
+    session = await readOwnedSessionAccess(supabase, userId, id);
+  } catch (error) {
+    if (resume?.userId !== userId) throw error;
     console.warn('presenter ownership lookup degraded; using resume ticket', { sessionId: id });
     return <PresenterMode sessionId={id} userId={userId} />;
   }

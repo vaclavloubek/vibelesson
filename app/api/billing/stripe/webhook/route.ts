@@ -1,5 +1,8 @@
 import { after, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { syncStripeBillingRpc } from '@/lib/neon/billing-rpc';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
 import {
   billingLifecycleNotification,
   deliverBillingLifecycleEmail,
@@ -75,12 +78,25 @@ export async function POST(request: Request) {
 
   if (organizationInvoiceSync) {
     try {
-      const supabase = createAdminClient();
-      const { data: organization, error: organizationError } = await supabase
-        .from('organizations')
-        .select('billing_country, currency')
-        .eq('id', organizationInvoiceSync.organizationId)
-        .maybeSingle();
+      let organization: { billing_country: string; currency: string } | null;
+      let organizationError: { code?: string } | null = null;
+      if (getDatabaseBackend() === 'neon') {
+        assertApprovedNeonCutover();
+        const sql = createNeonSql();
+        const rows = await sql`
+          select billing_country, currency from public.organizations
+          where id = ${organizationInvoiceSync.organizationId}::uuid limit 1
+        `;
+        organization = (rows[0] as typeof organization | undefined) ?? null;
+      } else {
+        const result = await createAdminClient()
+          .from('organizations')
+          .select('billing_country, currency')
+          .eq('id', organizationInvoiceSync.organizationId)
+          .maybeSingle();
+        organization = result.data;
+        organizationError = result.error;
+      }
 
       if (organizationError || !organization) {
         return jsonError(404, 'organization_not_found');
@@ -101,7 +117,7 @@ export async function POST(request: Request) {
         return jsonError(409, 'organization_billing_route_mismatch');
       }
 
-      const { data, error } = await supabase.rpc('sync_organization_invoice_event', {
+      const { data, error } = await syncStripeBillingRpc('sync_organization_invoice_event', {
         p_event_id: organizationInvoiceSync.eventId,
         p_event_type: organizationInvoiceSync.eventType,
         p_livemode: organizationInvoiceSync.livemode,
@@ -163,7 +179,7 @@ export async function POST(request: Request) {
               continue;
             }
 
-            const { error: mappingError } = await supabase.rpc(
+            const { error: mappingError } = await syncStripeBillingRpc(
               'sync_organization_invoice_payment_event_v2',
               {
                 p_event_id: organizationInvoiceSync.eventId,
@@ -244,8 +260,7 @@ export async function POST(request: Request) {
 
   if (organizationSubscriptionSync) {
     try {
-      const supabase = createAdminClient();
-      const { data, error } = await supabase.rpc('sync_organization_subscription_event', {
+      const { data, error } = await syncStripeBillingRpc('sync_organization_subscription_event', {
         p_event_id: organizationSubscriptionSync.eventId,
         p_event_type: organizationSubscriptionSync.eventType,
         p_livemode: organizationSubscriptionSync.livemode,
@@ -298,20 +313,37 @@ export async function POST(request: Request) {
 
   if (invoiceSync) {
     try {
-      const supabase = createAdminClient();
-      const { error } = await supabase
-        .from('billing_events')
-        .upsert({
-          provider: 'stripe',
-          livemode: invoiceSync.livemode,
-          external_event_id: invoiceSync.eventId,
-          event_type: invoiceSync.eventType,
-          user_id: invoiceSync.userId,
-          external_subscription_id: invoiceSync.subscriptionId,
-        }, {
-          onConflict: 'provider,livemode,external_event_id',
-          ignoreDuplicates: true,
-        });
+      let error: { code?: string } | null = null;
+      if (getDatabaseBackend() === 'neon') {
+        assertApprovedNeonCutover();
+        try {
+          const sql = createNeonSql();
+          await sql`
+            insert into public.billing_events
+              (provider, livemode, external_event_id, event_type, user_id, external_subscription_id)
+            values ('stripe', ${invoiceSync.livemode}, ${invoiceSync.eventId}, ${invoiceSync.eventType},
+              ${invoiceSync.userId}::uuid, ${invoiceSync.subscriptionId})
+            on conflict (provider, livemode, external_event_id) do nothing
+          `;
+        } catch (neonError) {
+          error = { code: neonError && typeof neonError === 'object' && 'code' in neonError ? String(neonError.code) : 'neon_insert_failed' };
+        }
+      } else {
+        const result = await createAdminClient()
+          .from('billing_events')
+          .upsert({
+            provider: 'stripe',
+            livemode: invoiceSync.livemode,
+            external_event_id: invoiceSync.eventId,
+            event_type: invoiceSync.eventType,
+            user_id: invoiceSync.userId,
+            external_subscription_id: invoiceSync.subscriptionId,
+          }, {
+            onConflict: 'provider,livemode,external_event_id',
+            ignoreDuplicates: true,
+          });
+        error = result.error;
+      }
 
       if (error) {
         console.error('stripe invoice event log failed', {
@@ -361,7 +393,7 @@ export async function POST(request: Request) {
               continue;
             }
 
-            const { error: mappingError } = await supabase.rpc('sync_stripe_invoice_payment_event_v2', {
+            const { error: mappingError } = await syncStripeBillingRpc('sync_stripe_invoice_payment_event_v2', {
               p_event_id: invoiceSync.eventId,
               p_livemode: invoiceSync.livemode,
               p_user_id: invoiceSync.userId,
@@ -433,8 +465,7 @@ export async function POST(request: Request) {
 
   if (disputeSync) {
     try {
-      const supabase = createAdminClient();
-      const individualResult = await supabase.rpc('sync_stripe_dispute_event', {
+      const individualResult = await syncStripeBillingRpc('sync_stripe_dispute_event', {
         p_event_id: disputeSync.eventId,
         p_event_type: disputeSync.eventType,
         p_livemode: disputeSync.livemode,
@@ -446,7 +477,7 @@ export async function POST(request: Request) {
 
       let disputeResult = individualResult.data;
       if (individualResult.error?.message?.includes('stripe_dispute_payment_mapping_missing')) {
-        const organizationResult = await supabase.rpc('sync_organization_stripe_dispute_event', {
+        const organizationResult = await syncStripeBillingRpc('sync_organization_stripe_dispute_event', {
           p_event_id: disputeSync.eventId,
           p_event_type: disputeSync.eventType,
           p_livemode: disputeSync.livemode,
@@ -534,8 +565,7 @@ export async function POST(request: Request) {
         chargeId: refundSync.chargeId,
       });
 
-      const supabase = createAdminClient();
-      const { data, error } = await supabase.rpc('sync_stripe_refund_state', {
+      const { data, error } = await syncStripeBillingRpc('sync_stripe_refund_state', {
         p_event_id: refundSync.eventId,
         p_event_type: refundSync.eventType,
         p_livemode: refundSync.livemode,
@@ -549,7 +579,7 @@ export async function POST(request: Request) {
 
       let refundResult = data;
       if (error?.message?.includes('stripe_refund_payment_mapping_missing')) {
-        const organizationResult = await supabase.rpc('sync_organization_stripe_refund_state', {
+        const organizationResult = await syncStripeBillingRpc('sync_organization_stripe_refund_state', {
           p_event_id: refundSync.eventId,
           p_event_type: refundSync.eventType,
           p_livemode: refundSync.livemode,
@@ -713,8 +743,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc('sync_stripe_subscription_event', {
+    const { data, error } = await syncStripeBillingRpc('sync_stripe_subscription_event', {
       p_event_id: sync.eventId,
       p_event_type: sync.eventType,
       p_livemode: sync.livemode,

@@ -6,6 +6,10 @@ import { sendOrganizationInvitationEmail } from '@/lib/organization-email';
 import { normalizeUiLocale } from '@/lib/i18n';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { createNeonSql } from '@/lib/neon/server';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { readProfileLocale } from '@/lib/neon/profile-role';
 
 const EntrySchema = z.object({
   email: z.string().trim().email().max(254),
@@ -34,13 +38,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('ui_locale')
-    .eq('id', userId)
-    .maybeSingle();
-  const locale = normalizeUiLocale(profile?.ui_locale) ?? 'cs';
+  const admin = createPrivilegedRpcClient();
+  const locale = normalizeUiLocale(await readProfileLocale(userId)) ?? 'cs';
 
   const unique = new Map<string, 'admin' | 'teacher'>();
   for (const entry of input.entries) {
@@ -103,12 +102,19 @@ export async function POST(request: Request) {
         email,
         error: emailError instanceof Error ? emailError.message : 'unknown',
       });
-      await admin
-        .from('organization_invitations')
-        .delete()
-        .eq('id', invitationId)
-        .eq('organization_id', organization.id)
-        .eq('status', 'pending');
+      if (getDatabaseBackend() === 'neon') {
+        assertApprovedNeonCutover();
+        await createNeonSql()`
+          delete from public.organization_invitations
+          where id = ${String(invitationId)}::uuid
+            and organization_id = ${organization.id}::uuid
+            and status = 'pending'
+        `;
+      } else {
+        await createAdminClient().from('organization_invitations')
+          .delete().eq('id', invitationId)
+          .eq('organization_id', organization.id).eq('status', 'pending');
+      }
       failed.push({ email, error: 'email_failed' });
     }
   }

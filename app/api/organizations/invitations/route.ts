@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { canManageOrganization, getCurrentOrganizationForUser } from '@/lib/organizations';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { readProfileLocale } from '@/lib/neon/profile-role';
 import { sendOrganizationInvitationEmail } from '@/lib/organization-email';
 import { normalizeUiLocale } from '@/lib/i18n';
 
@@ -30,14 +31,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'organization_admin_required' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('ui_locale')
-    .eq('id', userId)
-    .maybeSingle();
-
-  const locale = normalizeUiLocale(profile?.ui_locale) ?? 'cs';
+  const admin = createPrivilegedRpcClient();
+  const locale = normalizeUiLocale(await readProfileLocale(userId)) ?? 'cs';
   const token = randomBytes(32).toString('base64url');
   const tokenHash = createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
