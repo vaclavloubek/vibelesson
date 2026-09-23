@@ -9,9 +9,9 @@ import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
-import { signInWithNeonForApp, signOutFromNeonApp } from '@/app/auth/neon/actions';
+import { getNeonAppUser, requestNeonPasswordResetForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp } from '@/app/auth/neon/actions';
 
-const TURNSTILE_SITE_KEY = '0x4AAAAAAE53q_PQeEBM9Y2o';
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAE53q_PQeEBM9Y2o';
 const NEON_APP_AUTH = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon';
 const AUTH_POPOVER_ID = 'auth-popover';
 const AUTH_POPOVER_TITLE_ID = 'auth-popover-title';
@@ -149,7 +149,7 @@ export default function AuthControls({
   const [user, setUser] = useState<User | null>(null);
   const [quota, setQuota] = useState<AiQuotaSnapshot | null>(null);
   const [open, setOpen] = useState(initialOpen);
-  const [mode, setMode] = useState<AuthMode>(NEON_APP_AUTH ? 'signin' : initialMode);
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -168,6 +168,10 @@ export default function AuthControls({
   const signupStartedRef = useRef(false);
 
   async function loadQuota(nextUser: User | null) {
+    if (NEON_APP_AUTH) {
+      setQuota(null);
+      return;
+    }
     if (!nextUser) {
       setQuota(null);
       return;
@@ -186,6 +190,18 @@ export default function AuthControls({
 
   useEffect(() => {
     let mounted = true;
+
+    if (NEON_APP_AUTH) {
+      void getNeonAppUser().then((neonUser) => {
+        if (!mounted) return;
+        const nextUser = neonUser
+          ? { id: neonUser.id, email: neonUser.email, user_metadata: neonUser.name ? { full_name: neonUser.name } : {} } as User
+          : null;
+        setUser(nextUser);
+        onAuthChange(nextUser);
+      });
+      return () => { mounted = false; };
+    }
 
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
@@ -321,7 +337,7 @@ export default function AuthControls({
   }, [mode, open]);
 
   useEffect(() => {
-    if (NEON_APP_AUTH || !initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
+    if (!initialOpen || initialMode !== 'signup' || signupStartedRef.current) return;
     signupStartedRef.current = true;
     trackEvent('signup_started');
   }, [initialMode, initialOpen]);
@@ -340,10 +356,6 @@ export default function AuthControls({
   }
 
   function startSignupFromAuth() {
-    if (NEON_APP_AUTH) {
-      setMessage(english ? 'Account creation is temporarily unavailable.' : 'Vytvoření účtu je dočasně nedostupné.');
-      return;
-    }
     trackEvent('free_signup_click', { location: 'auth' });
     if (!signupStartedRef.current) {
       signupStartedRef.current = true;
@@ -363,11 +375,16 @@ export default function AuthControls({
 
   async function signIn(e: FormEvent) {
     e.preventDefault();
+    if (!captchaToken) {
+      setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
+      return;
+    }
     if (NEON_APP_AUTH) {
       setBusy(true);
       setMessage('');
-      const result = await signInWithNeonForApp(email.trim(), password);
+      const result = await signInWithNeonForApp(email.trim(), password, captchaToken);
       setBusy(false);
+      resetCaptcha();
       if (result.error) {
         setMessage(english ? 'Sign-in failed. Check your email and password.' : 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
         return;
@@ -376,11 +393,6 @@ export default function AuthControls({
       window.location.reload();
       return;
     }
-    if (!captchaToken) {
-      setMessage(english ? 'Please complete the security verification.' : 'Dokonči prosím bezpečnostní ověření.');
-      return;
-    }
-
     const token = captchaToken;
     setBusy(true);
     setMessage('');
@@ -408,10 +420,6 @@ export default function AuthControls({
 
   async function signUp(e: FormEvent) {
     e.preventDefault();
-    if (NEON_APP_AUTH) {
-      setMessage(english ? 'Account creation is temporarily unavailable.' : 'Vytvoření účtu je dočasně nedostupné.');
-      return;
-    }
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail || password.length < 8) {
@@ -434,6 +442,31 @@ export default function AuthControls({
     const token = captchaToken;
     setBusy(true);
     setMessage('');
+    if (NEON_APP_AUTH) {
+      const result = await signUpWithNeonForApp({
+        email: normalizedEmail,
+        password,
+        termsAccepted,
+        marketingConsent,
+        locale,
+        challenge: token,
+      });
+      setBusy(false);
+      resetCaptcha();
+      if (result.error) {
+        setMessage(english ? 'We could not complete the registration. Please try again later.' : 'Registraci se nepodařilo dokončit. Zkus to prosím později.');
+        return;
+      }
+      trackEvent('signup_completed');
+      if (!result.checkEmail) {
+        window.location.reload();
+        return;
+      }
+      setMode('check-email');
+      setPassword('');
+      setPasswordConfirm('');
+      return;
+    }
     const termsAcceptedAt = new Date().toISOString();
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
@@ -474,10 +507,6 @@ export default function AuthControls({
 
   async function requestPasswordReset(e: FormEvent) {
     e.preventDefault();
-    if (NEON_APP_AUTH) {
-      setMessage(english ? 'Password recovery is temporarily unavailable here.' : 'Obnovení hesla zde zatím není dostupné.');
-      return;
-    }
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
       setMessage(english ? 'Enter the email address you use to sign in.' : 'Zadej e-mail, který používáš pro přihlášení.');
@@ -491,6 +520,18 @@ export default function AuthControls({
     const token = captchaToken;
     setBusy(true);
     setMessage('');
+    if (NEON_APP_AUTH) {
+      const result = await requestNeonPasswordResetForApp(normalizedEmail, token);
+      setBusy(false);
+      resetCaptcha();
+      if (result.error) {
+        setMessage(english ? 'Security verification failed. Please try again.' : 'Bezpečnostní ověření se nezdařilo. Zkus to prosím znovu.');
+        return;
+      }
+      setMode('check-email');
+      setMessage(english ? 'If an account exists for this address, we will send a link to set a new password.' : 'Pokud pro tuto adresu existuje účet, pošleme na ni odkaz pro nastavení nového hesla.');
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: authRedirectOrigin(),
       captchaToken: token,
@@ -581,16 +622,12 @@ export default function AuthControls({
               <form onSubmit={signIn}>
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} required />
-                {!NEON_APP_AUTH ? <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} /> : null}
-                <button className="primary" disabled={busy || (!NEON_APP_AUTH && !captchaToken)}>{busy ? (english ? 'Signing in…' : 'Přihlašuji…') : (english ? 'Sign in' : 'Přihlásit se')}</button>
+                <TurnstileChallenge key={`signin-${captchaVersion}`} ready={turnstileReady} action="signin" onToken={setCaptchaToken} />
+                <button className="primary" disabled={busy || !captchaToken}>{busy ? (english ? 'Signing in…' : 'Přihlašuji…') : (english ? 'Sign in' : 'Přihlásit se')}</button>
               </form>
-              {!NEON_APP_AUTH ? (
-                <>
-                  <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>{english ? 'Forgot password' : 'Zapomenuté heslo' }</button>
-                  <span aria-hidden="true"> · </span>
-                  <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</button>
-                </>
-              ) : null}
+              <button type="button" className="auth-link auth-signup" onClick={() => switchMode('forgot')} disabled={busy}>{english ? 'Forgot password' : 'Zapomenuté heslo' }</button>
+              <span aria-hidden="true"> · </span>
+              <button type="button" className="auth-link" onClick={startSignupFromAuth} disabled={busy}>{english ? 'Create a free account' : 'Vytvořit účet zdarma' }</button>
             </>
           ) : null}
 
