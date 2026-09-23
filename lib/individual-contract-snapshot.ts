@@ -4,6 +4,7 @@ import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TECHNICAL_REQUIREMENTS } from '@/lib/technical-requirements';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_AI_SCORING_PURPOSE_CLAUSE,
   TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
@@ -88,6 +89,7 @@ const TERMS_CURRENT_CS = `
 <section>
 <h2>4. AI funkce a obsah</h2>
 <p>Výstupy AI mohou obsahovat nepřesnosti nebo nevhodné návrhy. Učitel musí před použitím ve výuce zkontrolovat věcnou správnost, přiměřenost věku, bezpečnost a vhodnost obsahu. Syllonaut nenahrazuje odborný úsudek učitele.</p>
+<p>${escapeHtml(TERMS_AI_SCORING_PURPOSE_CLAUSE.cs)}</p>
 <p>Uživatel zůstává odpovědný za obsah, který do služby vloží, a musí mít právo jej používat. Poskytovateli uděluje pouze takové oprávnění k technickému zpracování obsahu, které je nutné pro provoz služby a vyžádané AI operace.</p>
 <p>Podrobnosti o zpracování osobních údajů a AI dodavatelích jsou v zásadách ochrany osobních údajů na syllonaut.com.</p>
 </section>
@@ -167,6 +169,7 @@ const TERMS_CURRENT_EN = `
 <section>
 <h2>4. AI features and content</h2>
 <p>AI outputs may contain inaccuracies or unsuitable suggestions. Before classroom use, the teacher must review factual accuracy, age appropriateness, safety and suitability. Syllonaut does not replace professional teacher judgment.</p>
+<p>${escapeHtml(TERMS_AI_SCORING_PURPOSE_CLAUSE.en)}</p>
 <p>Users remain responsible for content they submit and must have the right to use it. They grant the provider only the rights needed to technically process that content to operate the service and perform requested AI operations.</p>
 <p>Details about personal-data processing and AI providers are in the Privacy Notice on syllonaut.com.</p>
 </section>
@@ -224,9 +227,9 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.9'
+    TERMS_VERSION !== '1.10'
     || TERMS_EFFECTIVE_DATE !== '2026-09-23'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v10'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v11'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }

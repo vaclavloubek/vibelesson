@@ -199,19 +199,17 @@ export async function loadTeacherScoreboard(
         continue;
       }
 
-      const effectiveScore = evaluation.teacher_score ?? evaluation.ai_score;
-      if (typeof effectiveScore !== 'number') {
+      // LEGAL-021: AI points are only a proposal. Only teacher-confirmed points
+      // count toward the score and ranking (the student scoreboard RPC does the same).
+      if (evaluation.teacher_confirmed && typeof evaluation.teacher_score === 'number') {
+        score += evaluation.teacher_score;
+        breakdown.push({ blockId: block.id, blockTitle: block.title, blockType: block.type, points: evaluation.teacher_score, maxPoints, source: 'teacher' });
+      } else if (typeof evaluation.ai_score === 'number') {
+        provisionalCount += 1;
+        breakdown.push({ blockId: block.id, blockTitle: block.title, blockType: block.type, points: evaluation.ai_score, maxPoints, source: 'ai' });
+      } else {
         breakdown.push({ blockId: block.id, blockTitle: block.title, blockType: block.type, points: null, maxPoints, source: 'pending' });
         pendingCount += 1;
-        continue;
-      }
-
-      score += effectiveScore;
-      if (evaluation.teacher_score !== null) {
-        breakdown.push({ blockId: block.id, blockTitle: block.title, blockType: block.type, points: effectiveScore, maxPoints, source: 'teacher' });
-      } else {
-        if (!evaluation.teacher_confirmed) provisionalCount += 1;
-        breakdown.push({ blockId: block.id, blockTitle: block.title, blockType: block.type, points: effectiveScore, maxPoints, source: 'ai' });
       }
     }
 

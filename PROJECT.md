@@ -2,9 +2,9 @@
 
 ### Souhrn stavu k 2026-09-23 (konec dne)
 
-- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303); nový účet se potvrzuje kódem z e-mailu (#305). Interní verze **0.9.104**, veřejně zobrazovaná **0.9.30**.
+- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303); nový účet se potvrzuje kódem z e-mailu (#305). Interní verze **0.9.105**, veřejně zobrazovaná **0.9.30**.
 - **Produkt:** ikona pro kopírování odkazu pro studenty s trvalou potvrzovací fajfkou (#297, #299).
-- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018 a LEGAL-020** (dnes LEGAL-013 až 018 a 020: #293, #294, #296, #298, #300, #302, #304). Aktuální **VOP 1.9** (`2026-09-23-v10`, souhlasy v4–v9 zůstávají dostatečné), **Privacy Notice 1.6**, Neon migrace **0011** (evidence reklamací) aplikovaná v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce) a **LEGAL-021** (AI Act — klasifikační posouzení).
+- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018, LEGAL-020 a LEGAL-021** (dnes LEGAL-013 až 018, 020 a 021: #293, #294, #296, #298, #300, #302, #304). Aktuální **VOP 1.10** (`2026-09-23-v11`, souhlasy v4–v10 zůstávají dostatečné), **Privacy Notice 1.6**, Neon migrace **0011** (evidence reklamací) a **0012** (body z AI až po potvrzení učitelem) aplikované v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce); **LEGAL-021** (AI Act) vyřešen v 0.9.105, posouzení potvrdit právníkem a do 2. 12. 2026 vyřešit označení textu generovaného AI (čl. 50 odst. 2).
 - **Otevřené provozní body:** za provozu neověřené školní administrace, Stripe webhook (první obnova 18.–19. 10.) a registrace nového uživatele; ostatní 3 účty si musí nastavit heslo; sledovat ojedinělé `P0001` u `/api/ai-quota`; skutečné podání reklamace a e-maily reklamací nebyly zkoušeny (trvalý append-only záznam); přímý Neon re-consent zápis (účty se souhlasem starším než v4) nebyl spuštěn proti DB; limit důvěryhodných zařízení je zatím jen v Ceníku, ne ve VOP; po přijetí českého § 1830a OZ znovu porovnat online odstoupení.
 - **Pracovní postup agentů (dnešní zkušenosti):**
   - Před sloučením vždy znovu ověřit volné číslo verze na `main`; souběžné chaty dnes obsadily 0.9.95, 0.9.96, 0.9.98, 0.9.100 a 0.9.102 během otevřených PR.
@@ -20,6 +20,8 @@
 - **Supabase** (`qsjddlgmabgmtssvntmn`) je ponechaná beze změny dat a **jen pro čtení** (`default_transaction_read_only = on`) jako záloha. Nemazat bez samostatného rozhodnutí. Protože Neon už přijal produkční zápisy, prostý návrat na Supabase není povolen (split-brain); postup je v `docs/NEON_MIGRATION.md`.
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
+
+Aktualizováno: 2026-09-23 — interní verze **0.9.105** uzavírá **LEGAL-021**: body z AI jsou jen návrh a do skóre a pořadí se započítají až po potvrzení učitelem (jednotlivě nebo hromadně), účel AI bodování je vymezený ve VOP 1.10 a posouzení podle AI Actu je v docs/AI_ACT_ASSESSMENT.md (k potvrzení právníkem). Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.104**: nová registrace se potvrzuje šestimístným kódem z e-mailu „Dokončete registraci do Syllonautu“ (grafika Syllonautu, jazyk podle profilu); bez potvrzení se nelze přihlásit, neověřený účet při přihlášení dostane nový kód. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
@@ -70,6 +72,17 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 - regresní kontrola **scripts/verify-technical-requirements.mjs** (součást `npm run check`) hlídá shodu verzí prohlížečů s Next.js, formátů uploadu a Turnstile hostu s kódem a odkazy na všech předsmluvních površích; aktualizované **verify-terms** a **verify-provider-contact**;
 - změna nezasahuje do databáze ani oprávnění; veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 - PR **#302** prošel CI (build, source-contracts, axe-public-routes, preview-config) i Vercel Preview; produkční merge commit **107c1c63** má Vercel **success**; živé `/cs|en/requirements` zobrazují prohlížeče i Cloudflare výjimku, `/cs|en/terms` ukazují VOP 1.8 s odkazem na požadavky a Ceník na ně odkazuje.
+
+### AI návrhy bodování a AI Act 0.9.105 — 2026-09-23
+
+- uzavřen právní auditní bod **LEGAL-021** schválenou variantou A2 (herní a formativní účel, body z AI jen jako návrh, konečné body dává učitel);
+- **body z AI se do skóre a pořadí započítají až po potvrzení učitelem**: `lib/scoreboard-server.ts` (učitelský přehled a projekce) i DB funkce `get_student_public_scoreboard` (studentský žebříček, Neon migrace **0012**, úprava na místě s kontrolou přesné shody); nepotvrzené návrhy vidí učitel jako „AI návrh“;
+- nové tlačítko **„Potvrdit všechny návrhy AI“** v panelu žebříčku (`POST /api/sessions/<id>/evaluations/confirm-ai` → DB funkce `confirm_ai_evaluation_proposals`, jen učitel hodiny, `auth.uid()`, grant pouze `authenticated`); jednotlivé potvrzení a úpravy beze změny;
+- Ceník, popis Teacher Pro, štítek kvóty v Předplatném a nápověda přísnosti mluví o **„AI návrzích bodování … k potvrzení učitelem“** místo „AI hodnocení“;
+- VOP **1.10** (`2026-09-23-v11`) mají v čl. 4 sdílený text `TERMS_AI_SCORING_PURPOSE_CLAUSE` (zamýšlený účel, ne úřední hodnocení, učitel rozhoduje, signál využití AI není důkaz) ve VOP i smluvním snapshotu; souhlasy v10–v4 zůstávají dostatečné;
+- písemné posouzení **docs/AI_ACT_ASSESSMENT.md** (role, klasifikace podle přílohy III a čl. 6 odst. 3, čl. 50, termíny podle nařízení 2026/1744, body k potvrzení právníkem);
+- regresní kontrola **scripts/verify-ai-act-scope.mjs** (součást `npm run check`); aktualizované **verify-terms**, **verify-provider-contact**, **verify-ai-integrity-alert** a **verify-ai-grading-budget**;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Potvrzení registrace kódem 0.9.104 — 2026-09-23
 
@@ -381,7 +394,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 ### Právní / ČOI launch audit před 1.0 — 2026-09-21
 
-**Stav k 2026-09-23: 19 z 21 bodů vyřešeno.** Otevřené zůstávají **LEGAL-019** (DPH/OSS, vyžaduje daňového poradce) a **LEGAL-021** (AI Act). Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
+**Stav k 2026-09-23: 20 z 21 bodů vyřešeno.** Otevřený zůstává **LEGAL-019** (DPH/OSS, vyžaduje daňového poradce); **LEGAL-021** (AI Act) je vyřešen produktově a posouzením, závěr má potvrdit právník. Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
 
 #### Blokátory 1.0
 
@@ -414,14 +427,14 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 #### Budoucí regulatorní body, které nesmí zapadnout
 
 - **[LEGAL-020 — RESOLVED 0.9.103] Online funkce pro odstoupení (směrnice 2023/2673, čl. 11a směrnice 2011/83/EU).** Původní termín „od 1. 1. 2027“ byl nepřesný: směrnice se uplatňuje od **19. 6. 2026** a k témuž dni nabylo účinnosti **nařízení vlády č. 66/2026 Sb.**, které doplnilo vzorové poučení o online odstoupení; česká novela občanského zákoníku (navrhovaný § 1830a) podle veřejných zdrojů k 10. 7. 2026 ještě nebyla přijata. Funkce z LEGAL-012 splňuje dvoukrokové označení „Odstoupit od smlouvy“ / „Potvrdit odstoupení od smlouvy“, údaje (jméno, smlouva, e-mail), dostupnost po celou lhůtu a potvrzení s obsahem, datem a časem. Doplněno doslovné poučení podle NV 66/2026 (VOP 1.9, smluvní snapshot, /withdrawal) a přihlášení přímo na /withdrawal pro nepřihlášené. **Po přijetí § 1830a znovu porovnat se zněním zákona.**
-- **[LEGAL-021] AI Act classification.** AI grading výsledků učení a integrity signalizace ve vzdělávání se musí formálně klasifikovat vůči AI Act / Annex III. Současný produkt nesmí předpokládat, že marketingové označení „asistent učitele“ automaticky znamená výjimku. **Náprava:** samostatný AI Act classification assessment, dokumentace intended purpose, human oversight a případných high-risk povinností v dostatečném předstihu před relevantní účinností.
+- **[LEGAL-021 — RESOLVED 0.9.105, k potvrzení právníkem] AI Act classification.** Posouzení je v **docs/AI_ACT_ASSESSMENT.md**. AI návrh bodování by bez opatření spadal pod přílohu III bod 3 písm. b). Nyní má vymezený zamýšlený účel (herní a formativní zpětná vazba v lekci, ne úřední hodnocení; VOP 1.10 čl. 4) a je technicky přípravnou činností podle čl. 6 odst. 3 písm. d): body z AI se do skóre a pořadí započítají až po potvrzení učitelem (TS i DB, Neon `0012`), učitel potvrzuje jednotlivě nebo hromadně. Upozornění na využití AI zůstává signálem bez vlivu na body. Otevřené body pro právníka: profilování, exit-tickety vs. bod 3 písm. d), registrace podle čl. 49 odst. 2 a označení textu generovaného AI podle čl. 50 odst. 2 do 2. 12. 2026.
 
 #### Rozhodnutí pro release
 
 - body **LEGAL-001 až LEGAL-005** jsou v tomto auditu vedené jako **blokátory 1.0**;
 - body **LEGAL-009 až LEGAL-013** mají být řešeny před nebo současně s 1.0, pokud mají přímý dopad na aktivní zákaznický flow;
 - body **LEGAL-014 až LEGAL-019** jsou hardening před širší komercializací;
-- bod **LEGAL-020** je vyřešen (0.9.103), po přijetí českého § 1830a OZ znovu ověřit; bod **LEGAL-021** má vlastní regulatorní termín / assessment a nesmí být ztraceny v běžném backlogu;
+- bod **LEGAL-020** je vyřešen (0.9.103), po přijetí českého § 1830a OZ znovu ověřit; bod **LEGAL-021** je vyřešen (0.9.105) s posouzením v docs/AI_ACT_ASSESSMENT.md, které má potvrdit právník; čl. 50 odst. 2 (označení textu generovaného AI) má termín 2. 12. 2026 / assessment a nesmí být ztraceny v běžném backlogu;
 - po opravách provést nový **legal offer-vs-contract-vs-runtime audit**: Homepage → Pricing → Signup → Checkout → Stripe → potvrzovací e-mail → Subscription/School UI → VOP → GDPR → skutečné DB/backend entitlementy.
 
 ### Intuitivní start týmové hodiny 0.9.76 — 2026-09-21

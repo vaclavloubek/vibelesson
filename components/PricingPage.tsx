@@ -103,14 +103,14 @@ const teacherPlansCs: Plan[] = [
   {
     id: 'teacher-pro',
     name: 'Teacher Pro',
-    description: 'Pro intenzivní práci s lekcemi, AI hodnocením, pracovními listy a organizací výuky.',
+    description: 'Pro intenzivní práci s lekcemi, AI návrhy bodování, pracovními listy a organizací výuky.',
     price: pricingPagePrice('teacher_pro'),
     features: [
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} nových AI lekcí za měsíc`,
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI úprav za měsíc`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
-      `${AI_GRADING_ALLOWANCES.teacher_pro} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za období`,
+      `${AI_GRADING_ALLOWANCES.teacher_pro} AI návrhů bodování otevřených, týmových a exit-ticket odpovědí k potvrzení učitelem za období`,
       AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
       REUSE_CLAIM.cs,
@@ -149,7 +149,7 @@ const schoolPlansCs: Plan[] = [
       `${ORGANIZATION_PLANS.school.monthlyRevisionLimit} AI úprav za měsíc společně`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
-      `${AI_GRADING_ALLOWANCES.school} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
+      `${AI_GRADING_ALLOWANCES.school} AI návrhů bodování otevřených, týmových a exit-ticket odpovědí k potvrzení učitelem za měsíc společně`,
       AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
       REUSE_CLAIM.cs,
@@ -172,7 +172,7 @@ const schoolPlansCs: Plan[] = [
       `${ORGANIZATION_PLANS.campus.monthlyRevisionLimit} AI úprav za měsíc společně`,
       'Lekce v libovolném jazyce',
       'Pracovní listy z každé lekce · tisk a PDF',
-      `${AI_GRADING_ALLOWANCES.campus} AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí za měsíc společně`,
+      `${AI_GRADING_ALLOWANCES.campus} AI návrhů bodování otevřených, týmových a exit-ticket odpovědí k potvrzení učitelem za měsíc společně`,
       AI_INTEGRITY_NOTICE.cs,
       'Složky a podsložky pro organizaci lekcí',
       REUSE_CLAIM.cs,
@@ -210,13 +210,13 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
     ],
   },
   'teacher-pro': {
-    description: 'For intensive lesson work with AI grading, worksheets and organisation tools.',
+    description: 'For intensive lesson work with AI point suggestions, worksheets and organisation tools.',
     features: [
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.lessonGenerations} new AI lessons per month`,
       `${INDIVIDUAL_PLAN_ALLOWANCES.teacher_pro.aiEdits} AI edits per month`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
-      `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.teacher_pro} per allowance period`,
+      `AI point suggestions for open, team and exit-ticket responses, confirmed by the teacher · ${AI_GRADING_ALLOWANCES.teacher_pro} per allowance period`,
       AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
       REUSE_CLAIM.en,
@@ -246,7 +246,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `${ORGANIZATION_PLANS.school.monthlyRevisionLimit} AI edits per month shared`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
-      `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.school} per month shared`,
+      `AI point suggestions for open, team and exit-ticket responses, confirmed by the teacher · ${AI_GRADING_ALLOWANCES.school} per month shared`,
       AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
       REUSE_CLAIM.en,
@@ -265,7 +265,7 @@ const PLAN_TRANSLATIONS: Record<string, { description: string; features: string[
       `${ORGANIZATION_PLANS.campus.monthlyRevisionLimit} AI edits per month shared`,
       'Lessons in any language',
       'Printable worksheets from every lesson · print & PDF',
-      `AI grading of scored open, team and exit-ticket responses · ${AI_GRADING_ALLOWANCES.campus} per month shared`,
+      `AI point suggestions for open, team and exit-ticket responses, confirmed by the teacher · ${AI_GRADING_ALLOWANCES.campus} per month shared`,
       AI_INTEGRITY_NOTICE.en,
       'Folders and subfolders for organising lessons',
       REUSE_CLAIM.en,
@@ -355,11 +355,11 @@ function PlanCard({
             || feature.startsWith('Full workflow')
             || worksheetHook
             || reuseHook
-            || feature.startsWith('AI hodnocení')
+            || feature.includes('AI návrhů bodování')
             || feature === AI_INTEGRITY_NOTICE.cs
             || feature.startsWith('Složky a podsložky')
             || feature === 'Sdílená knihovna lekcí'
-            || feature.startsWith('AI grading')
+            || feature.startsWith('AI point suggestions')
             || feature === AI_INTEGRITY_NOTICE.en
             || feature.startsWith('Folders and subfolders')
             || feature === 'Shared lesson library';

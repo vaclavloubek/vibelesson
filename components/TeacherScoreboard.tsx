@@ -58,6 +58,7 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
   const [data, setData] = useState<ScoreboardData | null>(null);
   const [error, setError] = useState('');
   const [revealBusy, setRevealBusy] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -112,6 +113,26 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
     }
   };
 
+  // LEGAL-021: AI points are proposals; the teacher confirms them before they count.
+  const confirmAiProposals = async () => {
+    if (!window.confirm(ui(
+      'Potvrdit všechny dosavadní návrhy AI jako tvoje hodnocení? Body se pak započítají do skóre a pořadí. Jednotlivé body můžeš i nadále upravit.',
+      'Confirm all current AI suggestions as your grading? The points will then count toward scores and ranking. You can still adjust individual points.',
+    ))) return;
+    setConfirmBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/evaluations/confirm-ai`, { method: 'POST' });
+      const body = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(localizedApiError(body.error, english ? 'en' : 'cs', 'Návrhy AI se nepodařilo potvrdit.', 'AI suggestions could not be confirmed.'));
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : ui('Návrhy AI se nepodařilo potvrdit.', 'AI suggestions could not be confirmed.'));
+    } finally {
+      setConfirmBusy(false);
+    }
+  };
+
   if (!data || data.status !== 'live' || !data.hasScoring) return null;
 
   const leader = data.rows[0];
@@ -163,6 +184,22 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
           </div>
         ) : null}
 
+        {data.unconfirmedEvaluations ? (
+          <div className={styles.warning} role="status">
+            <strong>{ui(
+              `${data.unconfirmedEvaluations} návrhů AI čeká na tvoje potvrzení.`,
+              `${data.unconfirmedEvaluations} AI suggestions are waiting for your confirmation.`,
+            )}</strong>
+            <span>{ui(
+              'Body od AI jsou jen návrh a do skóre ani pořadí se nezapočítají, dokud je nepotvrdíš.',
+              'AI points are only a suggestion and do not count toward scores or ranking until you confirm them.',
+            )}</span>
+            <button type="button" disabled={confirmBusy} onClick={() => void confirmAiProposals()}>
+              {confirmBusy ? ui('Potvrzuji…', 'Confirming…') : ui('Potvrdit všechny návrhy AI', 'Confirm all AI suggestions')}
+            </button>
+          </div>
+        ) : null}
+
         {error ? <p className={styles.controlError}>{error}</p> : null}
       </div>
 
@@ -178,7 +215,7 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
           <p className="muted-copy" style={{ margin: '0 0 10px' }}>
             {data.scoreboardRevealed
               ? ui('Studenti vidí pouze své vlastní skóre a pořadí. Kompletní tabulka, zdroje bodů a stav AI hodnocení zůstávají pouze učiteli.', 'Students see only their own score and rank. The full table, score sources and AI grading state remain visible only to the teacher.')
-              : ui('Průběžné pořadí vidí pouze učitel. AI skóre se započítává dočasně; potvrzené nebo upravené skóre učitele má přednost.', 'Only the teacher sees the live ranking. AI scores count provisionally; confirmed or adjusted teacher scores take priority.')}
+              : ui('Průběžné pořadí vidí pouze učitel. Body od AI jsou návrh; do skóre se započítají až po tvém potvrzení.', 'Only the teacher sees the live ranking. AI points are a suggestion and count only after you confirm them.')}
           </p>
 
           {!error && data.rows.length ? (
