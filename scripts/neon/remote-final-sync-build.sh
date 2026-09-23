@@ -10,6 +10,7 @@ if [[ -n "${NEON_FINAL_SYNC_MODE:-}" ]]; then
     echo 'Refusing final sync outside the migration Preview branch.' >&2
     exit 2
   fi
+  node scripts/neon/probe-target.mjs || true
   node scripts/neon/final-sync.mjs
 fi
 
