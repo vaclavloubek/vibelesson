@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
@@ -20,6 +20,7 @@ type Props = {
 };
 
 const ACCOUNT_MENU_ID = 'public-header-account-menu';
+const POPOVER_VIEWPORT_GUTTER = 12;
 
 export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, quotaRefreshKey = 0, onSignOut }: Props) {
   const locale = useUiLocale();
@@ -33,6 +34,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
   const identityBoundaryTriggeredRef = useRef(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
   const metadataName = [metadata?.full_name, metadata?.name, metadata?.given_name]
@@ -143,6 +145,32 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
     };
   }, [controlledQuota, quotaRefreshKey, supabase, user.id]);
 
+  // The popover is right-aligned to the trigger, but on phones the header stacks
+  // and the trigger sits at the left edge, so shift the popover back on screen.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const popover = popoverRef.current;
+    if (!popover) return;
+
+    function keepInViewport() {
+      if (!popover) return;
+      popover.style.transform = '';
+      const rect = popover.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth;
+      let shift = 0;
+      if (rect.left < POPOVER_VIEWPORT_GUTTER) {
+        shift = POPOVER_VIEWPORT_GUTTER - rect.left;
+      } else if (rect.right > viewportWidth - POPOVER_VIEWPORT_GUTTER) {
+        shift = Math.max(viewportWidth - POPOVER_VIEWPORT_GUTTER - rect.right, POPOVER_VIEWPORT_GUTTER - rect.left);
+      }
+      if (shift !== 0) popover.style.transform = `translateX(${Math.round(shift)}px)`;
+    }
+
+    keepInViewport();
+    window.addEventListener('resize', keepInViewport);
+    return () => window.removeEventListener('resize', keepInViewport);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -251,7 +279,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
       </button>
 
       {open ? (
-        <div id={ACCOUNT_MENU_ID} className="auth-account-popover" role="menu" aria-label={english ? 'Account menu' : 'Nabídka účtu'}>
+        <div ref={popoverRef} id={ACCOUNT_MENU_ID} className="auth-account-popover" role="menu" aria-label={english ? 'Account menu' : 'Nabídka účtu'}>
           <div className="auth-account-summary">
             <strong title={user.email ?? ''}>{user.email ?? accountName}</strong>
             <span>AI: {lessonText} · {revisionText}{gradingText ? ` · ${gradingText}` : ''}</span>
