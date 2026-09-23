@@ -25,10 +25,16 @@ async function handle(method: HandlerMethod, request: Request, context: RouteCon
   }
 
   const { path } = await context.params;
-  if (method === 'POST' && path[0] === 'sign-up') {
-    // The original signup flow records legal consent and verifies Turnstile.
-    // Do not expose a direct Neon signup until those checks are server-side.
-    return NextResponse.json({ error: 'Neon signup is not yet available.' }, { status: 403 });
+  if (method === 'POST' && (
+    path[0] === 'sign-up'
+    || (getDatabaseBackend() === 'neon' && (
+      path.join('/') === 'sign-in/email'
+      || path.join('/') === 'request-password-reset'
+    ))
+  )) {
+    // These public entry points would bypass the app's Turnstile and signup
+    // consent audit. Only the guarded server actions may invoke them.
+    return NextResponse.json({ error: 'Use the application authentication form.' }, { status: 403 });
   }
 
   // Managed Neon Auth may scope its upstream cookie to the Neon hostname.
