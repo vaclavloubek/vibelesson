@@ -115,8 +115,8 @@ export async function requestNeonPasswordResetForApp(email: string, challenge: s
 
   const origin = process.env.VERCEL_ENV === 'production'
     ? 'https://www.syllonaut.com'
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
+    : process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL}`
       : 'http://localhost:3000';
   try {
     await createServerAuth().requestPasswordReset({
