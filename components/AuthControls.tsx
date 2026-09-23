@@ -173,7 +173,16 @@ export default function AuthControls({
 
   async function loadQuota(nextUser: User | null) {
     if (NEON_APP_AUTH) {
-      setQuota(null);
+      if (!nextUser) {
+        setQuota(null);
+        return;
+      }
+      try {
+        const response = await fetch('/api/ai-quota', { cache: 'no-store' });
+        setQuota(response.ok ? ((await response.json()) as AiQuotaSnapshot | null) : null);
+      } catch {
+        setQuota(null);
+      }
       return;
     }
     if (!nextUser) {
