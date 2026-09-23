@@ -1,13 +1,15 @@
-export const TERMS_VERSION = '1.7';
+export const TERMS_VERSION = '1.8';
 export const TERMS_EFFECTIVE_DATE = '2026-09-23';
-export const TERMS_ACCEPTANCE_KEY = '2026-09-23-v8';
+export const TERMS_ACCEPTANCE_KEY = '2026-09-23-v9';
 
-// Terms 1.7 adds the evidenced complaint process (LEGAL-017) and 1.6 the
-// renewal-safe account deletion (LEGAL-016); both only benefit users. Existing
-// 1.6, 1.5, 1.4 and 1.3 acceptances remain sufficient for ordinary product use;
-// every new signup and order records the complete 1.7 document instead.
+// Terms 1.8 incorporates the published technical requirements (LEGAL-018),
+// 1.7 the evidenced complaint process (LEGAL-017) and 1.6 the renewal-safe
+// account deletion (LEGAL-016). Existing 1.7 to 1.3 acceptances remain
+// sufficient for ordinary product use; every new signup and order records the
+// complete 1.8 document instead.
 export const TERMS_PRODUCT_ACCESS_KEYS = [
   TERMS_ACCEPTANCE_KEY,
+  '2026-09-23-v8',
   '2026-09-23-v7',
   '2026-09-21-v6',
   '2026-09-21-v5',

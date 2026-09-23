@@ -21,6 +21,7 @@ export default function SiteFooter() {
         <Link href={`/${locale}/terms`}>{english ? 'Terms of Service' : 'Obchodní podmínky'}</Link>
         <Link href={`/${locale}/withdrawal`}>{english ? 'Withdrawal form' : 'Formulář pro odstoupení'}</Link>
         <Link href={`/${locale}/complaint`}>{english ? 'Complaints' : 'Reklamace'}</Link>
+        <Link href={`/${locale}/requirements`}>{english ? 'Technical requirements' : 'Technické požadavky'}</Link>
         <Link href={`/${locale}/dpa`}>{english ? 'Data Processing Agreement' : 'Zpracovatelská smlouva (DPA)'}</Link>
         <Link href={`/${locale}/gdpr`}>{english ? 'Privacy (GDPR)' : 'Ochrana osobních údajů (GDPR)'}</Link>
         <button type="button" onClick={() => window.dispatchEvent(new Event(COOKIE_SETTINGS_EVENT))}>{english ? 'Cookie settings' : 'Nastavení cookies'}</button>

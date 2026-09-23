@@ -21,6 +21,7 @@ import { AI_GRADING_ALLOWANCES, INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } f
 import { ORGANIZATION_PLANS, organizationPricingPagePrice } from '@/lib/organization-billing-catalog';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
+import { SUPPORTED_BROWSER_SUMMARY } from '@/lib/technical-requirements';
 import { termsReconsentPath } from '@/lib/terms-gate';
 import landing from './LandingPage.module.css';
 import styles from './PricingPage.module.css';
@@ -870,6 +871,15 @@ export default function PricingPage({
         {TRUSTED_DEVICE_NOTICE[english ? 'en' : 'cs'].body}
       </p>
 
+      <p className={styles.usagePromise}>
+        <strong>{ui('Technické požadavky', 'Technical requirements')}:</strong>{' '}
+        {ui(
+          `Syllonaut běží v aktuálním prohlížeči (${SUPPORTED_BROWSER_SUMMARY}) se zapnutým JavaScriptem a cookies a potřebuje připojení k internetu. Podrobnosti o zařízeních, síti a formátech souborů: `,
+          `Syllonaut runs in a current browser (${SUPPORTED_BROWSER_SUMMARY}) with JavaScript and cookies enabled and needs an internet connection. Details on devices, network and file formats: `,
+        )}
+        <Link href={`/${locale}/requirements`}>{ui('technické požadavky', 'technical requirements')}</Link>.
+      </p>
+
       {checkoutPlan && checkoutRoute ? (
         <div
           className={styles.checkoutOverlay}
@@ -942,6 +952,12 @@ export default function PricingPage({
             <p>
               <strong>{ui('Poskytovatel:', 'Provider:')}</strong> {PROVIDER_CONTACT.legalName}, {ui('IČO', 'Business ID')} {PROVIDER_CONTACT.businessId}<br />
               {ui('Telefon:', 'Phone:')} <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a> · <a href={PROVIDER_CONTACT.emailHref}>{PROVIDER_CONTACT.email}</a>
+            </p>
+
+            <p>
+              {ui('Před objednávkou si ověřte ', 'Before ordering, check the ')}
+              <Link href={`/${locale}/requirements`} target="_blank">{ui('technické požadavky', 'technical requirements')}</Link>
+              {ui(` (${SUPPORTED_BROWSER_SUMMARY}, JavaScript, cookies, připojení k internetu).`, ` (${SUPPORTED_BROWSER_SUMMARY}, JavaScript, cookies, internet connection).`)}
             </p>
 
             <label className={styles.checkoutField} style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>

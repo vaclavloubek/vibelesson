@@ -1504,6 +1504,10 @@ export default function SchoolAdmin({
                     )}
                   </p>
                 ) : null}
+                <p style={{ margin: '8px 0 0', lineHeight: 1.5 }}>
+                  {ui('Technické požadavky pro učitele i studenty: ', 'Technical requirements for teachers and students: ')}
+                  <Link href={`/${locale}/requirements`} target="_blank">{ui('prohlížeče, zařízení, síť a formáty souborů', 'browsers, devices, network and file formats')}</Link>.
+                </p>
               </div>
 
               <div className={styles.full}>
