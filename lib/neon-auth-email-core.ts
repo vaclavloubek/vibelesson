@@ -1,6 +1,6 @@
 // Branded Syllonaut copies of the Managed Neon Auth (Better Auth) emails.
 // The visual language mirrors supabase/auth-templates (Orbital Precision):
-// warm #f6f5f1 background, white card, indigo #5b57e8 CTA, ink #151721,
+// warm #f6f5f1 background, white card, indigo #5b57e8 CTA or code, ink #151721,
 // system font stack, no remote images or fonts.
 
 export type NeonAuthEmailLocale = 'cs' | 'en';
@@ -249,7 +249,7 @@ export function renderNeonAuthEmail(
 
   const actionHtml = action.channel === 'code'
     ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:4px 0 26px;">
-              <tr><td align="center" style="padding:18px 16px;border:1px solid #e2e1dc;border-radius:12px;background:#fbfaf7;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:28px;line-height:1.1;font-weight:700;letter-spacing:0.14em;color:#151721;">${escapeHtml(action.code)}</td></tr>
+              <tr><td align="center" style="padding:18px 16px;border:1px solid #d9d7fb;border-radius:12px;background:#f1f0fe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:28px;line-height:1.1;font-weight:700;letter-spacing:0.14em;color:#5b57e8;">${escapeHtml(action.code)}</td></tr>
             </table>`
     : `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 22px;">
               <tr><td style="border-radius:10px;background:#5b57e8;">

@@ -116,7 +116,7 @@ for (const locale of ['cs', 'en']) {
     const email = renderNeonAuthEmail(action, locale, new Date(now));
     subjects.add(email.subject);
     assert(email.html.includes(`lang="${locale}"`), 'html lang must match locale');
-    assert(email.html.includes('#151721') && email.html.includes('#f6f5f1') && (action.channel === 'code' || email.html.includes('#5b57e8')), 'Orbital Precision palette must be used');
+    assert(email.html.includes('#151721') && email.html.includes('#f6f5f1') && email.html.includes('#5b57e8'), 'Orbital Precision palette must be used');
     assert(!/neon/i.test(email.subject) && !/neon auth|myneon/i.test(email.text), 'Neon branding must not leak');
     assert(!/<img|https?:\/\/fonts\./i.test(email.html), 'no remote images or fonts');
     if (action.channel === 'code') assert(email.html.includes('482913') && email.text.includes('482913'), 'code must be shown');
