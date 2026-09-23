@@ -13,6 +13,7 @@
 //
 // Output contains table names, counts and PASS/FAIL only: no rows, e-mails or URLs.
 
+import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
 const mode = process.env.NEON_FINAL_SYNC_MODE;
@@ -269,6 +270,16 @@ try {
   for (const row of disabledTriggers) {
     await dst.query(`alter table ${qualified(row.schema, row.table_name)} enable trigger ${ident(row.trigger_name)}`);
   }
+
+  // Grants required by the remaining user-scoped Data API calls.
+  await dst.query(readFileSync(new URL('../../neon/migrations/0008_data_api_user_grants.sql', import.meta.url), 'utf8'));
+  const grants = (await dst.query(`
+    select has_column_privilege('authenticated', 'public.profiles', 'worksheet_export_enabled', 'SELECT')
+       and has_function_privilege('authenticated', 'public.get_ai_quota()', 'EXECUTE')
+       and has_function_privilege('authenticated', 'public.set_ui_locale(text)', 'EXECUTE')
+       and has_function_privilege('authenticated', 'public.set_marketing_email_consent(boolean)', 'EXECUTE')
+       and not has_table_privilege('authenticated', 'public.lessons', 'SELECT') as ok`)).rows[0].ok;
+  if (grants) console.log('PASS data_api_grants 0008'); else fail('data_api_grants 0008 not in effect');
 
   // Verification inside the same target transaction.
   let passed = 0;
