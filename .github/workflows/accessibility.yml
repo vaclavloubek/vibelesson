@@ -70,6 +70,8 @@ jobs:
                 http://127.0.0.1:3000/dpa \
                 http://127.0.0.1:3000/cs/dpa \
                 http://127.0.0.1:3000/en/dpa \
+                http://127.0.0.1:3000/cs/requirements \
+                http://127.0.0.1:3000/en/requirements \
                 http://127.0.0.1:3000/join \
                 http://127.0.0.1:3000/new \
                 --chromedriver-path="$CHROMEDRIVER_TEST_PATH" \

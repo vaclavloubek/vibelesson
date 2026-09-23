@@ -48,3 +48,9 @@ export const TERMS_COMPLAINT_CLAUSE = {
     'Syllonaut promptly confirms in writing when the complaint was submitted, what it contains and which remedy is requested. It resolves the complaint without undue delay and no later than 30 days after submission, and confirms the date and manner of resolution in writing; a rejection is justified in writing. Statutory rights relating to defective performance and consumer rights for digital services remain unaffected.',
   ],
 } as const;
+
+// LEGAL-018: technical requirements are pre-contractual information and part of the contract.
+export const TERMS_TECHNICAL_REQUIREMENTS_CLAUSE = {
+  cs: 'Služba se používá ve webovém prohlížeči. Technické požadavky na funkčnost, kompatibilitu a interoperabilitu (podporované prohlížeče a zařízení, cookies a úložiště prohlížeče, připojení k internetu a formáty souborů) jsou uvedeny na stránce Technické požadavky (syllonaut.com/cs/requirements) a u individuální placené objednávky jsou také součástí potvrzení smluvních informací. Nesoulad služby způsobený výlučně tím, že digitální prostředí uživatele těmto požadavkům neodpovídá, není vadou služby, byl-li uživatel o požadavcích jasně informován před uzavřením smlouvy. Požadavky lze změnit pouze postupem podle článku 10.',
+  en: 'The service is used in a web browser. Technical requirements for functionality, compatibility and interoperability (supported browsers and devices, cookies and browser storage, internet connection and file formats) are set out on the Technical requirements page (syllonaut.com/en/requirements) and, for an individual paid order, also form part of the contract information confirmation. A lack of conformity caused solely by the user’s digital environment not meeting these requirements is not a defect of the service, provided the user was clearly informed of the requirements before the contract was concluded. The requirements may be changed only under section 10.',
+} as const;

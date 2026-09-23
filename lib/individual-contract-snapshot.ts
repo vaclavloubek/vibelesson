@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
+import { TECHNICAL_REQUIREMENTS } from '@/lib/technical-requirements';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
+  TERMS_TECHNICAL_REQUIREMENTS_CLAUSE,
   TERMS_WITHDRAWAL_CLAUSE,
 } from '@/lib/terms-content';
 import { buildStatutoryWithdrawalFormHtml, WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
@@ -72,6 +74,7 @@ const TERMS_CURRENT_CS = `
 <h2>2. Služba a vznik smlouvy</h2>
 <p>Syllonaut je online služba pro přípravu, úpravu, vedení a vyhodnocování interaktivních lekcí s využitím AI. Smlouva k Free účtu vzniká dokončením registrace po odsouhlasení těchto podmínek. U placeného tarifu vzniká placený smluvní vztah dokončením objednávky; aktivace placených oprávnění nastává podle zvoleného způsobu platby po potvrzení platby.</p>
 <p>Jedná-li osoba za školu, firmu nebo jinou organizaci, potvrzuje, že je oprávněna organizaci zavázat. U školních tarifů je vlastníkem organizace účet, který objednávku vytvořil, dokud nedojde k platnému převodu role.</p>
+<p>${escapeHtml(TERMS_TECHNICAL_REQUIREMENTS_CLAUSE.cs)}</p>
 </section>
 <section>
 <h2>3. Účet a bezpečnost</h2>
@@ -150,6 +153,7 @@ const TERMS_CURRENT_EN = `
 <h2>2. Service and formation of the contract</h2>
 <p>Syllonaut is an online service for preparing, refining, running and evaluating interactive lessons with AI. The Free-account contract is formed when registration is completed after accepting these Terms. A paid contract is formed when the paid order is completed; paid entitlements activate according to the selected payment method after payment is confirmed.</p>
 <p>A person acting for a school, company or other organization confirms that they are authorized to bind that organization. For school plans, the account creating the order is the organization owner until the role is validly transferred.</p>
+<p>${escapeHtml(TERMS_TECHNICAL_REQUIREMENTS_CLAUSE.en)}</p>
 </section>
 <section>
 <h2>3. Account and security</h2>
@@ -219,13 +223,20 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.7'
+    TERMS_VERSION !== '1.8'
     || TERMS_EFFECTIVE_DATE !== '2026-09-23'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v8'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-23-v9'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
   return locale === 'cs' ? TERMS_CURRENT_CS : TERMS_CURRENT_EN;
+}
+
+function technicalRequirementsHtml(locale: IndividualContractLocale) {
+  const heading = locale === 'cs' ? 'Technické požadavky' : 'Technical requirements';
+  return `<h2>${heading}</h2>` + TECHNICAL_REQUIREMENTS[locale].map((section) => (
+    `<h3>${escapeHtml(section.title)}</h3><ul>${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+  )).join('');
 }
 
 function buildWithdrawalForm(locale: IndividualContractLocale) {
@@ -269,6 +280,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 <tr><th>Okamžité zahájení služby</th><td>Výslovně požadováno před uplynutím 14denní lhůty. Při odstoupení může být účtována poměrná část ceny za již poskytnuté plnění.</td></tr>
 <tr><th>Verze obchodních podmínek</th><td>${escapeHtml(TERMS_VERSION)} · acceptance key ${escapeHtml(TERMS_ACCEPTANCE_KEY)}</td></tr>
 </table>
+${technicalRequirementsHtml('cs')}
 <hr>
 <h1>Obchodní podmínky Syllonaut</h1>
 <p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 23. 9. 2026</p>${termsCurrent(locale)}`
@@ -287,6 +299,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 <tr><th>Immediate start of service</th><td>Expressly requested before the 14-day withdrawal period ends. If you withdraw, a proportionate amount may be charged for service already supplied.</td></tr>
 <tr><th>Terms version</th><td>${escapeHtml(TERMS_VERSION)} · acceptance key ${escapeHtml(TERMS_ACCEPTANCE_KEY)}</td></tr>
 </table>
+${technicalRequirementsHtml('en')}
 <hr>
 <h1>Syllonaut Terms of Service</h1>
 <p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 23 September 2026</p>${termsCurrent(locale)}`;

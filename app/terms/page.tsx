@@ -14,6 +14,7 @@ import {
   TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
+  TERMS_TECHNICAL_REQUIREMENTS_CLAUSE,
   TERMS_WITHDRAWAL_CLAUSE,
 } from '@/lib/terms-content';
 import { WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
@@ -114,6 +115,7 @@ export default async function TermsPage() {
             'Pokud organizace používá Syllonaut ke zpracování osobních údajů studentů nebo pracovníků a Syllonaut v tomto rozsahu vystupuje jako zpracovatel, je součástí smlouvy také samostatná zpracovatelská smlouva (DPA). Organizace ji při objednávce výslovně přijímá vedle těchto VOP.',
             'Where an organisation uses Syllonaut to process personal data of students or staff and Syllonaut acts as processor for that processing, the separate Data Processing Agreement (DPA) also forms part of the contract. The organisation expressly accepts it alongside these Terms when placing the order.'
           )} <Link href={`/${locale}/dpa`}>{ui(`DPA verze ${DPA_VERSION}`, `DPA version ${DPA_VERSION}`)}</Link>.</p>
+          <p>{TERMS_TECHNICAL_REQUIREMENTS_CLAUSE[english ? 'en' : 'cs']}</p>
         </section>
 
         <section>
