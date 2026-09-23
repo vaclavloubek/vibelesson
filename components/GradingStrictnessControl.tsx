@@ -54,8 +54,8 @@ export default function GradingStrictnessControl({ value, onChange, disabled = f
       <legend>{locale === 'en' ? 'AI grading strictness' : 'Přísnost AI hodnocení'}</legend>
       <p id={`${id}-description`} className="grading-strictness-help">
         {locale === 'en'
-          ? 'Affects only AI grading of scored open and team responses. The teacher can always override the result.'
-          : 'Ovlivňuje pouze AI hodnocení bodovaných otevřených a týmových odpovědí. Učitel může výsledek vždy upravit.'}
+          ? 'Affects only AI point suggestions for scored open and team responses. The teacher always confirms or adjusts the points.'
+          : 'Ovlivňuje pouze AI návrhy bodů u bodovaných otevřených a týmových odpovědí. Body vždy potvrzuje nebo upravuje učitel.'}
       </p>
 
       <div

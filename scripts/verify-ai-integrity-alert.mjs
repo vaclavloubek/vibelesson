@@ -49,8 +49,8 @@ for (const path of forbiddenChallengeFiles) {
   }
 }
 
-const csFeature = 'AI hodnocení bodovaných otevřených, týmových a exit-ticket odpovědí';
-const enFeature = 'AI grading of scored open, team and exit-ticket responses';
+const csFeature = 'AI návrhů bodování otevřených, týmových a exit-ticket odpovědí k potvrzení učitelem';
+const enFeature = 'AI point suggestions for open, team and exit-ticket responses, confirmed by the teacher';
 requireCount(pricing, csFeature, 3, 'CZ pricing must advertise the feature only for Teacher Pro, School and Campus.');
 requireCount(pricing, enFeature, 3, 'EN pricing must advertise the feature only for Teacher Pro, School and Campus.');
 if (pricing.includes('s detekcí podezřelého využití AI') || pricing.includes('with suspicious AI-use detection')) {

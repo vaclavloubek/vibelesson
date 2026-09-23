@@ -338,7 +338,7 @@ export default function SubscriptionManagement({
           <div><dt>{active.cancelAtPeriodEnd ? ui('Přístup do', 'Access until') : ui('Další obnovení', 'Next renewal')}</dt><dd>{renewalDate}</dd></div>
           {quotaWindow?.gradingEnabled && quotaWindow.gradingLimit !== null ? (
             <div>
-              <dt>{ui('AI hodnocení', 'AI grading')}</dt>
+              <dt>{ui('AI návrhy bodování', 'AI point suggestions')}</dt>
               <dd>{ui(
                 `${quotaWindow.gradingRemaining ?? 0} z ${quotaWindow.gradingLimit} zbývá`,
                 `${quotaWindow.gradingRemaining ?? 0} of ${quotaWindow.gradingLimit} remaining`,

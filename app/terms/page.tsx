@@ -11,6 +11,7 @@ import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
+  TERMS_AI_SCORING_PURPOSE_CLAUSE,
   TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
@@ -134,6 +135,7 @@ export default async function TermsPage() {
             'Výstupy AI mohou obsahovat nepřesnosti nebo nevhodné návrhy. Učitel musí před použitím ve výuce zkontrolovat věcnou správnost, přiměřenost věku, bezpečnost a vhodnost obsahu. Syllonaut nenahrazuje odborný úsudek učitele.',
             'AI outputs may contain inaccuracies or unsuitable suggestions. Before classroom use, the teacher must review factual accuracy, age appropriateness, safety and suitability. Syllonaut does not replace professional teacher judgment.'
           )}</p>
+          <p>{TERMS_AI_SCORING_PURPOSE_CLAUSE[english ? 'en' : 'cs']}</p>
           <p>{ui(
             'Uživatel zůstává odpovědný za obsah, který do služby vloží, a musí mít právo jej používat. Poskytovateli uděluje pouze takové oprávnění k technickému zpracování obsahu, které je nutné pro provoz služby a vyžádané AI operace.',
             'Users remain responsible for content they submit and must have the right to use it. They grant the provider only the rights needed to technically process that content to operate the service and perform requested AI operations.'
