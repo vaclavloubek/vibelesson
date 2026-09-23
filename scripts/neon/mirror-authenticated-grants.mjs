@@ -34,7 +34,7 @@ try {
     where n.nspname = 'public' and att.attnum > 0 and not att.attisdropped
       and a.grantee = 'authenticated'::regrole and a.privilege_type = any($1)`, [PRIVS])).rows;
   const functions = (await src.query(`
-    select p.proname as name, pg_get_function_identity_arguments(p.oid) as args
+    select p.proname as name, oidvectortypes(p.proargtypes) as args
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace, aclexplode(p.proacl) a
     where n.nspname = 'public' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'`)).rows;
   await src.query('rollback');
