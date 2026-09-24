@@ -24,6 +24,7 @@ const [
   serviceWorker,
   liveIdentifiers,
   presenterStyles,
+  studentSession,
 ] = await Promise.all([
   source('lib/fetch-with-timeout.ts'),
   source('lib/live-resume.ts'),
@@ -40,6 +41,7 @@ const [
   source('public/sw.js'),
   source('lib/live-identifiers.ts'),
   source('components/PresenterSession.module.css'),
+  source('components/StudentSession.tsx'),
 ]);
 
 requirePattern(timeout, /class FetchTimeoutError/, 'raw AbortError must be normalized before reaching live UI.');
@@ -89,6 +91,10 @@ requirePattern(worker, /timer: idleTimerFor\(target\)/, 'moving to a timer block
   requirePattern(nextConfig, /const connectSources = \[[\s\S]*`https:\/\/\$\{LIVE_CONTROL_HOST\}`[\s\S]*`wss:\/\/\$\{LIVE_CONTROL_HOST\}`[\s\S]*\];/, 'CSP connect-src must allow the Live Control Worker over https and wss.');
 }
 requirePattern(worker, /protocolVersion: LIVE_PROTOCOL_VERSION/, 'Worker health must expose its live protocol version.');
+requirePattern(studentSession, /myTeamResponse: teamResponse\s*\?\s*\{[^}]*submittedText: teamResponse\.submittedText/, 'student fallback team answer must carry submittedText so an edited draft is not shown as submitted.');
+if (/myTeamResponse: teamResponse\s*\?\s*\{[^}]*submitted: Boolean\(teamResponse\.submitted\)/.test(studentSession)) {
+  throw new Error('Live resilience regression: the sticky snapshot submitted flag must not mark an edited team draft as submitted.');
+}
 requirePattern(presenter, /fetchLiveControlState\(sessionId, 'presenter'\)/, 'Presenter must use a dedicated read-only Cloudflare capability.');
 requirePattern(presenter, /live-control\?role=presenter/, 'Presenter capability acquisition must explicitly request the presenter role.');
 requirePattern(liveControlRoute, /requestedRole\(req\)/, 'live-control capability route must derive the requested read role.');
