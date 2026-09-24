@@ -72,7 +72,7 @@ const copy = {
     liveCue: 'Podívat se na živou hodinu',
     notSlidesEyebrow: 'Ne další prezentace',
     notSlidesTitle: 'Příprava, interakce a vedení hodiny v jednom nástroji.',
-    notSlidesBody: 'Nemusíte zvlášť skládat slajdy, formulář, kvíz a odkaz pro studenty. Lekce vzniká jako jeden interaktivní scénář a zůstává propojená s živou session.',
+    notSlidesBody: 'Nemusíte zvlášť skládat slajdy, formulář, kvíz a odkaz pro studenty. Lekce vzniká jako jeden interaktivní scénář a zůstává propojená s živou hodinou.',
     roles: [
       ['Učitel', 'vidí trasu hodiny, poznámky a živé odpovědi'],
       ['Student', 'vidí vždy jen to, co právě potřebuje'],
