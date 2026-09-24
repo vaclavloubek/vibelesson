@@ -21,6 +21,10 @@ const [
   importRoute,
   sessionRoute,
   billingWebhook,
+  bankInvoiceMarkPaidRoute,
+  bankMatchRoute,
+  internalActivateRoute,
+  invitationAcceptRoute,
 ] = await Promise.all([
   source('lib/marketing-lifecycle.ts'),
   source('app/api/marketing-email-preferences/sync/route.ts'),
@@ -30,6 +34,10 @@ const [
   source('app/api/lesson-shares/[token]/import/route.ts'),
   source('app/api/sessions/[id]/route.ts'),
   source('app/api/billing/stripe/webhook/route.ts'),
+  source('app/api/admin/school-invoices/[orderId]/mark-paid/route.ts'),
+  source('app/api/billing/bank/resend/route.ts'),
+  source('app/api/internal/organizations/[id]/activate/route.ts'),
+  source('app/api/organizations/invitations/accept/route.ts'),
 ]);
 
 for (const eventName of [
@@ -39,6 +47,8 @@ for (const eventName of [
   'syllonaut.subscription.upgraded',
   'syllonaut.subscription.ended',
   'syllonaut.subscription.renewing_soon',
+  'syllonaut.organization_owner.activated',
+  'syllonaut.organization_member.joined',
   'syllonaut.quota.near_limit',
   'syllonaut.quota.reached',
 ]) {
@@ -72,6 +82,21 @@ requirePattern(lifecycle, /from public\.billing_subscriptions[\s\S]*?user_id = \
 requirePattern(billingWebhook, /if \(upcomingInvoice\.livemode\) \{[\s\S]*?await emitSubscriptionRenewingSoon\(subscriptionId\)/, 'only a LIVE invoice.upcoming may start the renewal reminder.');
 requirePattern(lifecycle, /'syllonaut\.subscription\.renewing_soon', \{ plan_code: subscription\.planCode \}/, 'renewal reminder must receive the renewing plan explicitly.');
 requirePattern(lifecycle, /external_subscription_id = \$\{subscriptionId\}\s+and status = 'active' and cancel_at_period_end = false/, 'renewal reminder must skip subscriptions that will not renew.');
+requirePattern(lifecycle, /'syllonaut\.organization_owner\.activated', \{ plan_code: payload\.plan_code \}/, 'organization owner onboarding must receive the organization plan explicitly.');
+requirePattern(lifecycle, /row\.activated_at !== null \|\| row\.is_internal_test !== false \|\| row\.livemode !== true/, 'owner onboarding must fire only on the first LIVE activation of a non-test organization.');
+requirePattern(lifecycle, /row\.plan_code !== 'school' && row\.plan_code !== 'campus'/, 'owner onboarding payload must be limited to school and campus plans.');
+for (const [name, route, lookup] of [
+  ['Stripe organization invoice', billingWebhook, /loadOrganizationFirstActivation\(\{ orderId: organizationInvoiceSync\.orderId \}\)/],
+  ['superadmin bank invoice confirmation', bankInvoiceMarkPaidRoute, /loadOrganizationFirstActivation\(\{ orderId \}\)/],
+  ['automatic bank payment match', bankMatchRoute, /loadOrganizationFirstActivation\(\{\s*variableSymbol: transaction\.variableSymbol,?\s*\}\)/],
+  ['internal organization activation', internalActivateRoute, /loadOrganizationFirstActivation\(\{ orderId: order\.id \}\)/],
+]) {
+  requirePattern(route, lookup, `${name} must read the pre-activation state before activating.`);
+  requirePattern(route, /scheduleOrganizationOwnerActivated\(firstActivation\)/, `${name} must start owner onboarding after the first activation.`);
+}
+requirePattern(invitationAcceptRoute, /after\(async \(\) => \{\s*try \{\s*await emitOrganizationMemberJoined\(userId\)/, 'accepted organization invitations must start member onboarding without blocking the response.');
+requirePattern(lifecycle, /organization\.isInternalTest\) return null;[\s\S]*?'syllonaut\.organization_member\.joined'/, 'internal test organization members must not start member onboarding.');
+requirePattern(lifecycle, /export async function emitOrganizationMemberJoined[\s\S]*?organization\.planCode !== 'school' && organization\.planCode !== 'campus'\) return null;[\s\S]*?'syllonaut\.organization_member\.joined'/, 'member onboarding must skip organizations outside School and Campus before sending the event.');
 requirePattern(billingWebhook, /syncMarketingPlan\(sync\.userId\)/, 'other live subscription updates must refresh contact plan state.');
 
 console.log('Marketing lifecycle checks passed.');

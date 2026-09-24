@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { emitOrganizationMemberJoined } from '@/lib/marketing-lifecycle';
 import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 
 const InputSchema = z.object({
@@ -59,6 +60,16 @@ export async function POST(request: Request) {
       { status: code === 'invitation_accept_failed' ? 500 : 409 },
     );
   }
+
+  after(async () => {
+    try {
+      await emitOrganizationMemberJoined(userId);
+    } catch (marketingError) {
+      console.warn('marketing organization member joined failed', {
+        code: marketingError instanceof Error ? marketingError.message : 'unknown',
+      });
+    }
+  });
 
   return NextResponse.json({ accepted: true, ...(data as Record<string, unknown>) });
 }

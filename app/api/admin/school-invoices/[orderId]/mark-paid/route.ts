@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
 import { isSuperadminUserId } from '@/lib/superadmin';
+import {
+  loadOrganizationFirstActivation,
+  scheduleOrganizationOwnerActivated,
+} from '@/lib/marketing-lifecycle';
 
 export async function POST(
   _request: Request,
@@ -17,6 +21,7 @@ export async function POST(
     return NextResponse.json({ error: 'superadmin_required' }, { status: 403 });
   }
 
+  const firstActivation = await loadOrganizationFirstActivation({ orderId });
   const admin = createPrivilegedRpcClient();
   const { data, error } = await admin.rpc(
     'confirm_organization_bank_payment_manual',
@@ -47,6 +52,10 @@ export async function POST(
       { error: code },
       { status: code === 'organization_bank_payment_confirmation_failed' ? 500 : 409 },
     );
+  }
+
+  if ((data as { processed?: unknown } | null)?.processed === true) {
+    scheduleOrganizationOwnerActivated(firstActivation);
   }
 
   return NextResponse.json({ confirmed: true, result: data });

@@ -13,6 +13,8 @@ import {
   emitSubscriptionEnded,
   emitSubscriptionRenewingSoon,
   emitSubscriptionUpgraded,
+  loadOrganizationFirstActivation,
+  scheduleOrganizationOwnerActivated,
   syncMarketingPlan,
 } from '@/lib/marketing-lifecycle';
 import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib/stripe-checkout';
@@ -123,6 +125,10 @@ export async function POST(request: Request) {
         return jsonError(409, 'organization_billing_route_mismatch');
       }
 
+      const firstActivation = organizationInvoiceSync.livemode && organizationInvoiceSync.eventType === 'invoice.paid'
+        ? await loadOrganizationFirstActivation({ orderId: organizationInvoiceSync.orderId })
+        : null;
+
       const { data, error } = await syncStripeBillingRpc('sync_organization_invoice_event', {
         p_event_id: organizationInvoiceSync.eventId,
         p_event_type: organizationInvoiceSync.eventType,
@@ -139,6 +145,10 @@ export async function POST(request: Request) {
           code: error.code,
         });
         return jsonError(500, 'organization_invoice_sync_failed');
+      }
+
+      if ((data as { processed?: unknown } | null)?.processed === true) {
+        scheduleOrganizationOwnerActivated(firstActivation);
       }
 
       let paymentMappings = 0;

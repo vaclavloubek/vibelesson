@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { normalizeUiLocale } from '@/lib/i18n';
 import { getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -14,6 +15,8 @@ export type MarketingLifecycleEvent =
   | 'syllonaut.subscription.upgraded'
   | 'syllonaut.subscription.ended'
   | 'syllonaut.subscription.renewing_soon'
+  | 'syllonaut.organization_owner.activated'
+  | 'syllonaut.organization_member.joined'
   | 'syllonaut.quota.near_limit'
   | 'syllonaut.quota.reached';
 
@@ -394,6 +397,123 @@ export async function emitSubscriptionRenewingSoon(subscriptionId: string) {
   if (result.status !== 'active') return result;
 
   await sendLifecycleEvent(result, 'syllonaut.subscription.renewing_soon', { plan_code: subscription.planCode });
+  return result;
+}
+
+export type OrganizationFirstActivation = {
+  ownerUserId: string;
+  planCode: 'school' | 'campus';
+};
+
+type OrganizationActivationRow = {
+  owner_user_id?: unknown;
+  plan_code?: unknown;
+  activated_at?: unknown;
+  is_internal_test?: unknown;
+  livemode?: unknown;
+};
+
+// Every activation RPC writes organizations.activated_at only once (coalesce), so a
+// null value read just before the RPC means that call performs the first activation.
+// Internal test organizations, sandbox orders and plans without an owner onboarding
+// flow (team) are skipped. Best-effort: a lookup failure must never block billing.
+export async function loadOrganizationFirstActivation(
+  lookup: { orderId: string } | { variableSymbol: string },
+): Promise<OrganizationFirstActivation | null> {
+  let row: OrganizationActivationRow | null | undefined;
+  try {
+    if (getDatabaseBackend() === 'neon') {
+      assertApprovedNeonCutover();
+      const sql = createNeonSql();
+      const rows = 'orderId' in lookup
+        ? await sql`
+          select o.owner_user_id, o.plan_code, o.activated_at, o.is_internal_test, oo.livemode
+          from public.organization_orders oo
+          join public.organizations o on o.id = oo.organization_id
+          where oo.id = ${lookup.orderId}::uuid
+          limit 1
+        `
+        : await sql`
+          select owner_user_id, plan_code, activated_at, is_internal_test, true as livemode
+          from public.organizations
+          where payment_variable_symbol = ${lookup.variableSymbol}
+          limit 1
+        `;
+      row = rows[0];
+    } else {
+      const admin = createAdminClient();
+      let organizationId: string | null = null;
+      let livemode: unknown = true;
+      if ('orderId' in lookup) {
+        const { data, error } = await admin
+          .from('organization_orders')
+          .select('organization_id, livemode')
+          .eq('id', lookup.orderId)
+          .maybeSingle();
+        if (error) throw new MarketingLifecycleError('marketing_organization_lookup_failed');
+        organizationId = data?.organization_id ?? null;
+        livemode = data?.livemode;
+      }
+      const query = admin
+        .from('organizations')
+        .select('owner_user_id, plan_code, activated_at, is_internal_test');
+      const { data, error } = organizationId
+        ? await query.eq('id', organizationId).maybeSingle()
+        : 'variableSymbol' in lookup
+          ? await query.eq('payment_variable_symbol', lookup.variableSymbol).maybeSingle()
+          : { data: null, error: null };
+      if (error) throw new MarketingLifecycleError('marketing_organization_lookup_failed');
+      row = data ? { ...data, livemode } : null;
+    }
+  } catch (lookupError) {
+    console.warn('marketing organization activation lookup failed', {
+      code: lookupError instanceof Error ? lookupError.message : 'unknown',
+    });
+    return null;
+  }
+
+  if (!row || row.activated_at !== null || row.is_internal_test !== false || row.livemode !== true) {
+    return null;
+  }
+  if (row.plan_code !== 'school' && row.plan_code !== 'campus') return null;
+  if (typeof row.owner_user_id !== 'string') return null;
+  return { ownerUserId: row.owner_user_id, planCode: row.plan_code };
+}
+
+export async function emitOrganizationOwnerActivated(userId: string, payload: { plan_code: string }) {
+  const result = await ensureMarketingContact(userId);
+  if (result.status !== 'active') return result;
+
+  await sendLifecycleEvent(result, 'syllonaut.organization_owner.activated', { plan_code: payload.plan_code });
+  return result;
+}
+
+// Runs after the response, so a marketing failure never fails the activation request.
+export function scheduleOrganizationOwnerActivated(activation: OrganizationFirstActivation | null) {
+  if (!activation) return;
+  const { ownerUserId, planCode } = activation;
+  after(async () => {
+    try {
+      await emitOrganizationOwnerActivated(ownerUserId, { plan_code: planCode });
+    } catch (marketingError) {
+      console.warn('marketing organization owner activation failed', {
+        code: marketingError instanceof Error ? marketingError.message : 'unknown',
+      });
+    }
+  });
+}
+
+export async function emitOrganizationMemberJoined(userId: string) {
+  // Internal test organizations never start marketing flows, and the member template
+  // speaks about a school organization, so only School and Campus members qualify.
+  const organization = await getCurrentOrganizationForUser(userId);
+  if (!organization || organization.isInternalTest) return null;
+  if (organization.planCode !== 'school' && organization.planCode !== 'campus') return null;
+
+  const result = await ensureMarketingContact(userId);
+  if (result.status !== 'active') return result;
+
+  await sendLifecycleEvent(result, 'syllonaut.organization_member.joined');
   return result;
 }
 
