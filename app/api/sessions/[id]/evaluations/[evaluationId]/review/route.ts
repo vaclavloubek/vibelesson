@@ -7,6 +7,7 @@ type RouteContext = { params: Promise<{ id: string; evaluationId: string }> };
 const ReviewBodySchema = z.object({
   score: z.number().int().min(0).max(20),
   note: z.string().trim().max(1000).optional().default(''),
+  noteForStudent: z.boolean().optional().default(false),
 });
 
 const ReviewResultSchema = z.object({
@@ -49,6 +50,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       p_evaluation_id: evaluationId,
       p_teacher_score: body.score,
       p_teacher_note: body.note || null,
+      p_note_for_student: body.noteForStudent,
     });
 
     if (reviewError) {

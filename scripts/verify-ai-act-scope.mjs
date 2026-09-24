@@ -26,6 +26,15 @@ const teacherBoard = read('components/TeacherScoreboard.tsx');
 assert.ok(teacherBoard.includes("ui('Potvrdit všechny návrhy AI', 'Confirm all AI suggestions')"), 'teacher can confirm AI suggestions in bulk');
 assert.ok(teacherBoard.includes('do skóre ani pořadí se nezapočítají, dokud je nepotvrdíš'), 'teacher is told unconfirmed AI points do not count');
 
+const studentServer = read('lib/neon/student-session-server.ts');
+const studentEvaluationsQuery = studentServer.slice(studentServer.indexOf('async function readConfirmedEvaluations'), studentServer.indexOf('async function verifyParticipant'));
+assert.ok(studentEvaluationsQuery.includes('and e.teacher_confirmed'), 'students may see only teacher-confirmed evaluations');
+assert.ok(!/ai_use|integrity/i.test(studentEvaluationsQuery), 'the AI-use integrity signal must never reach the student');
+assert.ok(studentEvaluationsQuery.includes("summary: source === 'ai' && rationale ? rationale : null"), 'the AI summary is shown only when the teacher confirmed the AI proposal unchanged');
+assert.ok(studentEvaluationsQuery.includes('teacherNote: row.teacher_note_for_student === true && note ? note : null'), 'only notes written for the student are shown to the student');
+assert.ok(read('components/StudentEvaluationCard.tsx').includes("ui('Souhrn AI hodnocení, potvrzený učitelem', 'AI evaluation summary, confirmed by the teacher')"), 'AI-generated summary must be visibly labelled for the student');
+assert.ok(read('components/EvaluationReviewQueue.tsx').includes("body: JSON.stringify({ score: 0, note }),"), 'the automatic integrity note must not be marked as a note for the student');
+
 const termsContent = read('lib/terms-content.ts');
 assert.ok(termsContent.includes('TERMS_AI_SCORING_PURPOSE_CLAUSE') && termsContent.includes('Funkce není určena k úřednímu hodnocení studentů'), 'intended purpose must exclude official assessment');
 assert.ok(read('app/terms/page.tsx').includes('TERMS_AI_SCORING_PURPOSE_CLAUSE') && read('lib/individual-contract-snapshot.ts').includes('TERMS_AI_SCORING_PURPOSE_CLAUSE'), 'Terms and contract snapshot state the intended purpose');

@@ -14,12 +14,13 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
+import StudentEvaluationCard from '@/components/StudentEvaluationCard';
 import StudentRevealedResults from '@/components/StudentRevealedResults';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
-import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer } from '@/lib/live';
+import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer, StudentEvaluation } from '@/lib/live';
 import { localizedApiError } from '@/lib/i18n';
 
 type Team = { id: string; name: string; memberCount: number };
@@ -42,6 +43,8 @@ type StudentState = {
   myTeam: Team | null;
   myTeamResponse: { text: string; updatedByParticipantId: string | null; submitted?: boolean; submittedText?: string | null; submittedAt?: string | null } | null;
   scoreboard: PublicScoreboardState | null;
+  myEvaluation?: StudentEvaluation | null;
+  myEvaluations?: StudentEvaluation[];
 };
 
 export default function StudentSession({ sessionId }: { sessionId: string }) {
@@ -124,6 +127,8 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
         ? { text: teamResponse.text, updatedByParticipantId: null, submitted: Boolean(teamResponse.submitted) }
         : current?.myTeamResponse ?? null,
       scoreboard: current?.scoreboard ?? null,
+      myEvaluation: current?.myEvaluation ?? null,
+      myEvaluations: current?.myEvaluations ?? [],
     }));
     hasLoadedRef.current = true;
     disconnectedRef.current = true;
@@ -363,6 +368,10 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                   } : current)}
                 />
               )}
+
+              {state.myEvaluation && state.myEvaluation.blockId === state.activeBlock.id ? (
+                <StudentEvaluationCard evaluation={state.myEvaluation} contentLanguage={state.lessonLanguage} />
+              ) : null}
             </>
           ) : <div className="error" role="status">{ui('Čekám na aktivní blok…', 'Waiting for the active block…')}</div>}
         </div>
@@ -389,6 +398,15 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
                   <span className="muted-copy">{ui('Konečné pořadí', 'Final ranking')}</span>
                 </div>
               </div>
+            </section>
+          ) : null}
+
+          {state.myEvaluations?.length ? (
+            <section aria-label={ui('Moje hodnocení', 'My evaluations')} style={{ display: 'grid', gap: 12 }}>
+              <h2 style={{ margin: '4px 0 0' }}>{ui('Moje hodnocení', 'My evaluations')}</h2>
+              {state.myEvaluations.map((evaluation) => (
+                <StudentEvaluationCard key={evaluation.blockId} evaluation={evaluation} showTitle contentLanguage={state.lessonLanguage} />
+              ))}
             </section>
           ) : null}
         </div>

@@ -22,6 +22,7 @@ Zakázané praktiky podle čl. 5 (např. rozpoznávání emocí ve vzděláván�
   - body z AI se do skóre a pořadí započítají až po potvrzení nebo úpravě učitelem: `lib/scoreboard-server.ts` a DB funkce `get_student_public_scoreboard` (Neon migrace `0012`);
   - učitel potvrzuje jednotlivě (`review_response_evaluation`) nebo hromadně vlastním úkonem (`confirm_ai_evaluation_proposals`, tlačítko „Potvrdit všechny návrhy AI“);
   - CSV export výsledků obsahuje jen odpovědi, body v něm nejsou.
+  - student vidí hodnocení své odpovědi až po potvrzení učitelem (`readConfirmedEvaluations` v `lib/neon/student-session-server.ts`): body, u nezměněného AI návrhu celkové zdůvodnění viditelně označené „Souhrn AI hodnocení, potvrzený učitelem“, u změněného jen body učitele; poznámku učitele jen tehdy, když ji učitel napsal jako „Poznámku pro studenta“ (Neon migrace `0014`). Signál využití AI se studentovi nezobrazuje nikdy.
 - **Profilování:** funkce hodnotí jednotlivou odpověď podle rubriky. Netvoří profil studenta a nepředvídá jeho výkon ani chování. Studenti se připojují bez účtu a body žádný profil nevytváří. **Právník musí potvrdit, že nejde o profilování ve smyslu čl. 6 odst. 3 posledního pododstavce**, protože s profilováním by výjimka neplatila.
 - **Předběžný závěr:** po zavedení opatření 0.9.105 funkce nespadá mezi vysoce rizikové systémy díky výjimce podle čl. 6 odst. 3 písm. d).
 
