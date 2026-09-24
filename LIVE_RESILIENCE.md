@@ -103,7 +103,7 @@ The teacher control room calls reconciliation periodically after the primary ser
 
 ### Privacy
 
-P2 temporarily processes participant display names, lesson content and student/team answers in Cloudflare Durable Objects. Before public production activation, confirm that privacy documentation and processor/subprocessor records accurately describe this processing and its retention.
+P2 temporarily processes participant display names, lesson content and student/team answers in Cloudflare Durable Objects. Since Worker 0.8.15 every `LiveSession` stub is obtained from `env.LIVE_SESSION.jurisdiction('eu')`, so the objects run and store data only in the Cloudflare EU jurisdiction. The stateless entry Worker still handles requests in the nearest Cloudflare data centre, and Cloudflare logs object IDs outside the EU for billing and debugging. Objects created before 0.8.15 outside the EU were not migrated; they are deleted by their retention alarm 7 days after the session's last activity (`LIVE_RETENTION_MS`). The same name maps to a different ID in the EU jurisdiction, so a session active during the switch must be re-bootstrapped from the primary database (the teacher `/api/sessions/<id>/live-control` route does this). The Privacy Notice (section 8) and the DPA sub-processor list describe this processing, the EU jurisdiction and the 7-day retention.
 
 ## Chaos test matrix
 

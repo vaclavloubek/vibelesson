@@ -67,7 +67,7 @@ type LiveEvent = {
 
 const encoder = new TextEncoder();
 const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const WORKER_VERSION = '0.8.14';
+const WORKER_VERSION = '0.8.15';
 const LIVE_PROTOCOL_VERSION = 2;
 
 function json(value: unknown, status = 200) {
@@ -393,8 +393,12 @@ export default {
     const route = sessionRoute(url);
     if (!route) return json({ error: 'Not found.' }, 404);
 
-    const id = env.LIVE_SESSION.idFromName(route.sessionId);
-    const stub = env.LIVE_SESSION.get(id);
+    // Every live session runs and stores its data only in the EU jurisdiction.
+    // Objects created before 0.8.15 outside it are not migrated; their 7-day
+    // retention alarm deletes them.
+    const liveSessions = env.LIVE_SESSION.jurisdiction('eu');
+    const id = liveSessions.idFromName(route.sessionId);
+    const stub = liveSessions.get(id);
     const headers = new Headers(request.headers);
 
     if (route.suffix === '/bootstrap') {

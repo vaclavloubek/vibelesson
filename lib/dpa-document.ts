@@ -70,7 +70,7 @@ export function getDpaDocument(locale: DpaLocale) {
       contact: 'Data Protection Officer · privacyquestions@cloudflare.com',
       purpose: 'Turnstile bot protection on the sign-in and registration forms, and Workers / Durable Objects for real-time control of live lessons.',
       dataScope: 'Turnstile: technical request, browser and anti-abuse signals; lesson content and student answers are not supplied to Turnstile. Live control: student display names, the lesson content shown to students, student and team responses and live-session state. Live-control data is deleted automatically 7 days after the session’s last activity.',
-      transfer: 'The location of the live-control Durable Objects is not restricted to the EU, so processing may occur outside the EEA; in that case the provider’s applicable Chapter V GDPR transfer safeguards are used.',
+      transfer: 'Live-control Durable Objects run and store data only in the Cloudflare EU jurisdiction. The stateless entry Worker handles requests in the nearest Cloudflare data centre, and Cloudflare logs the object identifier outside the EU for billing and debugging; any processing outside the EEA is covered by the provider’s applicable Chapter V GDPR transfer safeguards.',
     },
     {
       provider: 'Resend',
@@ -145,7 +145,7 @@ export function getDpaDocument(locale: DpaLocale) {
       contact: 'Data Protection Officer · privacyquestions@cloudflare.com',
       purpose: 'Turnstile – ochrana formulářů přihlášení a registrace proti robotům – a Workers / Durable Objects pro řízení živých lekcí v reálném čase.',
       dataScope: 'Turnstile: technické údaje o požadavku, prohlížeči a signály proti zneužití; obsah lekcí a studentské odpovědi se do Turnstile nepředávají. Živé řízení: zobrazovaná jména studentů, obsah lekce zobrazený studentům, odpovědi studentů a týmů a stav živé hodiny. Data živého řízení se automaticky mažou 7 dní po poslední aktivitě hodiny.',
-      transfer: 'Umístění Durable Objects pro živé řízení není omezeno na EU, zpracování proto může probíhat i mimo EHP; v takovém případě se použijí odpovídající záruky dodavatele podle kapitoly V GDPR.',
+      transfer: 'Durable Objects pro živé řízení běží a ukládají data jen v jurisdikci EU společnosti Cloudflare. Bezstavový vstupní Worker vyřizuje požadavky v nejbližším datovém centru Cloudflare a identifikátor objektu Cloudflare loguje i mimo EU pro účely fakturace a ladění; případné zpracování mimo EHP kryjí odpovídající záruky dodavatele podle kapitoly V GDPR.',
     },
     {
       provider: 'Resend',

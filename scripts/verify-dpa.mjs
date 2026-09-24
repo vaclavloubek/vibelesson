@@ -14,8 +14,8 @@ const gdpr = read('app/gdpr/page.tsx');
 const school = read('components/SchoolAdmin.tsx');
 const schoolApi = read('app/api/organizations/route.ts');
 
-if (!legal.includes("DPA_VERSION = '1.2'")) fail('active DPA version is missing');
-if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-24-dpa-v3'")) fail('active DPA acceptance key is missing');
+if (!legal.includes("DPA_VERSION = '1.3'")) fail('active DPA version is missing');
+if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-24-dpa-v4'")) fail('active DPA acceptance key is missing');
 
 for (const needle of [
   'Dokumentované pokyny',
@@ -102,6 +102,12 @@ for (const needle of [
 if (dpa.includes('Autentizace, PostgreSQL databáze') || dpa.includes('Authentication, PostgreSQL database and related backend')) fail('Supabase must not be described as the production database');
 const liveWorker = read('cloudflare/live-control/src/index.ts');
 if (!liveWorker.includes('const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;')) fail('live-control retention changed; update the DPA and Privacy Notice');
+// Live-control Durable Objects run in the Cloudflare EU jurisdiction; every stub must come from the EU subnamespace.
+if (!liveWorker.includes("env.LIVE_SESSION.jurisdiction('eu')") || /env\.LIVE_SESSION\.(idFromName|newUniqueId|idFromString|get|getByName)\(/.test(liveWorker)) {
+  fail('every LiveSession stub must be obtained from the EU jurisdiction subnamespace');
+}
+if (!dpa.includes('jen v jurisdikci EU') || !dpa.includes('only in the Cloudflare EU jurisdiction')) fail('DPA must state that live-control Durable Objects run in the EU jurisdiction');
+if (!gdpr.includes('jen v jurisdikci EU') || !gdpr.includes('only in the EU jurisdiction')) fail('Privacy Notice must state that live-control Durable Objects run in the EU jurisdiction');
 if (!terms.includes('TERMS_DPA_SCOPE_CLAUSE')) fail('Terms must extend the DPA to individual accounts used in teaching');
 
 for (const field of ['subprocessor.legalEntity', 'subprocessor.address', 'subprocessor.contact']) {
