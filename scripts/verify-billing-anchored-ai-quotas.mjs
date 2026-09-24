@@ -80,4 +80,18 @@ for (const [source, needle, label] of [
   if (!source.includes(needle)) throw new Error('Missing quota reset UI safeguard: ' + label);
 }
 
+const planOverrides = fs.readFileSync('neon/migrations/0013_expiring_plan_overrides.sql', 'utf8');
+const hourlyCron = fs.readFileSync('app/api/cron/neon-grading/route.ts', 'utf8');
+for (const [source, needle, label] of [
+  [planOverrides, 'add column if not exists plan_code text references public.billing_plans(code)', 'override can grant an individual plan'],
+  [planOverrides, 'meo.expires_at is null or meo.expires_at > now()', 'expired override plan is ignored'],
+  [planOverrides, 'v_override_plan.access_rank > v_plan.access_rank', 'override plan never downgrades a paid plan'],
+  [planOverrides, 'private.effective_billing_plan(p.id, true)', 'recompute starts from the live billing plan, not a stale override plan'],
+  [planOverrides, "refusing to patch", 'quota-window patch aborts on catalog drift'],
+  [planOverrides, 'delete from public.manual_entitlement_overrides', 'expired overrides are removed'],
+  [hourlyCron, 'private.expire_manual_entitlement_overrides()', 'hourly cron ends expired plan overrides'],
+]) {
+  if (!source.includes(needle)) throw new Error('Missing expiring plan override safeguard: ' + label);
+}
+
 console.log('Billing-anchored individual AI quota safeguards and customer-facing reset timing verified.');
