@@ -51,6 +51,9 @@ type Props = {
   initialOpen?: boolean;
   initialMode?: 'signin' | 'signup';
   signupRedirectPath?: string;
+  // The server already knows the visitor is signed in: hold the sign-in button
+  // until the client auth check finishes instead of flashing it.
+  signedInHint?: boolean;
 };
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'check-email' | 'verify-email';
@@ -148,11 +151,13 @@ export default function AuthControls({
   initialOpen = false,
   initialMode = 'signin',
   signupRedirectPath,
+  signedInHint = false,
 }: Props) {
   const locale = useUiLocale();
   const english = locale === 'en';
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const [quota, setQuota] = useState<AiQuotaSnapshot | null>(null);
   const [open, setOpen] = useState(initialOpen);
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -216,6 +221,8 @@ export default function AuthControls({
           : null;
         setUser(nextUser);
         onAuthChange(nextUser);
+      }).finally(() => {
+        if (mounted) setAuthResolved(true);
       });
       return () => { mounted = false; };
     }
@@ -223,6 +230,7 @@ export default function AuthControls({
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
       setUser(data.user);
+      setAuthResolved(true);
       onAuthChange(data.user);
       void loadQuota(data.user);
     });
@@ -640,6 +648,8 @@ export default function AuthControls({
       />
     );
   }
+
+  if (signedInHint && !authResolved) return <div className="auth-wrap" aria-hidden="true" />;
 
   return (
     <div className="auth-wrap">

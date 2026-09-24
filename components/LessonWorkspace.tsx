@@ -68,6 +68,7 @@ type Props = {
   initialFolderId?: string | null;
   licenseLocked?: boolean;
   organizationName?: string | null;
+  signedIn?: boolean;
 };
 
 export default function LessonWorkspace({
@@ -78,6 +79,7 @@ export default function LessonWorkspace({
   initialFolderId = null,
   licenseLocked = false,
   organizationName = null,
+  signedIn = false,
 }: Props) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -831,7 +833,7 @@ export default function LessonWorkspace({
         </nav>
         <div className="brand-side">
           <LocaleSwitcher />
-          <AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} />
+          <AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} signedInHint={signedIn || Boolean(initialOwnerId)} />
           <Link href="/new" className="primary button-link app-header-cta">{ui('Nová lekce', 'New lesson')}</Link>
         </div>
       </header>
