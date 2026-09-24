@@ -90,6 +90,8 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   const debounceRef = useRef<number | null>(null);
   const savePromiseRef = useRef<Promise<SaveOutcome> | null>(null);
   const claimPromiseRef = useRef<Promise<boolean> | null>(null);
+  const releasePromiseRef = useRef<Promise<void> | null>(null);
+  const submittingRef = useRef(false);
   const retryAttemptRef = useRef(0);
   const draftHydratedRef = useRef(false);
   const draftConflictRef = useRef(false);
@@ -203,14 +205,24 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
     return promise;
   }, [request, setLock]);
 
+  // A release racing a submit would delete the lock the submit just claimed,
+  // and the database rejects the submitted write. While a submit runs the
+  // lock is kept; submitAnswer releases it afterwards if the field is blurred.
   const releaseLock = useCallback(async () => {
-    if (!lockRef.current?.mine) return;
-    try {
-      const result = await request('release');
-      if (result.responseOk) setLock(null);
-    } catch {
-      // Expiring server lock is the fallback if release cannot reach the server.
-    }
+    if (!lockRef.current?.mine || submittingRef.current) return;
+    if (releasePromiseRef.current) return releasePromiseRef.current;
+    const promise = (async () => {
+      try {
+        const result = await request('release');
+        if (result.responseOk) setLock(null);
+      } catch {
+        // Expiring server lock is the fallback if release cannot reach the server.
+      } finally {
+        releasePromiseRef.current = null;
+      }
+    })();
+    releasePromiseRef.current = promise;
+    return promise;
   }, [request, setLock]);
 
   const saveNow = useCallback(async (): Promise<SaveOutcome> => {
@@ -537,7 +549,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   }
 
   async function submitAnswer() {
-    if (submitting || draftConflictRef.current || lockedByOther) return;
+    if (submittingRef.current || submitting || draftConflictRef.current || lockedByOther) return;
     const value = latestTextRef.current.trim();
     if (!value) {
       setError(ui('Společná týmová odpověď nemůže zůstat prázdná.', 'The shared team answer cannot be empty.'));
@@ -548,11 +560,24 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       return;
     }
 
+    // Set synchronously on click: the blur that the click caused must not
+    // release the lock while the submit is on its way.
+    submittingRef.current = true;
+    try {
+      await submitClaimedAnswer(value);
+    } finally {
+      submittingRef.current = false;
+      if (!focusedRef.current) void releaseLock();
+    }
+  }
+
+  async function submitClaimedAnswer(value: string) {
     if (debounceRef.current !== null) {
       window.clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
     if (savePromiseRef.current) await savePromiseRef.current;
+    if (releasePromiseRef.current) await releasePromiseRef.current;
 
     setSubmitting(true);
     setError('');
