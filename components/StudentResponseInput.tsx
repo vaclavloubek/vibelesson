@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PublicLessonBlock, StudentAnswer } from '@/lib/live';
 import { enqueueLiveOperation } from '@/lib/live-offline';
@@ -8,6 +8,7 @@ import { postLiveControlEvent } from '@/lib/live-control-client';
 import { activityMode, trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
+import { isUnchangedScaffold } from '@/lib/answer-scaffold';
 
 type Props = {
   sessionId: string;
@@ -55,6 +56,8 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   const [recentlyMoved, setRecentlyMoved] = useState<string | null>(null);
   const [moveStatus, setMoveStatus] = useState('');
   const trackedBlockResponsesRef = useRef(new Set<string>());
+  const answerFieldRef = useRef<HTMLTextAreaElement>(null);
+  const scaffoldHeadingId = useId();
 
   useEffect(() => {
     setSubmitted(responseSubmitted);
@@ -289,11 +292,36 @@ export default function StudentResponseInput({ sessionId, block, response, respo
   }
 
   if (block.type === 'open_text' || block.type === 'exit_ticket') {
+    const scaffold = block.answerScaffold?.trim() ?? '';
+
     function submit(event: FormEvent) {
       event.preventDefault();
       const value = text.trim();
       if (!value) return;
+      if (isUnchangedScaffold(value, scaffold)) {
+        setError(ui('Doplň osnovu vlastními slovy.', 'Complete the outline in your own words.'));
+        answerFieldRef.current?.focus();
+        return;
+      }
       void save({ text: value }, 'submit');
+    }
+
+    // Inserts the outline only into an empty field; the field is never
+    // prefilled automatically.
+    function insertScaffold() {
+      if (!scaffold || text.trim()) return;
+      setText(scaffold);
+      setSaved(false);
+      setSubmitted(false);
+      setError('');
+      window.requestAnimationFrame(() => {
+        const field = answerFieldRef.current;
+        if (!field) return;
+        field.focus();
+        const firstLineEnd = scaffold.indexOf('\n');
+        const caret = firstLineEnd >= 0 ? firstLineEnd : scaffold.length;
+        field.setSelectionRange(caret, caret);
+      });
     }
 
     const isExit = block.type === 'exit_ticket';
@@ -302,9 +330,20 @@ export default function StudentResponseInput({ sessionId, block, response, respo
         <span className="eyebrow">{isExit ? ui('Tvoje závěrečná odpověď', 'Your final answer') : ui('Tvoje odpověď', 'Your answer')}</span>
         <p className="muted-copy" style={{ marginTop: 8, marginBottom: 0 }}>{ui('Text můžeš průběžně ukládat jako koncept. AI hodnocení se zařadí až ve chvíli, kdy odpověď odevzdáš.', 'You can save the text as a draft while working. AI grading is queued only after you submit the answer.')}</p>
         <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginTop: 10 }}>
+          {scaffold ? (
+            <div className="reveal" role="group" aria-labelledby={scaffoldHeadingId} style={{ marginTop: 0 }}>
+              <strong id={scaffoldHeadingId}>{ui('Může ti pomoct tato osnova', 'This outline may help you')}</strong>
+              <p style={{ whiteSpace: 'pre-wrap', margin: '6px 0 10px' }} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{scaffold}</p>
+              <button type="button" className="secondary" disabled={busy || Boolean(text.trim())} onClick={insertScaffold}>
+                {ui('Vložit osnovu do odpovědi', 'Insert the outline into my answer')}
+              </button>
+              {text.trim() ? <p className="muted-copy" style={{ margin: '6px 0 0' }}>{ui('Osnovu lze vložit jen do prázdného pole.', 'The outline can only be inserted into an empty field.')}</p> : null}
+            </div>
+          ) : null}
           <label>
             {isExit ? ui('Závěrečná odpověď', 'Final answer') : ui('Odpověď', 'Answer')}
             <textarea
+              ref={answerFieldRef}
               value={text}
               onChange={(event) => { setText(event.target.value); setSaved(false); setSubmitted(false); }}
               maxLength={2000}

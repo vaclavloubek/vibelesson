@@ -78,6 +78,8 @@ function Block({ block, index, teacherMode, editable, selected, recentlyChanged,
       {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal" role="status">{english ? 'Correct answer:' : 'Správná odpověď:'} <strong lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.correctAnswer}</strong></div> : null}
       {block.type === 'timer' ? <div className="timerbox"><strong role="timer" aria-label={`${english ? 'Time remaining' : 'Zbývající čas'} ${mm}:${ss}`}>{mm}:{ss}</strong><button type="button" className="secondary" onClick={() => setRunning((v) => !v)}>{running ? (english ? 'Pause' : 'Pauza') : 'Start'}</button><button type="button" className="secondary" onClick={() => { setRunning(false); setSeconds(block.durationMinutes * 60); }}>Reset</button></div> : null}
       {teacherMode && block.teacherNote ? <details><summary>{english ? 'Teacher note' : 'Poznámka pro učitele'}</summary><p lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.teacherNote}</p></details> : null}
+      {teacherMode && block.modelAnswer ? <details><summary>{english ? 'Model answer (written by AI)' : 'Vzorová odpověď (vytvořila AI)'}</summary><p style={{ whiteSpace: 'pre-wrap' }} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.modelAnswer}</p></details> : null}
+      {teacherMode && block.answerScaffold ? <details><summary>{english ? 'Outline for students' : 'Osnova pro studenty'}</summary><p style={{ whiteSpace: 'pre-wrap' }} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.answerScaffold}</p></details> : null}
     </article>
   );
 }

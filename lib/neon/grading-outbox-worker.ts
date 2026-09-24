@@ -75,6 +75,7 @@ export async function processOneNeonGradingOutboxJob() {
       rubric,
       maxPoints: job.max_points,
       strictness: lesson.gradingStrictness ?? 'neutral',
+      answerScaffold: block.answerScaffold,
     });
 
     const finishedRows = await sql`

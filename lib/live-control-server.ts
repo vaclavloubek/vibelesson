@@ -102,10 +102,12 @@ export function mintLiveCapability(input: LiveCapabilityInput): LiveControlAcces
   };
 }
 
+// The snapshot reaches the Live Control Worker and, in the fallback path,
+// every student. Keep answerScaffold; the model answer is teacher-only.
 export function publicLessonSnapshot(lesson: Lesson) {
   return {
     ...lesson,
-    blocks: lesson.blocks.map(({ teacherNote: _teacherNote, correctAnswer: _correctAnswer, gradingRubric: _gradingRubric, ...block }) => block),
+    blocks: lesson.blocks.map(({ teacherNote: _teacherNote, correctAnswer: _correctAnswer, gradingRubric: _gradingRubric, modelAnswer: _modelAnswer, ...block }) => block),
   };
 }
 

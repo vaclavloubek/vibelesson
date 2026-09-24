@@ -100,12 +100,36 @@ function dataTableNode(block: LessonBlock): PdfNode | null {
   };
 }
 
+function answerScaffoldNode(scaffold: string, english: boolean): PdfNode {
+  return {
+    margin: [28, 8, 0, 0],
+    table: { widths: ['*'], body: [[{ stack: [
+      { text: english ? 'ANSWER OUTLINE' : 'OSNOVA ODPOVĚDI', fontSize: 7, bold: true, color: MUTED, characterSpacing: 0.5, margin: [0, 0, 0, 2] },
+      { text: cleanText(scaffold), fontSize: 9, lineHeight: 1.3 },
+    ], margin: [7, 5, 7, 5] }]] },
+    layout: {
+      hLineColor: () => LINE,
+      vLineColor: () => LINE,
+      hLineWidth: () => 0.6,
+      vLineWidth: () => 0.6,
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+  };
+}
+
 function teacherKey(block: LessonBlock, english: boolean): PdfNode | null {
   const parts: PdfNode[] = [];
   if (block.correctAnswer) parts.push({ text: [{ text: english ? 'Correct answer: ' : 'Správná odpověď: ', bold: true }, cleanText(block.correctAnswer)] });
   if (block.revealText) {
     parts.push({ text: english ? 'Reveal / solution:' : 'Odhalení / řešení:', bold: true, margin: [0, parts.length ? 4 : 0, 0, 1] });
     parts.push(...instructionNodes(block.revealText));
+  }
+  if (block.modelAnswer) {
+    parts.push({ text: english ? 'Model answer (written by AI):' : 'Vzorová odpověď (vytvořila AI):', bold: true, margin: [0, parts.length ? 4 : 0, 0, 1] });
+    parts.push({ text: cleanText(block.modelAnswer), lineHeight: 1.3 });
   }
   if (block.teacherNote) parts.push({ text: [{ text: english ? 'Teacher note: ' : 'Poznámka pro učitele: ', bold: true }, cleanText(block.teacherNote)], margin: [0, parts.length ? 4 : 0, 0, 0] });
   if (block.gradingRubric?.length) {
@@ -198,6 +222,7 @@ function activityNode(block: LessonBlock, index: number, mode: WorksheetMode, sp
   }
 
   if (block.type === 'open_text' || block.type === 'exit_ticket' || block.type === 'team_task') {
+    if (mode !== 'teacher' && block.answerScaffold) body.push(answerScaffoldNode(block.answerScaffold, english));
     body.push(answerLines(worksheetAnswerLineCount(space, block.type)));
   }
 
@@ -291,8 +316,13 @@ export function createWorksheetPdfDefinition({
   };
 }
 
-export async function createWorksheetPdfBuffer(args: Parameters<typeof createWorksheetPdfDefinition>[0]) {
-  const definition = createWorksheetPdfDefinition(args);
+// Shared by other server-rendered PDFs (e.g. the student "My solutions" PDF)
+// so they use the same pdfmake fonts.
+export async function renderPdfBuffer(definition: Parameters<typeof pdfMake.createPdf>[0]) {
   const buffer = await pdfMake.createPdf(definition).getBuffer();
   return Buffer.from(buffer);
+}
+
+export async function createWorksheetPdfBuffer(args: Parameters<typeof createWorksheetPdfDefinition>[0]) {
+  return renderPdfBuffer(createWorksheetPdfDefinition(args));
 }

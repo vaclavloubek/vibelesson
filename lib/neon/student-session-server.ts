@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
+import { isUnchangedScaffold, UNCHANGED_SCAFFOLD_ERROR } from '@/lib/answer-scaffold';
 import { scheduleNeonGradingDrain } from '@/lib/neon/grading-outbox-worker';
 import { createNeonSql } from '@/lib/neon/server';
 import type { StudentEvaluation } from '@/lib/live';
@@ -42,7 +43,8 @@ function blocks(snapshot: unknown) {
 
 function publicBlock(block: Block) {
   const result: Record<string, unknown> = {};
-  for (const key of ['id', 'type', 'title', 'durationMinutes', 'instructions', 'options', 'items', 'dataTable', 'revealText', 'points']) {
+  // modelAnswer, correctAnswer, teacherNote and gradingRubric stay on the server.
+  for (const key of ['id', 'type', 'title', 'durationMinutes', 'instructions', 'options', 'items', 'dataTable', 'revealText', 'points', 'answerScaffold']) {
     if (block[key] !== undefined) result[key] = block[key];
   }
   return result;
@@ -440,6 +442,14 @@ async function respond(body: Record<string, unknown>) {
   if (!normalized.answer) return json({ error: normalized.error ?? 'Neplatná odpověď.' }, normalized.status ?? 400);
 
   const responseAction = body.responseAction === 'submit' ? 'submit' : 'save';
+  if (
+    responseAction === 'submit'
+    && 'text' in normalized.answer
+    && (block.type === 'open_text' || block.type === 'exit_ticket')
+    && isUnchangedScaffold(normalized.answer.text, block.answerScaffold)
+  ) {
+    return json({ error: UNCHANGED_SCAFFOLD_ERROR }, 400);
+  }
   const marksSubmission = responseAction === 'submit' && (block.type === 'open_text' || block.type === 'exit_ticket' || block.type === 'ranking');
   const queuesEvaluation = responseAction === 'submit' && (block.type === 'open_text' || block.type === 'exit_ticket');
   const timestamp = new Date().toISOString();
@@ -506,6 +516,70 @@ export async function handleNeonStudentSessionAction(body: Record<string, unknow
     console.error('Neon student-session server module failed', error);
     return json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   }
+}
+
+/**
+ * Data for the student's "My solutions" PDF. Available only after the teacher
+ * ended the lesson. Evaluations come from readConfirmedEvaluations, so the PDF
+ * shows exactly what "My evaluations" shows (teacher-confirmed only, no
+ * integrity signals, no internal teacher notes).
+ */
+export async function readNeonStudentSolutions(sessionId: string, rawToken: string) {
+  const verified = await verifyParticipant(sessionId, rawToken);
+  if (verified.response) return { response: verified.response };
+  const participant = verified.participant!;
+  const sql = createNeonSql();
+  const sessions = await sql`
+    select status, lesson_snapshot, started_at, created_at
+    from public.sessions
+    where id = ${sessionId}::uuid
+    limit 1
+  `;
+  const session = sessions[0];
+  if (!session) return { response: json({ error: 'Hodina neexistuje.' }, 404) };
+  if (session.status !== 'ended') return { response: json({ error: 'Řešení je k dispozici až po skončení hodiny.' }, 409) };
+
+  const teamId = typeof participant.team_id === 'string' ? participant.team_id : null;
+  const [responseRows, teamResponseRows, teamRows] = await Promise.all([
+    sql`
+      select block_id, answer, submitted_answer, submitted_at
+      from public.responses
+      where session_id = ${sessionId}::uuid
+        and participant_id = ${participant.id}::uuid
+    `,
+    teamId
+      ? sql`
+          select block_id, answer, submitted_answer, submitted_at
+          from public.team_responses
+          where session_id = ${sessionId}::uuid
+            and team_id = ${teamId}::uuid
+        `
+      : Promise.resolve([]),
+    teamId
+      ? sql`select name from public.teams where id = ${teamId}::uuid and session_id = ${sessionId}::uuid limit 1`
+      : Promise.resolve([]),
+  ]);
+  const allBlocks = blocks(session.lesson_snapshot);
+  const lesson = (session.lesson_snapshot ?? {}) as { title?: unknown; language?: unknown };
+  const toRow = (row: Record<string, unknown>) => ({
+    blockId: String(row.block_id),
+    answer: row.answer,
+    submittedAnswer: row.submitted_answer,
+    submittedAt: row.submitted_at,
+  });
+  return {
+    data: {
+      lessonTitle: typeof lesson.title === 'string' ? lesson.title : 'Hodina',
+      lessonLanguage: typeof lesson.language === 'string' ? lesson.language : null,
+      studentName: String(participant.display_name ?? ''),
+      teamName: typeof teamRows[0]?.name === 'string' ? teamRows[0].name : null,
+      sessionStartedAt: (session.started_at ?? session.created_at ?? null) as unknown,
+      blocks: allBlocks,
+      responses: responseRows.map(toRow),
+      teamResponses: teamResponseRows.map(toRow),
+      evaluations: await readConfirmedEvaluations(sessionId, participant, allBlocks, null),
+    },
+  };
 }
 
 export async function readNeonStudentScoreboard(sessionId: string, participantTokenHash: string) {

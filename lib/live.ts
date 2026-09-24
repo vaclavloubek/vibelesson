@@ -65,6 +65,7 @@ export const PublicLessonBlockSchema = LessonBlockSchema.omit({
   teacherNote: true,
   correctAnswer: true,
   gradingRubric: true,
+  modelAnswer: true,
 });
 export type PublicLessonBlock = z.infer<typeof PublicLessonBlockSchema>;
 

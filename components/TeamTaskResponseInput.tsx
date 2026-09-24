@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { PublicLessonBlock } from '@/lib/live';
 import { postLiveControlEvent } from '@/lib/live-control-client';
 import { cacheLiveDraft, deleteCachedLiveDraft, getCachedLiveDraft } from '@/lib/live-offline';
 import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
+import { isUnchangedScaffold } from '@/lib/answer-scaffold';
 
 type Props = {
   sessionId: string;
@@ -94,6 +95,9 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
   const draftConflictRef = useRef(false);
   const primaryUnavailableRef = useRef(false);
   const submissionTrackedRef = useRef(false);
+  const answerFieldRef = useRef<HTMLTextAreaElement>(null);
+  const scaffoldHeadingId = useId();
+  const scaffold = block.answerScaffold?.trim() ?? '';
 
   function trackTeamSubmission() {
     if (submissionTrackedRef.current) return;
@@ -539,6 +543,10 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       setError(ui('Společná týmová odpověď nemůže zůstat prázdná.', 'The shared team answer cannot be empty.'));
       return;
     }
+    if (isUnchangedScaffold(value, scaffold)) {
+      setError(ui('Doplň osnovu vlastními slovy.', 'Complete the outline in your own words.'));
+      return;
+    }
 
     if (debounceRef.current !== null) {
       window.clearTimeout(debounceRef.current);
@@ -611,6 +619,21 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
     }
   }
 
+  // Inserts the outline only into an empty shared field and then saves it the
+  // same way as typing (focus claims the team lock, autosave stores a draft).
+  function insertScaffold() {
+    if (!scaffold || latestTextRef.current.trim() || lockedByOther || draftConflictRef.current || submitting) return;
+    handleChange(scaffold);
+    window.requestAnimationFrame(() => {
+      const field = answerFieldRef.current;
+      if (!field) return;
+      field.focus();
+      const firstLineEnd = scaffold.indexOf('\n');
+      const caret = firstLineEnd >= 0 ? firstLineEnd : scaffold.length;
+      field.setSelectionRange(caret, caret);
+    });
+  }
+
   async function useRecoveredDraft() {
     setDraftConflictState(false);
     setDraftRecovered(false);
@@ -658,9 +681,20 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           {ui('Právě upravuje', 'Currently editing:')} <strong>{lock!.holderDisplayName}</strong>. {ui('Můžeš odpověď číst, editor se uvolní automaticky.', 'You can read the answer; the editor will unlock automatically.')}
         </div>
       ) : null}
+      {scaffold ? (
+        <div className="reveal" role="group" aria-labelledby={scaffoldHeadingId} style={{ marginTop: 12 }}>
+          <strong id={scaffoldHeadingId}>{ui('Může ti pomoct tato osnova', 'This outline may help you')}</strong>
+          <p style={{ whiteSpace: 'pre-wrap', margin: '6px 0 10px' }}>{scaffold}</p>
+          <button type="button" className="secondary" disabled={lockedByOther || draftConflict || submitting || Boolean(text.trim())} onClick={insertScaffold}>
+            {ui('Vložit osnovu do odpovědi', 'Insert the outline into the answer')}
+          </button>
+          {text.trim() ? <p className="muted-copy" style={{ margin: '6px 0 0' }}>{ui('Osnovu lze vložit jen do prázdného pole.', 'The outline can only be inserted into an empty field.')}</p> : null}
+        </div>
+      ) : null}
       <label style={{ marginTop: 12 }}>
         {ui('Společná týmová odpověď', 'Shared team answer')}
         <textarea
+          ref={answerFieldRef}
           value={text}
           onFocus={() => { void handleFocus(); }}
           onBlur={() => { void handleBlur(); }}

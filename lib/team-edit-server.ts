@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createHash } from 'node:crypto';
+import { isUnchangedScaffold, UNCHANGED_SCAFFOLD_ERROR } from '@/lib/answer-scaffold';
 import { useNeonLiveSessionData } from '@/lib/neon/live-session-config';
 import { handleNeonTeamEditAction } from '@/lib/neon/team-edit-server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -39,14 +40,18 @@ function hash(value: string) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function blockType(snapshot: unknown, blockId: string) {
+function findBlock(snapshot: unknown, blockId: string) {
   const lesson = (snapshot ?? {}) as { blocks?: unknown };
-  if (!Array.isArray(lesson.blocks)) return null;
-  const block = lesson.blocks.find((candidate) => (
+  if (!Array.isArray(lesson.blocks)) return undefined;
+  return lesson.blocks.find((candidate) => (
     Boolean(candidate)
     && typeof candidate === 'object'
     && (candidate as Record<string, unknown>).id === blockId
   )) as Record<string, unknown> | undefined;
+}
+
+function blockType(snapshot: unknown, blockId: string) {
+  const block = findBlock(snapshot, blockId);
   return typeof block?.type === 'string' ? block.type : null;
 }
 
@@ -217,6 +222,9 @@ async function submit(body: Record<string, unknown>) {
   if ('response' in loaded) return loaded.response ?? json({ error: 'Požadavek se nepodařilo zpracovat.' }, 500);
   const context = loaded.context!;
   const sessionId = loaded.sessionId!;
+  if (isUnchangedScaffold(text, findBlock(context.session.lesson_snapshot, context.blockId)?.answerScaffold)) {
+    return json({ error: UNCHANGED_SCAFFOLD_ERROR }, 400);
+  }
 
   let claimed;
   try {
