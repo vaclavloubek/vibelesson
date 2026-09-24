@@ -1,11 +1,13 @@
 'use server';
 
+import { after } from 'next/server';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
 import { createServerAuth } from '@/lib/neon/auth';
 import { createNeonSql } from '@/lib/neon/server';
 import { verifyNeonAuthChallenge } from '@/lib/neon/turnstile';
 import { ensureTrustedDeviceCookie } from '@/lib/trusted-device-access';
 import { TERMS_ACCEPTANCE_KEY, TERMS_VERSION } from '@/lib/legal';
+import { startMarketingOnboarding } from '@/lib/marketing-lifecycle';
 
 type AuthActionResult = { error?: string };
 type SignInResult = AuthActionResult & { needsVerification?: boolean };
@@ -55,15 +57,44 @@ function normalizedAuthEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254 ? value : null;
 }
 
+async function findUnverifiedNeonUserId(email: string): Promise<string | null> {
+  try {
+    const rows = await createNeonSql()`
+      select u.id::text as id from neon_auth."user" u
+      where lower(u.email) = ${email} and u."emailVerified" = false
+      limit 1
+    `;
+    const id = rows[0]?.id;
+    return typeof id === 'string' ? id : null;
+  } catch {
+    // Missing one welcome email is safer than sending it twice.
+    return null;
+  }
+}
+
 export async function verifyNeonEmailForApp(email: string, code: string): Promise<AuthActionResult & { signedIn?: boolean }> {
   if (!neonAppAuthIsAvailable()) return { error: 'Neon Auth is not active for this deployment.' };
   const normalizedEmail = normalizedAuthEmail(email);
   const otp = code.replace(/\s+/g, '');
   if (!normalizedEmail || !/^\d{6}$/.test(otp)) return { error: 'Invalid verification code.' };
   try {
+    // A verification code can also be requested for an already verified account;
+    // only the first verification completes the signup and starts onboarding.
+    const pendingUserId = await findUnverifiedNeonUserId(normalizedEmail);
     // Neon Auth limits wrong attempts per code; the user can request a new one.
     const { data, error } = await createServerAuth().emailOtp.verifyEmail({ email: normalizedEmail, otp });
     if (error) return { error: 'Invalid verification code.' };
+    if (pendingUserId) {
+      after(async () => {
+        try {
+          await startMarketingOnboarding(pendingUserId);
+        } catch (marketingError) {
+          console.warn('marketing onboarding start failed', {
+            code: marketingError instanceof Error ? marketingError.message : 'unknown',
+          });
+        }
+      });
+    }
     const signedIn = Boolean((data as { token?: unknown } | null)?.token);
     if (signedIn) await ensureTrustedDeviceCookie();
     return { signedIn };
