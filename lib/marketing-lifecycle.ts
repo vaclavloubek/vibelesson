@@ -504,9 +504,11 @@ export function scheduleOrganizationOwnerActivated(activation: OrganizationFirst
 }
 
 export async function emitOrganizationMemberJoined(userId: string) {
-  // Internal test organizations never start marketing flows.
+  // Internal test organizations never start marketing flows, and the member template
+  // speaks about a school organization, so only School and Campus members qualify.
   const organization = await getCurrentOrganizationForUser(userId);
   if (!organization || organization.isInternalTest) return null;
+  if (organization.planCode !== 'school' && organization.planCode !== 'campus') return null;
 
   const result = await ensureMarketingContact(userId);
   if (result.status !== 'active') return result;

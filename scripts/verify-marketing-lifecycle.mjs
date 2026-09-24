@@ -96,6 +96,7 @@ for (const [name, route, lookup] of [
 }
 requirePattern(invitationAcceptRoute, /after\(async \(\) => \{\s*try \{\s*await emitOrganizationMemberJoined\(userId\)/, 'accepted organization invitations must start member onboarding without blocking the response.');
 requirePattern(lifecycle, /organization\.isInternalTest\) return null;[\s\S]*?'syllonaut\.organization_member\.joined'/, 'internal test organization members must not start member onboarding.');
+requirePattern(lifecycle, /export async function emitOrganizationMemberJoined[\s\S]*?organization\.planCode !== 'school' && organization\.planCode !== 'campus'\) return null;[\s\S]*?'syllonaut\.organization_member\.joined'/, 'member onboarding must skip organizations outside School and Campus before sending the event.');
 requirePattern(billingWebhook, /syncMarketingPlan\(sync\.userId\)/, 'other live subscription updates must refresh contact plan state.');
 
 console.log('Marketing lifecycle checks passed.');
