@@ -248,7 +248,7 @@ function itemNode(item: SolutionItem, index: number, english: boolean, teamName:
   if (item.options.length) body.push({ ul: item.options.map((option) => cleanText(option)), margin: [12, 4, 0, 0], fontSize: 9 });
 
   const answerTitle = item.team
-    ? (teamName ? label(english, `Odpověď týmu ${teamName}`, `Answer of team ${teamName}`) : label(english, 'Odpověď týmu', 'Team answer'))
+    ? (teamName ? label(english, `Odpověď týmu ${teamName}`, `Team answer (${teamName})`) : label(english, 'Odpověď týmu', 'Team answer'))
     : label(english, 'Moje odpověď', 'My answer');
   body.push(sectionLabel(answerTitle));
   body.push(...answerNodes(item, english));
