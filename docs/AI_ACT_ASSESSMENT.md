@@ -30,6 +30,7 @@ Zakázané praktiky podle čl. 5 (např. rozpoznávání emocí ve vzděláván�
 
 - **Příloha III bod 3 písm. d)** zahrnuje sledování a odhalování zakázaného chování studentů během testů. Syllonaut není testovací nástroj. Signál ale může padnout i na exit-ticket.
 - Signál nemění body, není důkazem, automaticky nic nevyvolává a jen upozorní učitele: `AI_INTEGRITY_NOTICE_EXPLANATION`, `scripts/verify-ai-integrity-alert.mjs`. Automatické ověřování studentů je zakázané regresním testem.
+- Signál kombinuje odhad modelu a deterministické stopy kopírování z AI chatu v odevzdaném textu (neviditelné znaky, LaTeX, Markdown, zkopírovaná zalomení řádků; `lib/ai-copy-artifacts.ts`). Posuzuje jen odevzdaný text; psaní ani vkládání textu se nesleduje. Sledování chování studenta při psaní by bylo blíž příloze III bodu 3 písm. d) a bez posouzení právníkem se nezavádí.
 - **Předběžný závěr:** výjimka podle čl. 6 odst. 3 písm. d), případně písm. c). Uplatnění pro exit-tickety má potvrdit právník.
 
 ## 4. Povinnosti bez ohledu na klasifikaci
