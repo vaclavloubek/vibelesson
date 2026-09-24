@@ -113,6 +113,26 @@ requirePattern(gradingWorker, /fail_grading_job/, 'server-driven AI grading must
   requirePattern(teamTask, /submittingRef\.current = true;\s*try \{\s*await submitClaimedAnswer\(value\);/, 'team submit must mark itself synchronously before the first await.');
   requirePattern(teamTask, /if \(releasePromiseRef\.current\) await releasePromiseRef\.current;/, 'team submit must wait for an in-flight lock release before claiming the lock.');
   requirePattern(teamTask, /submittingRef\.current = false;\s*if \(!focusedRef\.current\) void releaseLock\(\);/, 'team editor must release the lock after submit when the field is no longer focused.');
+  requirePattern(teamTask, /debounceRef\.current = null;\s*\}\s*(?:\/\/[^\n]*\n\s*)*if \(submittingRef\.current\) return;\s*if \(savePromiseRef\.current\)/, 'handleBlur must not save or release while a submit is running.');
+  requirePattern(teamTask, /onPointerDown=\{\(event\) => event\.preventDefault\(\)\}\s*onMouseDown=\{\(event\) => event\.preventDefault\(\)\}\s*onClick=\{\(\) => \{ void submitAnswer\(\); \}\}/, 'the submit button must keep focus in the field on pointer and mouse down.');
+
+  // Even with the client guard, the server must not let a release land
+  // between the lock claim and the team answer write: both run in one
+  // transaction, a lost lock is retried once and then answered with 409.
+  // Race reproducer (temporary Neon branch): scripts/neon/reproduce-team-edit-submit-race.mjs.
+  const teamEditServer = await source('lib/neon/team-edit-server.ts');
+  requirePattern(teamEditServer, /await sql\.transaction\(\[\s*claimLockQuery\(sql, context, sessionId\),\s*write\(sql\),\s*\]\)/, 'team answer writes must claim the lock in the same transaction.');
+  requirePattern(teamEditServer, /for \(let attempt = 0; attempt < 2; attempt \+= 1\)/, 'a lost team edit lock must be retried exactly once.');
+  requirePattern(teamEditServer, /if \(!errorMessage\(error\)\.includes\(LOCK_LOST_ERROR\)\) throw error;/, 'only team_response_active_edit_lock_required may be retried.');
+  for (const action of ['save', 'submit']) {
+    const body = teamEditServer.slice(teamEditServer.indexOf(`async function ${action}(`));
+    const fn = body.slice(0, body.indexOf('\n}\n'));
+    requirePattern(fn, /claimLockAndWrite\(context, sessionId,/, `team edit ${action} must write through claimLockAndWrite.`);
+    requirePattern(fn, /where \$\{heldLockCondition\(sql, context, sessionId\)\}/, `team edit ${action} must guard its write by the held lock.`);
+    requirePattern(fn, /written\.outcome === 'lost'\) return json\(\{ error: 'Editor se mezitím uvolnil, [^']+', lock \}, 409\)/, `team edit ${action} must answer a lost lock with 409, not 500.`);
+    if (/await claimLock\(/.test(fn)) throw new Error(`Live resilience regression: team edit ${action} must not claim the lock outside the write transaction.`);
+  }
+  requirePattern(teamEditServer, /'Editor se mezitím uvolnil, zkus odevzdat znovu\.'/, 'submit must tell the student to submit again after a lost lock.');
 }
 
 console.log('Live resilience source checks passed.');

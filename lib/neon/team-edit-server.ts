@@ -6,6 +6,10 @@ import { scheduleNeonGradingDrain } from '@/lib/neon/grading-outbox-worker';
 import { createNeonSql } from '@/lib/neon/server';
 
 const LOCK_TTL_SECONDS = 60;
+const LOCK_LOST_ERROR = 'team_response_active_edit_lock_required';
+
+type NeonSql = ReturnType<typeof createNeonSql>;
+type NeonQuery = ReturnType<NeonSql>;
 
 type Participant = { id: string; display_name: string; team_id: string | null };
 type SessionRow = { status: string; active_block_id: string | null; lesson_snapshot: unknown; realtime_key: string };
@@ -129,9 +133,8 @@ async function lockInfo(sessionId: string, teamId: string, blockId: string, view
   };
 }
 
-async function claimLock(context: Context, sessionId: string) {
-  const sql = createNeonSql();
-  const rows = await sql`
+function claimLockQuery(sql: NeonSql, context: Context, sessionId: string) {
+  return sql`
     select *
     from public.claim_team_edit_lock(
       ${sessionId}::uuid,
@@ -141,10 +144,61 @@ async function claimLock(context: Context, sessionId: string) {
       ${LOCK_TTL_SECONDS}::integer
     )
   `;
+}
+
+async function claimLock(context: Context, sessionId: string) {
+  const rows = await claimLockQuery(createNeonSql(), context, sessionId);
   return {
     acquired: Boolean(rows[0]?.acquired),
     lock: await lockInfo(sessionId, context.participant.team_id!, context.blockId, context.participant.id),
   };
+}
+
+// Matches the lock row that trigger enforce_team_response_edit_lock requires,
+// so a team_responses write guarded by it inserts nothing instead of raising
+// when another member holds the lock.
+function heldLockCondition(sql: NeonSql, context: Context, sessionId: string) {
+  return sql`
+    exists (
+      select 1
+      from public.team_edit_locks l
+      where l.session_id = ${sessionId}::uuid
+        and l.team_id = ${context.participant.team_id}::uuid
+        and l.block_id = ${context.blockId}
+        and l.participant_id = ${context.participant.id}::uuid
+        and l.expires_at > now()
+    )
+  `;
+}
+
+type LockedWrite =
+  | { outcome: 'written'; row: Record<string, unknown> }
+  | { outcome: 'held' }
+  | { outcome: 'lost' };
+
+// The claim and the write run in one transaction: a release sent at the same
+// time (e.g. by the editor's blur) cannot delete the lock between them, which
+// the trigger rejected with team_response_active_edit_lock_required (500).
+// If the lock is lost anyway, claim and write are retried once.
+async function claimLockAndWrite(
+  context: Context,
+  sessionId: string,
+  write: (sql: NeonSql) => NeonQuery,
+): Promise<LockedWrite> {
+  const sql = createNeonSql();
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const [claimRows, writeRows] = await sql.transaction([
+        claimLockQuery(sql, context, sessionId),
+        write(sql),
+      ]);
+      if (!claimRows[0]?.acquired) return { outcome: 'held' };
+      if (writeRows[0]) return { outcome: 'written', row: writeRows[0] };
+    } catch (error) {
+      if (!errorMessage(error).includes(LOCK_LOST_ERROR)) throw error;
+    }
+  }
+  return { outcome: 'lost' };
 }
 
 async function status(body: Record<string, unknown>) {
@@ -174,30 +228,25 @@ async function save(body: Record<string, unknown>) {
   const context = loaded.context!;
   const sessionId = loaded.sessionId!;
 
-  let claimed;
   try {
-    claimed = await claimLock(context, sessionId);
-  } catch (error) {
-    return freeSessionError(error) ?? json({ error: 'Editor se nepodařilo ověřit.' }, 500);
-  }
-  if (!claimed.acquired) return json({ error: 'Týmovou odpověď právě upravuje jiný člen týmu.', lock: claimed.lock }, 409);
-
-  const sql = createNeonSql();
-  try {
-    const rows = await sql`
+    const written = await claimLockAndWrite(context, sessionId, (sql) => sql`
       insert into public.team_responses (
         session_id, team_id, block_id, answer, updated_by_participant_id, updated_at
-      ) values (
-        ${sessionId}::uuid, ${context.participant.team_id}::uuid, ${context.blockId},
-        ${JSON.stringify({ text })}::jsonb, ${context.participant.id}::uuid, now()
       )
+      select
+        ${sessionId}::uuid, ${context.participant.team_id}::uuid, ${context.blockId}::text,
+        ${JSON.stringify({ text })}::jsonb, ${context.participant.id}::uuid, now()
+      where ${heldLockCondition(sql, context, sessionId)}
       on conflict (session_id, team_id, block_id) do update
       set answer = excluded.answer,
           updated_by_participant_id = excluded.updated_by_participant_id,
           updated_at = excluded.updated_at
       returning updated_at
-    `;
-    return json({ ok: true, text, updatedAt: rows[0]?.updated_at, lock: claimed.lock });
+    `);
+    const lock = await lockInfo(sessionId, context.participant.team_id!, context.blockId, context.participant.id);
+    if (written.outcome === 'held') return json({ error: 'Týmovou odpověď právě upravuje jiný člen týmu.', lock }, 409);
+    if (written.outcome === 'lost') return json({ error: 'Editor se mezitím uvolnil, zkus uložit znovu.', lock }, 409);
+    return json({ ok: true, text, updatedAt: written.row.updated_at, lock });
   } catch (error) {
     console.error('Neon autosave team response failed', error);
     return freeSessionError(error) ?? json({ error: 'Týmovou odpověď se nepodařilo uložit.' }, 500);
@@ -215,27 +264,19 @@ async function submit(body: Record<string, unknown>) {
     return json({ error: UNCHANGED_SCAFFOLD_ERROR }, 400);
   }
 
-  let claimed;
-  try {
-    claimed = await claimLock(context, sessionId);
-  } catch (error) {
-    return freeSessionError(error) ?? json({ error: 'Editor se nepodařilo ověřit.' }, 500);
-  }
-  if (!claimed.acquired) return json({ error: 'Týmovou odpověď právě upravuje jiný člen týmu.', lock: claimed.lock }, 409);
-
   const submittedAt = new Date().toISOString();
   const answerJson = JSON.stringify({ text });
-  const sql = createNeonSql();
   try {
-    const rows = await sql`
+    const written = await claimLockAndWrite(context, sessionId, (sql) => sql`
       insert into public.team_responses (
         session_id, team_id, block_id, answer, submitted_answer, submitted_at,
         updated_by_participant_id, updated_at
-      ) values (
-        ${sessionId}::uuid, ${context.participant.team_id}::uuid, ${context.blockId},
+      )
+      select
+        ${sessionId}::uuid, ${context.participant.team_id}::uuid, ${context.blockId}::text,
         ${answerJson}::jsonb, ${answerJson}::jsonb, ${submittedAt}::timestamptz,
         ${context.participant.id}::uuid, ${submittedAt}::timestamptz
-      )
+      where ${heldLockCondition(sql, context, sessionId)}
       on conflict (session_id, team_id, block_id) do update
       set answer = excluded.answer,
           submitted_answer = excluded.submitted_answer,
@@ -243,9 +284,12 @@ async function submit(body: Record<string, unknown>) {
           updated_by_participant_id = excluded.updated_by_participant_id,
           updated_at = excluded.updated_at
       returning id, updated_at, submitted_at
-    `;
-    const saved = rows[0];
-    if (!saved) return json({ error: 'Týmovou odpověď se nepodařilo odevzdat.' }, 500);
+    `);
+    const lock = await lockInfo(sessionId, context.participant.team_id!, context.blockId, context.participant.id);
+    if (written.outcome === 'held') return json({ error: 'Týmovou odpověď právě upravuje jiný člen týmu.', lock }, 409);
+    if (written.outcome === 'lost') return json({ error: 'Editor se mezitím uvolnil, zkus odevzdat znovu.', lock }, 409);
+    const saved = written.row;
+    const sql = createNeonSql();
     const queuedRows = await sql`
       select public.queue_submitted_team_response_evaluation(${String(saved.id)}::uuid) as queued
     `;
@@ -257,7 +301,7 @@ async function submit(body: Record<string, unknown>) {
       text,
       submittedAt: saved.submitted_at,
       updatedAt: saved.updated_at,
-      lock: claimed.lock,
+      lock,
     });
   } catch (error) {
     console.error('Neon submit team response failed', error);

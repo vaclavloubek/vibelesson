@@ -517,6 +517,9 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
       window.clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
+    // A running submit sends the current text and releases the lock itself
+    // once it is done (see submitAnswer).
+    if (submittingRef.current) return;
 
     if (savePromiseRef.current) await savePromiseRef.current;
     if (dirtyRef.current && !draftConflictRef.current) await saveNow();
@@ -738,6 +741,7 @@ export default function TeamTaskResponseInput({ sessionId, block, teamName, team
           type="button"
           disabled={lockedByOther || draftConflict || submitting || !text.trim() || submitted}
           onPointerDown={(event) => event.preventDefault()}
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => { void submitAnswer(); }}
         >
           {submitting ? ui('Odevzdávám…', 'Submitting…') : submitted ? ui('Odevzdáno', 'Submitted') : ui('Odevzdat týmovou odpověď', 'Submit team answer')}
