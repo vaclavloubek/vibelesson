@@ -101,6 +101,7 @@ export async function POST(req: Request) {
       rubric,
       maxPoints: claimed.data.max_points,
       strictness: lesson.gradingStrictness ?? 'neutral',
+      answerScaffold: block.answerScaffold,
     });
 
     const { data: finished, error: finishError } = await supabase.rpc('finish_grading_job_v2', {

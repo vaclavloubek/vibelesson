@@ -32,7 +32,7 @@ const scoreboardServer = source('lib/scoreboard-server.ts');
 requireText(scoreboardServer, "item.ai_use_suspicion === 'high'", 'teacher scoreboard must count alerts excluded from bulk confirmation.');
 const teacherScoreboard = source('components/TeacherScoreboard.tsx');
 requireText(teacherScoreboard, 'Ty se hromadně nepotvrdí, projdi je jednotlivě ve frontě kontroly.', 'teacher must be told that alerted answers are not bulk-confirmed.');
-requireText(grading, 'const copyArtifacts = detectCopyArtifacts(input.answerText);', 'grader does not run the deterministic copy-trace detector.');
+requireText(grading, 'const copyArtifacts = detectCopyArtifacts(stripScaffoldFromAnswer(input.answerText, input.answerScaffold));', 'grader does not run the deterministic copy-trace detector on the student-written text.');
 requireText(grading, 'highSuspicionEligible || copyArtifactKinds >= 2', 'two independent copy traces must raise a teacher alert.');
 requireText(grading, "output.aiUseSuspicion === 'none' && copyArtifactKinds === 0", 'a single copy trace must surface at least as a low signal.');
 {
@@ -51,6 +51,22 @@ requireText(grading, "output.aiUseSuspicion === 'none' && copyArtifactKinds === 
   }
   for (const artifact of detectCopyArtifacts(pasted)) {
     if (artifact.signal.length > 240) throw new Error('AI integrity alert regression: copy-trace signal exceeds the 240-character DB limit.');
+  }
+
+  // An answer outline inserted with "Vložit osnovu do odpovědi" is app text,
+  // not a copy trace.
+  const { stripScaffoldFromAnswer } = await import('../lib/answer-scaffold.ts');
+  const plainScaffold = 'Myslím si, že…\nProtože…\nNapříklad…';
+  const plainAnswer = 'Myslím si, že… voda v krajině chybí.\nProtože… prší méně.\nNapříklad… vyschlý potok u nás.';
+  if (kinds(plainAnswer)) throw new Error(`AI integrity alert regression: a completed plain outline is flagged (${kinds(plainAnswer)}).`);
+  const markedScaffold = '**Tvrzení:**\u00A0\n**Důvod:**\u00A0\n# Závěr';
+  const markedAnswer = '**Tvrzení:**\u00A0\nvoda chybí\n**Důvod:**\u00A0\nmálo prší\n# Závěr\nšetřit vodou';
+  if (!kinds(markedAnswer)) throw new Error('AI integrity alert regression: the outline test case no longer exercises the detector.');
+  if (kinds(stripScaffoldFromAnswer(markedAnswer, markedScaffold))) {
+    throw new Error(`AI integrity alert regression: inserted outline text still produces copy traces (${kinds(stripScaffoldFromAnswer(markedAnswer, markedScaffold))}).`);
+  }
+  if (kinds(stripScaffoldFromAnswer(`${markedAnswer}\nZávěr \\rightarrow \u2060konec`, markedScaffold)) !== 'invisible_characters,latex_markup') {
+    throw new Error('AI integrity alert regression: removing the outline must not hide traces in the student-written text.');
   }
 }
 

@@ -31,6 +31,11 @@ export const DataTableSchema = z.object({
   });
 });
 
+export const MODEL_ANSWER_MAX_LENGTH = 2000;
+export const ANSWER_SCAFFOLD_MAX_LENGTH = 600;
+export const MODEL_ANSWER_BLOCK_TYPES = ['open_text', 'exit_ticket', 'team_task', 'ranking'] as const;
+export const ANSWER_SCAFFOLD_BLOCK_TYPES = ['open_text', 'exit_ticket', 'team_task'] as const;
+
 export const LessonBlockSchema = z.object({
   id: z.string().min(1),
   type: BlockTypeSchema,
@@ -45,6 +50,11 @@ export const LessonBlockSchema = z.object({
   teacherNote: z.string().optional(),
   points: z.number().int().min(0).max(20).optional(),
   gradingRubric: z.array(GradingCriterionSchema).min(1).max(6).optional(),
+  // AI-written example answer. Teacher-only during the live lesson; the student
+  // sees it only in the "My solutions" PDF after the lesson has ended.
+  modelAnswer: z.string().max(MODEL_ANSWER_MAX_LENGTH).optional(),
+  // Sentence starters shown to the student above the answer field.
+  answerScaffold: z.string().max(ANSWER_SCAFFOLD_MAX_LENGTH).optional(),
 });
 
 export const LessonSchema = z.object({

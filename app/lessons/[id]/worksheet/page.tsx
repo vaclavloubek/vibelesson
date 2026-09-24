@@ -27,11 +27,12 @@ function WorksheetTable({ block }: { block: LessonBlock }) {
 }
 function AnswerLines({ count }: { count: number }) { return <div className={styles.answerLines} aria-hidden="true">{Array.from({ length: count }, (_, index) => <span key={index} />)}</div>; }
 function TeacherKey({ block, english, lang }: { block: LessonBlock; english: boolean; lang?: string }) {
-  const hasKey = Boolean(block.correctAnswer || block.revealText || block.teacherNote || block.gradingRubric?.length);
+  const hasKey = Boolean(block.correctAnswer || block.revealText || block.modelAnswer || block.teacherNote || block.gradingRubric?.length);
   if (!hasKey) return null;
   return <aside className={styles.teacherKey}><strong>{english ? 'Teacher key' : 'Klíč pro učitele'}</strong>
     {block.correctAnswer ? <p><b>{english ? 'Correct answer:' : 'Správná odpověď:'}</b> {block.correctAnswer}</p> : null}
     {block.revealText ? <div><b>{english ? 'Reveal / solution:' : 'Odhalení / řešení:'}</b><FormattedInstructions text={block.revealText} lang={lang} /></div> : null}
+    {block.modelAnswer ? <div><b>{english ? 'Model answer (written by AI):' : 'Vzorová odpověď (vytvořila AI):'}</b><p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{block.modelAnswer}</p></div> : null}
     {block.teacherNote ? <p><b>{english ? 'Teacher note:' : 'Poznámka pro učitele:'}</b> {block.teacherNote}</p> : null}
     {block.gradingRubric?.length ? <div><b>{english ? 'Scoring rubric:' : 'Hodnoticí rubrika:'}</b><ul>{block.gradingRubric.map((criterion) => <li key={criterion.id}><strong>{criterion.title} · {criterion.maxPoints} b.</strong> {criterion.description}</li>)}</ul></div> : null}
   </aside>;
@@ -95,6 +96,7 @@ export default async function WorksheetPage({ params, searchParams }: Props) {
             : block.items?.length ? <ul className={styles.itemList}>{block.items.map((item) => <li key={item}>{item}</li>)}</ul> : null}
           {block.options?.length ? <ul className={styles.optionList}>{block.options.map((option) => <li key={option}><span className={styles.optionMark} aria-hidden="true" />{option}</li>)}</ul> : null}
           {block.type === 'team_task' ? <div className={styles.teamLine}><b>{english ? 'Team / members:' : 'Tým / členové:'}</b></div> : null}
+          {!teacherMode && answerType && block.answerScaffold ? <div className={styles.answerScaffold}><b>{english ? 'Answer outline' : 'Osnova odpovědi'}</b><p>{block.answerScaffold}</p></div> : null}
           {answerType ? <AnswerLines count={worksheetAnswerLineCount(space, block.type)} /> : null}
           {teacherMode ? <TeacherKey block={block} english={english} lang={lesson.language} /> : null}
         </section>;

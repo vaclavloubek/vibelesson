@@ -45,6 +45,9 @@ export default function LiveBlock({
       {block.revealText ? <FormattedInstructions text={block.revealText} className="reveal" lang={contentLanguage} /> : null}
       {teacherBlock?.correctAnswer ? <div className="reveal">{english ? 'Correct answer:' : 'Správná odpověď:'} <strong lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{teacherBlock.correctAnswer}</strong></div> : null}
       {teacherBlock?.teacherNote ? <details open><summary>{english ? 'Teacher note' : 'Poznámka pro učitele'}</summary><p lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{teacherBlock.teacherNote}</p></details> : null}
+      {/* Collapsed by default so a shared or projected teacher screen does not reveal the model answer. */}
+      {teacherBlock?.modelAnswer ? <details><summary>{english ? 'Model answer (written by AI)' : 'Vzorová odpověď (vytvořila AI)'}</summary><p style={{ whiteSpace: 'pre-wrap' }} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{teacherBlock.modelAnswer}</p></details> : null}
+      {teacherBlock?.answerScaffold ? <details><summary>{english ? 'Outline for students' : 'Osnova pro studenty'}</summary><p style={{ whiteSpace: 'pre-wrap' }} lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{teacherBlock.answerScaffold}</p></details> : null}
     </article>
   );
 }

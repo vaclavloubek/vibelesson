@@ -1,7 +1,11 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
+  ANSWER_SCAFFOLD_BLOCK_TYPES,
+  ANSWER_SCAFFOLD_MAX_LENGTH,
   BlockTypeSchema,
+  MODEL_ANSWER_BLOCK_TYPES,
+  MODEL_ANSWER_MAX_LENGTH,
   LessonSchema,
   LanguageTagSchema,
   type Lesson,
@@ -42,6 +46,8 @@ const AILessonBlockSchema = z.object({
   teacherNote: z.string().nullable(),
   points: z.number().int().nullable(),
   gradingRubric: z.array(AIGradingCriterionSchema).nullable(),
+  modelAnswer: z.string().nullable(),
+  answerScaffold: z.string().nullable(),
 });
 
 const AILessonSchema = z.object({
@@ -88,6 +94,9 @@ Pravidla:
 - U rubrik preferuj věcnou správnost, splnění zadání, kvalitu argumentu nebo použití požadovaných prvků. Jazykový styl nebo gramatiku neboduj, pokud to není výslovně cílem aktivity.
 - Pokud otevřená nebo týmová aktivita není vhodná pro férové bodování, nastav points i gradingRubric na null.
 - Pro intro, poll, ranking, reveal a timer nastav gradingRubric na null.
+- modelAnswer vyplň u open_text, exit_ticket, team_task a ranking: stručná vzorová odpověď, jakou by realisticky napsal dobrý student cílové skupiny (odpovídající věk, délka a slovní zásoba). U ranking uveď vzorové pořadí všech položek a krátké zdůvodnění. modelAnswer nesmí obsahovat metodické poznámky pro učitele a nesmí vymýšlet fakta mimo zadání a podklady. Student ho během hodiny nevidí; dostane ho až po skončení hodiny jako vzorové řešení. Piš prostý text bez Markdownu, nejvýše ${MODEL_ANSWER_MAX_LENGTH} znaků. U quiz, poll, intro, reveal a timer nastav modelAnswer na null.
+- answerScaffold vyplň u open_text, exit_ticket a team_task: 2–5 řádků osnovy nebo začátků vět (např. „Myslím si, že… protože…“), každý na samostatném řádku, přiměřeně věku; u nejmladších žáků spíš jednoduché začátky vět. Student osnovu vidí nad polem pro odpověď a může si ji do pole vložit. answerScaffold nesmí obsahovat odpověď, nesmí vyzradit řešení a nesmí citovat ani parafrázovat interní gradingRubric. Piš prostý text bez Markdownu a odrážek se značkami, nejvýše ${ANSWER_SCAFFOLD_MAX_LENGTH} znaků. U ostatních typů nastav answerScaffold na null.
+- Při úpravě existující lekce modelAnswer a answerScaffold zachovej, pokud se zadání bloku nemění. Pokud se zadání bloku mění, uprav je tak, aby odpovídaly novému zadání. Pokud u open_text, exit_ticket, team_task nebo ranking chybí, doplň je.
 - Nevymýšlej faktické údaje, studie ani citace, pokud nejsou součástí uživatelova zadání. Když je aktivita potřebuje, použij zjevně fiktivní scénář.
 - Celkový součet durationMinutes má co nejpřesněji odpovídat požadované délce.
 - Jazyk celé lekce určuje konkrétní pokyn JAZYK LEKCE v uživatelském promptu. Jazyk podkladů sám o sobě nikdy nesmí jazyk lekce změnit.
@@ -150,6 +159,19 @@ function normalizeDataTable(data: z.infer<typeof AIDataTableSchema> | null) {
   };
 }
 
+function optionalBlockText(
+  value: string | null,
+  type: LessonBlock['type'],
+  allowedTypes: readonly LessonBlock['type'][],
+  maxLength: number,
+) {
+  const text = value?.replace(/\r\n?/g, '\n').trim();
+  // An over-long or misplaced optional field is dropped instead of failing a
+  // paid generation; the lesson stays usable without it.
+  if (!text || !allowedTypes.includes(type) || text.length > maxLength) return undefined;
+  return text;
+}
+
 function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock {
   return LessonBlockSchema.parse({
     id: block.id,
@@ -165,6 +187,8 @@ function normalizeBlock(block: z.infer<typeof AILessonBlockSchema>): LessonBlock
     teacherNote: block.teacherNote ?? undefined,
     points: block.points ?? undefined,
     gradingRubric: block.gradingRubric ?? undefined,
+    modelAnswer: optionalBlockText(block.modelAnswer, block.type, MODEL_ANSWER_BLOCK_TYPES, MODEL_ANSWER_MAX_LENGTH),
+    answerScaffold: optionalBlockText(block.answerScaffold, block.type, ANSWER_SCAFFOLD_BLOCK_TYPES, ANSWER_SCAFFOLD_MAX_LENGTH),
   });
 }
 

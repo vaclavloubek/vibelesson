@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
+import { isUnchangedScaffold, UNCHANGED_SCAFFOLD_ERROR } from '@/lib/answer-scaffold';
 import { useNeonLiveSessionData } from '@/lib/neon/live-session-config';
 import { handleNeonStudentSessionAction } from '@/lib/neon/student-session-server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -46,7 +47,8 @@ function blocks(snapshot: unknown) {
 
 function publicBlock(block: Block) {
   const result: Record<string, unknown> = {};
-  for (const key of ['id', 'type', 'title', 'durationMinutes', 'instructions', 'options', 'items', 'dataTable', 'revealText', 'points']) {
+  // modelAnswer, correctAnswer, teacherNote and gradingRubric stay on the server.
+  for (const key of ['id', 'type', 'title', 'durationMinutes', 'instructions', 'options', 'items', 'dataTable', 'revealText', 'points', 'answerScaffold']) {
     if (block[key] !== undefined) result[key] = block[key];
   }
   return result;
@@ -351,6 +353,14 @@ async function respond(body: Record<string, unknown>) {
   if (!normalized.answer) return json({ error: normalized.error ?? 'Neplatná odpověď.' }, normalized.status ?? 400);
 
   const responseAction = body.responseAction === 'submit' ? 'submit' : 'save';
+  if (
+    responseAction === 'submit'
+    && 'text' in normalized.answer
+    && (block.type === 'open_text' || block.type === 'exit_ticket')
+    && isUnchangedScaffold(normalized.answer.text, block.answerScaffold)
+  ) {
+    return json({ error: UNCHANGED_SCAFFOLD_ERROR }, 400);
+  }
   const marksSubmission = responseAction === 'submit' && (block.type === 'open_text' || block.type === 'exit_ticket' || block.type === 'ranking');
   const queuesEvaluation = responseAction === 'submit' && (block.type === 'open_text' || block.type === 'exit_ticket');
   const timestamp = new Date().toISOString();

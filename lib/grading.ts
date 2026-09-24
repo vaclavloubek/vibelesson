@@ -1,7 +1,8 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { detectCopyArtifacts } from './ai-copy-artifacts';
-import { GradingCriterionSchema, GradingStrictnessSchema, type GradingCriterion, type GradingStrictness } from './schema';
+import { stripScaffoldFromAnswer } from './answer-scaffold';
+import { ANSWER_SCAFFOLD_MAX_LENGTH, GradingCriterionSchema, GradingStrictnessSchema, type GradingCriterion, type GradingStrictness } from './schema';
 
 const gradingModel = process.env.AI_GRADING_MODEL || process.env.AI_MODEL || 'openai/gpt-5.6-sol';
 
@@ -27,6 +28,7 @@ const GradingInputSchema = z.object({
   rubric: z.array(GradingCriterionSchema).min(1).max(6),
   maxPoints: z.number().int().min(1).max(20),
   strictness: GradingStrictnessSchema.default('neutral'),
+  answerScaffold: z.string().trim().max(ANSWER_SCAFFOLD_MAX_LENGTH).optional(),
 });
 
 const CriterionRationaleSchema = z.string().trim().min(1).max(500);
@@ -90,7 +92,9 @@ function validateRubric(rubric: GradingCriterion[], maxPoints: number) {
 export async function gradeResponseWithAI(rawInput: z.input<typeof GradingInputSchema>): Promise<GradingResult> {
   const input = GradingInputSchema.parse(rawInput);
   validateRubric(input.rubric, input.maxPoints);
-  const copyArtifacts = detectCopyArtifacts(input.answerText);
+  // Scaffold lines kept verbatim were inserted by the app, not copied by the
+  // student, so they must not produce copy traces.
+  const copyArtifacts = detectCopyArtifacts(stripScaffoldFromAnswer(input.answerText, input.answerScaffold));
 
   const { output, providerMetadata } = await generateText({
     model: gradingModel,
@@ -105,6 +109,7 @@ Bezpečnost a férovost:
 - Uděluj pouze celé body od 0 do maxima daného kritéria.
 - Neodměňuj délku odpovědi samu o sobě. Jazyk, pravopis a styl posuzuj jen tehdy, když je výslovně požaduje rubrika.
 - Pokud odpověď nebo zadání neposkytují dost podkladů pro spolehlivý verdikt, sniž confidence a vysvětli nejistotu.
+- Pole answerScaffold (pokud je vyplněné) obsahuje osnovu nebo začátky vět, které aplikace studentovi nabídla a které si mohl vložit do odpovědi. Text osnovy není práce studenta a sám o sobě nezískává body. Hodnoť jen to, čím student osnovu doplnil.
 - overallRationale má být stručné a věcné, typicky 1–3 věty.
 - rationale u každého kritéria má stručně vysvětlit přidělené body.
 - confidence je číslo 0 až 1 vyjadřující jistotu hodnocení, nikoli kvalitu odpovědi.
@@ -128,6 +133,7 @@ ${gradingStrictnessInstructions[input.strictness]}`,
         gradingStrictness: input.strictness,
       },
       rubric: input.rubric,
+      answerScaffold: input.answerScaffold ?? null,
       studentAnswer: input.answerText,
       detectedCopyArtifacts: copyArtifacts.map((artifact) => artifact.signal),
     }),

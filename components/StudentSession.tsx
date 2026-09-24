@@ -22,6 +22,7 @@ import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer, StudentEvaluation } from '@/lib/live';
 import { localizedApiError } from '@/lib/i18n';
+import { studentSolutionsFilename } from '@/lib/student-solutions-pdf';
 
 type Team = { id: string; name: string; memberCount: number };
 type StudentState = {
@@ -383,6 +384,17 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
             <span className="eyebrow">{ui('Mise dokončena', 'Mission complete')}</span>
             <h1>{ui('Hodina skončila', 'The lesson has ended')}</h1>
             <p className="muted-copy">{ui('Díky za účast', 'Thanks for taking part')}, {state.participantDisplayName}.</p>
+          </section>
+
+          <section className="panel" aria-label={ui('Moje řešení', 'My solutions')}>
+            <p className="muted-copy" style={{ marginTop: 0 }}>{ui('Stáhni si svoje odpovědi se vzorovými odpověďmi a hodnocením, které potvrdil učitel.', 'Download your answers with model answers and the evaluations confirmed by your teacher.')}</p>
+            <a
+              className="button-link primary"
+              href={`/api/student/sessions/${sessionId}/solutions-pdf${english ? '?locale=en' : ''}`}
+              download={studentSolutionsFilename(state.title, english)}
+            >
+              {ui('Stáhnout moje řešení (PDF)', 'Download my solutions (PDF)')}
+            </a>
           </section>
 
           {state.scoreboard ? (
