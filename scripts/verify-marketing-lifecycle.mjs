@@ -17,6 +17,7 @@ const [
   consentSyncRoute,
   preferences,
   confirmRoute,
+  neonAuthActions,
   generateRoute,
   importRoute,
   sessionRoute,
@@ -30,6 +31,7 @@ const [
   source('app/api/marketing-email-preferences/sync/route.ts'),
   source('components/MarketingEmailPreferences.tsx'),
   source('app/auth/confirm/verify/route.ts'),
+  source('app/auth/neon/actions.ts'),
   source('app/api/generate/route.ts'),
   source('app/api/lesson-shares/[token]/import/route.ts'),
   source('app/api/sessions/[id]/route.ts'),
@@ -71,6 +73,9 @@ requirePattern(consentSyncRoute, /syncMarketingPreference\(userId\)/, 'authentic
 requirePattern(preferences, /\/api\/marketing-email-preferences\/sync/, 'privacy settings must call the server-side delivery sync.');
 requirePattern(confirmRoute, /startMarketingOnboarding\(userId\)/, 'confirmed signup must start the consented welcome flow.');
 requirePattern(confirmRoute, /after\(async \(\) =>/, 'signup redirect must not wait for marketing delivery orchestration.');
+requirePattern(neonAuthActions, /startMarketingOnboarding\(pendingUserId\)/, 'Neon email verification must start the consented welcome flow.');
+requirePattern(neonAuthActions, /"emailVerified" = false/, 'only the first Neon email verification may start the welcome flow.');
+requirePattern(neonAuthActions, /after\(async \(\) =>/, 'Neon email verification must not wait for marketing delivery orchestration.');
 requirePattern(generateRoute, /emitFirstLessonCreatedIfNeeded\(userId\)/, 'successful AI generation must signal first lesson creation.');
 requirePattern(generateRoute, /emitFreeLessonQuotaLifecycle\(userId, quotaUsed, quotaLimit\)/, 'successful Free generation must signal near/reached quota transitions.');
 requirePattern(importRoute, /emitFirstLessonCreatedIfNeeded\(userId\)/, 'shared lesson import must satisfy the first-lesson outcome.');
