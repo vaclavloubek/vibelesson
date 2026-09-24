@@ -8,6 +8,11 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 import GuideHelpButton from '@/components/GuideHelpButton';
 
+export const FREE_SINGLE_USE_NOTICE = {
+  cs: 'Ve Free můžeš každou lekci živě použít jednou. Použití se započítá, jakmile se připojí první student – i tvůj vlastní telefon na zkoušku. Jak lekci uvidí studenti, si vyzkoušej přes „Studentský režim“ v náhledu.',
+  en: 'On Free, each lesson can be used live once. The use counts as soon as the first student joins – including your own phone as a test. To see what students will see, use “Student view” in the preview.',
+};
+
 type Props = {
   lessonId: string;
   userId: string;
@@ -15,6 +20,7 @@ type Props = {
   licenseLocked?: boolean;
   freeSingleUse?: boolean;
   organizationName?: string | null;
+  compact?: boolean;
 };
 
 export default function StartSessionButton({
@@ -24,6 +30,7 @@ export default function StartSessionButton({
   licenseLocked = false,
   freeSingleUse = false,
   organizationName = null,
+  compact = false,
 }: Props) {
   const locale = useUiLocale();
   const english = locale === 'en';
@@ -61,12 +68,28 @@ export default function StartSessionButton({
         throw new Error(english ? 'The lesson could not be started.' : (data.error || 'Hodinu se nepodařilo odstartovat.'));
       }
       trackEvent('live_session_created');
-      signalSyllonautGuideAction(userId, 'session-created');
+      if (!compact) signalSyllonautGuideAction(userId, 'session-created');
       router.push(`/sessions/${data.sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : ui('Hodinu se nepodařilo odstartovat.', 'The lesson could not be started.'));
       setBusy(false);
     }
+  }
+
+  if (compact) {
+    return (
+      <>
+        <button type="button" className="secondary" onClick={() => void start()} disabled={busy}>
+          {busy ? ui('Připravuji hodinu…', 'Preparing lesson…') : ui('Otevřít hodinu pro studenty', 'Open lesson for students')}
+        </button>
+        {error ? <p className="error" role="alert">{error}</p> : null}
+        {activeSessionId ? (
+          <button type="button" className="secondary" onClick={() => router.push(`/sessions/${activeSessionId}`)}>
+            {ui('Otevřít rozběhnutou hodinu', 'Open the active lesson')}
+          </button>
+        ) : null}
+      </>
+    );
   }
 
   if (licenseLocked) {
@@ -114,10 +137,7 @@ export default function StartSessionButton({
       {freeSingleUse ? (
         <div className="panel" style={{ padding: 16, boxShadow: '0 12px 30px rgba(24,24,23,.14)', maxWidth: 'min(360px, calc(100vw - 48px))' }}>
           <p style={{ margin: 0 }}>
-            {ui(
-              'Ve Free můžeš každou lekci živě použít jednou. Použití se započítá, jakmile se připojí první student – i tvůj vlastní telefon na zkoušku. Jak lekci uvidí studenti, si vyzkoušej přes „Studentský režim“ v náhledu.',
-              'On Free, each lesson can be used live once. The use counts as soon as the first student joins – including your own phone as a test. To see what students will see, use “Student view” in the preview.',
-            )}
+            {english ? FREE_SINGLE_USE_NOTICE.en : FREE_SINGLE_USE_NOTICE.cs}
           </p>
         </div>
       ) : null}

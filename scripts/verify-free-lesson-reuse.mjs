@@ -45,6 +45,12 @@ requireText(read('components/StartSessionButton.tsx'), 'i tvůj vlastní telefon
 const library = read('app/lessons/LessonLibrary.tsx');
 requireText(library, 'Archivované lekce', 'Free library exposes the archive');
 requireText(library, 'Stále je můžeš otevírat a upravovat pomocí AI', 'archive keeps AI editing available');
+requireText(library, '<StartSessionButton lessonId={lesson.id} userId={userId} compact />', 'library opens active lessons for students through the shared start logic');
+requireText(library, 'FREE_SINGLE_USE_NOTICE', 'library reuses the single Free live-use notice text');
+requireText(read('components/StartSessionButton.tsx'), "if (!compact) signalSyllonautGuideAction(userId, 'session-created');", 'library launch does not advance the onboarding guide');
+if (library.includes('data-tour="lesson-start"')) {
+  throw new Error('Missing free lesson reuse safeguard: library launch must not duplicate the lesson-start guide target');
+}
 
 const pricing = read('components/PricingPage.tsx');
 requireText(pricing, '2 importy nebo kopie lekcí za měsíc', 'Free pricing states the separate import/copy quota');

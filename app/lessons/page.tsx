@@ -243,7 +243,7 @@ export default async function LessonsPage({ searchParams }: Props) {
       ) : null}
 
       {!error && (lessons.length > 0 || canManageFolders) ? (
-        <LessonLibrary lessons={lessons} folders={folders} canManageFolders={canManageFolders} />
+        <LessonLibrary lessons={lessons} folders={folders} canManageFolders={canManageFolders} reusableLessons={reusableLessons} userId={userId} />
       ) : null}
 
       <section className="lessons-heading" style={{ marginTop: 44 }}>
