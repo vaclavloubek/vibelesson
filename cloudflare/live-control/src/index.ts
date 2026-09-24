@@ -67,7 +67,7 @@ type LiveEvent = {
 
 const encoder = new TextEncoder();
 const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const WORKER_VERSION = '0.8.15';
+const WORKER_VERSION = '0.8.16';
 const LIVE_PROTOCOL_VERSION = 2;
 
 function json(value: unknown, status = 200) {
@@ -146,6 +146,15 @@ function sessionRoute(url: URL) {
   return { sessionId: match[1], suffix: match[2] ?? '/state' };
 }
 
+// Mirrors the primary API: entering a timer block resets it to its full,
+// not-yet-started duration. A null timer would be reconciled into the database
+// as timer_remaining_seconds = NULL, which clients render as 0:00.
+function idleTimerFor(block: Record<string, unknown> | undefined) {
+  if (block?.type !== 'timer') return null;
+  const minutes = typeof block.durationMinutes === 'number' ? block.durationMinutes : 0;
+  return { status: 'idle', startedAt: null, remainingSeconds: Math.max(0, Math.round(minutes * 60)) };
+}
+
 function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapshot {
   const payload = event.payload && typeof event.payload === 'object'
     ? event.payload as Record<string, unknown>
@@ -167,7 +176,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
         ...snapshot,
         status: 'live',
         activeBlockId: typeof first.id === 'string' ? first.id : null,
-        timer: null,
+        timer: idleTimerFor(first),
         revision: event.revision,
         updatedAt: event.createdAt,
       };
@@ -180,7 +189,7 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
         return {
           ...snapshot,
           activeBlockId: target.id,
-          timer: null,
+          timer: idleTimerFor(target),
           revision: event.revision,
           updatedAt: event.createdAt,
         };
