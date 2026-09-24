@@ -80,6 +80,8 @@ requirePattern(worker, /expectedActiveBlockId && expectedActiveBlockId !== snaps
 requirePattern(worker, /type Role = 'teacher' \| 'student' \| 'presenter'/, 'Worker must support a dedicated Presenter capability role.');
 requirePattern(worker, /actorRole === 'presenter'\) return json\(\{ error: 'Forbidden\.' \}, 403\)/, 'Presenter capability must be unable to write live events.');
 requirePattern(worker, /workerVersion: WORKER_VERSION/, 'Worker health must expose its deployable version.');
+requirePattern(worker, /timer: idleTimerFor\(first\)/, 'starting a lesson on a timer block must give the Worker snapshot the full idle duration, not null (0:00 after reconciliation).');
+requirePattern(worker, /timer: idleTimerFor\(target\)/, 'moving to a timer block must give the Worker snapshot the full idle duration, not null (0:00 after reconciliation).');
 // The browser fallback must be allowed to reach the Worker (CSP connect-src), over HTTPS and WebSocket.
 {
   const nextConfig = await readFile(new URL('../next.config.ts', import.meta.url), 'utf8');
