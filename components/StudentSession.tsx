@@ -124,7 +124,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       teams,
       myTeam,
       myTeamResponse: teamResponse
-        ? { text: teamResponse.text, updatedByParticipantId: null, submitted: Boolean(teamResponse.submitted) }
+        ? { text: teamResponse.text, updatedByParticipantId: null, submittedText: teamResponse.submittedText ?? null, submittedAt: teamResponse.submittedAt ?? null }
         : current?.myTeamResponse ?? null,
       scoreboard: current?.scoreboard ?? null,
       myEvaluation: current?.myEvaluation ?? null,
