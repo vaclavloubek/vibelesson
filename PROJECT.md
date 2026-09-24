@@ -22,6 +22,8 @@
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
 
+Aktualizováno: 2026-09-24 — doplněna kritéria pro změnu veřejně zobrazované verze (sekce Versionování produktu). Bez změny verze.
+
 Aktualizováno: 2026-09-24 — **produkční ověření 0.9.132** (#360, `462d68e`, bez změny verze). Produkční CSS na `www.syllonaut.com` obsahuje `text-size-adjust:100%` a `.lesson-list{grid-template-columns:minmax(0,1fr);…}`. Vlastník na iPhonu v Safari potvrdil, že bloky lekce v učitelském náhledu vypadají správně: písmo zadání se nezvětšuje a text ani možnosti odpovědí nejsou u pravého okraje uříznuté. Studentská obrazovka zvlášť ověřená nebyla.
 
 Aktualizováno: 2026-09-24 — interní verze **0.9.132**: bloky lekce na telefonu. V iOS Safari se v učitelském náhledu lekce zvětšoval dlouhý text zadání (text autosizing), karta aktivity přesahovala panel a text i možnosti odpovědí byly u pravého okraje uříznuté (`.stage` má `overflow: hidden`). Příčina: `.lesson-list` a `.options` jsou gridy s implicitním sloupcem `auto`, takže jediné nezalomitelné slovo nebo URL (zvlášť ve zvětšeném písmu) rozšířilo sloupec a s ním všechny karty. Oprava jen v `app/globals.css`: `html` má `-webkit-text-size-adjust: 100%` a `text-size-adjust: 100%`; `.lesson-list` a `.options` mají `grid-template-columns: minmax(0, 1fr)`; `.block-head > div` má `min-width: 0`; nadpis bloku, `.instructions` a `.option` zalamují dlouhá slova (`overflow-wrap: break-word`). Ověřeno na statickém modelu s produkčním CSS v šířce 402 px: před opravou se při 30px písmu a dlouhé URL karta roztáhla na 598 px v panelu širokém 378 px, po opravě zůstává 346 px a žádný prvek nepřesahuje panel. Týká se i studentského náhledu a studentské obrazovky (stejné třídy). Skutečné iOS Safari zatím neověřeno. Veřejně zobrazovaná verze beze změny.
@@ -918,6 +920,28 @@ Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravid
 - **verze `1.0.0` je vyhrazena výhradně pro ostrý start produktu**, tedy okamžik, kdy je Syllonaut považován za připravený pro běžný produkční provoz;
 - o připravenosti na `1.0.0` se má usilovat o shodu podle funkčnosti, stability, bezpečnosti, UX a provozní připravenosti; pokud shoda nevznikne, **konečné rozhodnutí o vydání `1.0.0` má vlastník projektu Václav Loubek**;
 - `PROJECT.md` se jinak stále mění pouze na výslovný pokyn uživatele; výjimkou je automatická aktualizace verze/stavu jako součást už schválené produkční funkční změny.
+
+#### Kdy se mění veřejně zobrazovaná verze
+
+Větší veřejný release (nová desítka a změna APP_VERSION v lib/version.ts) je změna, která splní aspoň jedno kritérium:
+1. Nová schopnost ve výuce: učitel nebo student může v produktu udělat něco, co dosud nešlo (nová funkce, nový výstup, nový typ aktivity).
+2. Změna hlavního postupu výuky: mění se, jak učitel lekci vytváří, spouští, vede nebo vyhodnocuje, nebo co student během hodiny či po ní vidí a dělá, a běžný uživatel si toho všimne bez upozornění.
+3. Změna obsahu tarifu: do tarifu přibude funkce, nebo z něj nějaká zmizí (změna ceny se nepočítá).
+
+Veřejnou verzi nemění (i když posouvají interní):
+- opravy chyb a hotfixy, i velké a bezpečnostní;
+- úpravy existující funkce: texty, pojmy, vzhled, rozložení, přístupnost, nápovědy, upozornění a zkratky k tomu, co už existuje;
+- právní a smluvní změny (VOP, GDPR, DPA, reklamace, odstoupení), které mají vlastní číslování dokumentů;
+- účet a přihlášení, platby a fakturace, e-maily a marketingové eventy;
+- infrastruktura, Live Control Worker, databáze a nástroje pro admina.
+
+Rozhoduje dopad na učitele nebo studenta, ne odkud úkol přišel: když změna z vyloučené oblasti zároveň splní kritérium 1 nebo 2, jde o větší release.
+
+Postup:
+- Agent v popisu PR uvede „Veřejná verze: ano (kritérium X) / ne“ a jednu větu zdůvodnění.
+- U hraničního případu se před sloučením zeptá vlastníka projektu; bez odpovědi se změna bere jako menší.
+- Větší release mění APP_VERSION ve stejném PR a aktualizuje řádek „Aktuální produktová verze“ v PROJECT.md.
+- Dorovnání: když byla větší změna sloučena jako menší, smí samostatné PR posunout veřejnou verzi na nejbližší volnou desítku a vyjmenovat změny, které ji zdůvodňují. Je to jediná výjimka z pravidla, že změna bez změny chování verzi neposouvá.
 
 ## 2. Stack a deployment
 
