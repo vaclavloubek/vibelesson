@@ -44,7 +44,11 @@ requireText(read('components/StartSessionButton.tsx'), 'i tvůj vlastní telefon
 
 const library = read('app/lessons/LessonLibrary.tsx');
 requireText(library, 'Archivované lekce', 'Free library exposes the archive');
-requireText(library, 'Stále je můžeš otevírat a upravovat pomocí AI', 'archive keeps AI editing available');
+requireText(library, 'Stále je můžeš otevírat a upravovat ručně i pomocí AI', 'archive keeps manual and AI editing available');
+requireText(library, 'You can still open and edit them manually or with AI', 'English archive keeps manual and AI editing available');
+requireText(read('components/StartSessionButton.tsx'), 'Lekci můžeš dál upravovat ručně i pomocí AI', 'archived lesson panel keeps manual and AI editing available');
+// The manual-edit claims are only true while the no-AI manual activity edit exists for every plan.
+requireText(read('app/api/lessons/[id]/blocks/[blockId]/route.ts'), 'applyManualBlockEdit', 'manual activity edit endpoint backs the archive and pricing claims');
 requireText(library, '<StartSessionButton lessonId={lesson.id} userId={userId} compact />', 'library opens active lessons for students through the shared start logic');
 requireText(library, 'FREE_SINGLE_USE_NOTICE', 'library reuses the single Free live-use notice text');
 requireText(read('components/StartSessionButton.tsx'), "if (!compact) signalSyllonautGuideAction(userId, 'session-created');", 'library launch does not advance the onboarding guide');
@@ -55,6 +59,8 @@ if (library.includes('data-tour="lesson-start"')) {
 const pricing = read('components/PricingPage.tsx');
 requireText(pricing, '2 importy nebo kopie lekcí za měsíc', 'Free pricing states the separate import/copy quota');
 requireText(pricing, 'Každou lekci lze živě použít jednou', 'Free pricing states one live use per lesson');
+requireText(pricing, 'Archivované lekce lze dál upravovat ručně i pomocí AI', 'Free pricing keeps archived lessons editable manually and with AI');
+requireText(pricing, 'Archived lessons remain editable manually and with AI', 'English Free pricing keeps archived lessons editable manually and with AI');
 requireText(pricing, 'Opakované spouštění hotových lekcí bez čerpání AI limitu', 'paid pricing highlights repeat use with the precise LEGAL-013 claim');
 requireText(pricing, 'Repeated launches of finished lessons without using the AI allowance', 'English paid pricing uses the precise LEGAL-013 claim');
 
