@@ -63,7 +63,7 @@ function Block({ block, index, teacherMode, editable, selected, recentlyChanged,
         <div style={{ display: 'grid', gap: 6 }}>
           {editable && recentlyChanged ? <span className="revision-change-badge">{english ? 'New / updated' : 'Nové / upravené'}</span> : null}
           <span className="eyebrow">{index + 1}. {label(block.type, english)}</span>
-          <ActivityModeBadge type={block.type} />
+          <ActivityModeBadge type={block.type} points={block.points} />
           <h3 lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.title}</h3>
           {teacherMode && typeof startMinute === 'number' ? <span className="block-time-range">{startMinute}–{startMinute + block.durationMinutes}. {english ? 'minute' : 'minuta'}</span> : null}
         </div>
@@ -78,7 +78,6 @@ function Block({ block, index, teacherMode, editable, selected, recentlyChanged,
       {block.type === 'quiz' && selectedOption && teacherMode && block.correctAnswer ? <div className="reveal" role="status">{english ? 'Correct answer:' : 'Správná odpověď:'} <strong lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.correctAnswer}</strong></div> : null}
       {block.type === 'timer' ? <div className="timerbox"><strong role="timer" aria-label={`${english ? 'Time remaining' : 'Zbývající čas'} ${mm}:${ss}`}>{mm}:{ss}</strong><button type="button" className="secondary" onClick={() => setRunning((v) => !v)}>{running ? (english ? 'Pause' : 'Pauza') : 'Start'}</button><button type="button" className="secondary" onClick={() => { setRunning(false); setSeconds(block.durationMinutes * 60); }}>Reset</button></div> : null}
       {teacherMode && block.teacherNote ? <details><summary>{english ? 'Teacher note' : 'Poznámka pro učitele'}</summary><p lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.teacherNote}</p></details> : null}
-      {typeof block.points === 'number' ? <div className="points">{english ? 'Max.' : 'Max.'} {block.points} {english ? 'points' : 'bodů'}</div> : null}
     </article>
   );
 }
