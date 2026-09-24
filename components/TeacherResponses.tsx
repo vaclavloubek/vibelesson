@@ -86,6 +86,10 @@ function isAIGradingConfigured(block: LessonBlock) {
   return block.gradingRubric.reduce((sum, criterion) => sum + criterion.maxPoints, 0) === block.points;
 }
 
+function isUngradedWrittenBlock(block: LessonBlock) {
+  return ['open_text', 'exit_ticket', 'team_task'].includes(block.type) && (!block.points || block.points <= 0);
+}
+
 function hasBrokenAIGradingConfig(block: LessonBlock) {
   if (!['open_text', 'exit_ticket', 'team_task'].includes(block.type)) return false;
   if (!block.points || block.points <= 0) return false;
@@ -243,6 +247,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
   const sessionId = typeof params?.id === 'string' ? params.id : '';
   const gradingConfigured = isAIGradingConfigured(block);
   const brokenGradingConfig = hasBrokenAIGradingConfig(block);
+  const ungradedBlock = isUngradedWrittenBlock(block);
   const [evaluations, setEvaluations] = useState<LiveEvaluation[]>([]);
   const [evaluationError, setEvaluationError] = useState('');
 
@@ -311,6 +316,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
         <ResponseProgress count={teamResponses.filter((response) => response.submitted).length} total={teams.length} label={ui('týmů odevzdalo', 'teams submitted')} />
         <p className="muted-copy">{ui('Každý tým má jednu společnou odpověď. Kdokoli z jeho členů ji může během aktivního bloku upravit.', 'Each team has one shared response. Any team member can edit it while the block is active.')}</p>
         {brokenGradingConfig ? <p className="muted-copy">{ui('Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.', 'Scoring is configured, but the rubric does not match the block points, so AI grading is disabled.')}</p> : null}
+        {ungradedBlock ? <p className="muted-copy">{ui('Tento blok se neboduje, AI hodnocení u něj proto neběží.', 'This block is not scored, so AI grading does not run for it.')}</p> : null}
         {evaluationError ? <p className="muted-copy">{evaluationError}</p> : null}
         <div className="teacher-response-list">
           {teams.map((team) => {
@@ -422,6 +428,7 @@ export default function TeacherResponses({ block, responses, participantCount, t
       <span className="eyebrow">{ui('Průběžné odpovědi', 'Live responses')}</span>
       <ResponseProgress count={submittedResponses.length} total={participantCount} />
       {brokenGradingConfig ? <p className="muted-copy">{ui('Bodování je nastavené, ale rubrika neodpovídá bodům bloku. AI hodnocení proto neběží.', 'Scoring is configured, but the rubric does not match the block points, so AI grading is disabled.')}</p> : null}
+      {ungradedBlock ? <p className="muted-copy">{ui('Tento blok se neboduje, AI hodnocení u něj proto neběží.', 'This block is not scored, so AI grading does not run for it.')}</p> : null}
       {evaluationError ? <p className="muted-copy">{evaluationError}</p> : null}
       {responses.length ? (
         <div className="teacher-response-list">

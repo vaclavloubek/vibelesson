@@ -33,7 +33,7 @@ export default function LiveBlock({
       <div className="block-head">
         <div style={{ display: 'grid', gap: 6 }}>
           <span className="eyebrow">{labels[locale][block.type]}</span>
-          <ActivityModeBadge type={block.type} />
+          <ActivityModeBadge type={block.type} points={block.points} />
           <h3 lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{block.title}</h3>
         </div>
         <span className="duration">{block.durationMinutes} min</span>
@@ -45,7 +45,6 @@ export default function LiveBlock({
       {block.revealText ? <FormattedInstructions text={block.revealText} className="reveal" lang={contentLanguage} /> : null}
       {teacherBlock?.correctAnswer ? <div className="reveal">{english ? 'Correct answer:' : 'Správná odpověď:'} <strong lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{teacherBlock.correctAnswer}</strong></div> : null}
       {teacherBlock?.teacherNote ? <details open><summary>{english ? 'Teacher note' : 'Poznámka pro učitele'}</summary><p lang={contentLanguage ?? undefined} dir={contentLanguage ? 'auto' : undefined}>{teacherBlock.teacherNote}</p></details> : null}
-      {typeof block.points === 'number' ? <div className="points">Max. {block.points} {english ? 'points' : 'bodů'}</div> : null}
     </article>
   );
 }
