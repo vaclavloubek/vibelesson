@@ -2,9 +2,9 @@
 
 ### Souhrn stavu k 2026-09-23 (konec dne)
 
-- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303); nový účet se potvrzuje kódem z e-mailu (#305). Interní verze **0.9.112**, veřejně zobrazovaná **0.9.30**.
+- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303); nový účet se potvrzuje kódem z e-mailu (#305). Interní verze **0.9.113**, veřejně zobrazovaná **0.9.30**. Live Control Worker **0.8.15** (Durable Objects v jurisdikci EU), Version ID `f71119be-808c-43fa-bffc-894bd762ab9c`.
 - **Produkt:** ikona pro kopírování odkazu pro studenty s trvalou potvrzovací fajfkou (#297, #299); nabídka účtu se na telefonech otevírá celá na obrazovce (#309); v editoru uložené lekce upozornění, že AI může chybovat a lekci je třeba zkontrolovat (0.9.108).
-- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018 a LEGAL-020 až LEGAL-022** (23. 9. LEGAL-013 až 018, 020 a 021: #293, #294, #296, #298, #300, #302, #304; 24. 9. LEGAL-022). Aktuální **VOP 1.11** (`2026-09-24-v12`, souhlasy v4–v11 zůstávají dostatečné), **Privacy Notice 1.7**, **DPA 1.2** (`2026-09-24-dpa-v3`), Neon migrace **0011** (evidence reklamací) a **0012** (body z AI až po potvrzení učitelem) aplikované v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce); **LEGAL-021** (AI Act) vyřešen v 0.9.105, posouzení potvrdit právníkem a do 2. 12. 2026 vyřešit označení textu generovaného AI (čl. 50 odst. 2).
+- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018 a LEGAL-020 až LEGAL-022** (23. 9. LEGAL-013 až 018, 020 a 021: #293, #294, #296, #298, #300, #302, #304; 24. 9. LEGAL-022). Aktuální **VOP 1.11** (`2026-09-24-v12`, souhlasy v4–v11 zůstávají dostatečné), **Privacy Notice 1.8**, **DPA 1.3** (`2026-09-24-dpa-v4`), Neon migrace **0011** (evidence reklamací) a **0012** (body z AI až po potvrzení učitelem) aplikované v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce); **LEGAL-021** (AI Act) vyřešen v 0.9.105, posouzení potvrdit právníkem a do 2. 12. 2026 vyřešit označení textu generovaného AI (čl. 50 odst. 2).
 - **Otevřené provozní body:** v živé hodině ověřit tlačítko „Potvrdit všechny návrhy AI“ (0.9.105); za provozu neověřené školní administrace, Stripe webhook (první obnova 18.–19. 10.) a registrace nového uživatele; ostatní 3 účty si musí nastavit heslo; sledovat ojedinělé `P0001` u `/api/ai-quota`; skutečné podání reklamace a e-maily reklamací nebyly zkoušeny (trvalý append-only záznam); přímý Neon re-consent zápis (účty se souhlasem starším než v4) nebyl spuštěn proti DB; limit důvěryhodných zařízení je zatím jen v Ceníku, ne ve VOP; po přijetí českého § 1830a OZ znovu porovnat online odstoupení.
 - **Pracovní postup agentů (dnešní zkušenosti):**
   - Před sloučením vždy znovu ověřit volné číslo verze na `main`; souběžné chaty dnes obsadily 0.9.95, 0.9.96, 0.9.98, 0.9.100 a 0.9.102 během otevřených PR.
@@ -20,6 +20,8 @@
 - **Supabase** (`qsjddlgmabgmtssvntmn`) je ponechaná beze změny dat a **jen pro čtení** (`default_transaction_read_only = on`) jako záloha. Nemazat bez samostatného rozhodnutí. Protože Neon už přijal produkční zápisy, prostý návrat na Supabase není povolen (split-brain); postup je v `docs/NEON_MIGRATION.md`.
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
+
+Aktualizováno: 2026-09-24 — interní verze **0.9.113**: Live Control Worker **0.8.15** vytváří Durable Objects živých hodin jen v jurisdikci EU (`env.LIVE_SESSION.jurisdiction('eu')`), Version ID `f71119be-808c-43fa-bffc-894bd762ab9c`; DPA 1.3 a Privacy Notice 1.8 to uvádějí. Produkční test se studentem prošel (připojení, odpověď, start a přepnutí aktivity). **Nový otevřený bod:** CSP `connect-src` neobsahuje host Workeru, takže záložní cesta přes Cloudflare v prohlížečích nefunguje; řeší samostatný PR. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-24 — produkční ověření **LEGAL-022 / 0.9.112** (#319, `f43fa6ef`): studentské stránky bez lišty a GA i se souhlasem, Turnstile až v okně přihlášení, přihlášení ověřil vlastník, GDPR 1.7 / DPA 1.2 / VOP 1.11 živé. Bez změny verze.
 
@@ -70,6 +72,18 @@ Aktualizováno: 2026-09-23 — interní verze **0.9.93** uzavírá **LEGAL-013**
 Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: minimální scope, práce po malých krocích, úsporné používání kontextu a nástrojů, zákaz nevyžádaných refaktorů a opakovaných spekulativních pokusů. Kořenový `AGENTS.md` je nově stručným závazným vstupním bodem pro agentní práci; `PROJECT.md` zůstává zdrojem projektového stavu a načítá se cíleně podle úkolu. Jde pouze o dokumentační/procesní změnu, interní verze zůstává **0.9.92** a veřejně zobrazovaná verze 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Live Control v jurisdikci EU 0.9.113 — 2026-09-24
+
+- vlastník projektu schválil přesun Durable Objects živého řízení do jurisdikce EU;
+- podle dokumentace Cloudflare (Data location, aktualizováno 26. 6. 2026; DurableObjectNamespace API) se objekt v EU vytváří přes subnamespace `env.LIVE_SESSION.jurisdiction('eu')` a na něm `idFromName()` / `get()`. Objekt pak běží a ukládá data jen v EU. Bezstavový vstupní Worker dál vyřizuje požadavky v nejbližším datovém centru Cloudflare a ID objektu se loguje i mimo EU (fakturace, ladění);
+- stejné jméno má v EU jurisdikci jiné ID, proto se stávající objekty mimo EU nepřenášejí a samy zaniknou alarmem 7 dní po poslední aktivitě (`LIVE_RETENTION_MS`). Hodinu aktivní během přepnutí znovu naplní učitelská route `/api/sessions/<id>/live-control` z primární databáze;
+- `cloudflare/live-control/src/index.ts`: jediné místo, kde se získává stub `LiveSession`, používá EU subnamespace; `workerVersion` **0.8.15**, `protocolVersion` zůstává **2** (kontrakt s aplikací se nemění, `lib/live-control-client.ts` ani `lib/live-control-server.ts` verzi nečtou);
+- nasazeno přes Wrangler 24. 9. 2026 ve chvíli, kdy v Neonu nebyla žádná hodina `live` (jediná `lobby` byla opuštěná: 0 účastníků, revize 0, 17 h stará); nové **Worker Version ID `f71119be-808c-43fa-bffc-894bd762ab9c`** (předchozí `3044c41b-c0b4-443b-81e5-57fabb0d4419`); `/health` vrací `workerVersion=0.8.15`, `protocolVersion=2`, požadavek bez capability tokenu 401;
+- **DPA 1.3** (`2026-09-24-dpa-v4`) a **Privacy Notice 1.8** uvádějí, že Durable Objects běží a ukládají data jen v jurisdikci EU; `LIVE_RESILIENCE.md` (Privacy) popisuje jurisdikci, retenci a chování při přepnutí; **verify-dpa** hlídá, že žádný stub neobchází EU subnamespace a že DPA i GDPR stránka jurisdikci uvádějí;
+- **produkční test** (vlastník jako učitel, Claude jako student „Test EU“, hodina 9FXDZ4C): připojení studenta ✅ (aplikace i EU objekt, zrcadlení ze serveru), odpověď uložená v primární DB ✅, start hodiny a přepnutí aktivity ✅ u studenta (primární polling) i v EU objektu (revize 1 → 4). **Výpadek primární cesty nešlo otestovat** — viz další bod;
+- **nález (otevřené):** CSP `connect-src` v `next.config.ts` nikdy neobsahovala host Workeru `syllonaut-live-control.vaclav-loubek.workers.dev`. Prohlížeč proto blokuje WebSocket i `/state` na Cloudflare a klientské odesílání odpovědí do Live Control; záložní cesta pro učitele i studenty v produkci od 0.8 nefunguje. Fungují jen serverové zápisy (bootstrap, zrcadlení příkazů a připojení). Oprava v samostatném PR, po nasazení zopakovat test výpadku (scénář C a G v `LIVE_RESILIENCE.md`);
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Soulad GDPR stránky a DPA s produkční infrastrukturou 0.9.112 — 2026-09-24
 
@@ -646,7 +660,7 @@ Produkční release 0.8:
 
 `45fe128e05bc9007ef9a927d70562d6d4c80ac77` — **Release Syllonaut 0.8 live resilience**.
 
-Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `3044c41b-c0b4-443b-81e5-57fabb0d4419`, `workerVersion=0.8.14`, `protocolVersion=2`. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 15 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
+Produkční stav 0.8 je potvrzený ve všech třech hlavních vrstvách: Vercel aplikace je nasazená, Supabase migration `20260918114341` je aplikovaná a Cloudflare Worker `syllonaut-live-control` byl ručně nasazen přes Wrangler; aktuální ověřený Worker Version ID je `f71119be-808c-43fa-bffc-894bd762ab9c`, `workerVersion=0.8.15` (Durable Objects v jurisdikci EU od 24. 9. 2026), `protocolVersion=2`; předchozí `3044c41b-c0b4-443b-81e5-57fabb0d4419` / 0.8.14. Server-driven AI grading se po releasu reálně ověřil na dvou pending evaluacích z beta hodiny: obě doběhly bez browser-driven pumpy. Bezpečnostní audit má 15 remediovaných/uzavřených nálezů; SEC-002 a SEC-007 jsou vědomě přijaté výjimky / odložená rizika.
 
 ## 1. Produkt a zdroj pravdy
 
@@ -730,7 +744,7 @@ Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravid
 - Zod 4.1
 - Vercel AI SDK 7 + Vercel AI Gateway
 - Neon Postgres + Neon Auth + Data API (od 23. 9. 2026), RLS aktivní
-- Cloudflare Workers / Durable Objects pro živé řízení hodin (retence 7 dní)
+- Cloudflare Workers / Durable Objects pro živé řízení hodin (Durable Objects v jurisdikci EU od Worker 0.8.15, retence 7 dní)
 - Resend pro transakční/auth e-maily; ověřená odesílací doména `syllonaut.com`
 - Spaceship Email Forwarding pro příjem `vaclav@syllonaut.com` → cílový Gmail
 - AI model: `openai/gpt-5.6-sol`
@@ -1586,7 +1600,7 @@ Stejné rozlišení je i v lesson preview.
 - Presenter při výpadku primárního endpointu automaticky skládá obraz z Cloudflare snapshotu a po návratu primární vrstvy se vrátí bez ručního přepínače;
 - raw browser AbortError se už nezobrazuje; timeouty jsou normalizované a teacher/presenter ukazují jen srozumitelný stav Primární / Záložní / Synchronizuji;
 - live resume podpis je server-only, domain-separated HMAC nad existujícím live bootstrap trust boundary; Cloudflare bearer capability zůstává pouze v `sessionStorage`, ne v persistentním browser storage;
-- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; aktuální ověřený Worker Version ID: `3044c41b-c0b4-443b-81e5-57fabb0d4419`;
+- Cloudflare Worker 0.8 s Durable Object validací `expectedActiveBlockId`, session state, timer a reveal commandů je produkčně nasazený; aktuální ověřený Worker Version ID: `f71119be-808c-43fa-bffc-894bd762ab9c` (0.8.15, Durable Objects v jurisdikci EU);
 - produkční Worker od 0.8.14 podporuje least-privilege `presenter` capability: může číst state/WebSocket, ale `/events` pro ni fail-closed vrací 403; `/health` ověřeně vrací `workerVersion=0.8.14` a `protocolVersion=2`.
 
 ### Join abuse protection
