@@ -318,8 +318,10 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
     });
   }
 
-  async function act(action: SessionAction['action']) {
+  async function act(requestedAction: SessionAction['action']) {
     if (busy) return;
+    let action = requestedAction;
+    let revealAlreadyConfirmed = false;
     if (action === 'end') {
       const confirmation = session?.status === 'lobby'
         ? ui(
@@ -329,7 +331,17 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         : ui('Opravdu ukončit hodinu? Studenti už se znovu nepřipojí.', 'End the lesson? Students will not be able to reconnect.');
       if (!window.confirm(confirmation)) return;
     }
-    if (action === 'reveal_results' && !window.confirm(ui('Zveřejnit výsledky studentům? Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.', 'Reveal results to students? After revealing them, students will no longer be able to change their answer for this block.'))) return;
+    if (action === 'next' && session?.status === 'live' && !session.resultsRevealed && (session.responses?.length ?? 0) > 0) {
+      const currentBlock = session.lessonSnapshot.blocks.find((block) => block.id === session.activeBlockId);
+      if (currentBlock?.type === 'quiz' && window.confirm(ui(
+        'Výsledky tohoto kvízu ještě nejsou zveřejněné, takže studenti neuvidí, jestli odpověděli správně.\n\nOK – zveřejnit výsledky tohoto kvízu a zůstat u něj.\nZrušit – pokračovat na další blok bez zveřejnění.',
+        'The results of this quiz have not been revealed, so students will not see whether they answered correctly.\n\nOK – reveal this quiz\'s results and stay on it.\nCancel – continue to the next block without revealing.',
+      ))) {
+        action = 'reveal_results';
+        revealAlreadyConfirmed = true;
+      }
+    }
+    if (action === 'reveal_results' && !revealAlreadyConfirmed && !window.confirm(ui('Zveřejnit studentům výsledky tohoto úkolu? Týká se jen aktuálního bloku, ne celkového pořadí. Po zveřejnění už svou odpověď u tohoto bloku nebudou moci změnit.', 'Reveal the results of this task to students? This applies only to the current block, not to the overall scoreboard. After revealing them, students will no longer be able to change their answer for this block.'))) return;
 
     const operationId = crypto.randomUUID();
     const expectedActiveBlockId = (action === 'next' || action === 'previous')
@@ -632,21 +644,17 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
               {activeBlock ? <LiveBlock block={activeBlock} teacherMode hideItems={activeBlock.type === 'ranking'} contentLanguage={session.lessonSnapshot.language} /> : <div className="error" role="alert">{ui('Aktuální blok se nepodařilo najít ve snapshotu.', 'The current block could not be found in the lesson snapshot.')}</div>}
 
               {activeBlock?.type === 'timer' && session.timer ? (
-                <>
-                  <LiveTimer timer={session.timer} label={ui('Synchronizovaný timer', 'Synchronized timer')} />
-                  <section className="panel">
-                    <span className="eyebrow">{ui('Ovládání timeru', 'Timer controls')}</span>
-                    <div className="actions" style={{ marginTop: 12 }}>
-                      {session.timer.status === 'running' && session.timer.remainingSeconds > 0 ? (
-                        <button className="primary" disabled={busy} onClick={() => void act('timer_pause')}>{ui('Pozastavit', 'Pause')}</button>
-                      ) : session.timer.remainingSeconds > 0 ? (
-                        <button className="primary" disabled={busy} onClick={() => void act('timer_start')}>{session.timer.status === 'paused' ? ui('Pokračovat', 'Resume') : ui('Spustit odpočet', 'Start countdown')}</button>
-                      ) : null}
-                      <button className="secondary" disabled={busy} onClick={() => void act('timer_reset')}>{ui('Resetovat', 'Reset')}</button>
-                    </div>
-                    <p className="muted-copy" style={{ marginBottom: 0 }}>{ui('Studenti vidí stejný čas. Start, pauza i reset se synchronizují přes session stav.', 'Students see the same time. Start, pause and reset are synchronized through the session state.')}</p>
-                  </section>
-                </>
+                <LiveTimer timer={session.timer} label={ui('Synchronizovaný timer', 'Synchronized timer')}>
+                  <div className="actions" role="group" aria-label={ui('Ovládání timeru', 'Timer controls')} style={{ marginTop: 12, justifyContent: 'center' }}>
+                    {session.timer.status === 'running' && session.timer.remainingSeconds > 0 ? (
+                      <button className="primary" disabled={busy} onClick={() => void act('timer_pause')}>{ui('Pozastavit', 'Pause')}</button>
+                    ) : session.timer.remainingSeconds > 0 ? (
+                      <button className="primary" disabled={busy} onClick={() => void act('timer_start')}>{session.timer.status === 'paused' ? ui('Pokračovat', 'Resume') : ui('Spustit odpočet', 'Start countdown')}</button>
+                    ) : null}
+                    <button className="secondary" disabled={busy} onClick={() => void act('timer_reset')}>{ui('Resetovat', 'Reset')}</button>
+                  </div>
+                  <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('Studenti vidí stejný čas. Start, pauza i reset se synchronizují přes session stav.', 'Students see the same time. Start, pause and reset are synchronized through the session state.')}</p>
+                </LiveTimer>
               ) : null}
             </div>
 
@@ -659,13 +667,18 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
 
           {canRevealResults ? (
             <section className="panel live-results-action">
-              <span className="eyebrow">{ui('Výsledky pro studenty', 'Results for students')}</span>
+              <span className="eyebrow">{activeBlock?.type === 'quiz' ? ui('Výsledky tohoto kvízu', 'Results of this quiz') : ui('Výsledky tohoto hlasování', 'Results of this poll')}</span>
               {session.resultsRevealed ? (
-                <p className="muted-copy" role="status" style={{ marginBottom: 0 }}>{ui('Výsledky jsou zveřejněné. Studentské odpovědi na tento blok jsou uzamčené.', 'Results are visible. Student answers for this block are locked.')}</p>
+                <p className="muted-copy" role="status" style={{ marginBottom: 0 }}>{ui('Výsledky tohoto bloku jsou zveřejněné. Studentské odpovědi na tento blok jsou uzamčené.', 'Results of this block are visible. Student answers for this block are locked.')}</p>
               ) : (
                 <div className="live-results-action-row">
-                  <p className="muted-copy">{ui('Učitel vidí průběžné výsledky už teď. Studentům je zveřejni až ve chvíli, kdy už nemají měnit odpověď.', 'You can already see live results. Reveal them to students only when they should no longer change their answer.')}</p>
-                  <button className="primary" disabled={busy} onClick={() => void act('reveal_results')}>{ui('Zveřejnit výsledky', 'Reveal results')}</button>
+                  <p className="muted-copy">
+                    {activeBlock?.type === 'quiz'
+                      ? ui('Průběžné výsledky vidíš už teď. Po zveřejnění uvidí každý student, jestli odpověděl správně, a odpověď už nezmění.', 'You can already see live results. After revealing, each student sees whether they answered correctly and can no longer change the answer.')
+                      : ui('Průběžné výsledky vidíš už teď. Po zveřejnění uvidí studenti, jak hlasovala skupina, a hlas už nezmění.', 'You can already see live results. After revealing, students see how the group voted and can no longer change their vote.')}
+                    {' '}{ui('Týká se jen tohoto bloku. Celkové pořadí zveřejňuješ zvlášť tlačítkem „Zveřejnit pořadí“ nahoře.', 'This applies only to this block. The overall scoreboard is revealed separately with “Reveal scoreboard” at the top.')}
+                  </p>
+                  <button className="primary" disabled={busy} onClick={() => void act('reveal_results')}>{activeBlock?.type === 'quiz' ? ui('Zveřejnit výsledky kvízu', 'Reveal quiz results') : ui('Zveřejnit výsledky hlasování', 'Reveal poll results')}</button>
                 </div>
               )}
             </section>

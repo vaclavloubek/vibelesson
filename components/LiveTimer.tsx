@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import { useUiLocale } from '@/components/LocaleProvider';
 import type { LiveTimerState } from '@/lib/live';
@@ -8,6 +8,7 @@ import type { LiveTimerState } from '@/lib/live';
 type Props = {
   timer: LiveTimerState;
   label?: string;
+  children?: ReactNode;
 };
 
 function formatSeconds(totalSeconds: number) {
@@ -24,7 +25,7 @@ function milestoneMessage(seconds: number, label: string, english: boolean) {
   return english ? `${label}: time is up.` : `${label}: čas vypršel.`;
 }
 
-export default function LiveTimer({ timer, label }: Props) {
+export default function LiveTimer({ timer, label, children }: Props) {
   const english = useUiLocale() === 'en';
   const resolvedLabel = label ?? (english ? 'Time' : 'Čas');
   const [remaining, setRemaining] = useState(timer.remainingSeconds);
@@ -81,6 +82,7 @@ export default function LiveTimer({ timer, label }: Props) {
         {formatSeconds(remaining)}
       </div>
       <p className="muted-copy" style={{ marginBottom: 0 }}>{statusText}</p>
+      {children}
       <VisuallyHidden><span role="status" aria-live="polite" aria-atomic="true">{announcement}</span></VisuallyHidden>
     </section>
   );

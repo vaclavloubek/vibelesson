@@ -87,7 +87,7 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
       const response = await fetch(`/api/sessions/${sessionId}/evaluations/${evaluation.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ score, note }),
+        body: JSON.stringify({ score, note, noteForStudent: true }),
       });
       const data = await response.json() as ReviewPatch & { error?: string };
       if (!response.ok) throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Hodnocení se nepodařilo uložit.', 'The grading could not be saved.'));
@@ -158,7 +158,7 @@ function ReviewForm({ evaluation, sessionId, onReviewed }: {
           <input name="score" type="number" min={0} max={evaluation.maxPoints} step={1} defaultValue={effectiveScore} />
         </label>
         <label style={{ fontSize: 12 }}>
-          {ui('Poznámka', 'Note')} <span className="muted-copy">{ui('(volitelná)', '(optional)')}</span>
+          {ui('Poznámka pro studenta', 'Note for the student')} <span className="muted-copy">{ui('(volitelná, student ji uvidí)', '(optional, the student will see it)')}</span>
           <input name="note" type="text" maxLength={1000} defaultValue={evaluation.teacherNote ?? ''} />
         </label>
       </div>

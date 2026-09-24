@@ -3,6 +3,7 @@ import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { scheduleNeonGradingDrain } from '@/lib/neon/grading-outbox-worker';
 import { createNeonSql } from '@/lib/neon/server';
+import type { StudentEvaluation } from '@/lib/live';
 
 type Block = Record<string, unknown>;
 type Answer = { choice: string } | { text: string } | { ranking: string[]; text: string };
@@ -93,6 +94,74 @@ function normalizeAnswer(block: Block, raw: unknown): { answer?: Answer; error?:
       : { error: 'Ke svému pořadí přidej krátké zdůvodnění.', status: 400 };
   }
   return { error: 'Tento blok zatím odpověď nepřijímá.', status: 409 };
+}
+
+const GRADED_BLOCK_TYPES = new Set(['open_text', 'exit_ticket', 'team_task']);
+
+/**
+ * Teacher-confirmed evaluations of this participant's answers and of their
+ * team's answers. Only confirmed rows are returned (LEGAL-021: an unconfirmed
+ * AI proposal is not a result). A missing column during rollout or any other
+ * read failure must never break the live student view.
+ */
+async function readConfirmedEvaluations(
+  sessionId: string,
+  participant: Participant,
+  allBlocks: Block[],
+  onlyBlockId: string | null,
+): Promise<StudentEvaluation[]> {
+  const sql = createNeonSql();
+  const teamId = typeof participant.team_id === 'string' ? participant.team_id : null;
+  try {
+    const rows = await sql`
+      select e.block_id, e.team_id, e.max_points, e.ai_score, e.teacher_score,
+             e.rationale, e.teacher_note, e.teacher_note_for_student,
+             e.answer_snapshot is distinct from coalesce(r.submitted_answer, tr.submitted_answer) as outdated
+      from public.response_evaluations e
+      left join public.responses r on r.id = e.response_id
+      left join public.team_responses tr on tr.id = e.team_response_id
+      where e.session_id = ${sessionId}::uuid
+        and e.teacher_confirmed
+        and e.status in ('graded', 'needs_review')
+        and e.teacher_score is not null
+        and (
+          e.participant_id = ${participant.id}::uuid
+          or (${teamId}::uuid is not null and e.team_id = ${teamId}::uuid)
+        )
+        and (${onlyBlockId}::text is null or e.block_id = ${onlyBlockId}::text)
+    `;
+    const order = new Map(allBlocks.map((block, index) => [String(block.id), index]));
+    return rows
+      .map((row): StudentEvaluation | null => {
+        const blockId = String(row.block_id);
+        const block = allBlocks.find((candidate) => candidate.id === blockId);
+        if (!block || !GRADED_BLOCK_TYPES.has(String(block.type))) return null;
+        const score = Number(row.teacher_score);
+        const maxPoints = Number(row.max_points);
+        if (!Number.isFinite(score) || !Number.isFinite(maxPoints)) return null;
+        const aiScore = row.ai_score === null || row.ai_score === undefined ? null : Number(row.ai_score);
+        const source: StudentEvaluation['source'] = aiScore !== null && aiScore === score ? 'ai' : 'teacher';
+        const rationale = typeof row.rationale === 'string' ? row.rationale.trim() : '';
+        const note = typeof row.teacher_note === 'string' ? row.teacher_note.trim() : '';
+        return {
+          blockId,
+          blockTitle: typeof block.title === 'string' ? block.title : '',
+          blockType: String(block.type),
+          team: Boolean(row.team_id),
+          score,
+          maxPoints,
+          source,
+          summary: source === 'ai' && rationale ? rationale : null,
+          teacherNote: row.teacher_note_for_student === true && note ? note : null,
+          outdated: row.outdated === true,
+        };
+      })
+      .filter((item): item is StudentEvaluation => item !== null)
+      .sort((left, right) => (order.get(left.blockId) ?? 0) - (order.get(right.blockId) ?? 0));
+  } catch (error) {
+    console.error('student confirmed evaluations read failed', error);
+    return [];
+  }
 }
 
 async function verifyParticipant(sessionId: string, rawToken: string) {
@@ -263,6 +332,16 @@ async function state(body: Record<string, unknown>) {
     }
   }
 
+  const activeGradedBlockId = rawBlock && GRADED_BLOCK_TYPES.has(String(rawBlock.type)) && typeof session.active_block_id === 'string'
+    ? session.active_block_id
+    : null;
+  const myEvaluations = session.status === 'ended' || activeGradedBlockId
+    ? await readConfirmedEvaluations(sessionId, participant, allBlocks, session.status === 'ended' ? null : activeGradedBlockId)
+    : [];
+  const myEvaluation = activeGradedBlockId
+    ? myEvaluations.find((item) => item.blockId === activeGradedBlockId) ?? null
+    : null;
+
   const syncedAt = new Date().toISOString();
   const timer = rawBlock?.type === 'timer'
     ? {
@@ -289,6 +368,8 @@ async function state(body: Record<string, unknown>) {
     teams,
     myTeam,
     myTeamResponse,
+    myEvaluation,
+    myEvaluations: session.status === 'ended' ? myEvaluations : [],
   });
 }
 

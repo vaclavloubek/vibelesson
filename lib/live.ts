@@ -22,6 +22,25 @@ export type RevealedChoiceResults = {
   isCorrect?: boolean | null;
 };
 
+/**
+ * A teacher-confirmed evaluation of the student's own (or own team's) answer.
+ * `source: 'ai'` means the teacher confirmed the AI proposal unchanged, so the
+ * AI summary is shown; otherwise the teacher's points are shown. Integrity
+ * signals are never part of this payload.
+ */
+export type StudentEvaluation = {
+  blockId: string;
+  blockTitle: string;
+  blockType: string;
+  team: boolean;
+  score: number;
+  maxPoints: number;
+  source: 'ai' | 'teacher';
+  summary: string | null;
+  teacherNote: string | null;
+  outdated: boolean;
+};
+
 export type PublicScoreboardState = {
   score: number;
   maxPoints: number;
