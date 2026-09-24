@@ -21,5 +21,5 @@ export default async function NewLessonPage({ searchParams }: Props) {
     await requireCurrentTermsForPage(userId, returnTo);
   }
 
-  return <LessonWorkspace initialFolderId={initialFolderId} />;
+  return <LessonWorkspace initialFolderId={initialFolderId} signedIn={Boolean(userId)} />;
 }
