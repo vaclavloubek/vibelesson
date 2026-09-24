@@ -118,7 +118,12 @@ for (const locale of ['cs', 'en']) {
     assert(email.html.includes(`lang="${locale}"`), 'html lang must match locale');
     assert(email.html.includes('#151721') && email.html.includes('#f6f5f1') && email.html.includes('#5b57e8'), 'Orbital Precision palette must be used');
     assert(!/neon/i.test(email.subject) && !/neon auth|myneon/i.test(email.text), 'Neon branding must not leak');
-    assert(!/<img|https?:\/\/fonts\./i.test(email.html), 'no remote images or fonts');
+    assert(!/https?:\/\/fonts\./i.test(email.html), 'no remote fonts');
+    const images = email.html.match(/<img\b[^>]*>/gi) ?? [];
+    assert(images.length === 1 && images[0].includes('src="https://www.syllonaut.com/email/syllonaut-mark.png"') && images[0].includes('alt="Syllonaut"'),
+      'the only image must be the Syllonaut mark (syllonaut-mark.png)');
+    assert(!/>\s*S\s*<\/td>/.test(email.html), 'the letter "S" tile must not return');
+    assert(!/#8a8c93|#9a9ca3/i.test(email.html), 'low-contrast greys #8a8c93 / #9a9ca3 must not return');
     if (action.channel === 'code') assert(email.html.includes('482913') && email.text.includes('482913'), 'code must be shown');
     else assert(email.html.includes(action.href.replace(/&/g, '&amp;')) && email.text.includes(action.href), 'link must be shown');
     assert(email.text.includes(locale === 'cs' ? 'Platnost vyprší za 60 minut.' : 'It is valid for 60 minutes.'), 'validity must be stated');

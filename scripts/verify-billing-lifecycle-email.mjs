@@ -176,6 +176,14 @@ const en = renderBillingLifecycleEmail({
 assert(en.subject.includes('cancellation is scheduled'), 'English cancellation subject must be localized');
 assert(en.text.includes('Teacher Pro'), 'plan name must be included');
 
+for (const email of [cs, csPro, en]) {
+  const images = email.html.match(/<img\b[^>]*>/gi) ?? [];
+  assert(images.length === 1 && images[0].includes('src="https://www.syllonaut.com/email/syllonaut-mark.png"') && images[0].includes('alt="Syllonaut"'),
+    'the only image must be the Syllonaut mark (syllonaut-mark.png)');
+  assert(!/>\s*S\s*<\/td>/.test(email.html), 'the letter "S" tile must not return');
+  assert(!/#8a8c93|#9a9ca3/i.test(email.html), 'low-contrast greys #8a8c93 / #9a9ca3 must not return');
+}
+
 const [emailSource, emailCoreSource, pricingSource, routeSource, localeSource, authSource, migrationSource, contractMigrationSource, contractLinkMigrationSource, envSource] = await Promise.all([
   source('lib/billing-email.ts'),
   source('lib/billing-email-core.ts'),

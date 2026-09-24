@@ -256,7 +256,7 @@ export function renderNeonAuthEmail(
                 <a href="${escapeHtml(action.href)}" style="display:inline-block;padding:13px 20px;font-size:15px;line-height:1.2;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">${escapeHtml(copy.cta ?? '')}</a>
               </td></tr>
             </table>
-            <p style="margin:0 0 22px;font-size:12px;line-height:1.55;color:#8a8c93;">${escapeHtml(fallbackLabel)}<br><a href="${escapeHtml(action.href)}" style="color:#5b57e8;text-decoration:underline;word-break:break-all;">${escapeHtml(action.href)}</a></p>`;
+            <p style="margin:0 0 22px;font-size:12px;line-height:1.55;color:#686b74;">${escapeHtml(fallbackLabel)}<br><a href="${escapeHtml(action.href)}" style="color:#5b57e8;text-decoration:underline;word-break:break-all;">${escapeHtml(action.href)}</a></p>`;
 
   const html = `<!doctype html>
 <html lang="${locale}">
@@ -273,7 +273,7 @@ export function renderNeonAuthEmail(
           <tr><td style="padding:32px 34px 30px;">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
               <tr>
-                <td width="36" height="36" align="center" valign="middle" style="width:36px;height:36px;border-radius:11px;background:#151721;color:#ffffff;font-size:16px;line-height:36px;font-weight:800;">S</td>
+                <td width="36" height="36" align="center" valign="middle" style="width:36px;height:36px;border-radius:11px;background:#151721;"><img src="https://www.syllonaut.com/email/syllonaut-mark.png" width="36" height="36" alt="Syllonaut" style="display:block;border:0;border-radius:11px;"></td>
                 <td style="padding-left:10px;">
                   <div style="font-size:17px;line-height:1.2;font-weight:700;color:#151721;">Syllonaut</div>
                   <div style="margin-top:2px;font-size:11px;line-height:1.35;color:#686b74;">${escapeHtml(tagline)}</div>
@@ -286,12 +286,12 @@ export function renderNeonAuthEmail(
             ${actionHtml}
             <p style="margin:0;font-size:13px;line-height:1.6;color:#686b74;">${escapeHtml(note)}</p>
             <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1dc;">
-              <div style="font-size:11px;line-height:1.5;color:#8a8c93;">Syllonaut · ${escapeHtml(tagline)}</div>
-              <div style="margin-top:3px;font-size:11px;line-height:1.5;color:#8a8c93;">syllonaut.com</div>
+              <div style="font-size:11px;line-height:1.5;color:#686b74;">Syllonaut · ${escapeHtml(tagline)}</div>
+              <div style="margin-top:3px;font-size:11px;line-height:1.5;color:#686b74;">syllonaut.com</div>
             </div>
           </td></tr>
         </table>
-        <div style="max-width:580px;padding:14px 8px 0;font-size:10px;line-height:1.5;color:#9a9ca3;text-align:center;">${escapeHtml(footnote)}</div>
+        <div style="max-width:580px;padding:14px 8px 0;font-size:10px;line-height:1.5;color:#686b74;text-align:center;">${escapeHtml(footnote)}</div>
       </td></tr>
     </table>
   </body>

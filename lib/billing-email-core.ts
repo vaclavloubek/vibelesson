@@ -109,7 +109,7 @@ function shell(content: string, ctaLabel: string, ctaHref: string, locale: UiLoc
               <td style="padding:24px 28px;border-bottom:1px solid #e2e1dc;">
                 <table role="presentation" cellspacing="0" cellpadding="0">
                   <tr>
-                    <td style="width:36px;height:36px;border-radius:11px;background:#1d2030;color:#ffffff;text-align:center;font-size:17px;font-weight:800;">S</td>
+                    <td width="36" height="36" style="width:36px;height:36px;border-radius:11px;background:#151721;"><img src="https://www.syllonaut.com/email/syllonaut-mark.png" width="36" height="36" alt="Syllonaut" style="display:block;border:0;border-radius:11px;"></td>
                     <td style="padding-left:10px;font-size:19px;font-weight:760;letter-spacing:-0.02em;">Syllonaut</td>
                   </tr>
                 </table>
