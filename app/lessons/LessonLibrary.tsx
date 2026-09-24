@@ -452,8 +452,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
                 <span className="eyebrow">{ui('Archiv', 'Archive')}</span>
                 <h2 style={{ fontSize: 30, margin: '5px 0 8px', letterSpacing: '-.035em' }}>{ui('Archivované lekce', 'Archived lessons')}</h2>
                 <p>{ui(
-                  'Tyto lekce už mají za sebou první živé použití ve Free tarifu. Stále je můžeš otevírat a upravovat pomocí AI v rámci svého limitu; placený tarif odemkne jejich další živé použití.',
-                  'These lessons have completed their first live use on the Free plan. You can still open and edit them with AI within your allowance; a paid plan unlocks further live use.',
+                  'Tyto lekce už mají za sebou první živé použití ve Free tarifu. Stále je můžeš otevírat a upravovat ručně i pomocí AI (AI úpravy v rámci svého limitu); placený tarif odemkne jejich další živé použití.',
+                  'These lessons have completed their first live use on the Free plan. You can still open and edit them manually or with AI (AI edits within your allowance); a paid plan unlocks further live use.',
                 )}</p>
               </div>
             </section>

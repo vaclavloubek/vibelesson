@@ -11,6 +11,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import GenerationProgress, { type GenerationStage } from '@/components/GenerationProgress';
 import GradingStrictnessControl from '@/components/GradingStrictnessControl';
 import LessonPreview from '@/components/LessonPreview';
+import ManualBlockEditForm from '@/components/ManualBlockEditForm';
 import ShareLessonButton from '@/components/ShareLessonButton';
 import SyllonautMark from '@/components/SyllonautMark';
 import WorksheetExportDialog from '@/components/WorksheetExportDialog';
@@ -32,6 +33,7 @@ import {
 import { extractMaterialsInBrowser } from '@/lib/materials-client';
 import { MATERIAL_MAX_FILES, MATERIAL_MAX_TOTAL_BYTES } from '@/lib/materials';
 import { localizedApiError } from '@/lib/i18n';
+import type { ManualBlockEdit } from '@/lib/manual-block-edit';
 import { LessonSchema, resolveLessonCollaborationMode, type CollaborationMode, type GradingStrictness, type Lesson } from '@/lib/schema';
 import { maybeStartFirstSyllonautGuide, signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 
@@ -107,6 +109,7 @@ export default function LessonWorkspace({
   const [revisionLanguageNotice, setRevisionLanguageNotice] = useState<'whole_lesson' | 'activity' | null>(null);
   const [recentlyChangedBlockIds, setRecentlyChangedBlockIds] = useState<string[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [blockEditMode, setBlockEditMode] = useState<'ai' | 'manual'>('ai');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<'teacher' | 'student'>('teacher');
@@ -125,6 +128,7 @@ export default function LessonWorkspace({
   const lessonOwnerIdRef = useRef<string | null>(initialLesson ? initialOwnerId : null);
 
   const selectedBlock = useMemo(() => lesson?.blocks.find((b) => b.id === selectedBlockId) ?? null, [lesson, selectedBlockId]);
+  const manualBlockEdit = blockEditMode === 'manual' && Boolean(lessonId && authUser);
 
   const handleAuthChange = useCallback((nextUser: User | null) => {
     const nextUserId = nextUser?.id ?? null;
@@ -706,6 +710,34 @@ export default function LessonWorkspace({
     }
   }
 
+  async function saveManualBlockEdit(edit: ManualBlockEdit) {
+    if (!lesson || !lessonId || !selectedBlock || busy || !authUser) return;
+    const operationOwnerId = authUser.id;
+    const before = lesson;
+    setBusy(true);
+    setError('');
+    setRevisionLanguageNotice(null);
+    setSaveStatus('saving');
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/blocks/${encodeURIComponent(selectedBlock.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(edit),
+      });
+      const data = await res.json() as LessonApiResponse;
+      // 400 messages from this endpoint are already localized by the server.
+      if (!res.ok) throw new Error(res.status === 400 && data.error ? data.error : localizedApiError(data.error, locale, 'Změny aktivity se nepodařilo uložit.', 'The activity changes could not be saved.'));
+      const savedLesson = applyLessonResponse(data, operationOwnerId);
+      rememberRevisionHighlights(lessonId, changedBlockIds(before, savedLesson));
+      setUndoLesson(before);
+    } catch (err) {
+      setSaveStatus('saved');
+      setError(err instanceof Error ? err.message : ui('Změny aktivity se nepodařilo uložit.', 'The activity changes could not be saved.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function undoLastChange() {
     if (!lessonId || !undoLesson || busy || !authUser) return;
     const operationOwnerId = authUser.id;
@@ -832,8 +864,8 @@ export default function LessonWorkspace({
                   <div>
                     <strong>{ui('Než lekci pustíš do třídy, projdi ji.', 'Review it before it reaches your class.')}</strong>
                     <p>{ui(
-                      'AI je rychlá, ale ne neomylná. Umí splést fakt, přestřelit čas nebo netrefit úroveň třídy. Co nesedí, oprav níže: celkový směr v boxu „Uprav celou lekci“, detaily kliknutím na aktivitu v náhledu. Každá úspěšná změna se ukládá automaticky.',
-                      'AI is fast, not infallible. It can get a fact wrong, misjudge timing or miss your students’ level. Fix what doesn’t fit below: the overall direction in “Edit the whole lesson”, the details by clicking an activity in the preview. Every successful change is saved automatically.',
+                      'AI je rychlá, ale ne neomylná. Umí splést fakt, přestřelit čas nebo netrefit úroveň třídy. Co nesedí, oprav níže: celkový směr v boxu „Uprav celou lekci“, detaily kliknutím na aktivitu v náhledu, a to s AI, nebo ručně bez čerpání AI úprav. Každá úspěšná změna se ukládá automaticky.',
+                      'AI is fast, not infallible. It can get a fact wrong, misjudge timing or miss your students’ level. Fix what doesn’t fit below: the overall direction in “Edit the whole lesson”, the details by clicking an activity in the preview, either with AI or manually without using your AI edits. Every successful change is saved automatically.',
                     )}</p>
                   </div>
                 </div>
@@ -1003,12 +1035,18 @@ export default function LessonWorkspace({
               <div className="quick-edits"><button type="button" onClick={() => setRevision(ui('Udělej lekci zábavnější, ale ne infantilní.', 'Make the lesson more engaging, but not childish.'))}>{ui('Vtipnější', 'More playful')}</button><button type="button" onClick={() => setRevision(ui('Přidej více týmové soutěže a jasné bodování.', 'Add more team competition and clear scoring.'))}>{ui('Více soutěže', 'More competition')}</button><button type="button" onClick={() => setRevision(ui('Omez výklad a přidej více práce studentů.', 'Reduce lecturing and add more student work.'))}>{ui('Méně výkladu', 'Less lecturing')}</button></div>
             </div>
             <div className="panel block-editor" ref={blockEditorRef} data-tour="lesson-edit-block-editor">
-              <span className="eyebrow">{ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
+              <span className="eyebrow">{manualBlockEdit ? ui('Ruční úprava jedné aktivity', 'Manual edit · one activity') : ui('AI úprava jedné aktivity', 'AI edit · one activity')}</span>
               <div className="guide-heading-row">
                 <h2>{selectedBlock ? selectedBlock.title : ui('Klikni na aktivitu v náhledu', 'Select an activity in the preview')}</h2>
                 <GuideHelpButton userId={authUser?.id ?? null} chapter="lesson" step={selectedBlock ? 5 : 4} labelCs="Jak upravit jednu aktivitu" labelEn="How to edit one activity" />
               </div>
-              {selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy || aiBillingPaused}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
+              {selectedBlock && lessonId && authUser ? (
+                <div role="group" aria-label={ui('Způsob úpravy aktivity', 'How to edit the activity')} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  <button type="button" aria-pressed={!manualBlockEdit} className={manualBlockEdit ? 'secondary' : 'secondary active'} onClick={() => setBlockEditMode('ai')} disabled={busy}>{ui('Upravit s AI', 'Edit with AI')}</button>
+                  <button type="button" aria-pressed={manualBlockEdit} className={manualBlockEdit ? 'secondary active' : 'secondary'} onClick={() => setBlockEditMode('manual')} disabled={busy}>{ui('Upravit ručně', 'Edit manually')}</button>
+                </div>
+              ) : null}
+              {selectedBlock && manualBlockEdit ? <ManualBlockEditForm key={JSON.stringify(selectedBlock)} block={selectedBlock} busy={busy} english={english} onSave={saveManualBlockEdit} onCancel={() => setBlockEditMode('ai')} /> : selectedBlock ? <form onSubmit={reviseSelectedBlock}><label>{ui('Pokyn pro úpravu vybrané aktivity', 'Instruction for the selected activity')}<textarea ref={blockRevisionTextareaRef} value={blockRevision} onChange={(e) => setBlockRevision(e.target.value)} placeholder={ui('Např. Udělej to o polovinu kratší, přidej černější humor a jasnější výstup týmu.', 'E.g. Make it half as long, add sharper humour and a clearer team output.')} required /></label><button className="primary" disabled={busy || aiBillingPaused}>{busy ? ui('Upravuji…', 'Editing…') : ui('Upravit jen tuto aktivitu', 'Edit this activity only')}</button></form> : <p className="muted-copy">{ui('Vybraný blok se upraví bez přegenerování zbytku hodiny.', 'The selected block is edited without regenerating the rest of the lesson.')}</p>}
               {revisionLanguageNotice === 'activity' ? (
                 <div className="revision-plan-notice" role="status" aria-live="polite">
                   <strong>{ui('Aktivita byla upravena v rámci Free tarifu.', 'The activity was edited within the Free plan.')}</strong>
@@ -1025,7 +1063,7 @@ export default function LessonWorkspace({
         </section>
 
         <section ref={stageRef} className="stage" data-tour="lesson-review">
-          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId && !licenseLocked ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId && !licenseLocked ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední AI změnu', 'Undo last AI change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={licenseLocked ? undefined : setSelectedBlockId} onEditBlock={licenseLocked ? undefined : editBlock} readOnly={licenseLocked} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={collaborationMode === 'individual' ? ui('Jednotlivci', 'Individuals') : groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
+          {lesson ? <><div className="stage-toolbar"><div role="group" aria-label={ui('Režim náhledu', 'Preview mode')}><button type="button" aria-pressed={view === 'teacher'} className={view === 'teacher' ? 'secondary active' : 'secondary'} onClick={() => setView('teacher')}>{ui('Učitelský náhled', 'Teacher preview')}</button><button type="button" aria-pressed={view === 'student'} className={view === 'student' ? 'secondary active' : 'secondary'} onClick={() => setView('student')}>{ui('Studentský režim', 'Student view')}</button></div><div className="stage-meta"><span>{lesson.totalMinutes} min</span>{lessonId && !licenseLocked ? <WorksheetExportDialog lesson={lesson} lessonId={lessonId} enabled={worksheetExportEnabled} loading={!entitlementsLoaded} /> : null}{undoLesson && lessonId && !licenseLocked ? <button type="button" className="undo-action" onClick={undoLastChange} disabled={busy}>↶ {ui('Vrátit poslední změnu', 'Undo last change')}</button> : null}{saveText ? <span className={saveStatus === 'saving' ? 'save-status saving' : 'save-status'} role="status" aria-live="polite" aria-atomic="true">{saveText}</span> : null}</div></div><LessonPreview lesson={lesson} mode={view} selectedBlockId={selectedBlockId} recentlyChangedBlockIds={recentlyChangedBlockIds} onSelectBlock={licenseLocked ? undefined : setSelectedBlockId} onEditBlock={licenseLocked ? undefined : editBlock} readOnly={licenseLocked} /></> : generationStage && generationStartedAt ? <GenerationProgress stage={generationStage} startedAt={generationStartedAt} duration={Number(duration)} audience={audience} groupSize={collaborationMode === 'individual' ? ui('Jednotlivci', 'Individuals') : groupSize} /> : <div className="empty"><SyllonautMark /><h2>{ui('Tady vznikne vaše další lekce', 'Your next lesson will appear here')}</h2><p>{ui('Ne slajdy. Interaktivní scénář, který studenti skutečně používají.', 'Not slides. An interactive lesson flow students actually use.')}</p><div className="sample-prompts"><span>{ui('týmová práce', 'team work')}</span><span>{ui('hlasování', 'polls')}</span><span>{ui('kvízy', 'quizzes')}</span><span>{ui('odhalování', 'reveals')}</span><span>exit ticket</span></div></div>}
         </section>
       </div>
       <SyllonautGuide userId={authUser?.id ?? null} />

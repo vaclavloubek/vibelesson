@@ -120,8 +120,8 @@ export default function StartSessionButton({
           <span className="eyebrow">{ui('Archivovaná lekce', 'Archived lesson')}</span>
           <p style={{ margin: '6px 0 12px' }}>
             {ui(
-              'Ve Free tarifu už proběhlo její první živé použití. Lekci můžeš dál upravovat pomocí AI v rámci svého měsíčního limitu.',
-              'Its first live use on the Free plan is complete. You can still edit the lesson with AI within your monthly allowance.',
+              'Ve Free tarifu už proběhlo její první živé použití. Lekci můžeš dál upravovat ručně i pomocí AI (AI úpravy v rámci měsíčního limitu).',
+              'Its first live use on the Free plan is complete. You can still edit the lesson manually or with AI (AI edits within your monthly allowance).',
             )}
           </p>
           <Link href={`/${locale}/pricing`} className="primary button-link">
