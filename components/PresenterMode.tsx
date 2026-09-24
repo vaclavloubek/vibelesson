@@ -316,7 +316,7 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
         </div>
         <div className={styles.meta}>
           <span>{data?.status === 'live' ? ui('Mise probíhá', 'Lesson in progress') : data?.status === 'ended' ? ui('Mise dokončena', 'Lesson completed') : ui('Startovní zóna', 'Starting area')}</span>
-          <span>{connectionMode === 'fallback' ? ui('Záložní spojení', 'Backup connection') : 'Presenter'}</span>
+          <span>{connectionMode === 'fallback' ? ui('Záložní spojení – hodina běží dál', 'Backup connection – the lesson continues') : 'Presenter'}</span>
         </div>
       </header>
 

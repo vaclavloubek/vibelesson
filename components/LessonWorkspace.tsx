@@ -832,7 +832,7 @@ export default function LessonWorkspace({
         <div className="brand-side">
           <LocaleSwitcher />
           <AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} />
-          <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
+          <Link href="/new" className="primary button-link app-header-cta">{ui('Nová lekce', 'New lesson')}</Link>
         </div>
       </header>
 

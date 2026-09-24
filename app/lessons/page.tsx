@@ -209,7 +209,7 @@ export default async function LessonsPage({ searchParams }: Props) {
               user_metadata: claimsData?.claims?.user_metadata && typeof claimsData.claims.user_metadata === 'object' ? claimsData.claims.user_metadata as Record<string, unknown> : {},
             }}
           />
-          <Link href="/new" className="primary button-link app-header-cta">{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
+          <Link href="/new" className="primary button-link app-header-cta">{ui('Nová lekce', 'New lesson')}</Link>
         </div>
       </header>
 
@@ -260,7 +260,7 @@ export default async function LessonsPage({ searchParams }: Props) {
         <section className="lessons-empty panel">
           <span className="eyebrow">{ui('Zatím bez výsledků', 'No results yet')}</span>
           <h2>{ui('První report vznikne po ukončení hodiny', 'Your first report appears after a lesson ends')}</h2>
-          <p>{ui('Jakmile ukončíš živou session, její výsledky se objeví tady.', 'When you end a live session, its results will appear here.')}</p>
+          <p>{ui('Jakmile ukončíš živou hodinu, její výsledky se objeví tady.', 'When you end a live lesson, its results will appear here.')}</p>
         </section>
       ) : null}
 
@@ -284,7 +284,7 @@ export default async function LessonsPage({ searchParams }: Props) {
                 <span>{ui('Kód', 'Code')} {joinCode}</span>
               </div>
               <div className="lesson-card-footer">
-                <span>{lessonId ? ui('Uložená session této lekce', 'Saved session for this lesson') : ui('Historická session', 'Historical session')}</span>
+                <span>{lessonId ? ui('Hodina z této lekce', 'Live run of this lesson') : ui('Starší hodina', 'Earlier live lesson')}</span>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   {lessonId ? <Link href={`/lessons/${lessonId}`} className="auth-link">{ui('Lekce', 'Lesson')}</Link> : null}
                   <Link href={`/sessions/${id}`} className="auth-link">{ui('Otevřít výsledky', 'Open results')}</Link>

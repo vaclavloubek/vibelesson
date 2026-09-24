@@ -197,8 +197,8 @@ const evaluationSteps: GuideStep[] = [
     target: 'session-ended-summary',
     title: { cs: 'Hodina je uzavřená', en: 'The lesson is closed' },
     body: {
-      cs: 'Tady máte rychlé potvrzení, že live session skončila. Pod tím se automaticky načte podrobné vyhodnocení.',
-      en: 'This confirms the live session has ended. The detailed evaluation loads automatically below.',
+      cs: 'Tady máte rychlé potvrzení, že živá hodina skončila. Pod tím se automaticky načte podrobné vyhodnocení.',
+      en: 'This confirms the live lesson has ended. The detailed evaluation loads automatically below.',
     },
     advanceOn: 'manual',
     button: { cs: 'Ukázat vyhodnocení', en: 'Show evaluation' },
