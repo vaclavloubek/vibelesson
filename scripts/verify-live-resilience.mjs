@@ -104,4 +104,15 @@ requirePattern(gradingWorker, /claim_grading_job/, 'AI grading must have a serve
 requirePattern(gradingWorker, /finish_grading_job/, 'server-driven AI grading must finish through the scoped capability.');
 requirePattern(gradingWorker, /fail_grading_job/, 'server-driven AI grading must fail closed through the scoped capability.');
 
+{
+  // A blur caused by clicking "Submit team answer" must not release the edit
+  // lock between the submit's lock claim and its write (DB trigger
+  // enforce_team_response_edit_lock would reject the submit with 500).
+  const teamTask = await source('components/TeamTaskResponseInput.tsx');
+  requirePattern(teamTask, /if \(!lockRef\.current\?\.mine \|\| submittingRef\.current\) return;/, 'team editor must not release its lock while a submit is running.');
+  requirePattern(teamTask, /submittingRef\.current = true;\s*try \{\s*await submitClaimedAnswer\(value\);/, 'team submit must mark itself synchronously before the first await.');
+  requirePattern(teamTask, /if \(releasePromiseRef\.current\) await releasePromiseRef\.current;/, 'team submit must wait for an in-flight lock release before claiming the lock.');
+  requirePattern(teamTask, /submittingRef\.current = false;\s*if \(!focusedRef\.current\) void releaseLock\(\);/, 'team editor must release the lock after submit when the field is no longer focused.');
+}
+
 console.log('Live resilience source checks passed.');
