@@ -39,10 +39,12 @@ requireText(generatedLessonWriter, "createAdminClient().from('lessons')", 'Supab
 const lessonPage = read('app/lessons/[id]/page.tsx');
 requireText(lessonPage, 'readLessonLiveUsage(supabase, userId, id)', 'lesson detail reads owner-scoped live-use history');
 requireText(lessonPage, 'liveLocked={liveLocked}', 'lesson detail disables repeat Free live use');
+requireText(lessonPage, 'freeSingleUse={!reusableLessons && !liveLocked && !licenseLocked}', 'lesson detail warns Free teachers before the single live use');
+requireText(read('components/StartSessionButton.tsx'), 'i tvůj vlastní telefon na zkoušku', 'Free single-use notice explains that a test join counts');
 
 const library = read('app/lessons/LessonLibrary.tsx');
 requireText(library, 'Archivované lekce', 'Free library exposes the archive');
-requireText(library, 'Stále je můžeš otevírat a upravovat ručně i pomocí AI', 'archive keeps AI editing available');
+requireText(library, 'Stále je můžeš otevírat a upravovat pomocí AI', 'archive keeps AI editing available');
 
 const pricing = read('components/PricingPage.tsx');
 requireText(pricing, '2 importy nebo kopie lekcí za měsíc', 'Free pricing states the separate import/copy quota');

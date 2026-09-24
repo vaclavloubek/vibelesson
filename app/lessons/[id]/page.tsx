@@ -70,6 +70,7 @@ export default async function LessonPage({ params }: Props) {
         userId={userId}
         liveLocked={liveLocked}
         licenseLocked={licenseLocked}
+        freeSingleUse={!reusableLessons && !liveLocked && !licenseLocked}
         organizationName={originAccess?.organizationName ?? null}
       />
       <LessonWorkspace

@@ -13,6 +13,7 @@ type Props = {
   userId: string;
   liveLocked?: boolean;
   licenseLocked?: boolean;
+  freeSingleUse?: boolean;
   organizationName?: string | null;
 };
 
@@ -21,6 +22,7 @@ export default function StartSessionButton({
   userId,
   liveLocked = false,
   licenseLocked = false,
+  freeSingleUse = false,
   organizationName = null,
 }: Props) {
   const locale = useUiLocale();
@@ -95,8 +97,8 @@ export default function StartSessionButton({
           <span className="eyebrow">{ui('Archivovaná lekce', 'Archived lesson')}</span>
           <p style={{ margin: '6px 0 12px' }}>
             {ui(
-              'Ve Free tarifu už proběhlo její první živé použití. Lekci můžeš dál libovolně upravovat ručně i pomocí AI v rámci svého měsíčního limitu.',
-              'Its first live use on the Free plan is complete. You can still edit the lesson freely, including with AI within your monthly allowance.',
+              'Ve Free tarifu už proběhlo její první živé použití. Lekci můžeš dál upravovat pomocí AI v rámci svého měsíčního limitu.',
+              'Its first live use on the Free plan is complete. You can still edit the lesson with AI within your monthly allowance.',
             )}
           </p>
           <Link href={`/${locale}/pricing`} className="primary button-link">
@@ -109,6 +111,16 @@ export default function StartSessionButton({
 
   return (
     <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 40, display: 'grid', justifyItems: 'end', gap: 8 }}>
+      {freeSingleUse ? (
+        <div className="panel" style={{ padding: 16, boxShadow: '0 12px 30px rgba(24,24,23,.14)', maxWidth: 'min(360px, calc(100vw - 48px))' }}>
+          <p style={{ margin: 0 }}>
+            {ui(
+              'Ve Free můžeš každou lekci živě použít jednou. Použití se započítá, jakmile se připojí první student – i tvůj vlastní telefon na zkoušku. Jak lekci uvidí studenti, si vyzkoušej přes „Studentský režim“ v náhledu.',
+              'On Free, each lesson can be used live once. The use counts as soon as the first student joins – including your own phone as a test. To see what students will see, use “Student view” in the preview.',
+            )}
+          </p>
+        </div>
+      ) : null}
       {error ? <div className="error" style={{ maxWidth: 320 }}>{error}</div> : null}
       {activeSessionId ? (
         <button type="button" className="secondary" onClick={() => router.push(`/sessions/${activeSessionId}`)}>
@@ -116,8 +128,8 @@ export default function StartSessionButton({
         </button>
       ) : null}
       <div className="syllonaut-guide-help-cluster">
-        <GuideHelpButton userId={userId} chapter="lesson" step={6} labelCs="Jak spustit hodinu" labelEn="How to start a lesson" />
-        <button type="button" className="primary" data-tour="lesson-start" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji start…', 'Preparing lesson…') : ui('Odstartovat hodinu', 'Start lesson')}</button>
+        <GuideHelpButton userId={userId} chapter="lesson" step={6} labelCs="Jak otevřít hodinu pro studenty" labelEn="How to open the lesson for students" />
+        <button type="button" className="primary" data-tour="lesson-start" onClick={() => void start()} disabled={busy} style={{ padding: '14px 20px', boxShadow: '0 12px 30px rgba(24,24,23,.18)' }}>{busy ? ui('Připravuji hodinu…', 'Preparing lesson…') : ui('Otevřít hodinu pro studenty', 'Open lesson for students')}</button>
       </div>
     </div>
   );
