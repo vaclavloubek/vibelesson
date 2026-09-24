@@ -29,10 +29,16 @@ const fontSources = [
   ...(isPreview ? ['https://assets.vercel.com'] : []),
 ];
 
+// Live Control fallback (Cloudflare Worker): state, events and WebSocket from
+// the browser. Must match SYLLONAUT_LIVE_CONTROL_URL.
+const LIVE_CONTROL_HOST = 'syllonaut-live-control.vaclav-loubek.workers.dev';
+
 const connectSources = [
   "'self'",
   'https://*.supabase.co',
   'wss://*.supabase.co',
+  `https://${LIVE_CONTROL_HOST}`,
+  `wss://${LIVE_CONTROL_HOST}`,
   'https://challenges.cloudflare.com',
   'https://www.google-analytics.com',
   'https://*.google-analytics.com',

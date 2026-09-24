@@ -80,6 +80,12 @@ requirePattern(worker, /expectedActiveBlockId && expectedActiveBlockId !== snaps
 requirePattern(worker, /type Role = 'teacher' \| 'student' \| 'presenter'/, 'Worker must support a dedicated Presenter capability role.');
 requirePattern(worker, /actorRole === 'presenter'\) return json\(\{ error: 'Forbidden\.' \}, 403\)/, 'Presenter capability must be unable to write live events.');
 requirePattern(worker, /workerVersion: WORKER_VERSION/, 'Worker health must expose its deployable version.');
+// The browser fallback must be allowed to reach the Worker (CSP connect-src), over HTTPS and WebSocket.
+{
+  const nextConfig = await readFile(new URL('../next.config.ts', import.meta.url), 'utf8');
+  requirePattern(nextConfig, /const LIVE_CONTROL_HOST = 'syllonaut-live-control\.vaclav-loubek\.workers\.dev';/, 'CSP must name the Live Control Worker host.');
+  requirePattern(nextConfig, /const connectSources = \[[\s\S]*`https:\/\/\$\{LIVE_CONTROL_HOST\}`[\s\S]*`wss:\/\/\$\{LIVE_CONTROL_HOST\}`[\s\S]*\];/, 'CSP connect-src must allow the Live Control Worker over https and wss.');
+}
 requirePattern(worker, /protocolVersion: LIVE_PROTOCOL_VERSION/, 'Worker health must expose its live protocol version.');
 requirePattern(presenter, /fetchLiveControlState\(sessionId, 'presenter'\)/, 'Presenter must use a dedicated read-only Cloudflare capability.');
 requirePattern(presenter, /live-control\?role=presenter/, 'Presenter capability acquisition must explicitly request the presenter role.');
