@@ -83,7 +83,7 @@ export default function LessonWorkspace({
   const ui = (cs: string, en: string) => english ? en : cs;
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [audience, setAudience] = useState(initialLesson?.audience ?? '');
-  const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '');
+  const [duration, setDuration] = useState(initialLesson ? String(initialLesson.totalMinutes) : '45');
   const [collaborationMode, setCollaborationMode] = useState<CollaborationMode | ''>(() => initialLesson ? resolveLessonCollaborationMode(initialLesson) : '');
   const [groupSize, setGroupSize] = useState(initialLesson?.groupSize ?? '3–4');
   const [tone, setTone] = useState('');
@@ -891,7 +891,7 @@ export default function LessonWorkspace({
                   {multilingualLessonsEnabled ? (
                     <><strong>{ui('Pište v jazyce, ve kterém chcete vytvořit lekci.', 'Write your brief in the language you want to use for the lesson.')}</strong> {ui('Syllonaut rozumí různým jazykům a vytvoří obsah ve stejném jazyce.', 'Syllonaut understands multiple languages and will create the content in the same language.')}</>
                   ) : (
-                    <><strong>{ui('Ve Free tarifu se lekce vytvoří v jazyce rozhraní.', 'On Free, the lesson is created in the interface language.')}</strong> {ui('Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.', 'Automatic brief-language detection and additional languages are available on Teacher, Teacher Pro and school plans.')}</>
+                    ui('Ve Free se lekce vytvoří v jazyce rozhraní; další jazyky nabízejí placené tarify.', 'On Free, lessons are created in the interface language; paid plans add other languages.')
                   )}
                 </p>
                 <div className="form-grid">
@@ -930,7 +930,7 @@ export default function LessonWorkspace({
                     </select>
                   </label>
                   {collaborationMode === 'teams' ? <label className="team-size-field">{ui('Velikost týmu', 'Team size')}<input name="groupSize" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} placeholder={ui('např. 3–4 studenti', 'e.g. 3–4 students')} required /></label> : null}
-                  <label>{ui('Tón', 'Tone')}<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder={ui('např. živý, praktický a lehce vtipný', 'e.g. lively, practical and lightly humorous')} required /></label>
+                  <label>{ui('Tón (volitelné)', 'Tone (optional)')}<input name="tone" value={tone} onChange={(e) => setTone(e.target.value)} placeholder={ui('např. živý, praktický a lehce vtipný', 'e.g. lively, practical and lightly humorous')} /></label>
                 </div>
                 {aiGradingEnabled ? (
                   <GradingStrictnessControl

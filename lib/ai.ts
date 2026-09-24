@@ -396,7 +396,7 @@ export async function createLesson(
           : { sort: 'cost', zeroDataRetention: true },
       },
       system: `${baseRules}\n\n${collaborationRules}`,
-      prompt: `Vytvoř interaktivní lekci podle tohoto zadání:\n\n${input.prompt.trim() || 'Učitel nepřidal další volný popis; vyjdi z parametrů a podkladů.'}\n\n${languageInstruction}\n\nRežim práce: ${input.collaborationMode === 'individual' ? 'jednotlivci' : 'týmy'}\nCílová skupina: ${input.audience}\nPožadovaná délka: ${input.duration} minut\nVelikost týmu: ${input.groupSize}\nTón: ${input.tone}${materialInstruction}${extraGuidance}\n\nLekce má působit jako hotová interaktivní aplikace, ne jako osnovy pro učitele.`,
+      prompt: `Vytvoř interaktivní lekci podle tohoto zadání:\n\n${input.prompt.trim() || 'Učitel nepřidal další volný popis; vyjdi z parametrů a podkladů.'}\n\n${languageInstruction}\n\nRežim práce: ${input.collaborationMode === 'individual' ? 'jednotlivci' : 'týmy'}\nCílová skupina: ${input.audience}\nPožadovaná délka: ${input.duration} minut\nVelikost týmu: ${input.groupSize}\nTón: ${input.tone.trim() || 'přirozený, věcný a přiměřený cílové skupině'}${materialInstruction}${extraGuidance}\n\nLekce má působit jako hotová interaktivní aplikace, ne jako osnovy pro učitele.`,
     });
   }
 

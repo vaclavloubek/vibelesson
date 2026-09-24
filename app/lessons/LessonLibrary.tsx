@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LessonActions from './LessonActions';
+import StartSessionButton, { FREE_SINGLE_USE_NOTICE } from '@/components/StartSessionButton';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
 import { bucketItemCount, trackEvent } from '@/lib/analytics';
@@ -33,6 +34,8 @@ type Props = {
   lessons: LessonListItem[];
   folders: LessonFolderItem[];
   canManageFolders: boolean;
+  reusableLessons: boolean;
+  userId: string;
 };
 
 type Scope = 'all' | 'unfiled' | string;
@@ -53,7 +56,7 @@ function formatUpdatedAt(value: string, locale: 'cs' | 'en') {
   }).format(new Date(value));
 }
 
-export default function LessonLibrary({ lessons, folders, canManageFolders }: Props) {
+export default function LessonLibrary({ lessons, folders, canManageFolders, reusableLessons, userId }: Props) {
   const router = useRouter();
   const locale = useUiLocale();
   const english = locale === 'en';
@@ -129,6 +132,11 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
   const accessibleLessons = useMemo(() => lessons.filter((lesson) => !lesson.licenseLocked), [lessons]);
   const lockedLessons = useMemo(() => lessons.filter((lesson) => lesson.licenseLocked), [lessons]);
+  const freeSingleUseNotice = !reusableLessons && accessibleLessons.some((lesson) => !lesson.archived) ? (
+    <div className="panel" style={{ padding: 16, marginBottom: 14 }}>
+      <p style={{ margin: 0 }}>{english ? FREE_SINGLE_USE_NOTICE.en : FREE_SINGLE_USE_NOTICE.cs}</p>
+    </div>
+  ) : null;
   const visibleLessons = useMemo(() => {
     if (!canManageFolders || scope === 'all') return accessibleLessons;
     if (scope === 'unfiled') return accessibleLessons.filter((lesson) => !lesson.folderId);
@@ -421,7 +429,12 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
             <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
             <div className="lesson-card-footer">
               <span>{lesson.archived ? ui('První živé použití dokončeno', 'First live use completed') : `${ui('Upraveno', 'Updated')} ${formatUpdatedAt(lesson.updatedAt, locale)}`}</span>
-              <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
+              {lesson.archived ? <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link> : (
+                <div className="lesson-card-launch">
+                  <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
+                  <StartSessionButton lessonId={lesson.id} userId={userId} compact />
+                </div>
+              )}
             </div>
           </article>
         ))}
@@ -430,6 +443,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
     return (
       <>
+        {freeSingleUseNotice}
         {activeLessons.length ? renderCards(activeLessons) : null}
         {archivedLessons.length ? (
           <>
@@ -482,6 +496,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
 
         {error ? <div className="error" role="alert">{error}</div> : null}
 
+        {freeSingleUseNotice}
+
         {visibleLessons.length === 0 ? (
           <div className={`panel ${styles.emptyFolder}`}>
             <h3>{lessons.length === 0 ? ui('Zatím tu není žádná lekce', 'No lessons yet') : ui('Tahle složka je zatím prázdná', 'This folder is empty')}</h3>
@@ -507,7 +523,12 @@ export default function LessonLibrary({ lessons, folders, canManageFolders }: Pr
                 <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
                 <div className={`lesson-card-footer ${styles.cardFooter}`}>
                   <span>{ui('Upraveno', 'Updated')} {formatUpdatedAt(lesson.updatedAt, locale)}</span>
-                  <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
+                  {selectionMode || lesson.archived ? <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link> : (
+                    <div className="lesson-card-launch">
+                      <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link>
+                      <StartSessionButton lessonId={lesson.id} userId={userId} compact />
+                    </div>
+                  )}
                 </div>
               </article>
             ))}

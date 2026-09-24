@@ -788,6 +788,9 @@ details { margin-top: 12px; color: var(--muted); }
 .lesson-card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0; }
 .lesson-card-meta span { font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 8px; color: var(--muted); }
 .lesson-card-footer { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: auto; color: var(--muted); font-size: 11px; }
+.lesson-card-launch { display: flex; flex: 1 1 0; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; }
+.lesson-card-launch button { min-height: 34px; padding: 6px 11px; font-size: 12px; }
+.lesson-card-launch .error { width: 100%; box-sizing: border-box; margin: 0; padding: 8px 10px; font-size: 12px; text-align: left; }
 .lesson-actions-wrap { position: relative; }
 .lesson-actions { margin: 0; position: relative; }
 .lesson-actions summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 9px; padding: 4px 8px; color: var(--muted); font-weight: 800; }
@@ -1236,6 +1239,8 @@ body:has(.teacher-live-shell) {
   .main-nav a { flex: 1; text-align: center; }
   .lessons-heading h1 { font-size: 32px; }
   .lesson-grid { grid-template-columns: 1fr; }
+  .lesson-card-footer { flex-wrap: wrap; }
+  .lesson-card-launch { flex-direction: column; align-items: flex-end; margin-left: auto; }
   .lessons-user { max-width: 100%; }
   .student-shell, .join-shell { padding: 14px; }
   .join-shell { align-content: start; padding-top: 22px; }

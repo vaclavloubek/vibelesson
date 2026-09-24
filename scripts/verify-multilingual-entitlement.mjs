@@ -56,9 +56,8 @@ requireText(ai, 'Cizojazyčný obsah je povolený jako učivo', 'language lock m
 requireText(ai, "throw new Error('Revision changed a locked lesson language.')", 'whole-lesson revisions must fail closed if the language tag changes despite the lock.');
 
 requireText(workspace, 'multilingualLessonsEnabled', 'lesson authoring must react to the multilingual entitlement.');
-requireText(workspace, "Ve Free tarifu se lekce vytvoří v jazyce rozhraní.", 'Free UI must explain its language restriction.');
+requireText(workspace, "Ve Free se lekce vytvoří v jazyce rozhraní; další jazyky nabízejí placené tarify.", 'Free UI must explain its language restriction and where other languages are available.');
 requireText(workspace, 'disabled={!authUser || !entitlementsLoaded || !multilingualLessonsEnabled}', 'language picker must remain locked without the entitlement.');
-requireText(workspace, "Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.", 'UI must explain where multilingual generation is available.');
 requireText(workspace, "Free tarif omezuje hlavní jazyk lekce.", 'saved Free lessons must show a prominent language-limit notice.');
 requireText(workspace, 'href="/pricing"', 'Free language-limit notice must link to Pricing.');
 requireText(workspace, "setRevisionLanguageNotice('whole_lesson')", 'successful Free whole-lesson revisions must surface language-lock feedback.');
