@@ -55,6 +55,10 @@ const [
   source('components/StudentResponseInput.tsx'),
 ]);
 
+{
+  const teamsRoute = await source('app/api/sessions/[id]/teams/route.ts');
+  requireText(teamsRoute, "normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) === 'en' ? 'Team' : 'Tým'", 'default team names must follow the teacher UI language.');
+}
 requireText(i18n, "UI_LOCALES = ['cs', 'en']", 'supported UI locales must remain Czech and English.');
 requirePattern(i18n, /normalized === 'CZ' \|\| normalized === 'SK' \? 'cs' : 'en'/, 'CZ and SK must default to Czech UI while other valid countries default to English.');
 requireText(i18n, "if (locale === 'en') return enFallback;", 'English UI errors must not expose untranslated server messages.');

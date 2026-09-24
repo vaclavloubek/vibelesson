@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
+import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { TeamCreateSchema } from '@/lib/live';
 import { mirrorLiveControlEvent } from '@/lib/live-control-server';
 
@@ -32,9 +33,12 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (countError) throw countError;
     if ((count ?? 0) > 0) return NextResponse.json({ error: 'Týmy už jsou vytvořené. Nejdřív je resetuj.' }, { status: 409 });
 
+    // Default names follow the teacher's UI language; they are stored once and
+    // shown to the whole class.
+    const teamLabel = normalizeUiLocale(req.headers.get(LOCALE_REQUEST_HEADER)) === 'en' ? 'Team' : 'Tým';
     const rows = Array.from({ length: input.count }, (_, index) => ({
       session_id: id,
-      name: `Tým ${index + 1}`,
+      name: `${teamLabel} ${index + 1}`,
       sort_order: index,
     }));
 
