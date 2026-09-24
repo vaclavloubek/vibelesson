@@ -24,6 +24,8 @@ function requireCsp(headers) {
     'https://challenges.cloudflare.com',
     'https://*.supabase.co',
     'wss://*.supabase.co',
+    'https://syllonaut-live-control.vaclav-loubek.workers.dev',
+    'wss://syllonaut-live-control.vaclav-loubek.workers.dev',
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
