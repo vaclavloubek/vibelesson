@@ -68,6 +68,13 @@ export default function StudentJoinForm({ joinCode }: { joinCode: string }) {
           </label>
           <div className="actions"><button className="primary" disabled={busy}>{busy ? ui('Připojuji…', 'Joining…') : ui('Připojit se', 'Join lesson')}</button><Link href="/join" className="secondary button-link">{ui('Jiný kód', 'Different code')}</Link></div>
         </form>
+        <p className="muted-copy" style={{ marginTop: 16 }}>
+          {ui(
+            'Tvoje jméno a odpovědi uvidí učitel. AI může navrhnout body, ale rozhoduje učitel. Po hodině se data mažou podle pravidel školy a Syllonautu.',
+            'Your teacher will see your name and answers. AI may suggest points, but your teacher decides. After the lesson, the data is deleted according to your school’s and Syllonaut’s rules.',
+          )}{' '}
+          <Link href={`/${locale}/gdpr#studenti`}>{ui('Jak chráníme tvoje údaje', 'How we protect your data')}</Link>
+        </p>
         {error ? <div id={errorId} className="error" role="alert" style={{ marginTop: 12 }}>{error}</div> : null}
       </section>
     </main>

@@ -18,18 +18,41 @@ export type DpaSubprocessor = {
   transfer: string;
 };
 
+// TODO(owner): set the date when the read-only Supabase backup will be
+// deleted (ISO yyyy-mm-dd). Until then the DPA states it is kept until deletion.
+const SUPABASE_BACKUP_DELETION_DATE: string | null = null;
+
+function formatDpaDate(isoDate: string, english: boolean) {
+  return new Intl.DateTimeFormat(english ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(isoDate + 'T12:00:00Z'));
+}
+
 export function getDpaDocument(locale: DpaLocale) {
   const english = locale === 'en';
+  const supabaseBackupUntil = SUPABASE_BACKUP_DELETION_DATE
+    ? formatDpaDate(SUPABASE_BACKUP_DELETION_DATE, english)
+    : null;
 
   const subprocessors: DpaSubprocessor[] = english ? [
+    {
+      provider: 'Neon (Databricks)',
+      legalEntity: 'Databricks, Inc. (parent company of Neon, LLC)',
+      address: '160 Spear Street, Suite 1300, San Francisco, CA 94105, United States',
+      contact: 'privacy@databricks.com',
+      purpose: 'Production PostgreSQL database, authentication (Neon Auth) and Data API.',
+      dataScope: 'Teacher/admin account and sign-in data, organisation membership data, lesson/session data, student display names, responses, results and related metadata stored in Syllonaut.',
+      transfer: 'The production project is hosted in the EU (AWS eu-central-1, Frankfurt). Any access from outside the EEA is covered by the Standard Contractual Clauses in the Databricks Data Processing Addendum.',
+    },
     {
       provider: 'Supabase',
       legalEntity: 'Supabase, Inc.',
       address: '970 Toa Payoh North #07-04, Singapore 318992',
       contact: 'privacy@supabase.io',
-      purpose: 'Authentication, PostgreSQL database and related backend infrastructure.',
-      dataScope: 'Teacher/admin account data, organisation membership data, lesson/session data, student display names, responses, results and related metadata where stored in Syllonaut.',
-      transfer: 'The production database is hosted in the EU (eu-west-1). Any other processing by the provider must be covered by the provider’s applicable GDPR transfer safeguards.',
+      purpose: supabaseBackupUntil
+        ? 'Read-only backup of the former database until ' + supabaseBackupUntil + '. No new data is written to it.'
+        : 'Read-only backup of the former database until the backup is deleted. No new data is written to it.',
+      dataScope: 'Data stored in Syllonaut up to the move to Neon on 23 September 2026: teacher/admin account data, organisation membership data, lesson/session data, student display names, responses, results and related metadata.',
+      transfer: 'The backup is hosted in the EU (eu-west-1). Any other processing by the provider must be covered by the provider’s applicable GDPR transfer safeguards.',
     },
     {
       provider: 'Vercel',
@@ -45,9 +68,9 @@ export function getDpaDocument(locale: DpaLocale) {
       legalEntity: 'Cloudflare, Inc.',
       address: '101 Townsend St., San Francisco, CA 94107, United States',
       contact: 'Data Protection Officer · privacyquestions@cloudflare.com',
-      purpose: 'Turnstile and abuse-prevention/security controls.',
-      dataScope: 'Technical request, browser and anti-abuse signals. Lesson content and student answers are not intentionally supplied to Turnstile.',
-      transfer: 'Where processing occurs outside the EEA, the provider’s applicable GDPR transfer safeguards are used.',
+      purpose: 'Turnstile bot protection on the sign-in and registration forms, and Workers / Durable Objects for real-time control of live lessons.',
+      dataScope: 'Turnstile: technical request, browser and anti-abuse signals; lesson content and student answers are not supplied to Turnstile. Live control: student display names, the lesson content shown to students, student and team responses and live-session state. Live-control data is deleted automatically 7 days after the session’s last activity.',
+      transfer: 'The location of the live-control Durable Objects is not restricted to the EU, so processing may occur outside the EEA; in that case the provider’s applicable Chapter V GDPR transfer safeguards are used.',
     },
     {
       provider: 'Resend',
@@ -87,13 +110,24 @@ export function getDpaDocument(locale: DpaLocale) {
     },
   ] : [
     {
+      provider: 'Neon (Databricks)',
+      legalEntity: 'Databricks, Inc. (mateřská společnost Neon, LLC)',
+      address: '160 Spear Street, Suite 1300, San Francisco, CA 94105, United States',
+      contact: 'privacy@databricks.com',
+      purpose: 'Produkční PostgreSQL databáze, autentizace (Neon Auth) a Data API.',
+      dataScope: 'Údaje účtů učitelů/adminů a přihlašovací údaje, členství organizace, data lekcí a sessions, zobrazovaná jména studentů, odpovědi, výsledky a související metadata ukládaná v Syllonautu.',
+      transfer: 'Produkční projekt je hostován v EU (AWS eu-central-1, Frankfurt). Případný přístup mimo EHP kryjí standardní smluvní doložky v Data Processing Addendum společnosti Databricks.',
+    },
+    {
       provider: 'Supabase',
       legalEntity: 'Supabase, Inc.',
       address: '970 Toa Payoh North #07-04, Singapore 318992',
       contact: 'privacy@supabase.io',
-      purpose: 'Autentizace, PostgreSQL databáze a související backendová infrastruktura.',
-      dataScope: 'Údaje účtů učitelů/adminů, členství organizace, data lekcí a sessions, zobrazovaná jména studentů, odpovědi, výsledky a související metadata, pokud jsou v Syllonautu ukládána.',
-      transfer: 'Produkční databáze je hostována v EU (eu-west-1). Případné další zpracování dodavatelem musí být kryto odpovídajícími zárukami pro předávání podle GDPR.',
+      purpose: supabaseBackupUntil
+        ? 'Záloha dřívější databáze jen pro čtení do ' + supabaseBackupUntil + '. Nová data se do ní nezapisují.'
+        : 'Záloha dřívější databáze jen pro čtení do jejího smazání. Nová data se do ní nezapisují.',
+      dataScope: 'Data uložená v Syllonautu do přechodu na Neon 23. 9. 2026: údaje účtů učitelů/adminů, členství organizace, data lekcí a sessions, zobrazovaná jména studentů, odpovědi, výsledky a související metadata.',
+      transfer: 'Záloha je hostována v EU (eu-west-1). Případné další zpracování dodavatelem musí být kryto odpovídajícími zárukami pro předávání podle GDPR.',
     },
     {
       provider: 'Vercel',
@@ -109,9 +143,9 @@ export function getDpaDocument(locale: DpaLocale) {
       legalEntity: 'Cloudflare, Inc.',
       address: '101 Townsend St., San Francisco, CA 94107, United States',
       contact: 'Data Protection Officer · privacyquestions@cloudflare.com',
-      purpose: 'Turnstile a bezpečnostní/anti-abuse ochrana.',
-      dataScope: 'Technické údaje o požadavku, prohlížeči a signály proti zneužití. Obsah lekcí a studentské odpovědi nejsou do Turnstile záměrně předávány.',
-      transfer: 'Pokud zpracování probíhá mimo EHP, použijí se odpovídající záruky dodavatele podle GDPR.',
+      purpose: 'Turnstile – ochrana formulářů přihlášení a registrace proti robotům – a Workers / Durable Objects pro řízení živých lekcí v reálném čase.',
+      dataScope: 'Turnstile: technické údaje o požadavku, prohlížeči a signály proti zneužití; obsah lekcí a studentské odpovědi se do Turnstile nepředávají. Živé řízení: zobrazovaná jména studentů, obsah lekce zobrazený studentům, odpovědi studentů a týmů a stav živé hodiny. Data živého řízení se automaticky mažou 7 dní po poslední aktivitě hodiny.',
+      transfer: 'Umístění Durable Objects pro živé řízení není omezeno na EU, zpracování proto může probíhat i mimo EHP; v takovém případě se použijí odpovídající záruky dodavatele podle kapitoly V GDPR.',
     },
     {
       provider: 'Resend',
@@ -155,22 +189,22 @@ export function getDpaDocument(locale: DpaLocale) {
     {
       heading: '1. Parties, role and incorporation into the service contract',
       paragraphs: [
-        'The controller is the school, company or other organisation identified in the Syllonaut organisation order (“Controller”). The processor is Václav Loubek, Business ID 88878431, Slepá 868, 289 24 Milovice – Mladá, Czech Republic (“Processor” or “Syllonaut”).',
-        'This Data Processing Agreement (“DPA”) forms part of the Syllonaut service contract when an authorised representative of the Controller expressly accepts the DPA in the organisation ordering flow. It applies only to processing performed by Syllonaut on behalf of the Controller.',
+        'The controller is the school, company or other organisation identified in the Syllonaut organisation order, or a teacher with an individual Free, Teacher or Teacher Pro account who uses Syllonaut to process students’ personal data in teaching (or the school or organisation for which that teacher teaches) (“Controller”). The processor is Václav Loubek, Business ID 88878431, Slepá 868, 289 24 Milovice – Mladá, Czech Republic (“Processor” or “Syllonaut”).',
+        'This Data Processing Agreement (“DPA”) forms part of the Syllonaut service contract when an authorised representative of the Controller expressly accepts the DPA in the organisation ordering flow. For individual accounts it forms part of the contract concluded by accepting the Terms (Terms section 2). It applies only to processing performed by Syllonaut on behalf of the Controller.',
         'Where Syllonaut determines its own purposes and means of processing, in particular for its own billing, accounting, fraud prevention, service security, legal claims and contract evidence, Syllonaut acts as an independent controller and that processing is governed by the Privacy Notice rather than this DPA.',
       ],
     },
     {
       heading: '2. Subject matter, duration, nature and purpose of processing',
       paragraphs: [
-        'Syllonaut processes personal data on behalf of the Controller to provide, secure and support the organisation account, lesson authoring and sharing, live classroom sessions, student participation, responses and results, teacher administration and, where enabled and requested, AI-assisted lesson operations and AI evaluation.',
-        'Processing lasts for the duration of the organisation service relationship and for the limited period needed to return or delete Controller Data after termination, unless Union or Member State law requires continued storage.',
+        'Syllonaut processes personal data on behalf of the Controller to provide, secure and support the organisation or individual teacher account, lesson authoring and sharing, live classroom sessions, student participation, responses and results, teacher administration and, where enabled and requested, AI-assisted lesson operations and AI evaluation.',
+        'Processing lasts for the duration of the organisation or individual service relationship and for the limited period needed to return or delete Controller Data after termination, unless Union or Member State law requires continued storage.',
       ],
     },
     {
       heading: '3. Data subjects and categories of personal data',
       bullets: [
-        'Data subjects: teachers, organisation owners/administrators, invited staff and students/participants joining live lessons.',
+        'Data subjects: teachers, organisation owners/administrators, invited staff and students/participants joining live lessons of the Controller.',
         'Account and administration data: name where provided, email address, account identifiers, role, organisation membership and invitation data.',
         'Student/live lesson data: display name, responses, team assignment, results, submission timestamps and session/participation metadata.',
         'Teaching content: lesson text, teacher instructions, source text extracted from uploaded materials and other content supplied by authorised users where it contains personal data.',
@@ -195,7 +229,7 @@ export function getDpaDocument(locale: DpaLocale) {
         'Secrets and service credentials are kept out of client-side code and source control; sensitive server operations use dedicated server credentials.',
         'Transport uses HTTPS/TLS. Capability and invitation tokens use cryptographically strong random values and/or stored hashes where implemented.',
         'Operational analytics are designed not to receive lesson prompts, lesson text, student answers, student names or other content/PII payloads.',
-        'Retention jobs and product rules limit storage of live-session data; ended live sessions are scheduled for deletion after 12 months and abandoned lobby/live sessions after 30 days unless an earlier deletion instruction applies.',
+        'Retention jobs and product rules limit storage of live-session data; ended live sessions are scheduled for deletion after 12 months and abandoned lobby/live sessions after 30 days unless an earlier deletion instruction applies. Real-time live-control copies (Cloudflare Durable Objects) are deleted automatically 7 days after the session’s last activity.',
         'Current AI routes use zero-data-retention configuration and Syllonaut applies input/content separation so student or source text is treated as untrusted content, not as authority to alter system instructions.',
       ],
     },
@@ -249,22 +283,22 @@ export function getDpaDocument(locale: DpaLocale) {
     {
       heading: '1. Strany, role a začlenění do smlouvy o službě',
       paragraphs: [
-        'Správcem je škola, firma nebo jiná organizace uvedená v objednávce organizace Syllonaut („Správce“). Zpracovatelem je Václav Loubek, IČO 88878431, Slepá 868, 289 24 Milovice – Mladá, Česká republika („Zpracovatel“ nebo „Syllonaut“).',
-        'Tato smlouva o zpracování osobních údajů („DPA“) tvoří součást smlouvy o službě Syllonaut okamžikem, kdy ji oprávněný zástupce Správce výslovně přijme v objednávkovém procesu organizace. Použije se pouze na zpracování, které Syllonaut provádí jménem Správce.',
+        'Správcem je škola, firma nebo jiná organizace uvedená v objednávce organizace Syllonaut, nebo učitel s individuálním účtem Free, Teacher či Teacher Pro, který Syllonaut používá ke zpracování osobních údajů studentů při výuce (případně škola či organizace, pro kterou učitel výuku vede) („Správce“). Zpracovatelem je Václav Loubek, IČO 88878431, Slepá 868, 289 24 Milovice – Mladá, Česká republika („Zpracovatel“ nebo „Syllonaut“).',
+        'Tato smlouva o zpracování osobních údajů („DPA“) tvoří součást smlouvy o službě Syllonaut okamžikem, kdy ji oprávněný zástupce Správce výslovně přijme v objednávkovém procesu organizace. U individuálních účtů je součástí smlouvy uzavřené přijetím VOP (čl. 2 VOP). Použije se pouze na zpracování, které Syllonaut provádí jménem Správce.',
         'Pokud Syllonaut určuje vlastní účely a prostředky zpracování, zejména pro vlastní fakturaci a účetnictví, prevenci podvodů, zabezpečení služby, právní nároky a doložení smluv, vystupuje jako samostatný správce a takové zpracování se řídí Privacy Notice, nikoli touto DPA.',
       ],
     },
     {
       heading: '2. Předmět, doba, povaha a účel zpracování',
       paragraphs: [
-        'Syllonaut zpracovává osobní údaje jménem Správce za účelem poskytování, zabezpečení a podpory účtu organizace, tvorby a sdílení lekcí, živých výukových sessions, zapojení studentů, odpovědí a výsledků, správy učitelů a – pokud je funkce zapnuta a Správcem vyžádána – AI operací nad lekcemi a AI hodnocení.',
-        'Zpracování trvá po dobu smluvního vztahu organizace a po omezenou dobu nezbytnou k vrácení nebo výmazu dat Správce po ukončení, ledaže právo EU nebo členského státu vyžaduje další uchování.',
+        'Syllonaut zpracovává osobní údaje jménem Správce za účelem poskytování, zabezpečení a podpory účtu organizace nebo individuálního účtu učitele, tvorby a sdílení lekcí, živých výukových sessions, zapojení studentů, odpovědí a výsledků, správy učitelů a – pokud je funkce zapnuta a Správcem vyžádána – AI operací nad lekcemi a AI hodnocení.',
+        'Zpracování trvá po dobu smluvního vztahu organizace nebo individuálního účtu a po omezenou dobu nezbytnou k vrácení nebo výmazu dat Správce po ukončení, ledaže právo EU nebo členského státu vyžaduje další uchování.',
       ],
     },
     {
       heading: '3. Kategorie subjektů údajů a osobních údajů',
       bullets: [
-        'Subjekty údajů: učitelé, vlastníci a administrátoři organizace, pozvaní pracovníci a studenti/účastníci připojení k živým lekcím.',
+        'Subjekty údajů: učitelé, vlastníci a administrátoři organizace, pozvaní pracovníci a studenti/účastníci připojení k živým lekcím Správce.',
         'Účetní a administrační údaje: jméno, je-li uvedeno, e-mailová adresa, identifikátory účtu, role, členství v organizaci a údaje o pozvánkách.',
         'Studentská a live data: zobrazované jméno, odpovědi, týmové zařazení, výsledky, časy odevzdání a metadata session/účasti.',
         'Výukový obsah: text lekcí, instrukce učitele, extrahovaný text podkladů a další obsah vložený oprávněnými uživateli, pokud obsahuje osobní údaje.',
@@ -289,7 +323,7 @@ export function getDpaDocument(locale: DpaLocale) {
         'Secrets a servisní credentials nejsou ukládány do klientského kódu ani do repozitáře; citlivé serverové operace používají vyhrazená serverová oprávnění.',
         'Přenos probíhá přes HTTPS/TLS. Capability a invitační tokeny používají kryptograficky silné náhodné hodnoty a/nebo ukládané hashe tam, kde je to implementováno.',
         'Provozní analytika je navržena tak, aby nedostávala prompty lekcí, text lekcí, studentské odpovědi, jména studentů ani jiné obsahové/PII payloady.',
-        'Retenční úlohy a produktová pravidla omezují uchování live dat; ukončené sessions jsou standardně plánovány ke smazání po 12 měsících a opuštěné lobby/live sessions po 30 dnech, pokud se neuplatní dřívější pokyn k výmazu.',
+        'Retenční úlohy a produktová pravidla omezují uchování live dat; ukončené sessions jsou standardně plánovány ke smazání po 12 měsících a opuštěné lobby/live sessions po 30 dnech, pokud se neuplatní dřívější pokyn k výmazu. Kopie pro živé řízení v reálném čase (Cloudflare Durable Objects) se automaticky mažou 7 dní po poslední aktivitě hodiny.',
         'Současné AI cesty používají zero-data-retention konfiguraci a Syllonaut odděluje nedůvěryhodný studentský/podkladový obsah od systémových instrukcí.',
       ],
     },
@@ -345,8 +379,8 @@ export function getDpaDocument(locale: DpaLocale) {
     title: english ? 'Data Processing Agreement' : 'Smlouva o zpracování osobních údajů',
     shortTitle: english ? 'DPA' : 'DPA',
     intro: english
-      ? 'This DPA governs processing of personal data by Syllonaut on behalf of schools, companies and other organisations using Team, School or Campus plans.'
-      : 'Tato DPA upravuje zpracování osobních údajů, které Syllonaut provádí jménem škol, firem a dalších organizací využívajících tarify Team, School nebo Campus.',
+      ? 'This DPA governs processing of personal data by Syllonaut on behalf of schools, companies and other organisations using Team, School or Campus plans, and on behalf of teachers with individual Free, Teacher or Teacher Pro accounts who use Syllonaut to process students’ personal data in teaching.'
+      : 'Tato DPA upravuje zpracování osobních údajů, které Syllonaut provádí jménem škol, firem a dalších organizací využívajících tarify Team, School nebo Campus a jménem učitelů s individuálním účtem Free, Teacher nebo Teacher Pro, kteří Syllonaut používají ke zpracování osobních údajů studentů při výuce.',
     version: DPA_VERSION,
     effectiveDate: DPA_EFFECTIVE_DATE,
     sections,

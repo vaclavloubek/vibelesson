@@ -14,8 +14,8 @@ const gdpr = read('app/gdpr/page.tsx');
 const school = read('components/SchoolAdmin.tsx');
 const schoolApi = read('app/api/organizations/route.ts');
 
-if (!legal.includes("DPA_VERSION = '1.1'")) fail('active DPA version is missing');
-if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-21-dpa-v2'")) fail('active DPA acceptance key is missing');
+if (!legal.includes("DPA_VERSION = '1.2'")) fail('active DPA version is missing');
+if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-24-dpa-v3'")) fail('active DPA acceptance key is missing');
 
 for (const needle of [
   'Dokumentované pokyny',
@@ -36,6 +36,7 @@ for (const needle of [
 }
 
 for (const provider of [
+  'Neon (Databricks)',
   'Supabase',
   'Vercel',
   'Cloudflare',
@@ -54,6 +55,10 @@ if (!dpa.includes('zero data retention') || !dpa.includes('zero-data-retention')
   fail('DPA must document current AI zero-data-retention control');
 }
 for (const identity of [
+  'Databricks, Inc. (parent company of Neon, LLC)',
+  'Databricks, Inc. (mateřská společnost Neon, LLC)',
+  '160 Spear Street, Suite 1300, San Francisco, CA 94105, United States',
+  'privacy@databricks.com',
   'Supabase, Inc.',
   '970 Toa Payoh North #07-04, Singapore 318992',
   'privacy@supabase.io',
@@ -78,6 +83,27 @@ for (const identity of [
 ]) {
   if (!dpa.includes(identity)) fail('sub-processor identity/contact missing: ' + identity);
 }
+// LEGAL-022: production infrastructure after the Neon cutover.
+for (const needle of [
+  'AWS eu-central-1',
+  'Neon Auth',
+  'Data API',
+  'Read-only backup of the former database',
+  'Záloha dřívější databáze jen pro čtení',
+  'SUPABASE_BACKUP_DELETION_DATE',
+  'Workers / Durable Objects',
+  '7 days after the session’s last activity',
+  '7 dní po poslední aktivitě hodiny',
+  'individual Free, Teacher or Teacher Pro account',
+  'individuálním účtem Free, Teacher či Teacher Pro',
+]) {
+  if (!dpa.includes(needle)) fail('DPA 1.2 production infrastructure/scope missing: ' + needle);
+}
+if (dpa.includes('Autentizace, PostgreSQL databáze') || dpa.includes('Authentication, PostgreSQL database and related backend')) fail('Supabase must not be described as the production database');
+const liveWorker = read('cloudflare/live-control/src/index.ts');
+if (!liveWorker.includes('const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;')) fail('live-control retention changed; update the DPA and Privacy Notice');
+if (!terms.includes('TERMS_DPA_SCOPE_CLAUSE')) fail('Terms must extend the DPA to individual accounts used in teaching');
+
 for (const field of ['subprocessor.legalEntity', 'subprocessor.address', 'subprocessor.contact']) {
   if (!page.includes(field)) fail('public DPA must render sub-processor identity field: ' + field);
 }

@@ -26,9 +26,16 @@ for (const [needle, label] of [
   ['revoke_personal_trusted_device', 'self-service device revocation'],
 ]) requireText(migration.content, needle, label);
 
+// LEGAL-022: the device cookie is issued only on sign-in, registration or for
+// an already signed-in account, never to anonymous visitors by proxy.ts.
 const proxy = read('proxy.ts');
-requireText(proxy, 'TRUSTED_DEVICE_COOKIE', 'proxy issues the HttpOnly device cookie');
-requireText(proxy, 'httpOnly: true', 'device token is inaccessible to browser JavaScript');
+if (proxy.includes('TRUSTED_DEVICE_COOKIE')) throw new Error('Missing trusted-device safeguard: proxy must not issue the device cookie to anonymous visitors');
+const deviceAccess = read('lib/trusted-device-access.ts');
+requireText(deviceAccess, 'export async function ensureTrustedDeviceCookie', 'server helper issues the HttpOnly device cookie');
+requireText(deviceAccess, 'httpOnly: true', 'device token is inaccessible to browser JavaScript');
+const authActions = read('app/auth/neon/actions.ts');
+if ((authActions.match(/await ensureTrustedDeviceCookie\(\)/g) ?? []).length < 3) throw new Error('Missing trusted-device safeguard: sign-in, email verification and registration issue the device cookie');
+requireText(read('app/api/auth/devices/register/route.ts'), 'await ensureTrustedDeviceCookie()', 'signed-in accounts without a device cookie receive one');
 
 const header = read('components/PublicHeaderAccountMenu.tsx');
 requireText(header, '/api/auth/devices/register', 'signed-in browser bootstraps device registration');

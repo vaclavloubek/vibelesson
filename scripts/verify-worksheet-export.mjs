@@ -36,7 +36,7 @@ expect(pdfBuilder.includes("blocks.forEach(({ block }, worksheetIndex)")&&pdfBui
 expect(pdfBuilder.includes('pdfMake.addVirtualFileSystem'),'Server PDF must embed its font through the bundled virtual file system.');
 expect(!worksheetCss.includes('body>:not(#main-content)'),'Print CSS must not hide the worksheet root through a fragile :not() body selector.');
 expect(!worksheetCss.includes('body>#main-content')&&!worksheetCss.includes('body>#main-content~*'),'Worksheet print CSS must not hide or force-display any body-level application wrapper.');
-expect(cookieConsent.includes('WORKSHEET_PATH')&&cookieConsent.includes('if (!ready || worksheetRoute) return null;'),'Cookie UI must not render on the dedicated worksheet route.');
+expect(cookieConsent.includes('WORKSHEET_PATH')&&cookieConsent.includes('if (!ready || consentExemptRoute) return null;'),'Cookie UI must not render on the dedicated worksheet route.');
 expect(worksheetCss.includes('.activities{display:block'),'Print layout must leave CSS Grid so page-break rules work reliably.');
 expect(worksheetCss.includes('break-inside:avoid-page')&&worksheetCss.includes('page-break-inside:avoid'),'Each worksheet activity must stay together on one printed page whenever it fits on A4.');
 const teacher=pricing.slice(pricing.indexOf("id: 'teacher'"),pricing.indexOf("id: 'teacher-pro'"));

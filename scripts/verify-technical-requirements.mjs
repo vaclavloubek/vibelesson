@@ -23,7 +23,7 @@ for (const needle of [
 }
 const workspace = read('components/LessonWorkspace.tsx');
 assert.ok(workspace.includes('accept=".pdf,.pptx,.docx,.txt,.md'), 'upload formats changed; update the technical requirements');
-assert.ok(read('app/layout.tsx').includes('https://challenges.cloudflare.com/turnstile'), 'Turnstile host changed; update the technical requirements');
+assert.ok(read('components/AuthControls.tsx').includes('https://challenges.cloudflare.com/turnstile'), 'Turnstile host changed; update the technical requirements');
 
 assert.ok(read('app/requirements/page.tsx').includes('TECHNICAL_REQUIREMENTS[locale]'), 'public requirements page renders the shared source');
 assert.ok(fs.existsSync('app/[locale]/requirements/page.tsx'), 'localized requirements route exists');

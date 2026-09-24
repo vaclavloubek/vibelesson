@@ -19,8 +19,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: english ? 'Data Processing Agreement — Syllonaut' : 'Smlouva o zpracování osobních údajů — Syllonaut',
     description: english
-      ? 'Syllonaut Data Processing Agreement for Team, School and Campus organisations under Article 28 GDPR.'
-      : 'Zpracovatelská smlouva Syllonautu pro organizace Team, School a Campus podle čl. 28 GDPR.',
+      ? 'Syllonaut Data Processing Agreement under Article 28 GDPR for Team, School and Campus organisations and for individual teacher accounts used in teaching.'
+      : 'Zpracovatelská smlouva Syllonautu podle čl. 28 GDPR pro organizace Team, School a Campus i pro individuální účty učitelů používané při výuce.',
     alternates: {
       canonical: `/${locale}/dpa`,
       languages: { cs: '/cs/dpa', en: '/en/dpa', 'x-default': '/en/dpa' },
@@ -72,7 +72,7 @@ export default async function DpaPage() {
 
       <article className={styles.page}>
         <div className={styles.hero}>
-          <span className={styles.eyebrow}>{ui('Právní informace · organizace', 'Legal · organisations')}</span>
+          <span className={styles.eyebrow}>{ui('Právní informace · organizace a učitelé', 'Legal · organisations and teachers')}</span>
           <h1>{document.title}</h1>
           <p>{document.intro}</p>
           <div className={styles.meta}>{ui(
