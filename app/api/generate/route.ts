@@ -32,7 +32,7 @@ const InputSchema = z.object({
   duration: z.number().int().min(10).max(360),
   groupSize: z.string().min(1).max(100),
   collaborationMode: CollaborationModeSchema,
-  tone: z.string().min(1).max(200),
+  tone: z.string().trim().max(200).default(''),
   lessonLanguage: z.string().trim().min(1).max(100).default('auto'),
   uiLocale: z.enum(['cs', 'en']).default('cs'),
   gradingStrictness: GradingStrictnessSchema.default('neutral'),

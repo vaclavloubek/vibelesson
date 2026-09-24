@@ -142,15 +142,13 @@ await expectHtml('/cs/gdpr', [
 await expectHtml('/new', [
   '<html lang="en"',
   'What should students experience today?',
-  'On Free, the lesson is created in the interface language.',
-  'Automatic brief-language detection and additional languages are available on Teacher, Teacher Pro and school plans.',
+  'On Free, lessons are created in the interface language; paid plans add other languages.',
 ], { cookie: 'syllonaut_locale=en' });
 
 await expectHtml('/new', [
   '<html lang="cs"',
   'Co mají studenti dnes zažít?',
-  'Ve Free tarifu se lekce vytvoří v jazyce rozhraní.',
-  'Automatické rozpoznání jazyka zadání a další jazyky jsou dostupné v tarifech Teacher, Teacher Pro a školních plánech.',
+  'Ve Free se lekce vytvoří v jazyce rozhraní; další jazyky nabízejí placené tarify.',
 ], { cookie: 'syllonaut_locale=cs' });
 
 await expectHtml('/join', [
