@@ -21,6 +21,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     pendingEvaluations,
     needsReviewEvaluations,
     unconfirmedEvaluations,
+    integrityAlertEvaluations,
     failedEvaluations,
     rows,
   } = result.data;
@@ -34,6 +35,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     pendingEvaluations,
     needsReviewEvaluations,
     unconfirmedEvaluations,
+    integrityAlertEvaluations,
     failedEvaluations,
     rows,
   });

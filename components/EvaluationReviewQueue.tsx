@@ -280,6 +280,11 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
               ) : null}
             </div>
           ) : null}
+          {!evaluation.manualOnly && evaluation.aiUseSuspicion === 'low' && evaluation.aiUseSignals.length ? (
+            <p className="muted-copy" style={{ margin: '8px 0 0' }}>
+              {ui('Slabý signál možného využití AI, jen pro informaci:', 'Weak signal of possible AI use, for information only:')} {evaluation.aiUseSignals.join(' ')}
+            </p>
+          ) : null}
           {evaluation.teacherConfirmed && evaluation.teacherNote ? (
             <p style={{ margin: '8px 0 0' }}><strong>{ui('Poznámka učitele:', 'Teacher note:')}</strong> {evaluation.teacherNote}</p>
           ) : null}

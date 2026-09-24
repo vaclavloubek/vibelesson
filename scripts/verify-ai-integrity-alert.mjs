@@ -23,8 +23,36 @@ const migration = source('supabase/migrations/20260920180324_add_ai_integrity_al
 requireText(grading, "aiUseSuspicion: z.enum(['none', 'low', 'high'])", 'grader output does not include a bounded suspicion signal.');
 requireText(grading, 'Tento integrity signál nikdy nepoužívej k úpravě criterion points', 'grader prompt does not explicitly isolate suspicion from scoring.');
 requireText(grading, 'input.answerText.length >= 280', 'high-suspicion minimum answer-length guard is missing.');
-requireText(grading, "aiUseSignals.length >= 2", 'high suspicion does not require multiple concrete signals.');
+requireText(grading, "modelSignals.length >= 2", 'high suspicion does not require multiple concrete signals.');
 requireText(grading, "needsReview: output.confidence < 0.7 || aiUseSuspicion === 'high'", 'high suspicion does not route to teacher review.');
+const bulkConfirm = source('neon/migrations/0015_bulk_confirm_skips_ai_integrity_alerts.sql');
+requireText(bulkConfirm, "and e.ai_use_suspicion is distinct from 'high';", 'bulk confirmation must skip answers with a high AI-use alert.');
+requireText(bulkConfirm, 'create or replace function public.confirm_ai_evaluation_proposals(p_session_id uuid)', 'bulk confirmation must keep its signature.');
+const scoreboardServer = source('lib/scoreboard-server.ts');
+requireText(scoreboardServer, "item.ai_use_suspicion === 'high'", 'teacher scoreboard must count alerts excluded from bulk confirmation.');
+const teacherScoreboard = source('components/TeacherScoreboard.tsx');
+requireText(teacherScoreboard, 'Ty se hromadně nepotvrdí, projdi je jednotlivě ve frontě kontroly.', 'teacher must be told that alerted answers are not bulk-confirmed.');
+requireText(grading, 'const copyArtifacts = detectCopyArtifacts(input.answerText);', 'grader does not run the deterministic copy-trace detector.');
+requireText(grading, 'highSuspicionEligible || copyArtifactKinds >= 2', 'two independent copy traces must raise a teacher alert.');
+requireText(grading, "output.aiUseSuspicion === 'none' && copyArtifactKinds === 0", 'a single copy trace must surface at least as a low signal.');
+{
+  const { detectCopyArtifacts } = await import('../lib/ai-copy-artifacts.ts');
+  const kinds = (text) => detectCopyArtifacts(text).map((artifact) => artifact.kind).sort().join(',');
+  const pasted = '1. Analýza\u00A0 \nVstup \\rightarrow Nabídka\u00A0 \nudálost \u2060click_add\u2060';
+  if (kinds(pasted) !== 'invisible_characters,latex_markup,markdown_line_breaks') {
+    throw new Error(`AI integrity alert regression: copied AI-chat answer not detected (${kinds(pasted)}).`);
+  }
+  for (const typed of [
+    '1. 30%, 55% ,39,9%, 40%\n2. Mezi zobrazení nabídky a přidáním rezervace nejvíce ubylo \n3. Event - dát sleva',
+    'Podle mě je to „dobrý“ nápad – cena 5\u00A0000\u00A0Kč a v\u00A0Praze, 3 * 4 = 12, *důležité*\n- odrážka',
+    'Soubor je v C:\\Users\\rightarrow\\text a stojí $5 až $10.',
+  ]) {
+    if (kinds(typed)) throw new Error(`AI integrity alert regression: typed answer falsely flagged (${kinds(typed)}).`);
+  }
+  for (const artifact of detectCopyArtifacts(pasted)) {
+    if (artifact.signal.length > 240) throw new Error('AI integrity alert regression: copy-trace signal exceeds the 240-character DB limit.');
+  }
+}
 
 requireText(direct, "supabase.rpc('finish_response_evaluation_v2'", 'direct grading does not persist integrity metadata through v2 RPC.');
 requireText(direct, 'p_ai_use_suspicion: result.aiUseSuspicion', 'direct grading does not pass suspicion.');

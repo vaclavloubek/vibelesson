@@ -10,6 +10,7 @@ type EvaluationRow = {
   block_id: string;
   status: string;
   ai_score: number | null;
+  ai_use_suspicion?: string | null;
   teacher_score: number | null;
   teacher_confirmed: boolean;
 };
@@ -48,6 +49,7 @@ export type TeacherScoreboardData = {
   pendingEvaluations: number;
   needsReviewEvaluations: number;
   unconfirmedEvaluations: number;
+  integrityAlertEvaluations: number;
   failedEvaluations: number;
   rows: ScoreboardRow[];
 };
@@ -95,7 +97,7 @@ export async function loadTeacherScoreboard(
       .eq('session_id', sessionId),
     supabase
       .from('response_evaluations')
-      .select('participant_id, team_id, block_id, status, ai_score, teacher_score, teacher_confirmed')
+      .select('participant_id, team_id, block_id, status, ai_score, teacher_score, teacher_confirmed, ai_use_suspicion')
       .eq('session_id', sessionId),
   ]);
 
@@ -241,6 +243,11 @@ export async function loadTeacherScoreboard(
   const unconfirmedEvaluations = evaluations.filter((item) => (
     !item.teacher_confirmed && (item.status === 'graded' || item.status === 'needs_review') && item.ai_score !== null
   )).length;
+  // Bulk confirmation skips these (Neon 0015); the teacher reviews each alert.
+  const integrityAlertEvaluations = evaluations.filter((item) => (
+    !item.teacher_confirmed && (item.status === 'graded' || item.status === 'needs_review') && item.ai_score !== null
+    && item.ai_use_suspicion === 'high'
+  )).length;
   const failedEvaluations = evaluations.filter((item) => item.status === 'failed').length;
 
   return {
@@ -258,6 +265,7 @@ export async function loadTeacherScoreboard(
       pendingEvaluations,
       needsReviewEvaluations,
       unconfirmedEvaluations,
+      integrityAlertEvaluations,
       failedEvaluations,
       rows: rankedRows,
     },

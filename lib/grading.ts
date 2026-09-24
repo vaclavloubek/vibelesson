@@ -1,5 +1,6 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
+import { detectCopyArtifacts } from './ai-copy-artifacts';
 import { GradingCriterionSchema, GradingStrictnessSchema, type GradingCriterion, type GradingStrictness } from './schema';
 
 const gradingModel = process.env.AI_GRADING_MODEL || process.env.AI_MODEL || 'openai/gpt-5.6-sol';
@@ -89,6 +90,7 @@ function validateRubric(rubric: GradingCriterion[], maxPoints: number) {
 export async function gradeResponseWithAI(rawInput: z.input<typeof GradingInputSchema>): Promise<GradingResult> {
   const input = GradingInputSchema.parse(rawInput);
   validateRubric(input.rubric, input.maxPoints);
+  const copyArtifacts = detectCopyArtifacts(input.answerText);
 
   const { output, providerMetadata } = await generateText({
     model: gradingModel,
@@ -112,6 +114,7 @@ Integrita odpovědi — samostatný signál, který NESMÍ ovlivnit body ani gra
 - aiUseSuspicion = "high" použij jen při více nezávislých a konkrétních stylistických signálech; samotná správnost, formálnost, dobrá gramatika, delší odpověď nebo odborný styl nestačí.
 - U krátkých odpovědí buď zvlášť zdrženlivý. Pokud nejsou přítomné alespoň dva konkrétní signály, vrať "none" nebo "low".
 - aiUseSignals obsahuje nejvýše tři stručné popisy konkrétních znaků v textu. Nevkládej obecné soudy typu "zní jako AI".
+- Pole detectedCopyArtifacts obsahuje stopy kopírování z AI chatu, které aplikace zjistila deterministicky (neviditelné znaky, LaTeX, Markdown, zkopírovaná zalomení řádků). Jsou to konkrétní signály a můžeš je zohlednit v aiUseSuspicion. Do aiUseSignals je znovu nepřepisuj, uveď jen případné další vlastní signály.
 - Tento integrity signál nikdy nepoužívej k úpravě criterion points, overallRationale ani confidence.
 
 Nastavení přísnosti pro tuto odpověď:
@@ -126,6 +129,7 @@ ${gradingStrictnessInstructions[input.strictness]}`,
       },
       rubric: input.rubric,
       studentAnswer: input.answerText,
+      detectedCopyArtifacts: copyArtifacts.map((artifact) => artifact.signal),
     }),
   });
 
@@ -170,15 +174,19 @@ ${gradingStrictnessInstructions[input.strictness]}`,
   }
 
   const rationale = OverallRationaleSchema.parse(output.overallRationale);
-  const aiUseSignals = Array.from(new Set(output.aiUseSignals.map((signal) => signal.trim()).filter(Boolean))).slice(0, 3);
+  const modelSignals = Array.from(new Set(output.aiUseSignals.map((signal) => signal.trim()).filter(Boolean))).slice(0, 3);
   const highSuspicionEligible = input.answerText.length >= 280
     && output.aiUseSuspicion === 'high'
-    && aiUseSignals.length >= 2;
-  const aiUseSuspicion: AIUseSuspicion = highSuspicionEligible
+    && modelSignals.length >= 2;
+  // Two independent copy traces are enough for a teacher alert; one trace is
+  // only a low signal. The model's own stylistic judgement keeps its guards.
+  const copyArtifactKinds = new Set(copyArtifacts.map((artifact) => artifact.kind)).size;
+  const aiUseSuspicion: AIUseSuspicion = highSuspicionEligible || copyArtifactKinds >= 2
     ? 'high'
-    : output.aiUseSuspicion === 'none'
+    : output.aiUseSuspicion === 'none' && copyArtifactKinds === 0
       ? 'none'
       : 'low';
+  const aiUseSignals = Array.from(new Set([...copyArtifacts.map((artifact) => artifact.signal), ...modelSignals])).slice(0, 3);
 
   return {
     score,

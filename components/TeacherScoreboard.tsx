@@ -37,6 +37,7 @@ type ScoreboardData = {
   pendingEvaluations: number;
   needsReviewEvaluations: number;
   unconfirmedEvaluations: number;
+  integrityAlertEvaluations?: number;
   failedEvaluations: number;
   rows: ScoreboardRow[];
 };
@@ -115,10 +116,14 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
 
   // LEGAL-021: AI points are proposals; the teacher confirms them before they count.
   const confirmAiProposals = async () => {
+    const skipped = data?.integrityAlertEvaluations ?? 0;
     if (!window.confirm(ui(
       'Potvrdit všechny dosavadní návrhy AI jako tvoje hodnocení? Body se pak započítají do skóre a pořadí. Jednotlivé body můžeš i nadále upravit.',
       'Confirm all current AI suggestions as your grading? The points will then count toward scores and ranking. You can still adjust individual points.',
-    ))) return;
+    ) + (skipped ? ui(
+      `\n\n${skipped} hodnocení s podezřením na využití AI se nepotvrdí. Projdi je jednotlivě ve frontě kontroly.`,
+      `\n\n${skipped} items with suspected AI use will not be confirmed. Review them one by one in the review queue.`,
+    ) : ''))) return;
     setConfirmBusy(true);
     setError('');
     try {
@@ -194,9 +199,21 @@ export default function TeacherScoreboard({ sessionId }: { sessionId: string }) 
               'Body od AI jsou jen návrh a do skóre ani pořadí se nezapočítají, dokud je nepotvrdíš.',
               'AI points are only a suggestion and do not count toward scores or ranking until you confirm them.',
             )}</span>
-            <button type="button" disabled={confirmBusy} onClick={() => void confirmAiProposals()}>
-              {confirmBusy ? ui('Potvrzuji…', 'Confirming…') : ui('Potvrdit všechny návrhy AI', 'Confirm all AI suggestions')}
-            </button>
+            {data.integrityAlertEvaluations ? (
+              <span>{ui(
+                `${data.integrityAlertEvaluations} z nich má podezření na využití AI. Ty se hromadně nepotvrdí, projdi je jednotlivě ve frontě kontroly.`,
+                `${data.integrityAlertEvaluations} of them have suspected AI use. They are not confirmed in bulk; review them one by one in the review queue.`,
+              )}</span>
+            ) : null}
+            {data.unconfirmedEvaluations > (data.integrityAlertEvaluations ?? 0) ? (
+              <button type="button" disabled={confirmBusy} onClick={() => void confirmAiProposals()}>
+                {confirmBusy
+                  ? ui('Potvrzuji…', 'Confirming…')
+                  : data.integrityAlertEvaluations
+                    ? ui('Potvrdit návrhy AI bez podezření', 'Confirm AI suggestions without suspicion')
+                    : ui('Potvrdit všechny návrhy AI', 'Confirm all AI suggestions')}
+              </button>
+            ) : null}
           </div>
         ) : null}
 
