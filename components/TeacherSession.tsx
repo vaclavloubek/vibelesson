@@ -510,7 +510,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
       </header>
       <div className="live-connection-summary" role="status">
         <strong>{ui('Řídicí centrum', 'Control centre')}</strong>
-        <span>{connectionMode === 'primary' ? ui('Primární spojení', 'Primary connection') : connectionMode === 'syncing' ? ui('Synchronizuji', 'Synchronizing') : ui('Záložní spojení', 'Backup connection')}</span>
+        {connectionMode !== 'primary' ? <span>{connectionMode === 'syncing' ? ui('Synchronizuji…', 'Synchronizing…') : ui('Záložní spojení – hodina běží dál', 'Backup connection – the lesson continues')}</span> : null}
       </div>
 
       {error ? <div className="error" role="alert" style={{ marginBottom: 14 }}>{error}</div> : null}
@@ -653,7 +653,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
                     ) : null}
                     <button className="secondary" disabled={busy} onClick={() => void act('timer_reset')}>{ui('Resetovat', 'Reset')}</button>
                   </div>
-                  <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('Studenti vidí stejný čas. Start, pauza i reset se synchronizují přes session stav.', 'Students see the same time. Start, pause and reset are synchronized through the session state.')}</p>
+                  <p className="muted-copy" style={{ margin: '10px 0 0' }}>{ui('Studenti vidí stejný čas. Start, pauza i reset se synchronizují všem připojeným.', 'Students see the same time. Start, pause and reset are synchronized for everyone connected.')}</p>
                 </LiveTimer>
               ) : null}
             </div>
