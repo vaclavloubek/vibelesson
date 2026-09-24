@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { TRUSTED_DEVICE_COOKIE } from '@/lib/device-cookie';
+import {
+  createTrustedDeviceToken,
+  TRUSTED_DEVICE_COOKIE,
+  TRUSTED_DEVICE_COOKIE_MAX_AGE,
+} from '@/lib/device-cookie';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
 import { createNeonSql } from '@/lib/neon/server';
 
@@ -50,6 +54,25 @@ export async function currentTrustedDeviceHash() {
   const token = cookieStore.get(TRUSTED_DEVICE_COOKIE)?.value ?? null;
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
   return hashTrustedDeviceToken(token);
+}
+
+// The device cookie is set only on sign-in, registration or for an already
+// signed-in account (LEGAL-022); anonymous visitors never receive it.
+// Returns the valid token, creating one when the cookie is missing.
+export async function ensureTrustedDeviceCookie() {
+  const cookieStore = await cookies();
+  const current = cookieStore.get(TRUSTED_DEVICE_COOKIE)?.value ?? '';
+  if (/^[0-9a-f]{64}$/.test(current)) return current;
+
+  const token = createTrustedDeviceToken();
+  cookieStore.set(TRUSTED_DEVICE_COOKIE, token, {
+    path: '/',
+    maxAge: TRUSTED_DEVICE_COOKIE_MAX_AGE,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
+  return token;
 }
 
 export async function registerTrustedDeviceHash(

@@ -4,6 +4,7 @@ import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config
 import { createServerAuth } from '@/lib/neon/auth';
 import { createNeonSql } from '@/lib/neon/server';
 import { verifyNeonAuthChallenge } from '@/lib/neon/turnstile';
+import { ensureTrustedDeviceCookie } from '@/lib/trusted-device-access';
 import { TERMS_ACCEPTANCE_KEY, TERMS_VERSION } from '@/lib/legal';
 
 type AuthActionResult = { error?: string };
@@ -35,7 +36,10 @@ export async function signInWithNeonForApp(email: string, password: string, chal
   if (!(await verifyNeonAuthChallenge(challenge, 'signin'))) return { error: 'Security verification failed.' };
   try {
     const { error } = await createServerAuth().signIn.email({ email, password });
-    if (!error) return {};
+    if (!error) {
+      await ensureTrustedDeviceCookie();
+      return {};
+    }
     // Neon Auth checks the password first and only then refuses an unverified
     // address; with "send on sign-in" it has already emailed a fresh code.
     const code = (error as { code?: unknown }).code;
@@ -60,7 +64,9 @@ export async function verifyNeonEmailForApp(email: string, code: string): Promis
     // Neon Auth limits wrong attempts per code; the user can request a new one.
     const { data, error } = await createServerAuth().emailOtp.verifyEmail({ email: normalizedEmail, otp });
     if (error) return { error: 'Invalid verification code.' };
-    return { signedIn: Boolean((data as { token?: unknown } | null)?.token) };
+    const signedIn = Boolean((data as { token?: unknown } | null)?.token);
+    if (signedIn) await ensureTrustedDeviceCookie();
+    return { signedIn };
   } catch {
     return { error: 'Verification failed.' };
   }
@@ -143,6 +149,7 @@ export async function signUpWithNeonForApp(input: {
         // The verification form offers "send a new code".
       }
     }
+    await ensureTrustedDeviceCookie();
     return { checkEmail: !result.data.token };
   } catch {
     // A failed audit write cannot be reported as a completed registration.

@@ -2,9 +2,9 @@
 
 ### Souhrn stavu k 2026-09-23 (konec dne)
 
-- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303); nový účet se potvrzuje kódem z e-mailu (#305). Interní verze **0.9.111**, veřejně zobrazovaná **0.9.30**.
+- **Provoz:** Production běží na Neonu (cutover #284, opravy #285–#295: SSR klient, AI kvóta, cache Data API JWT, PG18 rekonciliace živé hodiny `0009`, Stripe sync `0010`, sporadické 401 z Neon Auth #292, časové limity Neon SQL a zaseknuté AI hodnocení #295). Auth e-maily Neon Auth chodí v grafice Syllonautu z `noreply@syllonaut.com` (#301, #303); nový účet se potvrzuje kódem z e-mailu (#305). Interní verze **0.9.112**, veřejně zobrazovaná **0.9.30**.
 - **Produkt:** ikona pro kopírování odkazu pro studenty s trvalou potvrzovací fajfkou (#297, #299); nabídka účtu se na telefonech otevírá celá na obrazovce (#309); v editoru uložené lekce upozornění, že AI může chybovat a lekci je třeba zkontrolovat (0.9.108).
-- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018, LEGAL-020 a LEGAL-021** (dnes LEGAL-013 až 018, 020 a 021: #293, #294, #296, #298, #300, #302, #304). Aktuální **VOP 1.10** (`2026-09-23-v11`, souhlasy v4–v10 zůstávají dostatečné), **Privacy Notice 1.6**, Neon migrace **0011** (evidence reklamací) a **0012** (body z AI až po potvrzení učitelem) aplikované v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce); **LEGAL-021** (AI Act) vyřešen v 0.9.105, posouzení potvrdit právníkem a do 2. 12. 2026 vyřešit označení textu generovaného AI (čl. 50 odst. 2).
+- **Právní audit:** vyřešeno **LEGAL-001 až LEGAL-018 a LEGAL-020 až LEGAL-022** (23. 9. LEGAL-013 až 018, 020 a 021: #293, #294, #296, #298, #300, #302, #304; 24. 9. LEGAL-022). Aktuální **VOP 1.11** (`2026-09-24-v12`, souhlasy v4–v11 zůstávají dostatečné), **Privacy Notice 1.7**, **DPA 1.2** (`2026-09-24-dpa-v3`), Neon migrace **0011** (evidence reklamací) a **0012** (body z AI až po potvrzení učitelem) aplikované v produkci. Otevřené: **LEGAL-019** (DPH/OSS — daňový poradce); **LEGAL-021** (AI Act) vyřešen v 0.9.105, posouzení potvrdit právníkem a do 2. 12. 2026 vyřešit označení textu generovaného AI (čl. 50 odst. 2).
 - **Otevřené provozní body:** v živé hodině ověřit tlačítko „Potvrdit všechny návrhy AI“ (0.9.105); za provozu neověřené školní administrace, Stripe webhook (první obnova 18.–19. 10.) a registrace nového uživatele; ostatní 3 účty si musí nastavit heslo; sledovat ojedinělé `P0001` u `/api/ai-quota`; skutečné podání reklamace a e-maily reklamací nebyly zkoušeny (trvalý append-only záznam); přímý Neon re-consent zápis (účty se souhlasem starším než v4) nebyl spuštěn proti DB; limit důvěryhodných zařízení je zatím jen v Ceníku, ne ve VOP; po přijetí českého § 1830a OZ znovu porovnat online odstoupení.
 - **Pracovní postup agentů (dnešní zkušenosti):**
   - Před sloučením vždy znovu ověřit volné číslo verze na `main`; souběžné chaty dnes obsadily 0.9.95, 0.9.96, 0.9.98, 0.9.100 a 0.9.102 během otevřených PR.
@@ -20,6 +20,8 @@
 - **Supabase** (`qsjddlgmabgmtssvntmn`) je ponechaná beze změny dat a **jen pro čtení** (`default_transaction_read_only = on`) jako záloha. Nemazat bez samostatného rozhodnutí. Protože Neon už přijal produkční zápisy, prostý návrat na Supabase není povolen (split-brain); postup je v `docs/NEON_MIGRATION.md`.
 - **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
+
+Aktualizováno: 2026-09-24 — interní verze **0.9.112** uzavírá **LEGAL-022**: GDPR stránka 1.7, DPA 1.2 a VOP 1.11 odpovídají produkční infrastruktuře po přechodu na Neon (Neon/Databricks, Supabase jen jako záloha pro čtení, Cloudflare Workers pro živé hodiny, Stripe); DPA se vztahuje i na individuální účty ve výuce a účet učitele je od 18 let. Studentské stránky jsou bez cookie lišty a bez GA, Turnstile se načítá jen s formulářem přihlášení a registrace, `syllonaut_device_v1` se nastavuje až při přihlášení nebo registraci a patička uvádí identifikaci poskytovatele. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
 Aktualizováno: 2026-09-23 — interní verze **0.9.111**: aplikace posílá do Resendu dva nové onboarding eventy podle organizační role — `syllonaut.organization_owner.activated` (`plan_code: 'school' | 'campus'`) vlastníkovi při **první** LIVE aktivaci školní/Campus organizace a `syllonaut.organization_member.joined` členovi po přijetí pozvánky. Obecný Welcome (`syllonaut.onboarding.started`) se nemění. Resend automatizace na tyto eventy jsou připravené a zatím vypnuté. Veřejně zobrazovaná verze na dashboardu zůstává 0.9.30.
 
@@ -66,6 +68,19 @@ Aktualizováno: 2026-09-23 — interní verze **0.9.93** uzavírá **LEGAL-013**
 Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: minimální scope, práce po malých krocích, úsporné používání kontextu a nástrojů, zákaz nevyžádaných refaktorů a opakovaných spekulativních pokusů. Kořenový `AGENTS.md` je nově stručným závazným vstupním bodem pro agentní práci; `PROJECT.md` zůstává zdrojem projektového stavu a načítá se cíleně podle úkolu. Jde pouze o dokumentační/procesní změnu, interní verze zůstává **0.9.92** a veřejně zobrazovaná verze 0.9.30.
 
 **Aktuální produktová verze: 0.9.30** — Syllonaut má české a anglické UI, regionální výchozí volbu jazyka a oddělený jazyk generované lekce. **Sdílení lekcí je produkčně dokončené a E2E ověřené:** autor vytváří odvolatelný read-only snapshot, příjemce musí pro uložení a spuštění použít vlastní účet a dostane samostatnou kopii. Share link je záměrně přenositelný a počítá se s ním i pro veřejné ukázkové lekce a akviziční distribuci. Free účet generuje nové lekce pouze v aktivním jazyce UI a při AI revizích nesmí změnit hlavní jazyk existující lekce nebo bloku. Teacher, Teacher Pro a budoucí Team/School/Campus mají benefit **Lekce v libovolném jazyce**, včetně automatické detekce jazyka zadání, explicitní volby dalšího jazyka a změny jazyka při AI revizi. Entitlement je vynucený serverově.
+
+### Soulad GDPR stránky a DPA s produkční infrastrukturou 0.9.112 — 2026-09-24
+
+- uzavřen právní auditní bod **LEGAL-022**; vlastník projektu schválil (A) rozšíření DPA na individuální účty Free / Teacher / Teacher Pro, pokud učitel Syllonaut používá ke zpracování dat studentů při výuce, a (B) nic dalšího mimo rozsah;
+- **DPA 1.2** (`DPA_ACCEPTANCE_KEY = 2026-09-24-dpa-v3`, **lib/dpa-document.ts**): nový další zpracovatel **Neon (Databricks)** — Postgres, Neon Auth a Data API, projekt `patient-scene-51573642`, AWS eu-central-1. Smluvní stranou je podle Neon Product Specific Schedule (aktualizováno 5. 8. 2026) **Databricks, Inc., mateřská společnost Neon, LLC**; adresa a kontakt `privacy@databricks.com` jsou z Databricks Privacy Notice (9. 1. 2026), předávání mimo EHP pokrývají SCC v Databricks DPA. **Supabase** je jen záloha pro čtení (data do 23. 9. 2026) do smazání; **datum smazání zálohy doplní vlastník projektu** v konstantě `SUPABASE_BACKUP_DELETION_DATE` (TODO). **Cloudflare** nově zahrnuje Workers / Durable Objects pro živé řízení (jméno studenta, obsah lekce, odpovědi studentů a týmů; smazání 7 dní po poslední aktivitě podle `LIVE_RETENTION_MS`; umístění není omezeno na EU). V produkci žádná organizace DPA dosud nepřijala (0 objednávek s `dpaAcceptedAt`), takže změna dalšího zpracovatele nevyžadovala oznámení 15 dní předem;
+- **VOP 1.11** (`2026-09-24-v12`, účinné 24. 9. 2026): v čl. 2 sdílené klauzule `TERMS_ACCOUNT_ELIGIBILITY_CLAUSE` (účet učitele jen od 18 let) a `TERMS_DPA_SCOPE_CLAUSE` (DPA i pro individuální účty ve výuce), v čl. 14 začlenění DPA pro individuální účty; totéž v individuálním smluvním snapshotu. Vlastník projektu rozhodl, že **stávající souhlasy v4–v11 zůstávají dostatečné** (rozšíření DPA je ve prospěch uživatele, věkový limit upřesňuje způsobilost uzavřít smlouvu; v produkci 6 účtů). Bez DB migrace;
+- **Privacy Notice 1.7** (`/gdpr`): sekce 8 uvádí Neon, Supabase jako zálohu, Cloudflare Turnstile + Workers, Stripe (platby v Kč Stripe Payments Europe, Limited; u EUR/USD je merchant of record Sold through Link, LLC; Stripe je pro vlastní účely i samostatný správce) a Google; tabulka cookies uvádí `__Secure-neon-auth.session_token` a `__Secure-neon-auth.local.session_data` místo `sb-…-auth-token`, dále `syllonaut_locale`, `syllonaut_device_v1`, `ep_participant_<session>` a úložiště prohlížeče (IndexedDB `syllonaut-live-v1`, sessionStorage živého řízení); nový odstavec o automatizovaném rozhodování (čl. 13 odst. 2 písm. f GDPR); sekce 4 popisuje marketingové e-maily podle používání služby (jen se souhlasem); sekce 7 má kotvu `#studenti` s AI návrhy bodů a upozorněním na možné využití AI;
+- **studentské stránky** `/join`, `/join/*`, `/student/*` a `/sessions/*/presenter` jsou v `CookieConsent` vyřazené stejně jako pracovní listy (bez lišty, GA zablokované); `StudentJoinForm` a `JoinCodeForm` mají větu pro děti s odkazem na `/<locale>/gdpr#studenti`;
+- **Turnstile** se už nenačítá v `app/layout.tsx` (ani preconnect), ale v `AuthControls` až po otevření okna přihlášení / registrace; CSP beze změny;
+- **`syllonaut_device_v1`** nepotřebuje žádná logika před přihlášením (čtou ho jen autentizované routy: generování, revize, import/kopie lekcí, spuštění hodiny, zařízení). `proxy.ts` ji už nenastavuje; nastavuje ji `ensureTrustedDeviceCookie()` při přihlášení, ověření e-mailu, registraci a pro už přihlášené účty bez cookie v `/api/auth/devices/register`;
+- **patička** uvádí „Václav Loubek, IČO 88878431, Slepá 868, 289 24 Milovice – Mladá, zapsán v živnostenském rejstříku“ ze sdíleného `lib/provider-contact.ts`;
+- regresní kontroly: **verify-privacy** (cookies Neon Auth, úložiště, čl. 13/2/f, `#studenti`, Turnstile jen ve formulářích, vyřazení studentských rout v `CookieConsent` včetně pozitivních i negativních cest), **verify-dpa**, **verify-terms**, **verify-provider-contact**, **verify-trusted-devices**, **verify-worksheet-export**, **verify-technical-requirements**;
+- veřejně zobrazovaná verze na dashboardu zůstává **0.9.30**.
 
 ### Onboarding eventy pro organizace 0.9.111 — 2026-09-23
 
@@ -457,7 +472,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 ### Právní / ČOI launch audit před 1.0 — 2026-09-21
 
-**Stav k 2026-09-23: 20 z 21 bodů vyřešeno.** Otevřený zůstává **LEGAL-019** (DPH/OSS, vyžaduje daňového poradce); **LEGAL-021** (AI Act) je vyřešen produktově a posouzením, závěr má potvrdit právník. Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
+**Stav k 2026-09-24: 21 z 22 bodů vyřešeno.** Otevřený zůstává **LEGAL-019** (DPH/OSS, vyžaduje daňového poradce); **LEGAL-021** (AI Act) je vyřešen produktově a posouzením, závěr má potvrdit právník. Audit byl proveden z pohledu přísného spotřebitelského právníka / kontrolora proti aktuálním VOP, Ceníku, checkoutům, billing e-mailům, skutečným backendovým limitům a GDPR stránce. Níže uvedené body nejsou považovány za uzavřené pouhou existencí VOP; musí se odstranit rozpor mezi veřejnou nabídkou, potvrzením objednávky a skutečným plněním.
 
 #### Blokátory 1.0
 
@@ -491,6 +506,7 @@ Aktualizováno: 2026-09-23 — zpřísněna pracovní pravidla pro Work/agenty: 
 
 - **[LEGAL-020 — RESOLVED 0.9.103] Online funkce pro odstoupení (směrnice 2023/2673, čl. 11a směrnice 2011/83/EU).** Původní termín „od 1. 1. 2027“ byl nepřesný: směrnice se uplatňuje od **19. 6. 2026** a k témuž dni nabylo účinnosti **nařízení vlády č. 66/2026 Sb.**, které doplnilo vzorové poučení o online odstoupení; česká novela občanského zákoníku (navrhovaný § 1830a) podle veřejných zdrojů k 10. 7. 2026 ještě nebyla přijata. Funkce z LEGAL-012 splňuje dvoukrokové označení „Odstoupit od smlouvy“ / „Potvrdit odstoupení od smlouvy“, údaje (jméno, smlouva, e-mail), dostupnost po celou lhůtu a potvrzení s obsahem, datem a časem. Doplněno doslovné poučení podle NV 66/2026 (VOP 1.9, smluvní snapshot, /withdrawal) a přihlášení přímo na /withdrawal pro nepřihlášené. **Po přijetí § 1830a znovu porovnat se zněním zákona.**
 - **[LEGAL-021 — RESOLVED 0.9.105, k potvrzení právníkem] AI Act classification.** Posouzení je v **docs/AI_ACT_ASSESSMENT.md**. AI návrh bodování by bez opatření spadal pod přílohu III bod 3 písm. b). Nyní má vymezený zamýšlený účel (herní a formativní zpětná vazba v lekci, ne úřední hodnocení; VOP 1.10 čl. 4) a je technicky přípravnou činností podle čl. 6 odst. 3 písm. d): body z AI se do skóre a pořadí započítají až po potvrzení učitelem (TS i DB, Neon `0012`), učitel potvrzuje jednotlivě nebo hromadně. Upozornění na využití AI zůstává signálem bez vlivu na body. Otevřené body pro právníka: profilování, exit-tickety vs. bod 3 písm. d), registrace podle čl. 49 odst. 2 a označení textu generovaného AI podle čl. 50 odst. 2 do 2. 12. 2026.
+- **[LEGAL-022 — RESOLVED 0.9.112] GDPR stránka a DPA popisovaly po přechodu na Neon (23. 9. 2026) stále Supabase.** Privacy Notice 1.7, DPA 1.2 a VOP 1.11 nyní odpovídají produkční infrastruktuře (Neon/Databricks, Supabase jen jako záloha pro čtení, Cloudflare Workers, Stripe), DPA se vztahuje i na individuální účty ve výuce, účet učitele je od 18 let, studentské stránky jsou bez cookie lišty a GA, Turnstile se načítá jen s formuláři přihlášení a registrace a device cookie se nastavuje až při přihlášení. Otevřené: datum smazání zálohy Supabase (vlastník projektu).
 
 #### Rozhodnutí pro release
 
@@ -710,13 +726,15 @@ Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravid
 - TypeScript 5.9
 - Zod 4.1
 - Vercel AI SDK 7 + Vercel AI Gateway
-- Supabase Auth + Postgres + RLS + Realtime
+- Neon Postgres + Neon Auth + Data API (od 23. 9. 2026), RLS aktivní
+- Cloudflare Workers / Durable Objects pro živé řízení hodin (retence 7 dní)
 - Resend pro transakční/auth e-maily; ověřená odesílací doména `syllonaut.com`
 - Spaceship Email Forwarding pro příjem `vaclav@syllonaut.com` → cílový Gmail
 - AI model: `openai/gpt-5.6-sol`
 - Vercel projekt: `edupilot2` (legacy technický název), plán Pro
 - autoritativní branch: `main`
-- Supabase project ref: `qsjddlgmabgmtssvntmn`, `eu-west-1`, Postgres 17, RLS aktivní
+- Neon projekt `patient-scene-51573642` (`neon-red-ladder`), AWS `eu-central-1`, Postgres 18; poskytovatel Databricks, Inc. (mateřská společnost Neon, LLC)
+- Supabase project ref `qsjddlgmabgmtssvntmn` (`eu-west-1`, Postgres 17) je od 23. 9. 2026 jen záloha pro čtení; datum smazání určí vlastník projektu
 - velikost DB ověřená 2026-09-17: přibližně 13 MB
 - Node 24.x, npm 11.19.0, deterministické instalace přes `npm ci`
 
@@ -1453,8 +1471,8 @@ Auth popover má dialog semantics, vazbu trigger/dialog, Escape close, přesun f
 
 Privacy/cookies baseline je produkčně dokončený a ověřený.
 
-- veřejná route `/gdpr`, verze 1.0, účinná od 18. 9. 2026;
-- správce: Václav Loubek, Slepá 868, 289 23 Milovice, Česká republika;
+- veřejná route `/gdpr`, první verze 1.0 účinná od 18. 9. 2026, aktuálně verze 1.7 účinná od 24. 9. 2026;
+- správce: Václav Loubek, IČO 88878431, Slepá 868, 289 24 Milovice – Mladá, Česká republika;
 - kontaktní e-mail pro ochranu soukromí: `vaclav@syllonaut.com`;
 - příjem na `vaclav@syllonaut.com` je řešen nativním Spaceship forwardingem a byl ověřen end-to-end;
 - globální cookie consent je nasazený přes `components/CookieConsent.tsx`;
@@ -1463,11 +1481,13 @@ Privacy/cookies baseline je produkčně dokončený a ověřený.
 - reklamní storage/signály, Google Signals a personalizace reklam zůstávají vypnuté;
 - po odvolání analytického souhlasu se GA4 zablokuje a aplikace se pokusí odstranit `_ga*` cookies;
 - Nastavení cookies je kdykoli dostupné ze sdílené patičky;
+- studentské stránky (`/join`, `/student/*`, `/sessions/*/presenter`) a pracovní listy lištu nezobrazují a GA4 na nich je zablokované (0.9.112);
+- Cloudflare Turnstile se načítá jen s otevřeným formulářem přihlášení / registrace a `syllonaut_device_v1` se nastavuje až při přihlášení nebo registraci (0.9.112);
 - marketingový e-mailový souhlas je oddělený od registrace, není předzaškrtnutý a má self-service withdrawal cestu;
 - landing page má CZ/EN kontaktní formulář; jeho e-mail + dotaz se používají pro vyřízení zprávy, zatímco anti-abuse ledger uchovává pouze HMAC pseudonymy klienta/e-mailu s omezenou retencí;
 - privacy regression check je součástí `npm run check`.
 
-GA4 je nyní pouze **technicky připravené**: loader/config je consent-gated a očekává `NEXT_PUBLIC_GA_MEASUREMENT_ID`. Produkční Measurement ID a produktová eventová taxonomie ještě nejsou zavedené. Další analytický krok má nejprve vytvořit GA4 property/web data stream, bezpečně nastavit Measurement ID a potom zavést explicitní produktové eventy bez PII a bez studentského obsahu.
+GA4 je **produkčně aktivní** při striktním opt-in: produkční stream `G-1BVLNYB3HV` (property `554871574`), consent-gated loader, sanitizované ruční pageviews a produktové eventy bez PII a bez studentského obsahu (viz sekce 18).
 
 ### Growth / lifecycle e-maily a poptávkový formulář — produkčně COMPLETE / PASS 2026-09-20
 

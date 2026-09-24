@@ -67,3 +67,15 @@ export const TERMS_AI_SCORING_PURPOSE_CLAUSE = {
   cs: 'AI bodování otevřených, týmových a exit-ticket odpovědí je určeno pro herní a formativní zpětnou vazbu v rámci jedné živé lekce. Body navržené AI jsou pouze návrhem: do skóre a pořadí se započítají až poté, co je učitel potvrdí nebo upraví, a o bodech vždy rozhoduje učitel. Funkce není určena k úřednímu hodnocení studentů (například ke klasifikaci, známkování nebo vysvědčení) ani k rozhodování o přijetí, zařazení či postupu ve vzdělávání; takové rozhodnutí musí učitel učinit vlastním posouzením. Upozornění na možné využití AI ve studentských odpovědích je pouze signálem pro učitele, nikoli důkazem, a body nemění.',
   en: 'AI scoring of open, team and exit-ticket responses is intended for game-based and formative feedback within a single live lesson. Points suggested by AI are only a suggestion: they count toward the score and ranking only after the teacher confirms or adjusts them, and the teacher always decides the points. The feature is not intended for official assessment of students (such as grades, marks or report cards) or for decisions on admission, placement or progression in education; any such decision must be made by the teacher on their own judgement. The alert about possible AI use in student responses is only a signal for the teacher, not proof, and does not change points.',
 } as const;
+
+// LEGAL-022: who may hold a teacher account.
+export const TERMS_ACCOUNT_ELIGIBILITY_CLAUSE = {
+  cs: 'Účet učitele (Free, Teacher, Teacher Pro i účet člena organizace) si může založit a používat pouze osoba, které je alespoň 18 let. Studenti se k živým lekcím připojují bez vlastního účtu přes kód nebo odkaz od učitele.',
+  en: 'A teacher account (Free, Teacher, Teacher Pro or an organisation member account) may only be created and used by a person aged 18 or over. Students join live lessons without their own account using a code or link from the teacher.',
+} as const;
+
+// LEGAL-022: the DPA also covers individual accounts used to process student data in teaching.
+export const TERMS_DPA_SCOPE_CLAUSE = {
+  cs: 'Pokud učitel s individuálním účtem (Free, Teacher nebo Teacher Pro) používá Syllonaut ke zpracování osobních údajů studentů při výuce, vystupuje Syllonaut v tomto rozsahu jako zpracovatel a vztahuje se na toto zpracování zpracovatelská smlouva (DPA), která je součástí smlouvy uzavřené přijetím těchto VOP. Správcem je učitel, nebo škola či jiná organizace, pro kterou učitel výuku vede.',
+  en: 'Where a teacher with an individual account (Free, Teacher or Teacher Pro) uses Syllonaut to process students’ personal data in teaching, Syllonaut acts as processor for that processing and the Data Processing Agreement (DPA) applies to it as part of the contract concluded by accepting these Terms. The controller is the teacher, or the school or other organisation for which the teacher teaches.',
+} as const;

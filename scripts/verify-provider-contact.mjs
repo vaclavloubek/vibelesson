@@ -8,6 +8,10 @@ assert.equal(PROVIDER_CONTACT.phoneDisplay, '+420 733 377 199');
 assert.equal(PROVIDER_CONTACT.phoneE164, '+420733377199');
 assert.equal(PROVIDER_CONTACT.phoneHref, 'tel:+420733377199');
 assert.equal(PROVIDER_CONTACT.email, 'vaclav@syllonaut.com');
+assert.equal(PROVIDER_CONTACT.businessId, '88878431');
+assert.equal(PROVIDER_CONTACT.addressLine1, 'Slepá 868');
+assert.equal(PROVIDER_CONTACT.postalCity, '289 24 Milovice – Mladá');
+assert.equal(PROVIDER_CONTACT.registryCs, 'zapsán v živnostenském rejstříku');
 
 for (const [path, requirements] of Object.entries({
   'app/terms/page.tsx': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay'],
@@ -15,7 +19,7 @@ for (const [path, requirements] of Object.entries({
   'components/PricingPage.tsx': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay'],
   'components/SchoolAdmin.tsx': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay'],
   'components/LandingContactForm.tsx': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay'],
-  'components/SiteFooter.tsx': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay'],
+  'components/SiteFooter.tsx': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay', 'PROVIDER_CONTACT.legalName', 'PROVIDER_CONTACT.businessId', 'PROVIDER_CONTACT.addressLine1', 'PROVIDER_CONTACT.postalCity', 'PROVIDER_CONTACT.registryCs'],
   'lib/individual-contract-snapshot.ts': ['PROVIDER_CONTACT.phoneHref', 'PROVIDER_CONTACT.phoneDisplay'],
   'app/api/organizations/route.ts': ['providerContact:', 'phone: PROVIDER_CONTACT.phoneE164'],
 })) {
@@ -26,8 +30,9 @@ for (const [path, requirements] of Object.entries({
 }
 
 const legal = read('lib/legal.ts');
-assert.ok(legal.includes("TERMS_VERSION = '1.10'"));
-assert.ok(legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-23-v11'"));
+assert.ok(legal.includes("TERMS_VERSION = '1.11'"));
+assert.ok(legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-24-v12'"));
+assert.ok(legal.includes("'2026-09-23-v11'"), 'Terms 1.10 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-23-v10'"), 'Terms 1.9 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-23-v9'"), 'Terms 1.8 access compatibility must be retained');
 assert.ok(legal.includes("'2026-09-23-v8'"), 'Terms 1.7 access compatibility must be retained');

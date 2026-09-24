@@ -5,6 +5,8 @@ export const PROVIDER_CONTACT = {
   postalCity: '289 24 Milovice – Mladá',
   countryCs: 'Česká republika',
   countryEn: 'Czech Republic',
+  registryCs: 'zapsán v živnostenském rejstříku',
+  registryEn: 'registered in the Czech Trade Licensing Register',
   phoneDisplay: '+420 733 377 199',
   phoneE164: '+420733377199',
   phoneHref: 'tel:+420733377199',

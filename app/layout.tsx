@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import Script from 'next/script';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import './flow-polish.css';
@@ -36,15 +35,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return (
     <html lang={locale}>
-      <head>
-        <link rel="preconnect" href="https://challenges.cloudflare.com" />
-      </head>
       <body className={`${geist.variable} ${geistMono.variable}`}>
-        <Script
-          id="syllonaut-turnstile"
-          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-          strategy="afterInteractive"
-        />
         <LocaleProvider locale={locale}>
           <a className="skip-link" href="#main-content">{locale === 'en' ? 'Skip to main content' : 'Přeskočit na hlavní obsah'}</a>
           <div id="main-content" tabIndex={-1}>{children}</div>

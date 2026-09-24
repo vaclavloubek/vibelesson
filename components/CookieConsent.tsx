@@ -20,6 +20,8 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 const GA_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 395;
 const OPEN_SETTINGS_EVENT = 'syllonaut:open-cookie-settings';
 const WORKSHEET_PATH = /^\/lessons\/[^/]+\/worksheet(?:\/|$)/;
+// Student-facing pages (join, live student view, classroom projection): no banner, no GA.
+const STUDENT_PATH = /^\/(?:join(?:\/|$)|student(?:\/|$)|sessions\/[^/]+\/presenter(?:\/|$))/;
 
 type Consent = {
   version: string;
@@ -95,8 +97,8 @@ function ensureGoogleAnalytics(measurementId: string) {
 export default function CookieConsent() {
   const english = useUiLocale() === 'en';
   const pathname = usePathname();
-  const worksheetRoute = WORKSHEET_PATH.test(pathname);
-  const analyticsBlocked = worksheetRoute;
+  const consentExemptRoute = WORKSHEET_PATH.test(pathname) || STUDENT_PATH.test(pathname);
+  const analyticsBlocked = consentExemptRoute;
   const [consent, setConsent] = useState<Consent | null>(null);
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -213,7 +215,7 @@ export default function CookieConsent() {
     window.requestAnimationFrame(() => previousFocusRef.current?.focus());
   }
 
-  if (!ready || worksheetRoute) return null;
+  if (!ready || consentExemptRoute) return null;
 
   return (
     <>

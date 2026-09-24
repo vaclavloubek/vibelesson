@@ -41,6 +41,39 @@ requirePattern(auth, /marketing_email_consent:\s*marketingConsent/, 'signup mark
 requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'marketing opt-in checkbox is missing or not explicit.');
 requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
+// LEGAL-022: Privacy Notice 1.7 matches the production infrastructure.
+requirePattern(gdpr, /Verze 1\.7/, 'Privacy Notice version 1.7 is missing.');
+requirePattern(gdpr, /__Secure-neon-auth\.session_token/, 'the Neon Auth session cookie must be listed.');
+if (/sb-…-auth-token|Supabase \{ui\('autentizační cookies'/.test(gdpr)) throw new Error('Privacy regression: the retired Supabase auth cookie must not be listed.');
+for (const needle of ['syllonaut_locale', 'syllonaut_device_v1', 'ep_participant_', 'IndexedDB', 'sessionStorage']) {
+  if (!gdpr.includes(needle)) throw new Error(`Privacy regression: cookie/storage table is missing ${needle}.`);
+}
+requirePattern(gdpr, /čl\. 13 odst\. 2 písm\. f\) GDPR/, 'automated decision-making notice (Art. 13(2)(f)) is missing.');
+requirePattern(gdpr, /<section id="studenti">/, 'student section anchor #studenti is missing.');
+requirePattern(gdpr, /první lekce, spuštění první živé hodiny a čerpání AI kvóty/, 'behaviour-triggered marketing email notice is missing.');
+requirePattern(gdpr, /<strong>Neon<\/strong>/, 'Neon must be listed as a service provider.');
+requirePattern(gdpr, /<strong>Stripe<\/strong>/, 'Stripe must be listed as a service provider.');
+requirePattern(gdpr, /jen u formulářů přihlášení a registrace/, 'Turnstile scope must be limited to sign-in and registration forms.');
+if (layout.includes('challenges.cloudflare.com')) throw new Error('Privacy regression: Turnstile must not load on every page from the root layout.');
+requirePattern(auth, /\{open \? <Script id="syllonaut-turnstile"/, 'Turnstile must load only while the sign-in/registration popover is open.');
+// Student pages: no cookie banner and GA blocked, like worksheets.
+requirePattern(cookieConsent, /const STUDENT_PATH = /, 'student route exclusion is missing from CookieConsent.');
+requirePattern(cookieConsent, /consentExemptRoute = WORKSHEET_PATH\.test\(pathname\) \|\| STUDENT_PATH\.test\(pathname\)/, 'CookieConsent must exempt worksheet and student routes.');
+requirePattern(cookieConsent, /analyticsBlocked = consentExemptRoute/, 'GA must be blocked on student routes.');
+requirePattern(cookieConsent, /if \(!ready \|\| consentExemptRoute\) return null;/, 'the cookie banner must not render on student routes.');
+{
+  const studentPath = new RegExp(cookieConsent.match(/const STUDENT_PATH = \/(.+)\/;/)[1]);
+  for (const path of ['/join', '/join/ABC7K3M', '/student/123', '/sessions/123/presenter']) {
+    if (!studentPath.test(path)) throw new Error(`Privacy regression: CookieConsent does not exempt student route ${path}.`);
+  }
+  for (const path of ['/', '/cs', '/lessons', '/sessions/123', '/joinery', '/cs/gdpr']) {
+    if (studentPath.test(path)) throw new Error(`Privacy regression: CookieConsent wrongly exempts ${path}.`);
+  }
+}
+for (const form of ['components/StudentJoinForm.tsx', 'components/JoinCodeForm.tsx']) {
+  const text = await source(form);
+  if (!text.includes('/gdpr#studenti') || !text.includes('AI může navrhnout body, ale rozhoduje učitel.')) throw new Error(`Privacy regression: ${form} is missing the student privacy note.`);
+}
 requirePattern(nextConfig, /https:\/\/www\.googletagmanager\.com/, 'CSP does not allow the consent-gated GA4 script.');
 requirePattern(nextConfig, /https:\/\/\*\.google-analytics\.com/, 'CSP does not allow consent-gated GA4 collection.');
 

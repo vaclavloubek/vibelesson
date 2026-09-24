@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import Script from 'next/script';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
@@ -12,6 +13,8 @@ import { useUiLocale } from '@/components/LocaleProvider';
 import { getNeonAppUser, requestNeonPasswordResetForApp, resendNeonEmailVerificationForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp, verifyNeonEmailForApp } from '@/app/auth/neon/actions';
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAE53q_PQeEBM9Y2o';
+// Loaded only while the sign-in / registration popover is open (LEGAL-022).
+const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const NEON_APP_AUTH = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon';
 const AUTH_POPOVER_ID = 'auth-popover';
 const AUTH_POPOVER_TITLE_ID = 'auth-popover-title';
@@ -243,6 +246,7 @@ export default function AuthControls({
   }, [quotaRefreshKey, user]);
 
   useEffect(() => {
+    if (!open) return;
     if (window.turnstile) {
       setTurnstileReady(true);
       setTurnstileUnavailable(false);
@@ -265,7 +269,7 @@ export default function AuthControls({
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -657,6 +661,7 @@ export default function AuthControls({
       >
         {english ? 'Sign in' : 'Přihlásit se'}
       </button>
+      {open ? <Script id="syllonaut-turnstile" src={TURNSTILE_SCRIPT_SRC} strategy="afterInteractive" /> : null}
       {open ? (
         <div
           ref={popoverRef}

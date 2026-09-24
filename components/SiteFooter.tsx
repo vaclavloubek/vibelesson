@@ -16,6 +16,7 @@ export default function SiteFooter() {
         <span>© 2026 Syllonaut</span>
         <span>{english ? 'AI navigator for interactive teaching.' : 'AI navigátor pro interaktivní výuku.'}</span>
         <span>{english ? 'Phone' : 'Telefon'}: <a href={PROVIDER_CONTACT.phoneHref}>{PROVIDER_CONTACT.phoneDisplay}</a></span>
+        <span>{PROVIDER_CONTACT.legalName}, {english ? 'Business ID' : 'IČO'} {PROVIDER_CONTACT.businessId}, {PROVIDER_CONTACT.addressLine1}, {PROVIDER_CONTACT.postalCity}, {english ? PROVIDER_CONTACT.registryEn : PROVIDER_CONTACT.registryCs}</span>
       </div>
       <nav className={styles.links} aria-label={english ? 'Legal and privacy' : 'Právní a soukromí'}>
         <Link href={`/${locale}/terms`}>{english ? 'Terms of Service' : 'Obchodní podmínky'}</Link>
