@@ -105,7 +105,7 @@ requireText(guide, "custom.detail.action === 'lesson-created' && state.chapter =
 requireText(guide, 'step: SYLLONAUT_LESSON_REVIEW_STEP', 'lesson creation review destination');
 requireText(guide, "if (!step?.signal || custom.detail.action !== step.signal) return;", 'manual optional action can still listen for success signal');
 requireText(workspace, 'chapter="lesson" step={3} labelCs="Jak upravit celou lekci"', 'whole-edit contextual help step index');
-requireText(startSession, 'chapter="lesson" step={6} labelCs="Jak spustit hodinu"', 'start-session contextual help step index');
+requireText(startSession, 'chapter="lesson" step={6} labelCs="Jak otevřít hodinu pro studenty"', 'start-session contextual help step index');
 requireText(quickAction, 'chapter="live" step={0} labelCs="Jak promítat studentům"', 'Presenter contextual help must start Chapter 2');
 requireText(quickAction, 'className="phone-hide-presenter"', 'Presenter contextual help must be hidden on phones');
 requireText(quickAction, 'className="secondary button-link phone-hide-presenter"', 'Presenter link must be hidden on phones');

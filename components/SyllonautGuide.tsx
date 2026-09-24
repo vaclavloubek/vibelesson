@@ -111,8 +111,8 @@ const lessonSteps: GuideStep[] = [
     target: 'lesson-start',
     title: { cs: 'Lekce je připravená k výuce', en: 'The lesson is ready to teach' },
     body: {
-      cs: 'Kliknutím vytvoříte živou hodinu. Otevře se řídicí centrum pro učitele; studenti se pak připojí přes kód nebo QR.',
-      en: 'Click to create a live lesson. The teacher control centre opens and students can join by code or QR.',
+      cs: 'Kliknutím otevřete hodinu pro studenty. Otevře se řídicí centrum pro učitele s kódem a QR pro připojení; samotnou hodinu odstartujete až tam.',
+      en: 'Click to open the lesson for students. The teacher control centre opens with the join code and QR; you start the lesson itself from there.',
     },
     advanceOn: 'signal',
     signal: 'session-created',
