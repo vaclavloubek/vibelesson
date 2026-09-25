@@ -87,8 +87,8 @@ export default async function TermsPage() {
             'These Terms govern use of Syllonaut, including Free accounts and paid plans for individuals and organizations.'
           )}</p>
           <div className={styles.meta}>{ui(
-            `Verze ${TERMS_VERSION} · účinná od 24. 9. 2026`,
-            `Version ${TERMS_VERSION} · effective 24 September 2026`
+            `Verze ${TERMS_VERSION} · účinná od 25. 9. 2026`,
+            `Version ${TERMS_VERSION} · effective 25 September 2026`
           )}</div>
         </div>
 
@@ -276,7 +276,7 @@ export default async function TermsPage() {
           )} <Link href={`/${locale}/dpa`}>{ui('zpracovatelskou smlouvou (DPA)', 'Data Processing Agreement (DPA)')}</Link>.</p>
           <p>{ui(
             `Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od ${new Intl.DateTimeFormat('cs-CZ').format(new Date(TERMS_EFFECTIVE_DATE + 'T12:00:00Z'))}. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.`,
-            `The current version of these Terms is ${TERMS_VERSION}, effective from 24 September 2026. For a specific order, the version accepted when the order was placed is retained.`
+            `The current version of these Terms is ${TERMS_VERSION}, effective from 25 September 2026. For a specific order, the version accepted when the order was placed is retained.`
           )}</p>
         </section>
       </article>
