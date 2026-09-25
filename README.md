@@ -18,7 +18,7 @@ Název spojuje *syllabus* a *astronaut*. Kosmická metafora se v produktu použ�
 - spuštění živé hodiny a studentské připojení přes krátký kód;
 - živé řízení postupu a sběr odpovědí;
 - demo lekce bez AI;
-- Vercel AI Gateway + Supabase; připravuje se řízený přechod na Neon Postgres/Auth.
+- Vercel AI Gateway, Neon Postgres + Neon Auth + Data API a Cloudflare Live Control Worker (Durable Object) pro živou hodinu, s pollingem jako zálohou.
 
 ## Lokální spuštění
 
@@ -34,9 +34,9 @@ Pro lokální AI nastav `AI_GATEWAY_API_KEY`. Model lze změnit přes `AI_MODEL`
 
 AI generuje validovaný `Lesson` JSON podle Zod schématu. UI jej vykresluje pomocí pevné sady interaktivních komponent. Učitel tak získává pocit vibecodingu, ale model negeneruje libovolný frontendový kód. Díky tomu má být výstup stabilnější, bezpečnější a lépe testovatelný.
 
-### Přechod na Neon
+### Databáze: Neon
 
-Migrační příprava je v `docs/NEON_MIGRATION.md`. Obsahuje audit Supabase závislostí, cílovou architekturu, dry-run-first nástroje, validaci dat a identity, staging testy, cutover i rollback. Produkce zůstává na Supabase, dokud neprojdou všechny stop podmínky a cutover nebude výslovně schválen.
+Produkce běží od 2026-09-23 na Neonu (Postgres, Neon Auth a Data API; cutover #284). Server vybírá backend proměnnou `DATABASE_BACKEND=neon`; změny schématu jdou jako soubory v `neon/migrations/`. Původní Supabase projekt zůstává beze změny dat a jen pro čtení jako záloha. Prostý návrat na Supabase není povolen, protože Neon už přijal produkční zápisy (split-brain); postup, audit závislostí a průběh přechodu jsou v `docs/NEON_MIGRATION.md`.
 
 ```bash
 npm run neon:preflight
@@ -44,7 +44,7 @@ npm run neon:migrate
 npm run neon:auth-import
 ```
 
-Všechny tři příkazy jsou bez dalších přepínačů pouze informativní a nic nezapisují. Databázový staging import je ověřený; Auth import je připravený na izolované Preview větvi se zachováním UUID a bez kopírování hesel či sessions.
+Nástroje sloužily k přechodu. Bez dalších přepínačů jsou pouze informativní a nic nezapisují.
 
 ## Produktový směr
 
