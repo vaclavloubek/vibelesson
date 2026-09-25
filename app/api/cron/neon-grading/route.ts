@@ -5,6 +5,7 @@ import {
 } from '@/lib/neon/grading-outbox-worker';
 import { drainAiGradingQuotaNotices } from '@/lib/marketing-lifecycle';
 import { createNeonSql } from '@/lib/neon/server';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 
 export const maxDuration = 60;
 
@@ -14,8 +15,7 @@ export const maxDuration = 60;
 // It also ends time-limited manual plan grants (neon/migrations/0013) and
 // retries AI grading quota notices (neon/migrations/0016).
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!isAuthorizedCronRequest(req)) {
     return new NextResponse(null, { status: 401 });
   }
   if (!useNeonGradingOutboxWorker()) {

@@ -473,7 +473,7 @@ for (const needle of [
 
 const cron = fs.readFileSync('app/api/cron/organization-billing/route.ts', 'utf8');
 for (const needle of [
-  "authorization !== 'Bearer ' + secret",
+  'if (!isAuthorizedCronRequest(request))',
   "rpc('expire_organization_licenses')",
   "rpc('suspend_overdue_organizations', { p_grace_days: 14 })",
 ]) {

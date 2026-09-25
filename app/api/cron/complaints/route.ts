@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runComplaintMaintenance } from '@/lib/complaints';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,8 +8,7 @@ export const dynamic = 'force-dynamic';
 // LEGAL-017: retry undelivered complaint confirmations and remind the operator
 // of complaints approaching or past the 30-day resolution deadline.
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get('authorization') !== 'Bearer ' + secret) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   try {

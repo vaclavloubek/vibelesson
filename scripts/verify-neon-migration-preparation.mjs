@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -174,7 +174,15 @@ requireText(neonGradingOutbox, 'for update skip locked', 'The grading outbox cla
 requireText(neonGradingOutbox, 'security invoker', 'The grading outbox worker functions must not elevate privileges.');
 forbidText(neonGradingOutbox, 'net.http_post', 'Neon grading dispatch must not initiate HTTP from Postgres.');
 requireText(neonGradingWorker, 'finish_grading_job_v2', 'The Neon grading worker must retain validated grading completion.');
-requireText(neonGradingRoute, "req.headers.get('authorization')", 'The Neon grading cron route must require authorization.');
+requireText(neonGradingRoute, 'if (!isAuthorizedCronRequest(req))', 'The Neon grading cron route must require authorization.');
+const cronAuth = read('lib/cron-auth.ts');
+requireText(cronAuth, 'timingSafeEqual(expected, actual)', 'Cron secret must be compared in constant time.');
+requireText(cronAuth, "if (!secret) return false;", 'Cron routes must fail closed without CRON_SECRET.');
+for (const cronRoute of readdirSync(new URL('../app/api/cron', import.meta.url))) {
+  const cronSource = read(`app/api/cron/${cronRoute}/route.ts`);
+  requireText(cronSource, 'isAuthorizedCronRequest(', `Cron route ${cronRoute} must use the constant-time cron authorization.`);
+  forbidText(cronSource, 'process.env.CRON_SECRET', `Cron route ${cronRoute} must not compare CRON_SECRET itself.`);
+}
 requireText(neonLiveSessionMigration, 'NEON_LIVE_SESSION_MIGRATION_APPROVED', 'The live-session migration must require an explicit staging write gate.');
 requireText(neonLiveSessionMigration, "process.env.VERCEL_ENV !== 'preview'", 'The live-session migration must be restricted to Preview staging.');
 requireText(studentRoutes, 'handleStudentSessionAction', 'Student routes must call the Vercel student-session module.');
