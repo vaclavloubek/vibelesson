@@ -111,7 +111,9 @@ const finish = functionBody(migration, 'public.finish_help_message_server');
 check(!/\bp_(message|messages|content|text|answer|question|history)\b/.test(finish + reserve), 'RPCs take no conversation text');
 const logLines = [...chatRoute.matchAll(/console\.(error|log|warn)\(([^;]*)\);/g)].map((m) => m[2]);
 check(logLines.length > 0 && logLines.every((line) => !/\b(message|history|messages|content|raw|text)\b/.test(line)), 'chat route never logs conversation text');
-check(!/onError\(\s*[a-zA-Z]/.test(assistant), 'model errors are not logged with their payload');
+const errorClassBody = assistant.slice(assistant.indexOf('function errorClass('), assistant.indexOf('export type HelpStreamResult'));
+check(assistant.includes("console.error('help assistant stream failed', errorClass(error));") && errorClassBody.length > 0 && !/\.message\b|\bmessage:/.test(errorClassBody),
+  'model errors are logged only as name, type and status code, never their message');
 check(feedbackRoute.includes(".update({ feedback: parsed.data.feedback })"), 'feedback route only writes the feedback column');
 check(migration.includes('grant update (feedback) on public.help_assistant_requests to authenticated;'), 'teachers can update only the feedback column');
 

@@ -220,6 +220,26 @@ function gatewayCost(providerMetadata: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+type ErrorShape = { name?: unknown; type?: unknown; statusCode?: unknown; reason?: unknown; lastError?: unknown; cause?: unknown };
+
+function errorClass(error: unknown) {
+  const shape = (value: unknown) => {
+    const item = (value && typeof value === 'object' ? value : {}) as ErrorShape;
+    return {
+      name: typeof item.name === 'string' ? item.name : undefined,
+      type: typeof item.type === 'string' ? item.type : undefined,
+      statusCode: typeof item.statusCode === 'number' ? item.statusCode : undefined,
+    };
+  };
+  const item = (error && typeof error === 'object' ? error : {}) as ErrorShape;
+  return {
+    ...shape(error),
+    reason: typeof item.reason === 'string' ? item.reason : undefined,
+    lastError: item.lastError ? shape(item.lastError) : undefined,
+    cause: item.cause ? shape(item.cause) : undefined,
+  };
+}
+
 export type HelpStreamResult = {
   text: AsyncIterable<string>;
   // Resolves with the total AI Gateway cost once the model call has ended.
@@ -249,10 +269,10 @@ export function streamHelpAnswer(input: {
       gateway: { sort: 'cost', zeroDataRetention: true, tags: ['help-assistant'] },
       openai: { reasoningEffort: 'low' },
     },
-    onError() {
-      // Never log the error payload: it may echo the conversation.
+    onError({ error }) {
+      // Log only the error class, never its message: it may echo the conversation.
       errored = true;
-      console.error('help assistant stream failed');
+      console.error('help assistant stream failed', errorClass(error));
     },
     onEnd({ steps }) {
       const costs = steps.map((step) => gatewayCost(step.providerMetadata)).filter((value): value is number => value !== null);
