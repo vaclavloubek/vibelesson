@@ -42,6 +42,7 @@ check(post.includes('getEffectiveAiBillingPauseState(userId)'), 'chat route answ
 check(feedbackRoute.includes('isHelpAssistantSwitchOn()') && feedbackRoute.includes('getAuthenticatedUserId()'), 'feedback route is switched and authenticated');
 check(entitlements.includes('helpAssistantEnabled') && entitlements.includes('isHelpAssistantSwitchOn()'), '/api/entitlements exposes helpAssistantEnabled behind the switch');
 check(assistant.includes("process.env.HELP_ASSISTANT_ENABLED === 'true'"), 'switch is off unless explicitly true');
+check(assistant.includes('timeout: HELP_STREAM_TIMEOUT') && /totalMs: 45_000/.test(assistant), 'a stalled model stream is aborted before the 60 s function limit');
 check(assistant.includes('process.env.HELP_AI_GATEWAY_API_KEY') && assistant.includes('createGateway({ apiKey })'), 'Help uses its own AI Gateway key');
 check(/process\.env\.HELP_AI_MODEL \|\| process\.env\.AI_MODEL/.test(assistant), 'HELP_AI_MODEL falls back to AI_MODEL');
 check(component.includes("payload?.helpAssistantEnabled === true") && component.includes('if (!userId || !entitled) return null;'),
