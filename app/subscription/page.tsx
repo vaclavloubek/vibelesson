@@ -13,6 +13,7 @@ import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-s
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import type { AiQuotaSnapshot } from '@/lib/ai-quota';
+import { getAiGradingTopupOffer, type AiGradingTopupOffer } from '@/lib/ai-grading-topups';
 import { getServiceChangeNotices, type ServiceChangeNotice } from '@/lib/service-change-state';
 import { getOnlineWithdrawalOpportunity, type OnlineWithdrawalOpportunity } from '@/lib/online-withdrawal';
 import landing from '@/components/LandingPage.module.css';
@@ -41,7 +42,17 @@ export default async function SubscriptionPage() {
   if (!userId) redirect(`/${locale}`);
 
   let state;
-  let quotaWindow: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null = null;
+  let quotaWindow: {
+    end: string;
+    source: string | null;
+    gradingUsed: number;
+    gradingLimit: number | null;
+    gradingRemaining: number | null;
+    gradingEnabled: boolean;
+    gradingCreditRemaining: number;
+    gradingCreditNextExpiry: string | null;
+  } | null = null;
+  let topupOffer: AiGradingTopupOffer | null = null;
   let loadError = false;
   let serviceChangeNotices: ServiceChangeNotice[] = [];
   let withdrawalOpportunity: OnlineWithdrawalOpportunity | null = null;
@@ -90,8 +101,19 @@ export default async function SubscriptionPage() {
         gradingLimit: quotaRow.grading_limit,
         gradingRemaining: quotaRow.grading_remaining,
         gradingEnabled: quotaRow.grading_enabled,
+        gradingCreditRemaining: Math.max(0, quotaRow.grading_credit_remaining ?? 0),
+        gradingCreditNextExpiry: quotaRow.grading_credit_next_expiry ?? null,
       };
     }
+  }
+
+  try {
+    topupOffer = await getAiGradingTopupOffer(userId);
+  } catch (error) {
+    console.error('load AI grading topup offer failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+      userId,
+    });
   }
 
   const accountUser = {
@@ -134,6 +156,7 @@ export default async function SubscriptionPage() {
         serviceChangeNotices={serviceChangeNotices}
         withdrawalOpportunity={withdrawalOpportunity}
         accountEmail={accountUser.email ?? ''}
+        topupOffer={topupOffer}
       />}
     </main>
   );

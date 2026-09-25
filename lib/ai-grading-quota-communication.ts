@@ -14,6 +14,9 @@ export type GradingQueueEventDetail = {
   sessionId: string;
   signature: string;
   manualReasons: Array<ManualGradingReason | null>;
+  // Unconfirmed responses waiting for manual grading because the allowance ran
+  // out; AI can be asked for them again once purchased suggestions are left.
+  pendingQuotaCount?: number;
 };
 
 // claim_grading_job / requeue write these grader versions when a response
@@ -57,7 +60,14 @@ export type GradingQuotaState = {
   gradingRemaining: number | null;
   windowEnd: string | null;
   scope: QuotaScope;
+  // Purchased suggestions (phase 2); used only after the plan allowance.
+  creditRemaining?: number;
 };
+
+export function totalGradingRemaining(state: GradingQuotaState | null | undefined) {
+  if (!state || state.gradingRemaining === null) return null;
+  return state.gradingRemaining + Math.max(0, state.creditRemaining ?? 0);
+}
 
 export function isGradingQuotaExhausted(state: GradingQuotaState | null | undefined) {
   return Boolean(
@@ -65,8 +75,15 @@ export function isGradingQuotaExhausted(state: GradingQuotaState | null | undefi
     && state.gradingEnabled
     && !state.gradingUnlimited
     && state.gradingLimit !== null
-    && state.gradingRemaining === 0,
+    && totalGradingRemaining(state) === 0,
   );
+}
+
+// Suggestions are available again (purchased pack or a reset allowance) while
+// responses in the lesson still wait for manual grading because of the quota.
+export function canRequestAiForPendingQuota(state: GradingQuotaState | null | undefined, pendingQuotaCount: number) {
+  const remaining = totalGradingRemaining(state);
+  return Boolean(state && !state.gradingUnlimited && pendingQuotaCount > 0 && remaining !== null && remaining > 0);
 }
 
 export function shouldShowGradingQuotaBanner(
@@ -111,11 +128,39 @@ export function shouldShowLowGradingNotice(state: GradingQuotaState | null | und
     state
     && state.gradingEnabled
     && !state.gradingUnlimited
-    && state.gradingRemaining !== null
-    && state.gradingRemaining >= 1
-    && state.gradingRemaining <= LOW_GRADING_NOTICE_MAX,
+    && totalGradingRemaining(state) !== null
+    && (totalGradingRemaining(state) ?? 0) >= 1
+    && (totalGradingRemaining(state) ?? 0) <= LOW_GRADING_NOTICE_MAX,
   );
 }
+
+function czechPendingResponses(count: number) {
+  if (count === 1) return 'čekající odpověď';
+  if (count >= 2 && count <= 4) return 'čekající odpovědi';
+  return 'čekajících odpovědí';
+}
+
+export function requestAiForPendingButtonText(count: number, english: boolean) {
+  return english
+    ? `Ask AI for suggestions for ${count} waiting ${count === 1 ? 'response' : 'responses'}`
+    : `Požádat AI o návrhy pro ${count} ${czechPendingResponses(count)}`;
+}
+
+export function creditAvailableBannerText(creditRemaining: number, pendingCount: number, english: boolean) {
+  if (english) {
+    return `You have ${creditRemaining} purchased AI grading ${creditRemaining === 1 ? 'suggestion' : 'suggestions'}. ${pendingCount} ${pendingCount === 1 ? 'response is' : 'responses are'} still waiting for manual grading because the allowance ran out.`;
+  }
+  const noun = creditRemaining === 1 ? 'dokoupený návrh' : creditRemaining >= 2 && creditRemaining <= 4 ? 'dokoupené návrhy' : 'dokoupených návrhů';
+  const waiting = pendingCount === 1 ? 'odpověď čeká' : pendingCount >= 2 && pendingCount <= 4 ? 'odpovědi čekají' : 'odpovědí čeká';
+  return `Máš k dispozici ${creditRemaining} ${noun} hodnocení od AI. ${pendingCount} ${waiting} na ruční hodnocení kvůli vyčerpanému limitu.`;
+}
+
+export function topupLinkText(english: boolean) {
+  return english ? 'Buy more suggestions' : 'Dokoupit návrhy';
+}
+
+export const AI_GRADING_TOPUP_ANCHOR = 'dokoupit';
+export const AI_GRADING_TOPUP_LINK_THRESHOLD = 10;
 
 function czechSuggestionCount(count: number) {
   if (count === 1) return { verb: 'Zbývá', noun: 'návrh' };
@@ -147,6 +192,8 @@ export type AiUsageQuota = {
   grading_unlimited: boolean;
   grading_enabled: boolean;
   plan_code?: string | null;
+  grading_credit_remaining?: number | null;
+  grading_credit_next_expiry?: string | null;
 };
 
 export type AiUsageRowKind = 'lessons' | 'revisions' | 'grading';
@@ -157,6 +204,9 @@ export type AiUsageRow = {
   limit: number;
   remaining: number;
   exhausted: boolean;
+  // Grading row only: purchased suggestions on top of the plan allowance.
+  creditRemaining?: number;
+  creditExpiry?: string | null;
 };
 
 function finiteRow(kind: AiUsageRowKind, used: number, limit: number | null, remaining: number | null, unlimited: boolean): AiUsageRow | null {
@@ -170,13 +220,36 @@ export function aiUsageRows(quota: AiUsageQuota | null | undefined): AiUsageRow[
   if (!quota) return [];
   // Admin accounts have no AI limits and do not see the panel.
   if (quota.plan_code === 'admin' || quota.grading_unlimited) return [];
+  const grading = quota.grading_enabled
+    ? finiteRow('grading', quota.grading_used, quota.grading_limit, quota.grading_remaining, quota.grading_unlimited)
+    : null;
+  if (grading) {
+    const credit = Math.max(0, Math.trunc(quota.grading_credit_remaining ?? 0));
+    grading.creditRemaining = credit;
+    grading.creditExpiry = credit > 0 ? quota.grading_credit_next_expiry ?? null : null;
+    grading.exhausted = grading.remaining === 0 && credit === 0;
+  }
   return [
     finiteRow('lessons', quota.lesson_used, quota.lesson_limit, quota.lesson_remaining, quota.lesson_unlimited),
     finiteRow('revisions', quota.revision_used, quota.revision_limit, quota.revision_remaining, quota.revision_unlimited),
-    quota.grading_enabled
-      ? finiteRow('grading', quota.grading_used, quota.grading_limit, quota.grading_remaining, quota.grading_unlimited)
-      : null,
+    grading,
   ].filter((row): row is AiUsageRow => row !== null);
+}
+
+export function aiUsageCreditText(row: AiUsageRow, english: boolean) {
+  if (!row.creditRemaining) return null;
+  const until = formatQuotaResetDate(row.creditExpiry ?? null, english);
+  return english
+    ? `+ ${row.creditRemaining} purchased${until ? ` (valid until ${until})` : ''}`
+    : `+ ${row.creditRemaining} dokoupených${until ? ` (platné do ${until})` : ''}`;
+}
+
+// "Buy more" link under the grading row: individual Teacher Pro, top-ups on,
+// and at most 10 suggestions left in total (plan + purchased).
+export function shouldShowTopupLink(row: AiUsageRow, topupsAvailable: boolean) {
+  return topupsAvailable
+    && row.kind === 'grading'
+    && row.remaining + (row.creditRemaining ?? 0) <= AI_GRADING_TOPUP_LINK_THRESHOLD;
 }
 
 export function aiUsageRowLabel(kind: AiUsageRowKind, english: boolean) {

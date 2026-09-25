@@ -7,11 +7,12 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
-import { DPA_VERSION, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import { DPA_VERSION, TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
   TERMS_ACCOUNT_ELIGIBILITY_CLAUSE,
+  TERMS_AI_GRADING_TOPUP_CLAUSE,
   TERMS_AI_SCORING_PURPOSE_CLAUSE,
   TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
@@ -154,6 +155,13 @@ export default async function TermsPage() {
             'AI allowances apply to the operations listed for the relevant plan. Unused monthly allowances do not roll over unless expressly stated otherwise. The provider may apply reasonable technical and security limits to prevent abuse.'
           )}</p>
         </section>
+
+        {TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE ? (
+          <section id="ai-grading-packs">
+            <h2>{english ? TERMS_AI_GRADING_TOPUP_CLAUSE.titleEn : TERMS_AI_GRADING_TOPUP_CLAUSE.titleCs}</h2>
+            {(english ? TERMS_AI_GRADING_TOPUP_CLAUSE.en : TERMS_AI_GRADING_TOPUP_CLAUSE.cs).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          </section>
+        ) : null}
 
         <section>
           <h2>{ui('6. Platby, obnovení a zrušení předplatného', '6. Payments, renewals and cancellation')}</h2>

@@ -11,6 +11,7 @@ import HelpAssistant from '@/components/HelpAssistant';
 import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import AiUsagePanel from '@/components/AiUsagePanel';
 import type { AiQuotaSnapshot } from '@/lib/ai-quota';
+import { isAiGradingTopupsEnabled } from '@/lib/ai-grading-topups';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
@@ -246,7 +247,11 @@ export default async function LessonsPage({ searchParams }: Props) {
 
       </section>
 
-      <AiUsagePanel quota={aiQuota} english={english} />
+      <AiUsagePanel
+        quota={aiQuota}
+        english={english}
+        topupsAvailable={isAiGradingTopupsEnabled() && aiQuota?.plan_code === 'teacher_pro' && aiQuota.quota_scope === 'individual'}
+      />
 
       {error ? <div className="error">{ui('Lekce se nepodařilo načíst. Zkus stránku obnovit.', 'Lessons could not be loaded. Refresh the page and try again.')}</div> : null}
       {foldersError ? <div className="error">{ui('Složky se nepodařilo načíst. Lekce zůstávají bezpečně uložené.', 'Folders could not be loaded. Your lessons remain safely stored.')}</div> : null}

@@ -30,6 +30,7 @@ import {
   normalizeStripeRefundEvent,
   normalizeStripeOrganizationSubscriptionEvent,
   normalizeStripeSubscriptionEvent,
+  normalizeStripeTopupCheckoutEvent,
   normalizeStripeUpcomingInvoiceEvent,
   verifyStripeWebhook,
 } from '@/lib/stripe-webhook';
@@ -68,6 +69,61 @@ export async function POST(request: Request) {
     const status = code === 'stripe_webhook_secret_missing' ? 503 : 400;
     console.warn('stripe webhook rejected', { code });
     return jsonError(status, 'invalid_webhook');
+  }
+
+  // AI grading suggestion packs (one-time Checkout, mode=payment). Any other
+  // Checkout Session returns null here and continues unchanged.
+  let topupCheckout;
+  try {
+    topupCheckout = normalizeStripeTopupCheckoutEvent(event);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'topup_checkout_event_invalid';
+    console.warn('stripe topup checkout event rejected', {
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      code,
+    });
+    return jsonError(400, 'invalid_topup_checkout_event');
+  }
+
+  if (topupCheckout) {
+    try {
+      const { data, error } = await syncStripeBillingRpc('grant_ai_grading_credit_from_checkout', {
+        p_event_id: topupCheckout.eventId,
+        p_livemode: topupCheckout.livemode,
+        p_checkout_session_id: topupCheckout.checkoutSessionId,
+        p_payment_intent_id: topupCheckout.paymentIntentId,
+        p_customer_id: topupCheckout.customerId,
+        p_user_id: topupCheckout.userId,
+        p_pack_code: topupCheckout.packCode,
+        p_currency: topupCheckout.currency,
+        p_amount_minor: topupCheckout.amountSubtotal,
+        p_contract_snapshot_id: topupCheckout.contractSnapshotId,
+        p_paid_at: topupCheckout.paidAt,
+      });
+      if (error) {
+        console.error('stripe topup grant failed', {
+          eventId: topupCheckout.eventId,
+          checkoutSessionId: topupCheckout.checkoutSessionId,
+          livemode: topupCheckout.livemode,
+          code: error.code,
+          message: error.message?.slice(0, 120),
+        });
+        const snapshotProblem = error.message?.includes('ai_grading_topup_snapshot');
+        return jsonError(snapshotProblem ? 409 : 500, snapshotProblem ? 'topup_snapshot_mismatch' : 'topup_grant_failed');
+      }
+      return NextResponse.json({ received: true, topupEvent: topupCheckout.eventType, result: data }, {
+        status: 200,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      console.error('stripe topup checkout processing failed', {
+        eventId: topupCheckout.eventId,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return jsonError(503, 'billing_not_configured');
+    }
   }
 
   let organizationInvoiceSync;
@@ -516,6 +572,39 @@ export async function POST(request: Request) {
 
   if (disputeSync) {
     try {
+      // A dispute on an AI grading pack payment revokes the pack and records
+      // the dispute in the existing ledger (existing AI pause). Other payments
+      // fall through to the subscription / organization handling below.
+      const topupResult = await syncStripeBillingRpc('sync_ai_grading_topup_dispute_event', {
+        p_event_id: disputeSync.eventId,
+        p_event_type: disputeSync.eventType,
+        p_livemode: disputeSync.livemode,
+        p_dispute_id: disputeSync.disputeId,
+        p_payment_intent_id: disputeSync.paymentIntentId,
+        p_status: disputeSync.status,
+        p_event_at: disputeSync.eventAt,
+      });
+      if (!topupResult.error) {
+        return NextResponse.json({
+          received: true,
+          disputeEvent: disputeSync.eventType,
+          topup: true,
+          result: topupResult.data,
+        }, {
+          status: 200,
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      }
+      if (!topupResult.error.message?.includes('ai_grading_topup_payment_mapping_missing')) {
+        console.error('stripe topup dispute sync failed', {
+          eventId: disputeSync.eventId,
+          disputeId: disputeSync.disputeId,
+          livemode: disputeSync.livemode,
+          code: topupResult.error.code,
+        });
+        return jsonError(500, 'topup_dispute_sync_failed');
+      }
+
       const individualResult = await syncStripeBillingRpc('sync_stripe_dispute_event', {
         p_event_id: disputeSync.eventId,
         p_event_type: disputeSync.eventType,
@@ -615,6 +704,37 @@ export async function POST(request: Request) {
         livemode: refundSync.livemode,
         chargeId: refundSync.chargeId,
       });
+
+      // A refund of an AI grading pack payment revokes the rest of that pack
+      // (no AI pause). Other payments fall through to the existing handling.
+      const topupRefund = await syncStripeBillingRpc('sync_ai_grading_topup_refund_event', {
+        p_event_id: refundSync.eventId,
+        p_event_type: refundSync.eventType,
+        p_livemode: refundSync.livemode,
+        p_payment_intent_id: refundState.paymentIntentId,
+        p_amount_refunded: refundState.amountRefunded,
+        p_event_at: refundSync.eventAt,
+      });
+      if (!topupRefund.error) {
+        return NextResponse.json({
+          received: true,
+          refundEvent: refundSync.eventType,
+          topup: true,
+          result: topupRefund.data,
+        }, {
+          status: 200,
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      }
+      if (!topupRefund.error.message?.includes('ai_grading_topup_payment_mapping_missing')) {
+        console.error('stripe topup refund sync failed', {
+          eventId: refundSync.eventId,
+          chargeId: refundState.chargeId,
+          livemode: refundSync.livemode,
+          code: topupRefund.error.code,
+        });
+        return jsonError(500, 'topup_refund_sync_failed');
+      }
 
       const { data, error } = await syncStripeBillingRpc('sync_stripe_refund_state', {
         p_event_id: refundSync.eventId,

@@ -3,6 +3,7 @@ import { billingRouteForCountry } from '../lib/billing-region.ts';
 import { TERMS_ACCEPTANCE_KEY } from '../lib/legal.ts';
 import {
   buildStripeCheckoutParams,
+  buildStripeTopupCheckoutParams,
   isStripeLiveSecretKey,
   isStripeSandboxSecretKey,
   verifyStripeCheckoutBillingCountry,
@@ -165,3 +166,39 @@ assert.equal(attempts, 2);
 assert.equal(verifiedAfterRace.billingCountry, 'DE');
 
 console.log('Stripe checkout checks passed.');
+
+// AI grading suggestion packs (phase 2): one-time Checkout (mode=payment).
+const topupBase = {
+  livemode: false,
+  priceId: 'price_topup123',
+  userId: '123e4567-e89b-42d3-a456-426614174000',
+  userEmail: 'teacher@example.com',
+  customerId: 'cus_existing123',
+  packCode: 'grading_100',
+  quantity: 100,
+  termsVersion: TERMS_ACCEPTANCE_KEY,
+  contractSnapshotId: '323e4567-e89b-42d3-a456-426614174002',
+  locale: 'cs',
+};
+const czkTopup = buildStripeTopupCheckoutParams({ ...topupBase, billingCountry: 'CZ', managedPayments: false });
+assert.equal(czkTopup.get('mode'), 'payment');
+assert.equal(czkTopup.get('submit_type'), 'pay');
+assert.equal(czkTopup.get('customer'), 'cus_existing123', 'packs reuse the subscription customer');
+assert.equal(czkTopup.get('managed_payments[enabled]'), 'false');
+assert.equal(czkTopup.get('invoice_creation[enabled]'), 'true', 'CZK packs create a paid invoice like the subscription');
+assert.equal(czkTopup.get('invoice_creation[invoice_data][metadata][syllonaut_purchase_kind]'), 'ai_grading_topup');
+assert.equal(czkTopup.get('metadata[syllonaut_purchase_kind]'), 'ai_grading_topup');
+assert.equal(czkTopup.get('metadata[syllonaut_user_id]'), topupBase.userId);
+assert.equal(czkTopup.get('metadata[syllonaut_pack_code]'), 'grading_100');
+assert.equal(czkTopup.get('metadata[syllonaut_contract_snapshot_id]'), topupBase.contractSnapshotId);
+assert.equal(czkTopup.get('payment_intent_data[metadata][syllonaut_pack_code]'), 'grading_100', 'refund/dispute lookups can see the pack on the payment');
+assert.ok(!czkTopup.has('subscription_data[metadata][syllonaut_user_id]'), 'packs never carry subscription metadata');
+assert.match(czkTopup.get('success_url') ?? '', /\/cs\/subscription\?topup=success&billing_env=sandbox&session_id=\{CHECKOUT_SESSION_ID\}#dokoupit$/);
+assert.match(czkTopup.get('integration_identifier') ?? '', /^syllonaut_topup_[a-z]{8}$/);
+const eurTopup = buildStripeTopupCheckoutParams({ ...topupBase, billingCountry: 'DE', managedPayments: true, locale: 'en' });
+assert.equal(eurTopup.get('managed_payments[enabled]'), 'true');
+assert.ok(![...eurTopup.keys()].some((key) => key.startsWith('invoice_creation')), 'Managed Payments must not send invoice_creation');
+assert.ok(!eurTopup.has('automatic_tax[enabled]') && !eurTopup.has('payment_method_types[0]'), 'Managed Payments controls tax and payment methods');
+const newCustomerTopup = buildStripeTopupCheckoutParams({ ...topupBase, customerId: null, billingCountry: 'US', managedPayments: true });
+assert.equal(newCustomerTopup.get('customer_email'), 'teacher@example.com');
+console.log('Stripe top-up checkout checks passed.');

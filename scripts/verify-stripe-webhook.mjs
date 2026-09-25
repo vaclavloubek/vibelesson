@@ -6,6 +6,7 @@ import {
   normalizeStripeOrganizationInvoiceEvent,
   normalizeStripeRefundEvent,
   normalizeStripeSubscriptionEvent,
+  normalizeStripeTopupCheckoutEvent,
   verifyStripeWebhook,
 } from '../lib/stripe-webhook.ts';
 
@@ -266,3 +267,57 @@ unrelatedInvoice.data.object.parent = { type: 'quote_details' };
 assert(normalizeStripeInvoiceEvent(unrelatedInvoice) === null, 'non-subscription invoice should be ignored');
 
 console.log('Stripe webhook checks passed.');
+
+// AI grading suggestion packs (phase 2).
+const topupSession = {
+  id: 'evt_topup001',
+  type: 'checkout.session.completed',
+  livemode: false,
+  created: now,
+  data: {
+    object: {
+      id: 'cs_test_topup001',
+      object: 'checkout.session',
+      mode: 'payment',
+      payment_status: 'paid',
+      payment_intent: 'pi_topup001',
+      customer: 'cus_topup001',
+      client_reference_id: '123e4567-e89b-42d3-a456-426614174000',
+      currency: 'eur',
+      amount_subtotal: 599,
+      amount_total: 713,
+      metadata: {
+        syllonaut_purchase_kind: 'ai_grading_topup',
+        syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000',
+        syllonaut_pack_code: 'grading_100',
+        syllonaut_contract_snapshot_id: '323e4567-e89b-42d3-a456-426614174002',
+      },
+    },
+  },
+};
+const topupSync = normalizeStripeTopupCheckoutEvent(topupSession);
+assert(topupSync?.checkoutSessionId === 'cs_test_topup001' && topupSync.paymentIntentId === 'pi_topup001', 'paid pack checkout must normalize');
+assert(topupSync.amountSubtotal === 599, 'pack grant compares the pre-tax subtotal with the snapshot, not the taxed total');
+assert(topupSync.packCode === 'grading_100' && topupSync.currency === 'eur', 'pack code and currency come from the session');
+const asyncTopup = structuredClone(topupSession);
+asyncTopup.type = 'checkout.session.async_payment_succeeded';
+assert(normalizeStripeTopupCheckoutEvent(asyncTopup)?.eventType === 'checkout.session.async_payment_succeeded', 'delayed payment success grants the pack');
+const unpaidTopup = structuredClone(topupSession);
+unpaidTopup.data.object.payment_status = 'unpaid';
+assert(normalizeStripeTopupCheckoutEvent(unpaidTopup) === null, 'unpaid pack checkout must not grant yet');
+const subscriptionCheckout = structuredClone(topupSession);
+subscriptionCheckout.data.object.mode = 'subscription';
+subscriptionCheckout.data.object.metadata = { syllonaut_user_id: '123e4567-e89b-42d3-a456-426614174000' };
+assert(normalizeStripeTopupCheckoutEvent(subscriptionCheckout) === null, 'subscription checkouts are not packs');
+assert(normalizeStripeSubscriptionEvent(subscriptionCheckout, billingRouteForCountry) === null, 'checkout sessions never reach the subscription sync');
+const forgedTopup = structuredClone(topupSession);
+forgedTopup.data.object.client_reference_id = '999e4567-e89b-42d3-a456-426614174999';
+let forgedRejected = false;
+try { normalizeStripeTopupCheckoutEvent(forgedTopup); } catch { forgedRejected = true; }
+assert(forgedRejected, 'pack user metadata must match client_reference_id');
+const liveMismatch = structuredClone(topupSession);
+liveMismatch.livemode = true;
+let modeRejected = false;
+try { normalizeStripeTopupCheckoutEvent(liveMismatch); } catch { modeRejected = true; }
+assert(modeRejected, 'a test session in a live event is rejected');
+console.log('Stripe top-up webhook checks passed.');

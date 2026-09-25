@@ -18,6 +18,12 @@ import { trackEvent } from '@/lib/analytics';
 import { billingRouteForCountry, type BillingCurrency } from '@/lib/billing-region';
 import { COUNTRY_CODES, isSupportedCountryCode } from '@/lib/countries';
 import { AI_GRADING_ALLOWANCES, INDIVIDUAL_PLAN_ALLOWANCES, pricingPagePrice } from '@/lib/individual-billing-catalog';
+import {
+  AI_GRADING_TOPUP_PACK_CODES,
+  AI_GRADING_TOPUP_VALIDITY_MONTHS,
+  aiGradingTopupDisplayPrice,
+  aiGradingTopupQuantity,
+} from '@/lib/ai-grading-topup-catalog';
 import { ORGANIZATION_PLANS, organizationPricingPagePrice } from '@/lib/organization-billing-catalog';
 import { TERMS_ACCEPTANCE_KEY } from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
@@ -309,6 +315,7 @@ function PlanCard({
   schoolCheckoutHref,
   onCheckout,
   english,
+  topupsEnabled = false,
 }: {
   plan: Plan;
   billing: Billing;
@@ -318,6 +325,7 @@ function PlanCard({
   schoolCheckoutHref: string | null;
   onCheckout: (plan: Plan) => void;
   english: boolean;
+  topupsEnabled?: boolean;
 }) {
   const annual = billing === 'annual';
   const primary = priceValue(plan, billing, currency);
@@ -367,6 +375,24 @@ function PlanCard({
         })}
       </ul>
 
+      {topupsEnabled && plan.id === 'teacher-pro' ? (
+        <div className={styles.topupNote}>
+          <strong>{english ? 'Need more AI grading suggestions?' : 'Potřebujete více návrhů hodnocení od AI?'}</strong>
+          <p>{english
+            ? `Teacher Pro subscribers can buy one-time packs, valid for ${AI_GRADING_TOPUP_VALIDITY_MONTHS} months and used after the plan allowance:`
+            : `S předplatným Teacher Pro si můžete dokoupit jednorázové balíčky s platností ${AI_GRADING_TOPUP_VALIDITY_MONTHS} měsíců, které se čerpají až po limitu tarifu:`}</p>
+          <ul>
+            {AI_GRADING_TOPUP_PACK_CODES.map((packCode) => (
+              <li key={packCode}>
+                {english ? `${aiGradingTopupQuantity(packCode)} suggestions` : `${aiGradingTopupQuantity(packCode)} návrhů`}
+                {' · '}
+                {(['czk', 'eur', 'usd'] as const).map((packCurrency) => formatPrice(aiGradingTopupDisplayPrice(packCode, packCurrency), packCurrency, english)).join(' / ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {plan.free ? (
         <a className={styles.activeCta} href={english ? '/en/pricing?signup=1' : '/cs/pricing?signup=1'} onClick={() => trackEvent('free_signup_click', { location: 'pricing' })}>{english ? 'Create Free account' : 'Vytvořit Free účet'}</a>
       ) : schoolCheckoutHref ? (
@@ -404,6 +430,7 @@ export default function PricingPage({
   checkoutResult = null,
   checkoutSessionId = null,
   activePlanCode = null,
+  aiGradingTopupsEnabled = false,
 }: {
   startSignup?: boolean;
   currency: BillingCurrency;
@@ -415,6 +442,7 @@ export default function PricingPage({
   checkoutResult?: 'success' | 'cancelled' | null;
   checkoutSessionId?: string | null;
   activePlanCode?: 'teacher' | 'teacher-pro' | null;
+  aiGradingTopupsEnabled?: boolean;
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -840,6 +868,7 @@ export default function PricingPage({
             plan={plan}
             billing={billing}
             currency={currency}
+            topupsEnabled={aiGradingTopupsEnabled}
             checkoutEnabled={
               (sandboxCheckoutEnabled || publicPurchaseMode)
               && (plan.id === 'teacher' || plan.id === 'teacher-pro')

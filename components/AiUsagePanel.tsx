@@ -1,16 +1,29 @@
+import Link from 'next/link';
 import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import { quotaSourceLabel } from '@/lib/ai-quota';
 import {
+  AI_GRADING_TOPUP_ANCHOR,
+  aiUsageCreditText,
   aiUsageRemainingText,
   aiUsageRowLabel,
   aiUsageRows,
   formatQuotaResetDate,
+  shouldShowTopupLink,
 } from '@/lib/ai-grading-quota-communication';
 import styles from './AiUsagePanel.module.css';
 
 // Server-rendered overview of the AI allowance on My lessons. Values come from
 // get_ai_quota(); rows the plan does not include are omitted.
-export default function AiUsagePanel({ quota, english }: { quota: AiQuotaSnapshot | null; english: boolean }) {
+export default function AiUsagePanel({
+  quota,
+  english,
+  topupsAvailable = false,
+}: {
+  quota: AiQuotaSnapshot | null;
+  english: boolean;
+  // Flag on and the account is an individual Teacher Pro (checked on the server).
+  topupsAvailable?: boolean;
+}) {
   const rows = aiUsageRows(quota);
   if (!quota || rows.length === 0) return null;
 
@@ -48,7 +61,15 @@ export default function AiUsagePanel({ quota, english }: { quota: AiQuotaSnapsho
               >
                 <span className={styles.fill} style={{ width: `${usedPercent}%` }} />
               </div>
+              {row.kind === 'grading' && aiUsageCreditText(row, english) ? (
+                <span className={styles.credit}>{aiUsageCreditText(row, english)}</span>
+              ) : null}
               {resetText ? <span className={styles.reset}>{resetText}</span> : null}
+              {shouldShowTopupLink(row, topupsAvailable) ? (
+                <Link href={`/${english ? 'en' : 'cs'}/subscription#${AI_GRADING_TOPUP_ANCHOR}`} className={styles.topup}>
+                  {english ? 'Buy more' : 'Dokoupit'}
+                </Link>
+              ) : null}
             </li>
           );
         })}

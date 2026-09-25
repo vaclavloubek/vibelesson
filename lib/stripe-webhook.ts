@@ -756,3 +756,87 @@ export function normalizeStripeOrganizationSubscriptionEvent(
     status,
   };
 }
+
+export const SUPPORTED_STRIPE_TOPUP_CHECKOUT_EVENTS = new Set([
+  'checkout.session.completed',
+  'checkout.session.async_payment_succeeded',
+]);
+
+export type StripeTopupCheckoutSync = {
+  eventId: string;
+  eventType: 'checkout.session.completed' | 'checkout.session.async_payment_succeeded';
+  livemode: boolean;
+  checkoutSessionId: string;
+  paymentIntentId: string;
+  customerId: string | null;
+  userId: string;
+  packCode: 'grading_60' | 'grading_100' | 'grading_200';
+  currency: 'czk' | 'eur' | 'usd';
+  // Price before any Managed Payments tax, compared with the contract snapshot.
+  amountSubtotal: number;
+  contractSnapshotId: string;
+  paidAt: string;
+};
+
+const CHECKOUT_SESSION_ID_RE = /^cs_(test|live)_[A-Za-z0-9_]+$/;
+const TOPUP_PACK_CODES = new Set(['grading_60', 'grading_100', 'grading_200']);
+
+// AI grading suggestion packs (mode=payment). Returns null for any other
+// Checkout Session, including subscription checkouts, so unrelated or
+// unassigned events never reach the subscription path as errors. A completed
+// session that is not paid yet (delayed methods) is also null; the grant then
+// comes with checkout.session.async_payment_succeeded.
+export function normalizeStripeTopupCheckoutEvent(
+  event: StripeWebhookEvent,
+): StripeTopupCheckoutSync | null {
+  if (!SUPPORTED_STRIPE_TOPUP_CHECKOUT_EVENTS.has(event.type)) return null;
+  const session = optionalObjectRecord(event.data.object);
+  if (!session || session.object !== 'checkout.session') return null;
+  const metadata = optionalObjectRecord(session.metadata);
+  if (!metadata || metadata.syllonaut_purchase_kind !== 'ai_grading_topup') return null;
+  if (session.mode !== 'payment') throw new Error('stripe_topup_mode_invalid');
+  if (session.payment_status !== 'paid') return null;
+  if (!EVENT_ID_RE.test(event.id)) throw new Error('stripe_event_id_invalid');
+
+  const checkoutSessionId = stringField(session.id, CHECKOUT_SESSION_ID_RE, 'stripe_topup_session_id_invalid');
+  if ((event.livemode && !checkoutSessionId.startsWith('cs_live_')) || (!event.livemode && !checkoutSessionId.startsWith('cs_test_'))) {
+    throw new Error('stripe_topup_session_mode_mismatch');
+  }
+  const paymentIntentValue = session.payment_intent;
+  const paymentIntentId = typeof paymentIntentValue === 'string'
+    ? stringField(paymentIntentValue, PAYMENT_INTENT_ID_RE, 'stripe_topup_payment_intent_invalid')
+    : stringField(objectRecord(paymentIntentValue).id, PAYMENT_INTENT_ID_RE, 'stripe_topup_payment_intent_invalid');
+  const customerValue = session.customer;
+  const customerId = customerValue === null || customerValue === undefined
+    ? null
+    : typeof customerValue === 'string'
+      ? stringField(customerValue, CUSTOMER_ID_RE, 'stripe_topup_customer_invalid')
+      : stringField(objectRecord(customerValue).id, CUSTOMER_ID_RE, 'stripe_topup_customer_invalid');
+  const userId = stringField(metadata.syllonaut_user_id, UUID_RE, 'stripe_topup_user_metadata_invalid');
+  if (session.client_reference_id !== userId) throw new Error('stripe_topup_client_reference_mismatch');
+  const packCode = typeof metadata.syllonaut_pack_code === 'string' ? metadata.syllonaut_pack_code : '';
+  if (!TOPUP_PACK_CODES.has(packCode)) throw new Error('stripe_topup_pack_invalid');
+  const contractSnapshotId = stringField(metadata.syllonaut_contract_snapshot_id, UUID_RE, 'stripe_topup_snapshot_metadata_invalid');
+  const currency = typeof session.currency === 'string' ? session.currency.toLowerCase() : '';
+  if (!['czk', 'eur', 'usd'].includes(currency)) throw new Error('stripe_topup_currency_invalid');
+  const amountSubtotal = session.amount_subtotal;
+  if (typeof amountSubtotal !== 'number' || !Number.isSafeInteger(amountSubtotal) || amountSubtotal <= 0) {
+    throw new Error('stripe_topup_amount_invalid');
+  }
+  const paidAt = unixSecondsToIso(event.created, 'stripe_topup_event_created_invalid');
+
+  return {
+    eventId: event.id,
+    eventType: event.type as StripeTopupCheckoutSync['eventType'],
+    livemode: event.livemode,
+    checkoutSessionId,
+    paymentIntentId,
+    customerId,
+    userId,
+    packCode: packCode as StripeTopupCheckoutSync['packCode'],
+    currency: currency as StripeTopupCheckoutSync['currency'],
+    amountSubtotal,
+    contractSnapshotId,
+    paidAt,
+  };
+}

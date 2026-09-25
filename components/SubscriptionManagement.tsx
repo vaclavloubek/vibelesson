@@ -13,6 +13,8 @@ import TrustedDevicesPanel from './TrustedDevicesPanel';
 import ServiceChangeNotices from './ServiceChangeNotices';
 import type { ServiceChangeNotice } from '@/lib/service-change-state';
 import type { OnlineWithdrawalOpportunity } from '@/lib/online-withdrawal';
+import type { AiGradingTopupOffer } from '@/lib/ai-grading-topups';
+import AiGradingTopupSection from './AiGradingTopupSection';
 
 type ActiveState = Extract<LiveSubscriptionManagementState, { kind: 'active' }>;
 
@@ -39,12 +41,25 @@ export default function SubscriptionManagement({
   serviceChangeNotices = [],
   withdrawalOpportunity,
   accountEmail,
+  topupOffer = null,
 }: {
   state: LiveSubscriptionManagementState;
-  quotaWindow?: { end: string; source: string | null; gradingUsed: number; gradingLimit: number | null; gradingRemaining: number | null; gradingEnabled: boolean } | null;
+  quotaWindow?: {
+    end: string;
+    source: string | null;
+    gradingUsed: number;
+    gradingLimit: number | null;
+    gradingRemaining: number | null;
+    gradingEnabled: boolean;
+    gradingCreditRemaining?: number;
+    gradingCreditNextExpiry?: string | null;
+  } | null;
   serviceChangeNotices?: ServiceChangeNotice[];
   withdrawalOpportunity: OnlineWithdrawalOpportunity | null;
   accountEmail: string;
+  // Phase 2 AI grading suggestion packs: set only when the flag is on and the
+  // account is an eligible individual Teacher Pro.
+  topupOffer?: AiGradingTopupOffer | null;
 }) {
   const router = useRouter();
   const locale = useUiLocale();
@@ -342,7 +357,10 @@ export default function SubscriptionManagement({
               <dd>{ui(
                 `${quotaWindow.gradingRemaining ?? 0} z ${quotaWindow.gradingLimit} zbývá`,
                 `${quotaWindow.gradingRemaining ?? 0} of ${quotaWindow.gradingLimit} remaining`,
-              )}</dd>
+              )}{quotaWindow.gradingCreditRemaining ? ui(
+                ` · + ${quotaWindow.gradingCreditRemaining} dokoupených`,
+                ` · + ${quotaWindow.gradingCreditRemaining} purchased`,
+              ) : ''}</dd>
             </div>
           ) : null}
           {quotaResetDate ? (
@@ -359,6 +377,14 @@ export default function SubscriptionManagement({
           {portalBusy ? ui('Otevírám Stripe…', 'Opening Stripe…') : ui('Platba, faktury a zrušení', 'Payment, invoices & cancellation')}
         </button>
       </section>
+
+      {topupOffer ? (
+        <AiGradingTopupSection
+          offer={topupOffer}
+          creditRemaining={quotaWindow?.gradingCreditRemaining ?? 0}
+          creditNextExpiry={quotaWindow?.gradingCreditNextExpiry ?? null}
+        />
+      ) : null}
 
       <TrustedDevicesPanel />
 
