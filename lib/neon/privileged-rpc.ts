@@ -18,10 +18,12 @@ const ALLOWED_RPCS = new Set([
   'create_organization_invitation',
   'expire_organization_licenses',
   'finish_generation_request_server',
+  'finish_help_message_server',
   'fail_individual_withdrawal_execution_for_service',
   'fail_service_change_delivery_for_service',
   'fail_service_change_termination_for_service',
   'get_effective_ai_billing_pause_state_server',
+  'get_help_message_usage_server',
   'get_individual_ai_billing_pause_reason_server',
   'get_individual_withdrawal_context_for_service',
   'get_individual_withdrawal_for_service',
@@ -56,6 +58,7 @@ const ALLOWED_RPCS = new Set([
   'release_contact_form_rate_limit_server',
   'request_service_change_termination_for_service',
   'reserve_individual_withdrawal_v2_for_service',
+  'reserve_help_message_server',
   'reserve_lesson_generation_server',
   'reserve_revision_operation_server',
   'reserve_service_change_termination_refund_for_service',
@@ -69,6 +72,7 @@ const ALLOWED_RPCS = new Set([
 // PostgREST returns RETURNS TABLE functions as arrays, including a one-row
 // result. Keep that shape when calling the same functions over direct SQL.
 const TABLE_RPCS = new Set([
+  'reserve_help_message_server',
   'reserve_lesson_generation_server',
   'reserve_revision_operation_server',
 ]);

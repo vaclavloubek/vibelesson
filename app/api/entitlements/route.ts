@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
+import { isHelpAssistantSwitchOn } from '@/lib/help-assistant';
 
 export async function GET() {
   const { supabase, userId } = await getAuthenticatedUserId();
@@ -9,6 +10,7 @@ export async function GET() {
       aiGradingEnabled: false,
       multilingualLessonsEnabled: false,
       worksheetExportEnabled: false,
+      helpAssistantEnabled: false,
     }, { status: 401 });
   }
 
@@ -36,7 +38,25 @@ export async function GET() {
     // turn a transient status lookup into a broader entitlement outage.
   }
 
+  // Separate lookup, only while the switch is on: an entitlement outage of the
+  // help column must never break the other entitlements.
+  let helpAssistantEnabled = false;
+  if (isHelpAssistantSwitchOn() && profile) {
+    if (profile.role === 'admin') {
+      helpAssistantEnabled = true;
+    } else {
+      const { data: help, error: helpError } = await supabase
+        .from('profiles')
+        .select('help_assistant_enabled')
+        .eq('id', userId)
+        .maybeSingle();
+      if (helpError) console.error('help entitlement lookup failed', { code: helpError.code });
+      helpAssistantEnabled = Boolean(help?.help_assistant_enabled);
+    }
+  }
+
   return NextResponse.json({
+    helpAssistantEnabled,
     aiGradingEnabled: Boolean(profile && (profile.role === 'admin' || profile.ai_grading_enabled)),
     multilingualLessonsEnabled: Boolean(profile && (profile.role === 'admin' || profile.multilingual_lessons_enabled)),
     worksheetExportEnabled: Boolean(profile && (profile.role === 'admin' || profile.worksheet_export_enabled)),

@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { createClient } from '@/lib/supabase/client';
 import { restartSyllonautGuideForCurrentContext } from '@/lib/onboarding-guide';
+import { openHelpPanel, useHelpPanelAvailable } from '@/lib/help/panel-store';
 import { SUPERADMIN_USER_ID } from '@/lib/superadmin';
 import { quotaSourceLabel, type AiQuotaSnapshot } from '@/lib/ai-quota';
 import { signOutFromNeonApp } from '@/app/auth/neon/actions';
@@ -31,6 +32,7 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hasOrganization, setHasOrganization] = useState(false);
+  const helpAvailable = useHelpPanelAvailable();
   const identityBoundaryTriggeredRef = useRef(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -307,6 +309,19 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
               >
                 {english ? 'Superadmin invoices' : 'Superadmin faktury'}
               </Link>
+            ) : null}
+            {helpAvailable ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="auth-account-item auth-account-phone-only"
+                onClick={() => {
+                  setOpen(false);
+                  openHelpPanel();
+                }}
+              >
+                {english ? 'Help' : 'Nápověda'}
+              </button>
             ) : null}
             <button
               type="button"

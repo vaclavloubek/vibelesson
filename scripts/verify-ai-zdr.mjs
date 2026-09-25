@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import ts from 'typescript';
 
-const SOURCE_FILES = ['lib/ai.ts', 'lib/grading.ts'];
+const SOURCE_FILES = ['lib/ai.ts', 'lib/grading.ts', 'lib/help-assistant.ts'];
+const AI_CALLS = new Set(['generateText', 'streamText']);
 
 function propertyName(node) {
   if (ts.isIdentifier(node) || ts.isStringLiteral(node) || ts.isNumericLiteral(node)) return node.text;
@@ -51,7 +52,7 @@ function verifyFile(path) {
     if (
       ts.isCallExpression(node)
       && ts.isIdentifier(node.expression)
-      && node.expression.text === 'generateText'
+      && AI_CALLS.has(node.expression.text)
     ) {
       calls += 1;
       const options = unwrap(node.arguments[0]);
@@ -88,19 +89,20 @@ const failures = [];
 
 for (const path of SOURCE_FILES) {
   const result = verifyFile(path);
+  if (result.calls === 0) failures.push(`${path}: no generateText or streamText call found`);
   totalCalls += result.calls;
   failures.push(...result.failures);
 }
 
 if (totalCalls === 0) {
-  console.error('SEC-015 check failed: no generateText calls were found.');
+  console.error('SEC-015 check failed: no generateText or streamText calls were found.');
   process.exit(1);
 }
 
 if (failures.length > 0) {
-  console.error('SEC-015 check failed: AI Gateway ZDR is not fail-closed for these generateText calls:');
+  console.error('SEC-015 check failed: AI Gateway ZDR is not fail-closed for these generateText/streamText calls:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`SEC-015 check passed: ${totalCalls} generateText calls enforce AI Gateway zeroDataRetention=true on every routing branch.`);
+console.log(`SEC-015 check passed: ${totalCalls} generateText/streamText calls enforce AI Gateway zeroDataRetention=true on every routing branch.`);

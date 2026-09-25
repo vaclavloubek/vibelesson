@@ -739,6 +739,8 @@ details { margin-top: 12px; color: var(--muted); }
   color: var(--accent);
 }
 .auth-account-item:disabled { cursor: wait; opacity: .6; }
+/* Help entry: in the header on larger screens, in the account menu on phones. */
+.auth-account-phone-only { display: none; }
 
 .lessons-shell { max-width: 1180px; }
 .lessons-brand { align-items: center; }
@@ -1231,6 +1233,7 @@ body:has(.teacher-live-shell) {
   .auth-account-label,
   .auth-account-caret { display: none; }
   .auth-account-popover { right: 0; }
+  .auth-account-phone-only { display: flex; }
   .auth-signed-in { width: 100%; justify-content: space-between; }
   .app-header-cta { width: 100%; justify-content: center; }
   .lessons-user { width: 100%; justify-content: flex-start; flex-wrap: wrap; }

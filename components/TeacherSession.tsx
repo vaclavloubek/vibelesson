@@ -14,6 +14,7 @@ import {
 import JoinQrCode from '@/components/JoinQrCode';
 import CopyableJoinLink from '@/components/CopyableJoinLink';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
+import HelpAssistant from '@/components/HelpAssistant';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
 import LiveBlock from '@/components/LiveBlock';
@@ -505,6 +506,7 @@ export default function TeacherSession({ sessionId }: { sessionId: string }) {
         </nav>
         <div className="brand-side">
           <LocaleSwitcher />
+          <HelpAssistant userId={authUser?.id ?? null} page={session?.status === 'ended' ? 'evaluation' : 'live'} />
           {authUser ? <PublicHeaderAccountMenu user={authUser} /> : null}
         </div>
       </header>
