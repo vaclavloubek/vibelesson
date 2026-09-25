@@ -6,6 +6,7 @@ import { createClient as createNeonClient } from '@neondatabase/neon-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerAuth } from '@/lib/neon/auth';
 import { readNeonSessionTokenCookie } from '@/lib/neon/auth-cookies';
+import { isTransientNeonAuthFailure } from '@/lib/neon/auth-failure';
 import { createNeonSql } from '@/lib/neon/server';
 
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
@@ -57,7 +58,7 @@ async function getSessionDataApiToken() {
       const { data, error } = await createServerAuth().token();
       if (error || !data?.token) {
         console.warn('Neon Auth token request failed', { status: (error as { status?: number } | null)?.status });
-        return cached && cached.expiresAt > Date.now() ? cached.token : null;
+        return isTransientNeonAuthFailure(error) && cached && cached.expiresAt > Date.now() ? cached.token : null;
       }
       if (tokenCache.size > 5_000) tokenCache.clear();
       tokenCache.set(key, { token: data.token, expiresAt: jwtExpiry(data.token) });
@@ -128,7 +129,9 @@ async function getSessionForCookie(token: string, hasSessionData: boolean): Prom
  * upstream; the polling teacher view then got part of them rejected (401).
  * Successful verifications are reused for 60 s per session (keyed by a hash
  * of the session cookie); a transient upstream failure falls back to the last
- * verification for up to 5 minutes. Signing out removes the cookie and key.
+ * verification for up to 5 minutes. Only an unavailable or rate-limited
+ * Neon Auth counts as transient; a 401/403 rejects the session and drops the
+ * cached verification. Signing out removes the cookie and key.
  * Two session cookies at once (see lib/neon/auth-cookies.ts) resolve to no
  * user; proxy.ts expires the legacy one on the same response.
  */
@@ -155,7 +158,7 @@ export async function getVerifiedNeonSession(): Promise<NeonSessionResult> {
         sessionCache.set(key, { result, verifiedAt: Date.now() });
         return result;
       }
-      if (result.error && cached && Date.now() - cached.verifiedAt < SESSION_STALE_MS) {
+      if (result.error && isTransientNeonAuthFailure(result.error) && cached && Date.now() - cached.verifiedAt < SESSION_STALE_MS) {
         console.warn('Neon Auth session check failed; using recent verification');
         return cached.result;
       }

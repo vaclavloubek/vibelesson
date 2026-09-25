@@ -7,6 +7,7 @@ import {
   readNeonSessionTokenCookie,
   withHostOnlyNeonAuthCookies,
 } from '../lib/neon/auth-cookies.ts';
+import { isTransientNeonAuthFailure } from '../lib/neon/auth-failure.ts';
 
 // SEC-018: signing in as one teacher must never resolve to the account that
 // previously used the same browser (legacy Domain= cookie next to the
@@ -63,6 +64,15 @@ assert(!/domain=/i.test(cookies[0]) && !/domain=/i.test(cookies[1]), 'Neon Auth 
 assert(/Domain=www\.syllonaut\.com/.test(cookies[2]), 'non-auth cookies are untouched');
 assert((await rewritten.text()) === '{"ok":true}', 'body is kept');
 
+// --- Stale verification only on an unavailable Neon Auth (audit B4) ---------
+for (const status of [500, 502, 503, 504, 429]) {
+  assert(isTransientNeonAuthFailure({ status }), `status ${status} is a transient Neon Auth failure`);
+}
+for (const status of [400, 401, 403, 404]) {
+  assert(!isTransientNeonAuthFailure({ status }), `status ${status} must not reuse a cached verification`);
+}
+assert(!isTransientNeonAuthFailure(null) && !isTransientNeonAuthFailure({}), 'an error without a status fails closed');
+
 // --- Call sites ---------------------------------------------------------------
 const [route, proxy, requestClient, actions] = await Promise.all([
   source('app/api/auth/[...path]/route.ts'),
@@ -80,6 +90,8 @@ assert(!/cookies\(\)/.test(requestClient), 'request identity must read the Cooki
 assert(/sessionTokenOf\(fromCookieCache\) === token/.test(requestClient), 'session_data copy must match the session cookie');
 assert(/disableCookieCache: 'true'/.test(requestClient), 'mismatched copy must be re-verified upstream');
 assert(/cookie\.state === 'ambiguous'/.test(requestClient), 'ambiguous cookies must resolve to no user');
+assert(/result\.error && isTransientNeonAuthFailure\(result\.error\) && cached/.test(requestClient), 'a 401/403 must not fall back to a cached session verification');
+assert(/isTransientNeonAuthFailure\(error\) && cached && cached\.expiresAt/.test(requestClient), 'a 401/403 must not fall back to a cached Data API token');
 
 assert(!/createServerAuth\(\)\.getSession\(/.test(actions), 'server actions must use the verified session');
 const signIn = actions.slice(actions.indexOf('export async function signInWithNeonForApp'));
