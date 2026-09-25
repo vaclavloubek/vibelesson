@@ -212,7 +212,10 @@ export default function SubscriptionManagement({
         <h1>{ui('Používáš tarif Free', 'You are on the Free plan')}</h1>
         <p>{ui('Nemáš aktivní placené předplatné. Teacher nebo Teacher Pro můžeš vybrat v Ceníku.', 'You do not have an active paid subscription. You can choose Teacher or Teacher Pro on the Pricing page.')}</p>
         <Link href={`/${locale}/pricing`} className={styles.primary}>{ui('Zobrazit tarify', 'View plans')}</Link>
-      </section>{withdrawalPanel()}</div>
+      </section>
+      {/* A paid plan granted by a manual override has no Stripe subscription but still enforces trusted devices; the panel hides itself when no device policy applies. */}
+      <TrustedDevicesPanel />
+      {withdrawalPanel()}</div>
     );
   }
 

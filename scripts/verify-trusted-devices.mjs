@@ -80,4 +80,9 @@ requireText(panel, 'Aktivní zařízení', 'device management distinguishes acti
 requireText(panel, 'Nová zařízení za posledních 30 dní', 'rolling device limit is visible');
 requireText(panel, 'Neukládáme IP', 'privacy promise is explicit in UI');
 
+const subscriptionManagement = read('components/SubscriptionManagement.tsx');
+const noActiveSubscriptionBranch = subscriptionManagement.match(/if \(!active\) \{\n[\s\S]*?\n  \}\n/)?.[0] ?? '';
+requireText(noActiveSubscriptionBranch, 'return (', 'subscription page has a branch without an active Stripe subscription');
+requireText(noActiveSubscriptionBranch, '<TrustedDevicesPanel />', 'manual paid-plan overrides without a Stripe subscription can manage trusted devices');
+
 console.log(`Trusted-device safeguards verified via ${migration.name}.`);
