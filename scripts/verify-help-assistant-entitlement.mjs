@@ -94,11 +94,46 @@ check(actions.parseHelpActionToken('[[link:https://evil.example]]') === null, 'a
 check(actions.parseHelpActionToken('[[link:admin]]') === null, 'unknown link is rejected');
 check(actions.parseHelpTopicToken('[[topic:billing]]') === 'billing' && actions.parseHelpTopicToken('[[topic:secret]]') === null, 'topic token is validated');
 check(assistant.includes('parseHelpActionToken(current)') && assistant.includes('parseHelpTopicToken(current)'), 'server output filter drops tokens outside the allowlist');
-check(chatRoute.includes('createHelpOutputFilter()'), 'chat route streams through the output filter');
+check(chatRoute.includes('createHelpResponseBody({') && assistant.includes('const filter = createHelpOutputFilter();'), 'chat route streams through the output filter');
 check(component.includes('guideTargetPresent') && component.includes('document.querySelector(`[data-tour="${step.target}"]`)'),
   'guide buttons render only when the data-tour target is on the page');
 check(component.includes('startSyllonautGuide(userId, action.chapter, action.step)'), 'guide action starts the existing guide');
 check(APPROVED_TOPICS.every((topic) => migration.includes(`'${topic}'`)), 'DB topic check matches the approved topics');
+
+// 2b. The response body finishes when the answer ends with hidden token lines.
+// Regression: a pull() that enqueued nothing was never called again, so the
+// stream hung until the 60 s platform limit and the request stayed pending.
+{
+  const { registerHooks } = await import('node:module');
+  registerHooks({
+    resolve(spec, ctx, next) {
+      if (spec === 'server-only') return { url: 'data:text/javascript,', shortCircuit: true };
+      if (spec.startsWith('@/')) return next(pathToFileURL(path.resolve(spec.slice(2) + '.ts')).href, ctx);
+      return next(spec, ctx);
+    },
+  });
+  const { createHelpResponseBody } = await import(pathToFileURL(path.resolve('lib/help-assistant.ts')).href);
+  const chunks = ['Klikněte na „Upravit blok“.', '\n', '[[', 'guide:lesson:4]]', '\n', '[[topic', ':edit]]'];
+  const finished = [];
+  const body = createHelpResponseBody({
+    answer: {
+      text: (async function* () { for (const chunk of chunks) yield chunk; })(),
+      cost: Promise.resolve(0.001),
+      failed: () => false,
+      endInfo: () => null,
+    },
+    abort: new AbortController(),
+    finish: async (status, cost, topic) => { finished.push({ status, cost, topic }); },
+    logTiming: () => undefined,
+  });
+  const result = await Promise.race([
+    new Response(body).text(),
+    new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
+  ]);
+  check(result === 'Klikněte na „Upravit blok“.\n[[guide:lesson:4]]\n', `response body completes after hidden token lines (got ${JSON.stringify(result)})`);
+  check(finished.length === 1 && finished[0].status === 'succeeded' && finished[0].topic === 'edit' && finished[0].cost === 0.001,
+    'request is finished once with status, cost and topic');
+}
 
 // 3. No conversation text in the database or logs.
 const tableStart = migration.indexOf('create table if not exists public.help_assistant_requests');
