@@ -1,10 +1,9 @@
 # LEGAL-023 — Balíčky návrhů hodnocení od AI: podklad pro právní posouzení
 
-Stav: **připraveno, neaktivní** (interní verze 0.9.152). Nákup je za serverovým
-vypínačem `AI_GRADING_TOPUPS_ENABLED` (výchozí vypnuto) a zároveň ho blokuje
-`TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE = false` v `lib/legal.ts`. Dokud právník
-neposoudí body níže a vlastník projektu nepotvrdí výsledek, zůstává v produkci
-**VOP 1.11** a checkout balíčku vrací `topup_terms_not_active`.
+Stav: **schváleno** právníkem 25. 9. 2026 beze změny znění; **VOP 1.12** (`2026-09-25-v13`) je
+účinné od 25. 9. 2026 (interní verze 0.9.155). Stávající souhlasy v4–v12 zůstávají dostatečné
+(rozhodnutí vlastníka projektu). Nákup zůstává za serverovým vypínačem
+`AI_GRADING_TOPUPS_ENABLED`, dokud nejsou LIVE ceny a Stripe eventy.
 
 ## Co se prodává
 
@@ -75,7 +74,7 @@ odstoupení se nepřikládá (viz otázka 1).
 
 ## Aktivace po posouzení
 
-1. `lib/legal.ts`: `TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE = true`,
+1. *(hotovo v 0.9.155)* `lib/legal.ts`: `TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE = true`,
    `TERMS_VERSION = '1.12'`, nové `TERMS_EFFECTIVE_DATE` a
    `TERMS_ACCEPTANCE_KEY = '<datum>-v13'`, klíč `2026-09-24-v12` ponechat v
    `TERMS_PRODUCT_ACCESS_KEYS`; upravit pevné datum účinnosti v EN textu

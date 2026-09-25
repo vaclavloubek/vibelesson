@@ -76,7 +76,7 @@ export default async function TermsAcceptPage({
           <div className={styles.meta}>
             {english
               ? `Version ${TERMS_VERSION} · effective ${TERMS_EFFECTIVE_DATE}`
-              : `Verze ${TERMS_VERSION} · účinná od 24. 9. 2026`}
+              : `Verze ${TERMS_VERSION} · účinná od 25. 9. 2026`}
           </div>
         </div>
 

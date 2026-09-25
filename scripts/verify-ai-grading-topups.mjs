@@ -82,9 +82,10 @@ for (const [needle, label] of [
 
 // 5. Legal: Terms 1.12 prepared but inactive in this release.
 const legal = read('lib/legal.ts');
-requireText(legal, 'export const TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE: boolean = false;', 'article 5a stays inactive until the legal review');
+requireText(legal, 'export const TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE: boolean = true;', 'article 5a is part of Terms 1.12 after the legal review');
 requireText(legal, "export const TERMS_AI_GRADING_TOPUP_TERMS_VERSION = '1.12';", 'prepared Terms version');
-requireText(legal, "export const TERMS_VERSION = '1.11';", 'current Terms stay 1.11');
+requireText(legal, "export const TERMS_VERSION = '1.12';", 'current Terms are 1.12');
+requireText(legal, "  '2026-09-24-v12',", 'Terms 1.11 acceptances stay sufficient for ordinary product use');
 const termsContent = read('lib/terms-content.ts');
 for (const needle of ['12 měsíců od potvrzení platby', 'nejdříve ten, jehož platnost skončí nejdříve', 'nevyčerpané návrhy se zmrazí', 'ztrácíte právo od smlouvy o balíčku odstoupit', 'nevyčerpané návrhy z tohoto balíčku zanikají', 'valid for 12 months from payment confirmation']) {
   requireText(termsContent, needle, `article 5a covers: ${needle}`);
