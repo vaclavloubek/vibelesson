@@ -1,5 +1,23 @@
+/* Rendered before the control centre shell, so align with its content column
+   (.teacher-live-shell: max 1180px with 24px padding, 12px on phones). The
+   wrapper uses padding, not margin, so the offset does not collapse through
+   <body> and reveal the light page background above the dark control centre. */
+.wrap {
+  padding-top: 18px;
+}
+
+.wrapNotice {
+  padding-top: 12px;
+}
+
+.banner,
+.notice {
+  box-sizing: border-box;
+  width: min(1132px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
 .banner {
-  margin: 18px 0;
   padding: 14px 12px 14px 18px;
   border: 1px solid rgba(91, 87, 232, .22);
   border-radius: 16px;
@@ -21,7 +39,6 @@
 }
 
 .notice {
-  margin: 12px 0;
   padding: 6px 6px 6px 14px;
   border-radius: 12px;
   background: var(--panel-soft);
@@ -62,4 +79,11 @@
 .close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .banner,
+  .notice {
+    width: calc(100% - 24px);
+  }
 }
