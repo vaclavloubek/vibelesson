@@ -383,6 +383,13 @@ if (schoolBillingLaunch.includes('STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED')) {
   throw new Error('Legacy public-enabled env gate must not be able to keep launched school billing closed.');
 }
 
+if (!quoteRoute.includes("if (!isPublicSchoolBillingEnabled() && role !== 'admin') {")) {
+  throw new Error('School quote must use the shared launch-gate helper.');
+}
+if (quoteRoute.includes('STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED')) {
+  throw new Error('School quote must not keep launched school billing closed through the legacy env gate.');
+}
+
 
 const pricingRoute = fs.readFileSync('app/pricing/page.tsx', 'utf8');
 for (const needle of [
