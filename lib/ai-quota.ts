@@ -15,6 +15,10 @@ export type AiQuotaSnapshot = {
   quota_window_start: string | null;
   quota_window_end: string | null;
   quota_source: string | null;
+  // Added in neon/migrations/0016. Optional so a response from a database
+  // without the migration still type-checks at the call sites.
+  plan_code?: string | null;
+  quota_scope?: 'individual' | 'organization' | null;
 };
 
 export function quotaSourceLabel(source: string | null | undefined, english: boolean) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthenticatedUserId } from '@/lib/auth';
 import { GradingCriterionSchema, LessonSchema } from '@/lib/schema';
+import { manualReasonFromGraderVersion } from '@/lib/ai-grading-quota-communication';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -162,6 +163,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
       evaluatedAt: parsed.data.evaluated_at,
       createdAt: parsed.data.created_at,
       manualOnly: parsed.data.grader_version.startsWith('manual-'),
+      manualReason: manualReasonFromGraderVersion(parsed.data.grader_version),
     });
   }
 

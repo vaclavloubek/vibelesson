@@ -6,6 +6,7 @@ import TeacherLiveTools from '@/components/TeacherLiveTools';
 import TeacherScoreboardQuickAction from '@/components/TeacherScoreboardQuickAction';
 import TeacherSession from '@/components/TeacherSession';
 import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
+import AiGradingQuotaBanner from '@/components/AiGradingQuotaBanner';
 import { readLiveResume } from '@/lib/live-resume';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -67,6 +68,7 @@ function teacherSurface(
           manager={aiBillingState.manager}
         />
       ) : null}
+      <AiGradingQuotaBanner sessionId={id} />
       <EvaluationBackgroundPump sessionId={id} />
       <TeacherSession sessionId={id} />
       <TeacherScoreboardQuickAction sessionId={id} userId={userId} />

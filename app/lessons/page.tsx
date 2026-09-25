@@ -8,6 +8,8 @@ import LocaleSwitcher from '@/components/LocaleSwitcher';
 import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
+import AiUsagePanel from '@/components/AiUsagePanel';
+import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import { APP_VERSION } from '@/lib/version';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
@@ -78,6 +80,17 @@ export default async function LessonsPage({ searchParams }: Props) {
         : new LessonListReadError('LESSON_LIST_QUERY_FAILED', lessonError),
     }));
 
+  // Same RPC as /subscription. A failure (sporadic P0001) only hides the panel.
+  const quotaPromise = Promise.resolve(supabase.rpc('get_ai_quota'))
+    .then(({ data, error: quotaError }) => {
+      if (quotaError) {
+        console.error('load lessons AI usage failed', { code: quotaError.code });
+        return null;
+      }
+      return ((Array.isArray(data) ? data[0] : data) as AiQuotaSnapshot | undefined) ?? null;
+    })
+    .catch(() => null);
+
   // These calls are independent. Running them concurrently bounds the page's
   // critical path to the slowest backend request instead of their total time.
   const [entitlement, reusableLessons, aiBillingState, lessonResult, sessionResult] = await Promise.all([
@@ -131,10 +144,11 @@ export default async function LessonsPage({ searchParams }: Props) {
       return [];
     });
 
-  const [folderRows, usageRows, originAccess] = await Promise.all([
+  const [folderRows, usageRows, originAccess, aiQuota] = await Promise.all([
     folderPromise,
     usagePromise,
     getOrganizationOriginAccessMap(userId, originIds),
+    quotaPromise,
   ]);
 
   if (error) console.error('load lessons failed', error.code);
@@ -229,6 +243,8 @@ export default async function LessonsPage({ searchParams }: Props) {
         </div>
 
       </section>
+
+      <AiUsagePanel quota={aiQuota} english={english} />
 
       {error ? <div className="error">{ui('Lekce se nepodařilo načíst. Zkus stránku obnovit.', 'Lessons could not be loaded. Refresh the page and try again.')}</div> : null}
       {foldersError ? <div className="error">{ui('Složky se nepodařilo načíst. Lekce zůstávají bezpečně uložené.', 'Folders could not be loaded. Your lessons remain safely stored.')}</div> : null}

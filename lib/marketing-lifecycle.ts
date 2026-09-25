@@ -18,7 +18,8 @@ export type MarketingLifecycleEvent =
   | 'syllonaut.organization_owner.activated'
   | 'syllonaut.organization_member.joined'
   | 'syllonaut.quota.near_limit'
-  | 'syllonaut.quota.reached';
+  | 'syllonaut.quota.reached'
+  | 'syllonaut.grading_quota.reached';
 
 type MarketingContext = {
   email: string;
@@ -605,4 +606,79 @@ export async function emitFreeLessonQuotaLifecycle(
   }
 
   return result;
+}
+
+type AiGradingQuotaNoticeRow = {
+  id: string;
+  recipient_user_id: string;
+  organization_id: string | null;
+  organization_internal_test: boolean;
+  window_start: string | Date;
+  window_end: string | Date;
+  used_count: number;
+  count_limit: number;
+  plan_code: string;
+  quota_scope: 'individual' | 'organization';
+  attempt_count: number;
+};
+
+const AI_GRADING_QUOTA_NOTICE_BATCH = 20;
+
+// private.reserve_ai_grading_budget records one notice per account and quota
+// window when AI grading suggestions run out (neon/migrations/0016). This turns
+// them into the marketing event; the email itself is a Resend automation.
+// Organizations notify their owner. Claims are leased, so concurrent drains
+// never send the same notice twice; failures retry up to 5 attempts.
+export async function drainAiGradingQuotaNotices(max = AI_GRADING_QUOTA_NOTICE_BATCH) {
+  const summary = { claimed: 0, sent: 0, skipped: 0, failed: 0 };
+  if (getDatabaseBackend() !== 'neon') return summary;
+  assertApprovedNeonCutover();
+
+  const limit = Math.max(1, Math.min(AI_GRADING_QUOTA_NOTICE_BATCH, Math.trunc(max)));
+  const sql = createNeonSql();
+  const rows = await sql`
+    select * from private.claim_ai_grading_quota_notices(${limit}::integer)
+  ` as AiGradingQuotaNoticeRow[];
+  summary.claimed = rows.length;
+
+  for (const row of rows) {
+    let status: 'sent' | 'skipped' | 'failed';
+    let detail: string | null = null;
+    try {
+      const windowEnd = new Date(row.window_end);
+      if (row.organization_internal_test) {
+        status = 'skipped';
+        detail = 'internal_test_organization';
+      } else if (!(windowEnd.getTime() > Date.now())) {
+        // The allowance has already reset; an email now would be misleading.
+        status = 'skipped';
+        detail = 'window_ended';
+      } else {
+        const result = await ensureMarketingContact(row.recipient_user_id);
+        if (result.status !== 'active') {
+          status = 'skipped';
+          detail = result.status;
+        } else {
+          await sendLifecycleEvent(result, 'syllonaut.grading_quota.reached', {
+            used: Math.max(0, Math.trunc(Number(row.used_count))),
+            limit: Math.max(1, Math.trunc(Number(row.count_limit))),
+            reset_date: windowEnd.toISOString(),
+            quota_scope: row.quota_scope,
+            plan_code: row.plan_code,
+          });
+          status = 'sent';
+        }
+      }
+    } catch (error) {
+      status = 'failed';
+      detail = error instanceof MarketingLifecycleError ? error.code : 'grading_quota_notice_failed';
+    }
+
+    summary[status] += 1;
+    await sql`
+      select private.finish_ai_grading_quota_notice(${row.id}::uuid, ${status}, ${detail})
+    `;
+  }
+
+  return summary;
 }
