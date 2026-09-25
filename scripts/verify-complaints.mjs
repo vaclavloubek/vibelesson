@@ -58,7 +58,7 @@ assert.ok(adminApi.includes("deliverComplaintEmail(input.complaintId, 'resolutio
 assert.ok(read('app/admin/complaints/page.tsx').includes('isSuperadminUserId(userId)'), 'admin page is superadmin-only');
 
 const cron = read('app/api/cron/complaints/route.ts');
-assert.ok(cron.includes("'Bearer ' + secret") && cron.includes('runComplaintMaintenance'), 'complaint cron is protected and runs maintenance');
+assert.ok(cron.includes('if (!isAuthorizedCronRequest(request))') && cron.includes('runComplaintMaintenance'), 'complaint cron is protected and runs maintenance');
 assert.ok(read('vercel.json').includes('/api/cron/complaints'), 'complaint cron is scheduled');
 
 assert.ok(read('proxy.ts').includes("pathname === '/complaint'"), 'complaint page uses the locale gateway');

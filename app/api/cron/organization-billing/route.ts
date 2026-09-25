@@ -4,14 +4,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
 import { createNeonSql } from '@/lib/neon/server';
 import { createPrivilegedRpcClient } from '@/lib/neon/privileged-rpc';
+import { isAuthorizedCronRequest } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const authorization = request.headers.get('authorization');
-
-  if (!secret || authorization !== 'Bearer ' + secret) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
