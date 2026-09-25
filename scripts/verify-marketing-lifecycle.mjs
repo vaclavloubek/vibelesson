@@ -104,4 +104,25 @@ requirePattern(lifecycle, /organization\.isInternalTest\) return null;[\s\S]*?'s
 requirePattern(lifecycle, /export async function emitOrganizationMemberJoined[\s\S]*?organization\.planCode !== 'school' && organization\.planCode !== 'campus'\) return null;[\s\S]*?'syllonaut\.organization_member\.joined'/, 'member onboarding must skip organizations outside School and Campus before sending the event.');
 requirePattern(billingWebhook, /syncMarketingPlan\(sync\.userId\)/, 'other live subscription updates must refresh contact plan state.');
 
+// Audit B6: every Resend failure is counted and mailed to the operator daily.
+const [failures, failureCron, failureMigration, vercelConfig] = await Promise.all([
+  source('lib/marketing-failures.ts'),
+  source('app/api/cron/marketing-failures/route.ts'),
+  source('neon/migrations/0021_marketing_lifecycle_failures.sql'),
+  source('vercel.json'),
+]);
+requirePattern(lifecycle, /async function recordedResendFailure\(operation: string, code: string\) \{\s*await recordMarketingLifecycleFailure\(operation, code\);/, 'Resend failures must be recorded before throwing.');
+requirePattern(lifecycle, /const fail = \(code: string\) => recordedResendFailure\(operation, code\);/, 'resendRequest must record each failure.');
+forbidPattern(lifecycle, /throw new MarketingLifecycleError\(['`]resend_/, 'every Resend failure must go through the recording fail() helper.');
+requirePattern(failures, /replace\(\/\^\\\/contacts\\\/\[\^\/\]\+\/, '\/contacts\/:email'\)/, 'failure records must never keep the contact email from the path.');
+requirePattern(failures, /catch \(error\) \{\s*console\.error\('marketing lifecycle failure could not be recorded'/, 'recording a failure must never throw.');
+requirePattern(failures, /where failure_count > reported_count/, 'the digest must report only failures not reported yet.');
+requirePattern(failures, /set reported_count = greatest\(reported_count, /, 'the digest must mark exactly the reported counts.');
+requirePattern(failures, /to: PROVIDER_CONTACT\.email/, 'the digest goes to the operator.');
+requirePattern(failureCron, /if \(!isAuthorizedCronRequest\(request\)\)/, 'the digest cron must be protected.');
+requirePattern(vercelConfig, /"path": "\/api\/cron\/marketing-failures"/, 'the digest cron must be scheduled.');
+requirePattern(failureMigration, /enable row level security/, 'the failure table must have RLS enabled.');
+requirePattern(failureMigration, /revoke all on table private\.marketing_lifecycle_failures from anon, anonymous, authenticated, authenticator;/, 'API roles must not read the failure table.');
+forbidPattern(failureMigration, /^\s+\w*(email|user_id)\w*\s+(text|citext|uuid|varchar)/im, 'the failure table must not store email addresses or user ids.');
+
 console.log('Marketing lifecycle checks passed.');
