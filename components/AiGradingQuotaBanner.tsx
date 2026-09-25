@@ -103,39 +103,43 @@ export default function AiGradingQuotaBanner({ sessionId }: { sessionId: string 
       scope: 'individual',
     }, english);
     return (
-      <section className={styles.banner} role="status" aria-live="polite">
-        <p>{text}</p>
-        <button
-          type="button"
-          className={styles.close}
-          aria-label={english ? 'Close notice' : 'Zavřít upozornění'}
-          onClick={() => {
-            writeDismissed(bannerKey);
-            setBannerDismissed(true);
-          }}
-        >
-          ×
-        </button>
-      </section>
+      <div className={styles.wrap}>
+        <section className={styles.banner} role="status" aria-live="polite">
+          <p>{text}</p>
+          <button
+            type="button"
+            className={styles.close}
+            aria-label={english ? 'Close notice' : 'Zavřít upozornění'}
+            onClick={() => {
+              writeDismissed(bannerKey);
+              setBannerDismissed(true);
+            }}
+          >
+            ×
+          </button>
+        </section>
+      </div>
     );
   }
 
   if (showNotice && quota?.gradingRemaining) {
     return (
-      <p className={styles.notice} role="status">
-        <span>{lowGradingNoticeText(quota.gradingRemaining, english)}</span>
-        <button
-          type="button"
-          className={styles.close}
-          aria-label={english ? 'Close notice' : 'Zavřít upozornění'}
-          onClick={() => {
-            writeDismissed(noticeKey);
-            setNoticeDismissed(true);
-          }}
-        >
-          ×
-        </button>
-      </p>
+      <div className={styles.wrapNotice}>
+        <p className={styles.notice} role="status">
+          <span>{lowGradingNoticeText(quota.gradingRemaining, english)}</span>
+          <button
+            type="button"
+            className={styles.close}
+            aria-label={english ? 'Close notice' : 'Zavřít upozornění'}
+            onClick={() => {
+              writeDismissed(noticeKey);
+              setNoticeDismissed(true);
+            }}
+          >
+            ×
+          </button>
+        </p>
+      </div>
     );
   }
 
