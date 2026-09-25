@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/proxy';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { duplicatedNeonAuthCookieNames, neonAuthDomainCookieDeletions } from '@/lib/neon/auth-cookies';
 import { CURRENT_TERMS_REQUIRED_HEADER, requestRequiresCurrentTerms } from '@/lib/terms-gate';
 import {
   LOCALE_COOKIE,
@@ -85,6 +86,13 @@ export async function proxy(request: NextRequest) {
   let response: NextResponse;
   if (getDatabaseBackend() === 'neon') {
     response = NextResponse.next({ request: { headers: forwardedHeaders } });
+    // A Neon Auth cookie present twice is a legacy `Domain=<host>` copy next
+    // to the host-only one (see lib/neon/auth-cookies.ts). Expire the legacy
+    // copy; the server treats this request's session as ambiguous.
+    const duplicated = duplicatedNeonAuthCookieNames(request.headers.get('cookie'));
+    for (const deletion of neonAuthDomainCookieDeletions(duplicated, request.nextUrl.hostname)) {
+      response.headers.append('set-cookie', deletion);
+    }
   } else {
     response = await updateSession(request, forwardedHeaders);
   }
