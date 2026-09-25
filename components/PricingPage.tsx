@@ -1018,7 +1018,14 @@ export default function PricingPage({
                 'I expressly request that the service start immediately, before the 14-day withdrawal period expires. I understand that if I withdraw, I may have to pay a proportionate amount for the service supplied before withdrawal.'
               )}</span>
             </label>
-            <p>{ui(TERMS_WITHDRAWAL_CLAUSE.cs, TERMS_WITHDRAWAL_CLAUSE.en)}</p>
+            <div
+              className={styles.checkoutLegal}
+              role="region"
+              aria-label={ui('Poučení o odstoupení od smlouvy', 'Information on withdrawal')}
+              tabIndex={0}
+            >
+              {ui(TERMS_WITHDRAWAL_CLAUSE.cs, TERMS_WITHDRAWAL_CLAUSE.en)}
+            </div>
 
             {checkoutError ? <div className={styles.checkoutError} role="alert">{checkoutError}</div> : null}
 
