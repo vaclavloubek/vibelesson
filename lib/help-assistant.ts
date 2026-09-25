@@ -245,7 +245,21 @@ export type HelpStreamResult = {
   // Resolves with the total AI Gateway cost once the model call has ended.
   cost: Promise<number | null>;
   failed: () => boolean;
+  // Metadata only (never text), for the timing log.
+  endInfo: () => HelpStreamEndInfo | null;
 };
+
+export type HelpStreamEndInfo = {
+  finishReason: string;
+  steps: number;
+  inputTokens: number | undefined;
+  outputTokens: number | undefined;
+  reasoningTokens: number | undefined;
+};
+
+// Bounds a stalled Gateway stream well below the 60 s function limit, so the
+// request is always recorded instead of being killed by the platform.
+export const HELP_STREAM_TIMEOUT = { totalMs: 45_000, chunkMs: 15_000 };
 
 export function streamHelpAnswer(input: {
   locale: 'cs' | 'en';
@@ -258,6 +272,7 @@ export function streamHelpAnswer(input: {
     resolveCost = resolve;
   });
   let errored = false;
+  let endInfo: HelpStreamEndInfo | null = null;
 
   const result = streamText({
     model: helpModel(),
@@ -265,6 +280,7 @@ export function streamHelpAnswer(input: {
     messages: input.messages,
     maxOutputTokens: HELP_MAX_OUTPUT_TOKENS,
     abortSignal: input.abortSignal,
+    timeout: HELP_STREAM_TIMEOUT,
     providerOptions: {
       gateway: { sort: 'cost', zeroDataRetention: true, tags: ['help-assistant'] },
       openai: { reasoningEffort: 'low' },
@@ -274,7 +290,14 @@ export function streamHelpAnswer(input: {
       errored = true;
       console.error('help assistant stream failed', errorClass(error));
     },
-    onEnd({ steps }) {
+    onEnd({ steps, finishReason, totalUsage }) {
+      endInfo = {
+        finishReason,
+        steps: steps.length,
+        inputTokens: totalUsage.inputTokens,
+        outputTokens: totalUsage.outputTokens,
+        reasoningTokens: totalUsage.outputTokenDetails?.reasoningTokens,
+      };
       const costs = steps.map((step) => gatewayCost(step.providerMetadata)).filter((value): value is number => value !== null);
       resolveCost(costs.length ? costs.reduce((sum, value) => sum + value, 0) : null);
     },
@@ -283,7 +306,7 @@ export function streamHelpAnswer(input: {
     },
   });
 
-  return { text: result.textStream, cost, failed: () => errored };
+  return { text: result.textStream, cost, failed: () => errored, endInfo: () => endInfo };
 }
 
 // Streams the model text through unchanged, except whole lines that look like

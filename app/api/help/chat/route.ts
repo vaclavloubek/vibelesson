@@ -234,12 +234,31 @@ export async function POST(req: Request) {
   const filter = createHelpOutputFilter();
   const encoder = new TextEncoder();
   const iterator = answer.text[Symbol.asyncIterator]();
+  // Stage timings and token counts only, never text.
+  const startedAt = Date.now();
+  let firstDeltaMs: number | null = null;
+  let lastDeltaMs: number | null = null;
+  let deltas = 0;
+  function logTiming(outcome: string) {
+    console.info('help assistant stream timing', {
+      outcome,
+      firstDeltaMs,
+      lastDeltaMs,
+      deltas,
+      totalMs: Date.now() - startedAt,
+      end: answer.endInfo(),
+    });
+  }
 
   const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         const next = await iterator.next();
         if (!next.done) {
+          const now = Date.now() - startedAt;
+          if (firstDeltaMs === null) firstDeltaMs = now;
+          lastDeltaMs = now;
+          deltas += 1;
           const out = filter.push(next.value);
           if (out) controller.enqueue(encoder.encode(out));
           return;
@@ -252,15 +271,18 @@ export async function POST(req: Request) {
         ]);
         const ok = !answer.failed() && filter.hasVisibleText();
         await finish(ok ? 'succeeded' : 'failed', cost, filter.topic());
+        logTiming(ok ? 'succeeded' : 'failed');
         controller.close();
       } catch {
         await finish('failed', null, null);
+        logTiming('stream_error');
         controller.error(new Error('help_stream_failed'));
       }
     },
     async cancel() {
       abort.abort();
       await finish('failed', null, null);
+      logTiming('client_cancelled');
     },
   });
 
