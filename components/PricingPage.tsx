@@ -584,7 +584,7 @@ export default function PricingPage({
   async function startSandboxCheckout() {
     if (!checkoutPlan || checkoutBusy) return;
     if (!checkoutTermsAccepted || !immediatePerformanceRequested) {
-      setCheckoutError(ui('Před objednáním potvrď obchodní podmínky i žádost o okamžité zahájení služby.', 'Before ordering, accept the Terms and request immediate start of the service.'));
+      setCheckoutError(ui('Před objednáním potvrďte obchodní podmínky i žádost o okamžité zahájení služby.', 'Before ordering, accept the Terms and request immediate start of the service.'));
       return;
     }
     if (checkoutPlan.id !== 'teacher' && checkoutPlan.id !== 'teacher-pro') return;
@@ -647,14 +647,14 @@ export default function PricingPage({
       const message = error instanceof Error ? error.message : '';
       setCheckoutError(
         message === 'active_subscription_exists'
-          ? ui('Už máš aktivní předplatné. Spravovat ho můžeš přes zákaznický portál.', 'You already have an active subscription. You can manage it in the customer portal.')
+          ? ui('Už máte aktivní předplatné. Spravovat ho můžete přes zákaznický portál.', 'You already have an active subscription. You can manage it in the customer portal.')
           : message === 'billing_currency_migration_required'
-            ? ui('Změna fakturační země nebo měny vyžaduje řízený převod předplatného. Kontaktuj podporu.', 'Changing billing country or currency requires a controlled subscription migration. Contact support.')
+            ? ui('Změna fakturační země nebo měny vyžaduje řízený převod předplatného. Kontaktujte podporu.', 'Changing billing country or currency requires a controlled subscription migration. Contact support.')
             : message && message !== 'checkout_creation_failed'
               ? `Stripe: ${message}`
               : publicPurchaseMode
-                ? ui('Nákup se nepodařilo spustit. Zkus to prosím znovu.', 'The purchase could not be started. Please try again.')
-                : ui('Testovací Checkout se nepodařilo spustit. Zkontroluj serverové nastavení Stripe.', 'The test Checkout could not be started. Check the server-side Stripe configuration.'),
+                ? ui('Nákup se nepodařilo spustit. Zkuste to prosím znovu.', 'The purchase could not be started. Please try again.')
+                : ui('Testovací Checkout se nepodařilo spustit. Zkontrolujte serverové nastavení Stripe.', 'The test Checkout could not be started. Check the server-side Stripe configuration.'),
       );
       setCheckoutBusy(false);
     }
@@ -702,7 +702,7 @@ export default function PricingPage({
         message && message !== 'portal_creation_failed'
           ? `Stripe: ${message}`
           : publicPurchaseMode
-            ? ui('Zákaznický portál se nepodařilo otevřít. Zkus to prosím znovu.', 'The customer portal could not be opened. Please try again.')
+            ? ui('Zákaznický portál se nepodařilo otevřít. Zkuste to prosím znovu.', 'The customer portal could not be opened. Please try again.')
             : ui('Testovací zákaznický portál se nepodařilo otevřít.', 'The test customer portal could not be opened.'),
       );
       setPortalBusy(false);
@@ -783,7 +783,7 @@ export default function PricingPage({
           <div>
             <span className={styles.checkoutKicker}>{ui('Aktivní předplatné', 'Active subscription')}</span>
             <strong>{activePlanCode === 'teacher-pro' ? 'Teacher Pro' : 'Teacher'}</strong>
-            <p>{ui('Tarif, fakturaci, platby, faktury i zrušení teď spravuješ na jednom místě v Syllonautu.', 'Manage your plan, billing period, payments, invoices and cancellation from one Syllonaut page.')}</p>
+            <p>{ui('Tarif, fakturaci, platby, faktury i zrušení teď spravujete na jednom místě v Syllonautu.', 'Manage your plan, billing period, payments, invoices and cancellation from one Syllonaut page.')}</p>
           </div>
           <Link className={styles.dialogSecondary} href={`/${locale}/subscription`}>
             {ui('Spravovat předplatné', 'Manage subscription')}
@@ -913,16 +913,16 @@ export default function PricingPage({
             } {checkoutPlan.name}</h2>
             <p>{liveAcceptance
               ? ui(
-                'Jde o skutečnou platbu. Vyber očekávanou fakturační zemi; po dokončení Stripe Checkout Syllonaut serverově ověří zemi, kterou Checkout skutečně vrátil, a při nesouladu tarif neaktivuje.',
+                'Jde o skutečnou platbu. Vyberte očekávanou fakturační zemi; po dokončení Stripe Checkout Syllonaut serverově ověří zemi, kterou Checkout skutečně vrátil, a při nesouladu tarif neaktivuje.',
                 'This is a real payment. Choose the expected billing country; after Stripe Checkout completes, Syllonaut will verify the country actually returned by Checkout and will not activate the plan if the route does not match.'
               )
               : publicPurchaseMode
                 ? ui(
-                  'Vyber fakturační zemi. Podle ní zvolíme měnu a způsob zpracování platby; samotná platba proběhne bezpečně ve Stripe Checkout.',
+                  'Vyberte fakturační zemi. Podle ní zvolíme měnu a způsob zpracování platby; samotná platba proběhne bezpečně ve Stripe Checkout.',
                   'Choose your billing country. We will use it to select the currency and payment-processing route; payment itself is completed securely in Stripe Checkout.'
                 )
                 : ui(
-                  'Vyber fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby. Ve Stripe Checkout pak použij stejnou fakturační zemi.',
+                  'Vyberte fakturační zemi. Syllonaut podle ní zvolí měnu a způsob zpracování platby. Ve Stripe Checkout pak použijte stejnou fakturační zemi.',
                   'Choose the billing country. Syllonaut will use it to select the currency and payment-processing route. Use the same billing country in Stripe Checkout.'
                 )}</p>
 
@@ -1024,7 +1024,7 @@ export default function PricingPage({
           <strong>{ui('AI limity jsou oddělené a předvídatelné.', 'AI allowances are separate and predictable.')}</strong>
           <p>{audience === 'teachers'
             ? ui(
-              'Kvóta pro nové AI lekce a AI úpravy je oddělená od kvóty AI hodnocení. U Free se limity tvorby obnovují na začátku kalendářního měsíce; u Teacher a Teacher Pro podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. Teacher Pro má navíc 60 AI hodnocení ve stejném období. Přesné zbývající počty i datum další obnovy vidíš v účtu. Spuštění a opakované použití hotových lekcí tyto kvóty nespotřebovává.',
+              'Kvóta pro nové AI lekce a AI úpravy je oddělená od kvóty AI hodnocení. U Free se limity tvorby obnovují na začátku kalendářního měsíce; u Teacher a Teacher Pro podle fakturačního cyklu, u ročního předplatného po měsíčních intervalech od data začátku předplatného. Teacher Pro má navíc 60 AI hodnocení ve stejném období. Přesné zbývající počty i datum další obnovy vidíte v účtu. Spuštění a opakované použití hotových lekcí tyto kvóty nespotřebovává.',
               'The allowance for new AI lessons and AI edits is separate from the AI grading allowance. Free creation allowances reset at the start of each calendar month; Teacher and Teacher Pro reset with the billing cycle, with annual subscriptions using monthly intervals anchored to the subscription start date. Teacher Pro also includes 60 AI gradings in the same allowance period. Your account shows the exact remaining counts and next reset date. Launching and reusing finished lessons does not consume these allowances.',
             )
             : ui(
