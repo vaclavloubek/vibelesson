@@ -13,7 +13,7 @@ function requireCount(text, needle, count, message) {
 
 const grading = source('lib/grading.ts');
 const direct = source('app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts');
-const worker = source('app/api/internal/grading/jobs/route.ts');
+const worker = source('lib/neon/grading-outbox-worker.ts');
 const queue = source('app/api/sessions/[id]/evaluations/queue/route.ts');
 const ui = source('components/EvaluationReviewQueue.tsx');
 const pricing = source('components/PricingPage.tsx');
@@ -72,8 +72,8 @@ requireText(grading, "output.aiUseSuspicion === 'none' && copyArtifactKinds === 
 
 requireText(direct, "supabase.rpc('finish_response_evaluation_v2'", 'direct grading does not persist integrity metadata through v2 RPC.');
 requireText(direct, 'p_ai_use_suspicion: result.aiUseSuspicion', 'direct grading does not pass suspicion.');
-requireText(worker, "supabase.rpc('finish_grading_job_v2'", 'background grading does not persist integrity metadata through v2 RPC.');
-requireText(worker, 'p_ai_use_signals: result.aiUseSignals', 'background grading does not pass evidence signals.');
+requireText(worker, 'select public.finish_grading_job_v2(', 'background grading does not persist integrity metadata through v2 RPC.');
+requireText(worker, '${JSON.stringify(result.aiUseSignals)}::jsonb', 'background grading does not pass evidence signals.');
 
 requireText(queue, 'ai_use_suspicion', 'teacher queue does not load suspicion.');
 requireText(queue, 'aiUseSignals: parsed.data.ai_use_signals', 'teacher queue does not expose integrity signals.');

@@ -9,7 +9,7 @@ Syllonaut uvádí na trh vlastní AI funkce postavené na obecných modelech tř
 | Funkce | Co dělá | Kde v kódu |
 |---|---|---|
 | Tvorba a AI úpravy lekcí | Generuje text interaktivní lekce, učitel ho kontroluje a upravuje (VOP čl. 4). | `lib/ai.ts`, `app/api/generate`, `app/api/revise*` |
-| AI návrh bodování | Navrhne body k otevřené, týmové a exit-ticket odpovědi podle rubriky učitele. | `lib/grading.ts`, `app/api/internal/grading/jobs` |
+| AI návrh bodování | Navrhne body k otevřené, týmové a exit-ticket odpovědi podle rubriky učitele. | `lib/grading.ts`, `lib/neon/grading-outbox-worker.ts` |
 | Upozornění na možné využití AI | Heuristický signál pro učitele, který nemění body. | `lib/grading.ts`, `lib/ai-integrity-copy.ts` |
 
 Zakázané praktiky podle čl. 5 (např. rozpoznávání emocí ve vzdělávání, sociální scoring) Syllonaut nepoužívá.

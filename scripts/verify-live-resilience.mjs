@@ -32,7 +32,7 @@ const [
   source('components/PresenterMode.tsx'),
   source('cloudflare/live-control/src/index.ts'),
   source('app/api/sessions/[id]/live-control/route.ts'),
-  source('app/api/internal/grading/jobs/route.ts'),
+  source('lib/neon/grading-outbox-worker.ts'),
   source('lib/live-control-client.ts'),
   source('components/AuthControls.tsx'),
   source('app/api/auth/clear-live-resume/route.ts'),
@@ -100,7 +100,7 @@ requirePattern(presenter, /live-control\?role=presenter/, 'Presenter capability 
 requirePattern(liveControlRoute, /requestedRole\(req\)/, 'live-control capability route must derive the requested read role.');
 requirePattern(liveControlRoute, /searchParams\.get\('role'\) === 'presenter' \? 'presenter' : 'teacher'/, 'live-control route must restrict browser roles to teacher or presenter.');
 requirePattern(presenter, /connectionMode === 'fallback'/, 'Presenter must expose degraded connection state.');
-requirePattern(gradingWorker, /claim_grading_job/, 'AI grading must have a server-driven capability claim path.');
+requirePattern(gradingWorker, /claim_next_grading_outbox_job/, 'AI grading must have a server-driven capability claim path.');
 requirePattern(gradingWorker, /finish_grading_job/, 'server-driven AI grading must finish through the scoped capability.');
 requirePattern(gradingWorker, /fail_grading_job/, 'server-driven AI grading must fail closed through the scoped capability.');
 
