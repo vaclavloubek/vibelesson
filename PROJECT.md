@@ -19,8 +19,10 @@
 - **Finální synchronizace** proběhla při zmrazené Supabase v jedné transakci (`scripts/neon/final-sync.mjs`): 55/55 tabulek se shodným checksumem, 104 cizích klíčů znovu vytvořeno a ověřeno (0 osiřelých řádků), identity Supabase = `app_identity` = `neon_auth` (4), nový účet doplněn bez hesla. Záloha předchozího stavu větve: schéma `migration_backup_20260923083128`. Následně byly převzaty granty role `authenticated` ze Supabase (22 tabulkových, 11 sloupcových, 16 funkcí; jen RLS tabulky, bez TRUNCATE).
 - **Ověřeno v produkci:** veřejné stránky, přihlášení vlastníka novým heslem, admin oprávnění a AI kvóta, `/lessons`, živá hodina se studentem, odpověď a AI hodnocení (test vlastníka úspěšný), připojení studenta přes Neon SQL, chráněný cron.
 - **Supabase** (`qsjddlgmabgmtssvntmn`) je ponechaná beze změny dat a **jen pro čtení** (`default_transaction_read_only = on`) jako záloha. Nemazat bez samostatného rozhodnutí. Protože Neon už přijal produkční zápisy, prostý návrat na Supabase není povolen (split-brain); postup je v `docs/NEON_MIGRATION.md`.
-- **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby Neon Free (100 CU-h/měsíc) mohl uspávat compute.
+- **Nové provozní nastavení:** v Production jsou `CRON_SECRET` (zapnul i dříve nefunkční crony školní fakturace a změn služby), `NEON_AUTH_COOKIE_SECRET`, `TURNSTILE_SECRET_KEY` a DB/Auth/Data API proměnné Neonu. AI hodnocení se zpracuje hned po odevzdání; hodinový cron nahrazuje pg_cron (retry hodnocení, konec Free hodin, retence), aby compute Neonu mohl mezi hodinami uspávat (tarif **Launch**, účtovaný podle spotřebovaných CU-h; ověřeno 2026-09-25 přes Neon konektor, organizace `vercel-vaclavloubek`).
 - **Otevřené body:** (1) Opraveno: `reconcile_live_control_snapshot` na Neonu (PG18, migrace `0009`). (1b) Opraveno: Stripe webhook na Neonu (`auth.role()` → migrace `0010`); append-only trigger smluvních snapshotů záměrně beze změny. (1c) Vyřešeno: Preview nasazení už nevytvářejí Neon větve. (2) Za provozu neověřeno: školní administrace, Stripe webhook (první obnova předplatného 18.–19. 10.), registrace nového uživatele. (3) Ostatní 3 účty si musí nastavit heslo přes „Zapomenuté heslo“. (4) Ojedinělé `P0001` u `/api/ai-quota` sledovat. (5) Opraveno po cutoveru: sporadické 401 Neon Auth (#292), zaseknuté AI hodnocení — časový limit každého Neon SQL dotazu (#295); auth e-maily v grafice Syllonautu (#301, #303). Interní verze při cutoveru zůstala **0.9.92** (infrastrukturní přechod bez změny produktu).
+
+Aktualizováno: 2026-09-25 — **audit C1–C9: dokumentace srovnána se skutečností** (bez změny verze). C1 `README.md`: produkce na Neonu (Postgres, Auth, Data API) a Cloudflare Live Control; Supabase jen pro čtení jako záloha. C2 `LIVE_RESILIENCE.md`: místo Supabase Realtime polling + WebSocket Workeru, rekonciliace přes `reconcile_live_control_snapshot` (ACL, `auth.uid()`, advisory lock ověřeny v produkčním katalogu), zmínka o odstraněné `reconcile_live_control_events`, chaos scénáře A, B, F a G přepsané pro Neon. C3 `WITHDRAWAL.md`: LEGAL-008 a LEGAL-020 jsou RESOLVED, popsané online odstoupení a bezpečnostní kontrola na Neonu. C4 tarif Neonu je **Launch** (řádek „Nové provozní nastavení“, `docs/NEON_MIGRATION.md`). C5 AI hodnocení: kvóta 60 / 300 / 750 a nouzový strop $12 / $60 / $150 (ověřeno v produkčním `billing_plans`; staré $2/$10/$25 a 150/700/1 750 opraveno). C6 §22 přepsán na aktuální priority. C7 veřejná verze odkazuje na `lib/version.ts` (dnes 0.9.150) místo zastaralých 0.9.20/0.9.19. C8 SEC-002 přehodnocen (běžné PR Preview nepoužívají produkční Neon, `AI_GATEWAY_API_KEY` sdílený dál), SEC-007 znovu otevřen pro Neon Auth, pg_cron/pg_net označeny jako Supabase historie s popisem outbox workeru. C9 `AGENTS.md` §5 a pravidlo o DDL: produkční DB je Neon, DDL přes `neon/migrations` s testem na dočasné větvi, kontrola `scripts/neon/security-audit.mjs` a obnova schema cache Data API. **Nový nález:** `.env.example` má `DATABASE_BACKEND=supabase` (zapsáno do §22). Z auditu zbývá rozhodnutí A1.
 
 Aktualizováno: 2026-09-25 — interní verze **0.9.159**: dialog výběru fakturační země před Stripe Checkoutem v Ceníku (`components/PricingPage.module.css`, `.checkoutDialog`) se roluje uvnitř sebe. Dosud neměl omezenou výšku ani vlastní rolování a ležel v překryvné vrstvě `position: fixed`, takže s oběma souhlasy a poučením o odstoupení přetekl pod spodní okraj okna a tlačítko „Pokračovat k platbě“ nešlo zobrazit (vlastník narazil při testovacím nákupu Teacher Pro na desktopu). Nově `max-height: calc(100dvh - 40px)` (na šířce ≤ 540 px `calc(100dvh - 20px)`), `overflow-y: auto` a `overscroll-behavior: contain`; text ani chování se nemění. Ověřeno statickou kopií dialogu se zkompilovaným CSS: 402 × 874 (obsah 1044 px v okně 852 px, tlačítko dosažitelné) a 1280 × 640. Kontroly `npx tsc --noEmit`, `npm run check`, `npm run check:accessibility`, `npx next build`. Veřejně zobrazovaná verze: ne.
 
@@ -960,7 +962,7 @@ Finální měsíční AI kvóty:
 - **School:** 120 nových AI lekcí + 240 AI úprav společně / měsíc, až 30 učitelů;
 - **Campus:** 300 nových AI lekcí + 600 AI úprav společně / měsíc, až 100 učitelů.
 
-Interní AI-grading safety budgety (nejsou customer-facing quota): **Teacher Pro $2 / 150 pokusů**, **School $10 / 700 pokusů**, **Campus $25 / 1 750 pokusů** za měsíc. Při dosažení safety budgetu systém bezpečně přechází na manual review.
+AI hodnocení má zákaznickou kvótu **Teacher Pro 60**, **School 300**, **Campus 750** hodnocení za quota období a interní nouzový dolarový strop **$12 / $60 / $150** (od 0.9.81, LEGAL-003; `billing_plans.monthly_ai_grading_count_limit` a `monthly_ai_grading_budget_usd`, ověřeno v produkci 2026-09-25). Při vyčerpání kvóty nebo stropu systém bezpečně přechází na ruční kontrolu.
 
 Školní ceny: **Team 890 Kč/měs. nebo 8 900 Kč/rok**, **School 2 390 Kč/měsíc nebo 23 900 Kč/rok**, **Campus 5 990 Kč/měsíc nebo 59 900 Kč/rok**. Roční cena odpovídá zhruba 10 měsíčním platbám. Zobrazený přepočet roční ceny na měsíc se ve všech měnách zaokrouhluje nejvýše na dvě desetinná místa. Při plném čerpání kvót a dosavadních průměrných nákladech vychází AI cost přibližně na 38 % efektivního ročního měsíčního výnosu u Teacher, 68 % u Teacher Pro včetně grading safety budgetu, 34 % u Team, 48 % u School a 49 % u Campus. Tím zůstává rezerva na cenové výkyvy modelů, Stripe a infrastrukturu; skutečná marže bude sledována na reálném usage mixu.
 
@@ -979,7 +981,7 @@ Od 2026-09-19 platí pro předprodukční řadu Syllonautu následující pravid
 - číslo verze samo o sobě neurčuje závažnost změny; rozhodující je, zda byla konkrétní revize označena jako menší interní úprava, nebo jako větší veřejný release;
 - **dashboard uživateli zobrazuje pouze poslední větší veřejný release**. Menší interní revize mohou pokračovat, ale zobrazené číslo se kvůli nim nemění;
 - příklad: po veřejném releasu `0.9.40` mohou interně vzniknout `0.9.41`, `0.9.42` atd., zatímco dashboard stále ukazuje `0.9.40`; změní se až při další větší úpravě;
-- po vydání většího releasu 0.9.20 je současný veřejně viditelný baseline `0.9.20`; interní revize 0.9.21+ jej na dashboardu nemění;
+- aktuální veřejně viditelnou verzi určuje `APP_VERSION` v `lib/version.ts` spolu s řádkem „Aktuální produktová verze“ (k 2026-09-25 `0.9.150`); interní revize ji na dashboardu nemění;
 - číslo za druhou tečkou vždy představuje **jednu koherentní funkční změnu**, nikoli jeden commit nebo jeden změněný soubor;
 - čistě dokumentační, testovací, CI, formátovací nebo interní refaktor bez změny produktového chování sám o sobě verzi neposouvá;
 - pracovní Preview větev verzi neposouvá; nová interní verze se stává platnou až po sloučení funkční změny do produkčního `main`;
@@ -1041,13 +1043,13 @@ Routing:
 
 ### Preview a SEC-002
 
-Preview používá stejný produkční Supabase trust boundary jako Production a má přístup k placené AI identitě/credentialu.
+**Stav po přechodu na Neon (přehodnoceno 2026-09-25, audit C8):** běžné PR Preview nemají `DATABASE_BACKEND`, takže produkční Neon nepoužívají; výchozí backend je Supabase, který je od 2026-09-23 jen pro čtení. Výjimkou je stará migrační git větev `codex/neon-staging-import-20260921-v2` s vlastními Preview proměnnými Neonu (podle `docs/NEON_MIGRATION.md` připojená k Neon větvi `main`, ne k produkční; v auditu neověřeno). `AI_GATEWAY_API_KEY` je dál společný pro Production i Preview, takže Preview má přístup k placené AI identitě/credentialu. Původně Preview sdílel i produkční Supabase trust boundary.
 
-**SEC-002 — ACCEPTED RISK / DEFERRED.**
+**SEC-002 — ACCEPTED RISK / DEFERRED** (databázová část u běžných PR Preview odpadla, AI část trvá).
 
 Cílová budoucí architektura zůstává:
 
-- samostatný staging Supabase;
+- samostatná staging databáze (Neon větev místo původně plánovaného staging Supabase);
 - oddělená Preview AI identita/credential;
 - Deployment Protection.
 
@@ -1404,7 +1406,7 @@ U placených individuálních plánů jsou live hodiny a opakované používán�
 - Teacher / Teacher Pro mají samostatný anti-sharing model: max. **3 současně důvěryhodná zařízení** a **5 skutečně nových zařízení za klouzavých 30 dní**. Aktivní školní člen používá oddělenou organization-device politiku **5 aktivních / 10 nových za 30 dní**; interní Syllonaut admin je vyjmutý.
 - Organizace mají současně seat cap podle tarifu a per-billing-period limit unikátních lidí `seat_limit + max(1, ceil(10 %))`; návrat stejného člena se nepočítá znovu a čekající pozvánka pro nového člověka kapacitu dočasně rezervuje.
 - School/Campus školní obsah nese immutable `organization_origin_id`; po zániku členství zůstává uložený, ale přejde do read-only licenčního zámku a znovu se odemkne po obnovení přístupu.
-- AI grading má interní safety budget nezávislý na marketingových kvótách: Teacher Pro **$2 / 150 pokusů**, School **$10 / 700**, Campus **$25 / 1 750** za UTC kalendářní měsíc; při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
+- AI grading má zákaznickou kvótu Teacher Pro **60**, School **300**, Campus **750** hodnocení a interní nouzový strop **$12 / $60 / $150** (od 0.9.81, LEGAL-003); Teacher Pro počítá v okně podle fakturačního cyklu, School/Campus v UTC kalendářním měsíci. Při vyčerpání se AI request vůbec neodešle a hodnocení přejde na ruční kontrolu.
 
 ### Teacher Pro AI kapacita 0.9.51 — 2026-09-20
 
@@ -1452,7 +1454,7 @@ Pravidla dalšího anti-abuse kola:
 5. Po schválení už nezůstávat u návrhu: změnu skutečně implementovat podle projektových pravidel, po malých krocích a s průběžnými heartbeat updates.
 6. Enforcement preferovat **serverově / databázově a atomicky**. Klientský stav ani klientem dodaný device/account identifikátor nesmí být autoritou pro kvótu nebo entitlement.
 7. Preferovat privacy-minimal řešení. Bez explicitní potřeby nezavádět IP-based identity, browser/hardware fingerprinting ani další invazivní identifikátory. Pokud ochrana může způsobit false positive, zachovat cestu k nápravě a neblokovat uživateli správu účtu nebo bezpečný cleanup.
-8. Každou DB změnu nejdřív dry-run / rollback test, potom relevantní abuse scénář v rollbackované transakci. Po DDL spustit Supabase security/performance advisors a posoudit nové nálezy věcně, ne mechanicky.
+8. Každou DB změnu nejdřív dry-run / rollback test, potom relevantní abuse scénář v rollbackované transakci. Po DDL spustit bezpečnostní kontrolu (dnes Neon: `scripts/neon/security-audit.mjs`, dříve Supabase security/performance advisors) a posoudit nové nálezy věcně, ne mechanicky.
 9. Každou aplikační změnu ověřit přes existující `npm run check`, relevantní regresní verifier, Vercel Preview, Security headers a Accessibility/axe. Produkci měnit až po zeleném Preview/CI a merge do `main`.
 10. Po dokončení aktualizovat `PROJECT.md`, případně přidat nový regression verifier. Dokumentační-only změna sama o sobě neposouvá verzi; funkční produkční anti-abuse změna se verzováním řídí obecnými pravidly projektu.
 
@@ -1756,7 +1758,7 @@ Hosted Supabase Auth hardening:
 
 **SEC-006 — REMEDIATED / CLOSED.**
 
-**SEC-007 — ACCEPTED RISK / DEFERRED:** Leaked Password Protection je na Supabase Free nedostupná.
+**SEC-007 — ACCEPTED RISK / DEFERRED, znovu otevřeno 2026-09-25 (audit C8):** původní důvod (Leaked Password Protection nedostupná na Supabase Free) po přechodu na Neon Auth neplatí. Ověřit, zda Neon Auth (Better Auth) nabízí kontrolu uniklých hesel, a podle toho SEC-007 uzavřít, nebo přeformulovat.
 
 ### Auth accessibility
 
@@ -1961,10 +1963,11 @@ Implementováno a nasazeno:
 AI grading už není životně závislý na otevřené teacher kartě:
 
 - explicitní submit nadále pouze bezpečně vytvoří/aktualizuje `response_evaluations`;
+- **Stav od 2026-09-23 (Neon, audit C8):** `pg_net` ani `pg_cron` se nepoužívají. Job po odevzdání zpracuje `lib/neon/grading-outbox-worker.ts` hned v `after()` a hodinový Vercel cron `/api/cron/neon-grading` doplní čekající a zaseknuté joby; route `app/api/internal/grading/jobs` byla odstraněna (audit A2). Následující body popisují původní Supabase implementaci;
 - pending evaluace spustí DB trigger, který přes `pg_net` asynchronně volá interní Vercel grading endpoint;
 - mezi DB a endpointem se používá jednorázová 256bitová capability; DB ukládá jen SHA-256 hash, raw token se neposílá do browseru ani aplikačních logů;
 - capability je scopeovaná na jednu evaluation, krátkodobá a po claim/finish není znovu použitelná;
-- minutový `pg_cron` retry znovu dispatchuje pouze pending nebo >5 min stale grading joby; běžné AI selhání se bez kontroly neopakuje do nekonečna;
+- (Supabase) minutový `pg_cron` retry znovu dispatchoval pouze pending nebo >5 min stale grading joby; běžné AI selhání se bez kontroly neopakuje do nekonečna;
 - stávající browser `EvaluationBackgroundPump` zůstává jako kompatibilní sekundární cesta; atomický claim zabrání dvojímu placenému gradingu;
 - migration `20260918114341_add_server_driven_ai_grading_jobs` je produkčně aplikovaná.
 
@@ -2149,10 +2152,10 @@ Důkladný audit celé aplikace proběhl 2026-09-17.
 
 ### Accepted / deferred
 
-- **SEC-002** — Preview sdílí production AI/Supabase trust boundary;
-- **SEC-007** — Leaked Password Protection Disabled na Supabase Free.
+- **SEC-002** — Preview sdílí produkční AI identitu (`AI_GATEWAY_API_KEY`); databázová část po přechodu na Neon u běžných PR Preview odpadla (přehodnoceno 2026-09-25);
+- **SEC-007** — kontrola uniklých hesel: znovu otevřeno po přechodu na Neon Auth, čeká na ověření možností Neon Auth.
 
-Supabase Security Advisor warnings nad `SECURITY DEFINER` RPC neposuzovat mechanicky; vždy ověřit konkrétní ACL, `search_path`, ownership/capability checks a skutečný exposed contract.
+Varování bezpečnostních kontrol (dříve Supabase Security Advisor, nyní `scripts/neon/security-audit.mjs`) nad `SECURITY DEFINER` RPC neposuzovat mechanicky; vždy ověřit konkrétní ACL, `search_path`, ownership/capability checks a skutečný exposed contract.
 
 ## 17. Bezpečnostní hranice
 
@@ -2191,7 +2194,7 @@ Ukládání, knihovna, rename/duplicate/delete, sessions history, Teacher Pro/ad
 
 **Aplikační flow i hosted config auditované a produkčně ověřené.**
 
-SEC-006 closed; SEC-007 accepted/deferred.
+SEC-006 closed; SEC-007 accepted/deferred, po přechodu na Neon Auth znovu otevřeno (viz Accepted / deferred).
 
 ### Milník A.3 — Pricing / tarifní produktová vrstva
 
@@ -2540,7 +2543,7 @@ Další významné změny 2026-09-18:
 - **0.9.06** — oprava sticky-scroll problému z 0.9.05: levý authoring sloupec má na desktopu vlastní viewportový scroll a „Upravit blok“ posouvá přímo tento kontejner; mobil používá stránkový fallback.
 - **0.9.07** — zvýraznění výsledku AI revize: nové nebo upravené aktivity jsou do další úspěšné AI změny označené fialovým nádechem i textovým štítkem; změny se detekují porovnáním block JSON podle ID a stav přetrvá reload ve stejném tabu.
 - **0.9.08 / SEC-016** — account isolation hotfix: při logoutu nebo přepnutí identity se klientský lesson workspace synchronně vyčistí a provede hard navigation; recovery snapshot serverové lekce lze uložit jen pod původního ownera; pozdní async odpovědi pro jiný účet se zahodí; uložené lesson/block revize před AI ověřují ownership a používají DB-authoritativní lesson.
-- viditelné číslo verze v učitelském dashboardu představuje pouze poslední větší veřejný release; menší interní revize se do dashboardu nepromítají. Současný veřejný baseline při zavedení pravidla je `0.9.19`.
+- viditelné číslo verze v učitelském dashboardu představuje pouze poslední větší veřejný release; menší interní revize se do dashboardu nepromítají. Veřejný baseline při zavedení pravidla byl `0.9.19`; aktuální je `APP_VERSION` v `lib/version.ts`.
 
 **Výchozí funkční baseline verze 0.7 je `57539ce`. Verze 0.8 je první větší funkční posun zaměřený na live resilience; verze 0.9 je druhý větší funkční posun zaměřený na internacionalizaci rozhraní a multilingual lesson engine. Verze 0.9.01 zavádí tarifní entitlement pro generování v libovolném jazyce; 0.9.02 stejný entitlement vynucuje i při AI revizích; 0.9.03 zpřehledňuje toto omezení Free uživatelům přímo v lesson workspace; 0.9.04 přidává kontextovou zpětnou vazbu po revizích; 0.9.05 zrychluje přechod z náhledu bloku přímo do jeho editoru; 0.9.06 opravuje sticky-scroll limit tohoto přechodu na desktopu; 0.9.07 zpřehledňuje výsledek AI revizí zvýrazněním změněných a nových aktivit; 0.9.08 je bezpečnostní hotfix SEC-016 pro striktní izolaci lesson state mezi účty a server-authoritative revize.**
 
@@ -2591,19 +2594,16 @@ Další významné změny 2026-09-18:
 
 ## 22. Bezprostřední další krok
 
-Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou veřejně prodejné; transakční subscription lifecycle e-maily 0.9.19 zůstávají oddělené od marketingu a finanční e-maily zůstávají Stripe-owned. Navíc je produkčně COMPLETE / PASS behaviorální CZ/EN onboarding/activation/conversion lifecycle přes Resend a CZ/EN landing inquiry s anti-spamem. Školní tarify Team / School / Campus jsou veřejně samoobslužně prodejné.** **Sdílení lekcí 0.9.20 je produkčně COMPLETE / PASS:** read-only snapshot, vlastní idempotentní kopie příjemce, nezávislá editace, revokace → 404 a zachování již uložené kopie jsou E2E ověřené; přenositelný capability link je zamýšlený distribuční mechanismus i pro ukázkové lekce. **Pracovní listy 0.9.22–0.9.28 jsou produkčně COMPLETE / PASS:** entitlement Teacher Pro, studentská/učitelská varianta, výběr aktivit, A4 náhled, skutečný serverový PDF export s českou diakritikou, nedělení aktivit mezi stránky a souvislé přečíslování částečně vybraných úkolů byly implementované a ručně ověřené v ostrém provozu. Úkol je uzavřený.** **Kontextový průvodce „První let“ 0.9.30–0.9.41 je produkčně COMPLETE / PASS:** celý tříkapitolový tok byl 2026-09-19 ručně ověřen v ostré verzi včetně Presenter handoffu, projektorového layoutu, student join flow, týmového panelu a výsledkového kroku. Úkol je uzavřený; další změny jen při regresi nebo rozšíření produktu.** Live hardening baseline 0.8.16 / Worker 0.8.14 protocol 2 zůstává zachovaný.
+Security audit SEC-001 až SEC-016 je dispositioned. Accessibility technický baseline je implementovaný a nasazený. GDPR/cookies/privacy baseline je dokončený. GA4 je produkčně aktivní při opt-in a akviziční measurement baseline je dokončený: property `554871574` má ručně ověřených **20 custom dimensions a 4 Key Events**, včetně serverově potvrzené placené konverze `subscription_activated`. **Stripe sandbox lifecycle i LIVE acceptance individuálních plánů jsou dokončené a E2E ověřené. Teacher a Teacher Pro jsou veřejně prodejné; transakční subscription lifecycle e-maily 0.9.19 zůstávají oddělené od marketingu a finanční e-maily zůstávají Stripe-owned. Navíc je produkčně COMPLETE / PASS behaviorální CZ/EN onboarding/activation/conversion lifecycle přes Resend a CZ/EN landing inquiry s anti-spamem. Školní tarify Team / School / Campus jsou veřejně samoobslužně prodejné.** **Sdílení lekcí 0.9.20 je produkčně COMPLETE / PASS:** read-only snapshot, vlastní idempotentní kopie příjemce, nezávislá editace, revokace → 404 a zachování již uložené kopie jsou E2E ověřené; přenositelný capability link je zamýšlený distribuční mechanismus i pro ukázkové lekce. **Pracovní listy 0.9.22–0.9.28 jsou produkčně COMPLETE / PASS:** entitlement Teacher Pro, studentská/učitelská varianta, výběr aktivit, A4 náhled, skutečný serverový PDF export s českou diakritikou, nedělení aktivit mezi stránky a souvislé přečíslování částečně vybraných úkolů byly implementované a ručně ověřené v ostrém provozu. Úkol je uzavřený.** **Kontextový průvodce „První let“ 0.9.30–0.9.41 je produkčně COMPLETE / PASS:** celý tříkapitolový tok byl 2026-09-19 ručně ověřen v ostré verzi včetně Presenter handoffu, projektorového layoutu, student join flow, týmového panelu a výsledkového kroku. Úkol je uzavřený; další změny jen při regresi nebo rozšíření produktu.** Live hardening baseline 0.8.16 / Live Control Worker 0.8.16 (EU jurisdikce od 0.8.15) zůstává zachovaný.
 
-Nejbližší priority v tomto pořadí:
+Nejbližší priority (aktualizováno 2026-09-25 po auditu nekonzistencí; drobné provozní body průběžně vede **„Otevřené provozní body“** v souhrnu na začátku souboru):
 
-1. do pondělní ostré výuky držet 0.9 funkčně stabilní, zejména zachovaný live baseline 0.8.16; nedělat zbytečné zásahy do live/auth/databázové vrstvy;
-2. 2026-09-21 provést reálný acceptance test a bezprostřední post-session audit Teacher/Presenter/student writes/AI grading/fallback-recovery;
-3. tentýž den znovu ověřit stav Supabase a rozhodnout: **zůstat**, nebo při pokračujících problémech zahájit read-only audit migrace na Neon;
-4. po ostrém testu dokončit chaos scénáře A–G a následně Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
-5. multilingual 0.9 acceptance je dokončený a produkčně PASS; v pondělním ostrém testu už jen krátce ověřit, že české/anglické UI a běžný lesson flow neutrpěly regresi, bez znovuotevírání locale architektury;
-6. **live billing je veřejný a lifecycle e-maily mají produkční E2E acceptance COMPLETE / PASS**; správa předplatného po 0.9.23/0.9.25 načítá produkční stav správně a admin UX je ručně ověřený PASS. LIVE restricted key permissions byly doplněny a read cesta je produkčně ověřená. Další billing acceptance krok je první skutečná změna tarifu, která ověří write/schedule cestu; změna země/měny zůstává řízená. Team / School / Campus jsou veřejně prodejné;
-7. rozšířit již existující CZ/EN ukázkový balíček na **5–10 veřejných lekcí** napříč věkem/předměty; současný lifecycle Showcase má funkční CZ/EN distribuční základ a sjednocené UTM, takže další krok je rozšíření témat a organické vyhodnocení výkonu, nikoli stavba share infrastruktury od nuly;
-8. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
-9. dokončit **V1.1 školní billing acceptance** bez opakování již uzavřených V1 testů: finální card Checkout E2E, owner pohled po bankovní úhradě, bankovní renewal, případně Stripe cancel/restore; potom cleanup sandbox `Test School`, vrácení `loubek@icloud.com` na `user/free`, návrat do interní `Testovací školy` a finální rozhodnutí o veřejném Team/School/Campus self-service. Automatický `bank_match` backend je připravený, ale Air Bank/open-banking provider zatím není připojený;
-10. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`.
+1. **školní prodej (Team / School / Campus je veřejně prodejný od 2026-09-20):** 25. 9. ověřena ostrá objednávka kartou až na platební stránku Stripe a aktivace po `invoice.paid` na dočasné Neon větvi. Zbývá první skutečná platba kartou (doručení `invoice.paid` s metadaty organizace), nákup fakturou včetně spárování avíza Air Bank přes Resend (`/api/billing/bank/resend`, nasazené, na reálné platbě neověřené), bankovní obnova a případně Stripe cancel/restore. Sandbox organizace `Test School` už v DB není;
+2. **individuální billing:** první skutečná změna tarifu ověří zápisovou cestu přes `subscription_schedules` (LIVE klíč má od 25. 9. Subscriptions Write); změna země/měny zůstává řízená;
+3. **live vrstva:** dokončit chaos scénáře A–G (`LIVE_RESILIENCE.md`), Cloudflare deployment automation, observability a oddělený `LIVE_RESUME_SECRET`;
+4. rozšířit již existující CZ/EN ukázkový balíček na **5–10 veřejných lekcí** napříč věkem/předměty; současný lifecycle Showcase má funkční CZ/EN distribuční základ a sjednocené UTM, takže další krok je rozšíření témat a organické vyhodnocení výkonu, nikoli stavba share infrastruktury od nuly;
+5. po spuštění ukázkového balíčku nechat GA4 nasbírat reálná data a dokončit funnel reporting nad `signup_completed → lesson_generation_completed → live_session_started → subscription_activated`; zkontrolovat i `ui_locale`, `lesson_language`, `plan`, `billing_country` a `source`;
+6. před veřejným prohlášením WCAG 2.2 AA provést manuální WCAG-EM evaluaci podle `ACCESSIBILITY.md`;
+7. **navazující body auditu (2026-09-25):** rozhodnutí vlastníka o supabasových větvích v kódu (A1: nechat / odstraňovat po oblastech / nechat natrvalo); SEC-002 AI část (samostatný `AI_GATEWAY_API_KEY` pro Preview); SEC-007 (ověřit kontrolu uniklých hesel v Neon Auth); `.env.example` má stále `DATABASE_BACKEND=supabase`, takže lokální spuštění podle README nejde na Neon.
 
-Security výjimky SEC-002/007 znovu otevřít při změně předpokladů. Případný odchod od Supabase by zároveň odstranil dnešní SEC-002 architektonický důvod pro sdílený Supabase trust boundary, ale nesmí se předjímat před pondělním rozhodovacím bodem.
+SEC-002 a SEC-007 byly po přechodu na Neon přehodnoceny (audit C8, 2026-09-25); aktuální stav je v sekci Accepted / deferred.

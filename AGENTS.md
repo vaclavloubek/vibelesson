@@ -41,7 +41,7 @@ Používej cyklus:
 
 - Standardně: pracovní branch → cílené testy → povinné checky/Preview/CI → PR → merge. Žádný force update `main`.
 - Před finálním merge znovu ověř HEAD `main` a zachovej paralelní změny.
-- Při Supabase zásahu nejdřív ověř skutečný produkční DB stav. DDL pouze přes migration workflow, pokud možno backward-compatible; po DDL spusť relevantní security/performance advisories.
+- Při zásahu do produkční databáze (Neon) nejdřív ověř skutečný produkční DB stav. DDL pouze přes migrace v `neon/migrations`, nejdřív vyzkoušené na dočasné Neon větvi, pokud možno backward-compatible; po DDL zkontroluj práva, RLS a `search_path` (`scripts/neon/security-audit.mjs`) a obnov schema cache Data API, pokud se změnilo něco volaného přes Data API.
 - Security, permissions, quota a placené entitlementy vynucuj serverově/databázově, ne klientským stavem.
 - Secrets nikdy do repozitáře ani klienta.
 - Nedělej destruktivní testy na produkci.
