@@ -441,6 +441,9 @@
 
 .checkoutDialog {
   width: min(520px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 26px;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -548,6 +551,7 @@
   }
 
   .checkoutDialog {
+    max-height: calc(100dvh - 20px);
     padding: 22px;
     border-radius: 18px;
   }
