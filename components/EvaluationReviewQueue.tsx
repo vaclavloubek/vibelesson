@@ -4,6 +4,12 @@ import { trackEvent, trackEventOnce, type ActivityType } from '@/lib/analytics';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { localizedApiError } from '@/lib/i18n';
+import {
+  GRADING_QUEUE_EVENT,
+  manualGradingStatusText,
+  type GradingQueueEventDetail,
+  type ManualGradingReason,
+} from '@/lib/ai-grading-quota-communication';
 
 type EvaluationStatus = 'pending' | 'grading' | 'graded' | 'needs_review' | 'failed';
 type GradingMode = 'ai' | 'manual';
@@ -36,6 +42,7 @@ type QueueEvaluation = {
   evaluatedAt: string | null;
   createdAt: string;
   manualOnly: boolean;
+  manualReason?: ManualGradingReason | null;
 };
 
 type ReviewPatch = {
@@ -186,7 +193,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
   evaluation: QueueEvaluation;
   sessionId: string;
   onReviewed: (patch: ReviewPatch) => void;
-  onRequeued: (evaluationId: string, gradingMode: GradingMode) => void;
+  onRequeued: (evaluationId: string, gradingMode: GradingMode, manualReason: ManualGradingReason | null) => void;
 }) {
   const english = useUiLocale() === 'en';
   const ui = (cs: string, en: string) => english ? en : cs;
@@ -206,11 +213,20 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
       const response = await fetch(`/api/sessions/${sessionId}/evaluations/${evaluation.id}/regrade`, {
         method: 'POST',
       });
-      const data = await response.json() as { requeued?: boolean; gradingMode?: GradingMode; error?: string };
+      const data = await response.json() as {
+        requeued?: boolean;
+        gradingMode?: GradingMode;
+        aiBillingPaused?: boolean;
+        manualReason?: ManualGradingReason | null;
+        error?: string;
+      };
       if (!response.ok || !data.requeued || !data.gradingMode) {
         throw new Error(localizedApiError(data.error, english ? 'en' : 'cs', 'Novější verzi se nepodařilo připravit k hodnocení.', 'The newer version could not be prepared for grading.'));
       }
-      onRequeued(evaluation.id, data.gradingMode);
+      const manualReason = data.gradingMode === 'ai'
+        ? null
+        : data.manualReason ?? (data.aiBillingPaused ? 'payment' : 'plan');
+      onRequeued(evaluation.id, data.gradingMode, manualReason);
     } catch (err) {
       setRegradeError(err instanceof Error ? err.message : ui('Novější verzi se nepodařilo připravit k hodnocení.', 'The newer version could not be prepared for grading.'));
     } finally {
@@ -256,7 +272,7 @@ function EvaluationItem({ evaluation, sessionId, onReviewed, onRequeued }: {
             {evaluation.teacherConfirmed
               ? ui('Potvrzeno učitelem.', 'Confirmed by teacher.')
               : evaluation.manualOnly
-                ? ui('Čeká na ruční hodnocení.', 'Waiting for manual grading.')
+                ? manualGradingStatusText(evaluation.manualReason ?? null, english)
                 : evaluation.aiUseSuspicion === 'high'
                   ? ui('Ke kontrole kvůli podezření na využití AI.', 'Needs review because of suspected AI use.')
                   : evaluation.status === 'needs_review'
@@ -396,7 +412,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
     )));
   }
 
-  function applyRequeue(evaluationId: string, gradingMode: GradingMode) {
+  function applyRequeue(evaluationId: string, gradingMode: GradingMode, manualReason: ManualGradingReason | null) {
     setEvaluations((current) => current.map((evaluation) => (
       evaluation.id === evaluationId
         ? {
@@ -407,6 +423,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
             latestSubmittedAt: null,
             status: gradingMode === 'ai' ? 'pending' : 'needs_review',
             manualOnly: gradingMode === 'manual',
+            manualReason: gradingMode === 'manual' ? manualReason : null,
             aiScore: null,
             teacherScore: null,
             rationale: null,
@@ -422,6 +439,21 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
         : evaluation
     )));
   }
+
+  const queueSignature = evaluations
+    .map((evaluation) => `${evaluation.id}:${evaluation.status}:${evaluation.manualReason ?? ''}`)
+    .join('|');
+
+  useEffect(() => {
+    if (!loaded) return;
+    const detail: GradingQueueEventDetail = {
+      sessionId,
+      signature: queueSignature,
+      manualReasons: evaluations.map((evaluation) => evaluation.manualReason ?? null),
+    };
+    window.dispatchEvent(new CustomEvent<GradingQueueEventDetail>(GRADING_QUEUE_EVENT, { detail }));
+    // evaluations is represented by queueSignature; re-announce only when it changes.
+  }, [loaded, queueSignature, sessionId]);
 
   if (!loaded) return null;
 

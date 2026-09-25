@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { after } from 'next/server';
 import { z } from 'zod';
 import { gradeResponseWithAI } from '@/lib/grading';
+import { drainAiGradingQuotaNotices } from '@/lib/marketing-lifecycle';
 import { createNeonSql } from '@/lib/neon/server';
 import { GradingCriterionSchema, LessonSchema } from '@/lib/schema';
 
@@ -136,7 +137,16 @@ export async function drainNeonGradingOutbox(budgetMs: number, lanes = 4) {
     }
   };
   await Promise.all(Array.from({ length: lanes }, lane));
-  return { processed };
+
+  // Grading claims record quota-exhaustion notices; a marketing failure must
+  // never fail grading.
+  let quotaNotices: Awaited<ReturnType<typeof drainAiGradingQuotaNotices>> | null = null;
+  try {
+    quotaNotices = await drainAiGradingQuotaNotices(20);
+  } catch (error) {
+    console.error('AI grading quota notice drain failed', { error: safeErrorMessage(error) });
+  }
+  return { processed, quotaNotices };
 }
 
 /**

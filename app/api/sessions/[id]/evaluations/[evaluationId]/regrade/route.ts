@@ -76,10 +76,12 @@ export async function POST(_req: Request, { params }: RouteContext) {
     }, { status: 409 });
   }
 
+  const gradingMode = aiGradingEnabled && !aiBillingPaused ? 'ai' : 'manual';
   return NextResponse.json({
     evaluationId,
     requeued: true,
-    gradingMode: aiGradingEnabled && !aiBillingPaused ? 'ai' : 'manual',
+    gradingMode,
     aiBillingPaused,
+    manualReason: gradingMode === 'ai' ? null : aiBillingPaused ? 'payment' : 'plan',
   });
 }
