@@ -86,8 +86,8 @@ export function getDpaDocument(locale: DpaLocale) {
       legalEntity: 'OpenAI Ireland Limited',
       address: '1st Floor, The Liffey Trust Centre, 117–126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland',
       contact: 'privacy@openai.com',
-      purpose: 'AI lesson generation/revision and AI evaluation/grading on routes that use OpenAI.',
-      dataScope: 'Prompts, lesson text and, where the controller uses AI grading, the student response and grading context needed for that operation.',
+      purpose: 'AI lesson generation/revision, AI evaluation/grading and Syllonaut Help answers on routes that use OpenAI.',
+      dataScope: 'Prompts, lesson text and, where the controller uses AI grading, the student response and grading context needed for that operation. For Syllonaut Help: the teacher’s question, the earlier messages in the open Help panel and the teacher’s plan and allowance usage; Syllonaut does not store the conversation text.',
       transfer: 'Current Syllonaut AI routes enforce zero data retention at the Vercel AI Gateway layer. Any transfer outside the EEA must be covered by an applicable Chapter V GDPR mechanism.',
     },
     {
@@ -161,8 +161,8 @@ export function getDpaDocument(locale: DpaLocale) {
       legalEntity: 'OpenAI Ireland Limited',
       address: '1st Floor, The Liffey Trust Centre, 117–126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland',
       contact: 'privacy@openai.com',
-      purpose: 'AI tvorba/úpravy lekcí a AI hodnocení na cestách, které používají OpenAI.',
-      dataScope: 'Prompty, text lekce a při využití AI hodnocení také studentská odpověď a hodnoticí kontext nutný pro danou operaci.',
+      purpose: 'AI tvorba/úpravy lekcí, AI hodnocení a odpovědi Nápovědy Syllonautu na cestách, které používají OpenAI.',
+      dataScope: 'Prompty, text lekce a při využití AI hodnocení také studentská odpověď a hodnoticí kontext nutný pro danou operaci. U Nápovědy Syllonautu dotaz učitele, předchozí zprávy z otevřeného panelu Nápovědy a údaje o tarifu a čerpání limitů učitele; text konverzace Syllonaut neukládá.',
       transfer: 'Současné AI cesty Syllonautu vynucují na úrovni Vercel AI Gateway zero data retention. Případné předání mimo EHP musí být kryto použitelným mechanismem podle kapitoly V GDPR.',
     },
     {
@@ -197,7 +197,7 @@ export function getDpaDocument(locale: DpaLocale) {
     {
       heading: '2. Subject matter, duration, nature and purpose of processing',
       paragraphs: [
-        'Syllonaut processes personal data on behalf of the Controller to provide, secure and support the organisation or individual teacher account, lesson authoring and sharing, live classroom sessions, student participation, responses and results, teacher administration and, where enabled and requested, AI-assisted lesson operations and AI evaluation.',
+        'Syllonaut processes personal data on behalf of the Controller to provide, secure and support the organisation or individual teacher account, lesson authoring and sharing, live classroom sessions, student participation, responses and results, teacher administration and, where enabled and requested, AI-assisted lesson operations and AI evaluation, and, where included in the plan, Syllonaut Help (AI answers to teachers’ questions about using the app, plans and allowances).',
         'Processing lasts for the duration of the organisation or individual service relationship and for the limited period needed to return or delete Controller Data after termination, unless Union or Member State law requires continued storage.',
       ],
     },
@@ -291,7 +291,7 @@ export function getDpaDocument(locale: DpaLocale) {
     {
       heading: '2. Předmět, doba, povaha a účel zpracování',
       paragraphs: [
-        'Syllonaut zpracovává osobní údaje jménem Správce za účelem poskytování, zabezpečení a podpory účtu organizace nebo individuálního účtu učitele, tvorby a sdílení lekcí, živých výukových sessions, zapojení studentů, odpovědí a výsledků, správy učitelů a – pokud je funkce zapnuta a Správcem vyžádána – AI operací nad lekcemi a AI hodnocení.',
+        'Syllonaut zpracovává osobní údaje jménem Správce za účelem poskytování, zabezpečení a podpory účtu organizace nebo individuálního účtu učitele, tvorby a sdílení lekcí, živých výukových sessions, zapojení studentů, odpovědí a výsledků, správy učitelů a – pokud je funkce zapnuta a Správcem vyžádána – AI operací nad lekcemi a AI hodnocení a – je-li součástí tarifu – Nápovědy Syllonautu (odpovědi AI na dotazy učitelů k ovládání aplikace, tarifům a limitům).',
         'Zpracování trvá po dobu smluvního vztahu organizace nebo individuálního účtu a po omezenou dobu nezbytnou k vrácení nebo výmazu dat Správce po ukončení, ledaže právo EU nebo členského státu vyžaduje další uchování.',
       ],
     },
