@@ -10,6 +10,7 @@ import {
 } from '@/lib/organization-billing-catalog';
 import { createOrganizationQuotePdfBuffer } from '@/lib/organization-quote-pdf';
 import { readProfileRole } from '@/lib/neon/profile-role';
+import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -62,10 +63,7 @@ export async function POST(request: Request) {
 
   const role = await readProfileRole(userId);
 
-  if (
-    process.env.STRIPE_LIVE_SCHOOL_BILLING_PUBLIC_ENABLED !== 'true'
-    && role !== 'admin'
-  ) {
+  if (!isPublicSchoolBillingEnabled() && role !== 'admin') {
     return NextResponse.json({ error: 'school_live_billing_not_public' }, { status: 403 });
   }
 
