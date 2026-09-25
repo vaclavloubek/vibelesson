@@ -309,6 +309,83 @@ export function streamHelpAnswer(input: {
   return { text: result.textStream, cost, failed: () => errored, endInfo: () => endInfo };
 }
 
+export type HelpStreamTiming = {
+  firstDeltaMs: number | null;
+  lastDeltaMs: number | null;
+  deltas: number;
+  totalMs: number;
+  end: HelpStreamEndInfo | null;
+};
+
+// Response body for the chat route: model text through the output filter,
+// then the request is finished with its cost and topic.
+//
+// pull() must enqueue something or finish before it returns. A pull that
+// returns empty-handed (the filter held back a [[...]] line) is never called
+// again while the browser waits on its single read, so the stream would hang
+// until the platform kills the function. Hence the loop.
+export function createHelpResponseBody(input: {
+  answer: HelpStreamResult;
+  abort: AbortController;
+  finish: (status: 'succeeded' | 'failed', costUsd: number | null, topic: HelpTopic | null) => Promise<void>;
+  logTiming: (outcome: string, timing: HelpStreamTiming) => void;
+}) {
+  const { answer, abort, finish, logTiming } = input;
+  const filter = createHelpOutputFilter();
+  const encoder = new TextEncoder();
+  const iterator = answer.text[Symbol.asyncIterator]();
+  const startedAt = Date.now();
+  let firstDeltaMs: number | null = null;
+  let lastDeltaMs: number | null = null;
+  let deltas = 0;
+  const timing = (): HelpStreamTiming => ({
+    firstDeltaMs,
+    lastDeltaMs,
+    deltas,
+    totalMs: Date.now() - startedAt,
+    end: answer.endInfo(),
+  });
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        while (true) {
+          const next = await iterator.next();
+          if (next.done) break;
+          const now = Date.now() - startedAt;
+          if (firstDeltaMs === null) firstDeltaMs = now;
+          lastDeltaMs = now;
+          deltas += 1;
+          const out = filter.push(next.value);
+          if (out) {
+            controller.enqueue(encoder.encode(out));
+            return;
+          }
+        }
+        const tail = filter.flush();
+        if (tail) controller.enqueue(encoder.encode(tail));
+        const cost = await Promise.race([
+          answer.cost,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ]);
+        const ok = !answer.failed() && filter.hasVisibleText();
+        await finish(ok ? 'succeeded' : 'failed', cost, filter.topic());
+        logTiming(ok ? 'succeeded' : 'failed', timing());
+        controller.close();
+      } catch {
+        await finish('failed', null, null);
+        logTiming('stream_error', timing());
+        controller.error(new Error('help_stream_failed'));
+      }
+    },
+    async cancel() {
+      abort.abort();
+      await finish('failed', null, null);
+      logTiming('client_cancelled', timing());
+    },
+  });
+}
+
 // Streams the model text through unchanged, except whole lines that look like
 // [[...]] tokens: allowed actions pass, the topic line is removed and recorded,
 // anything else is dropped. Token lines are held until complete, so a partial

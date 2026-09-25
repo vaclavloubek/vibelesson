@@ -43,5 +43,5 @@
     "lib/session-access-reader.ts",
     "lib/neon/**/*.ts"
   ],
-  "exclude": ["node_modules", "supabase/functions", "cloudflare/live-control"]
+  "exclude": ["node_modules", "cloudflare/live-control"]
 }

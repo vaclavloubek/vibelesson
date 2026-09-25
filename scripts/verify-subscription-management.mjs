@@ -81,6 +81,6 @@ requireText(webhookRoute, 'canonicalStripeSubscriptionState', 'LIVE subscription
 requireText(portalRoute, "returnPath: z.enum(['pricing', 'subscription'])", 'Stripe Portal must support returning to subscription management.');
 requireText(pricing, '/subscription', 'paid Pricing management CTA must route through Syllonaut management.');
 requireText(email, 'const subscriptionUrl =', 'lifecycle emails must link active subscription management to the dedicated page.');
-requireText(version, "APP_VERSION = '0.9.140'", 'the current public release must publish dashboard version 0.9.140.');
+requireText(version, "APP_VERSION = '0.9.150'", 'the current public release must publish dashboard version 0.9.150.');
 
 console.log('Subscription management checks passed.');

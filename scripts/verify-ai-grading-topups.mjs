@@ -92,8 +92,8 @@ for (const needle of ['12 měsíců od potvrzení platby', 'nejdříve ten, jeho
 requireText(read('app/terms/page.tsx'), '{TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE ? (', 'Terms page renders 5a only when active');
 requireText(read('lib/individual-contract-snapshot.ts'), "throw new Error('topup_terms_not_active');", 'pack snapshot refuses inactive Terms');
 
-// 6. Database contract (neon/migrations/0018).
-const migration = read('neon/migrations/0018_ai_grading_topups.sql');
+// 6. Database contract (neon/migrations/0019).
+const migration = read('neon/migrations/0019_ai_grading_topups.sql');
 for (const [needle, label] of [
   ['create table if not exists private.ai_grading_credit_grants', 'grant ledger'],
   ['external_checkout_session_id text not null unique', 'one grant per Checkout Session'],

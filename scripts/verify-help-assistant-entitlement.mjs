@@ -68,7 +68,12 @@ check(allowance.includes("v_role = 'admin'") && allowance.includes('v_org_plan.m
 
 const planValues = migration.slice(migration.indexOf('from (values'), migration.indexOf(') as v(code, enabled'));
 const enabledPlans = [...planValues.matchAll(/\('([a-z_]+)', (true|false)/g)].filter((m) => m[2] === 'true').map((m) => m[1]);
-check(JSON.stringify(enabledPlans) === JSON.stringify(['admin']), 'only the admin plan has the assistant enabled for now');
+check(JSON.stringify(enabledPlans) === JSON.stringify(['admin']), 'migration 0017 enables only the admin plan');
+const paidPlans = read('neon/migrations/0018_help_assistant_paid_plans.sql');
+const enabledIn0018 = (paidPlans.match(/where code in \(([^)]*)\)/) ?? [])[1]?.match(/'([a-z_]+)'/g)?.map((code) => code.slice(1, -1)) ?? [];
+check(JSON.stringify(enabledIn0018) === JSON.stringify(['teacher', 'teacher_pro', 'school', 'campus']),
+  'migration 0018 enables Help exactly for Teacher, Teacher Pro, School and Campus (not Free or Team)');
+check(paidPlans.includes('private.recompute_current_profile_entitlements(p.id)'), 'migration 0018 recomputes profiles through apply_profile_plan');
 const applyPlan = functionBody(migration, 'private.apply_profile_plan');
 check(applyPlan.includes('help_assistant_enabled = true,') && applyPlan.includes('v_help := v_plan.help_assistant_enabled or v_org_help;'),
   'apply_profile_plan derives help_assistant_enabled (admin always true)');
@@ -94,11 +99,46 @@ check(actions.parseHelpActionToken('[[link:https://evil.example]]') === null, 'a
 check(actions.parseHelpActionToken('[[link:admin]]') === null, 'unknown link is rejected');
 check(actions.parseHelpTopicToken('[[topic:billing]]') === 'billing' && actions.parseHelpTopicToken('[[topic:secret]]') === null, 'topic token is validated');
 check(assistant.includes('parseHelpActionToken(current)') && assistant.includes('parseHelpTopicToken(current)'), 'server output filter drops tokens outside the allowlist');
-check(chatRoute.includes('createHelpOutputFilter()'), 'chat route streams through the output filter');
+check(chatRoute.includes('createHelpResponseBody({') && assistant.includes('const filter = createHelpOutputFilter();'), 'chat route streams through the output filter');
 check(component.includes('guideTargetPresent') && component.includes('document.querySelector(`[data-tour="${step.target}"]`)'),
   'guide buttons render only when the data-tour target is on the page');
 check(component.includes('startSyllonautGuide(userId, action.chapter, action.step)'), 'guide action starts the existing guide');
 check(APPROVED_TOPICS.every((topic) => migration.includes(`'${topic}'`)), 'DB topic check matches the approved topics');
+
+// 2b. The response body finishes when the answer ends with hidden token lines.
+// Regression: a pull() that enqueued nothing was never called again, so the
+// stream hung until the 60 s platform limit and the request stayed pending.
+{
+  const { registerHooks } = await import('node:module');
+  registerHooks({
+    resolve(spec, ctx, next) {
+      if (spec === 'server-only') return { url: 'data:text/javascript,', shortCircuit: true };
+      if (spec.startsWith('@/')) return next(pathToFileURL(path.resolve(spec.slice(2) + '.ts')).href, ctx);
+      return next(spec, ctx);
+    },
+  });
+  const { createHelpResponseBody } = await import(pathToFileURL(path.resolve('lib/help-assistant.ts')).href);
+  const chunks = ['Klikněte na „Upravit blok“.', '\n', '[[', 'guide:lesson:4]]', '\n', '[[topic', ':edit]]'];
+  const finished = [];
+  const body = createHelpResponseBody({
+    answer: {
+      text: (async function* () { for (const chunk of chunks) yield chunk; })(),
+      cost: Promise.resolve(0.001),
+      failed: () => false,
+      endInfo: () => null,
+    },
+    abort: new AbortController(),
+    finish: async (status, cost, topic) => { finished.push({ status, cost, topic }); },
+    logTiming: () => undefined,
+  });
+  const result = await Promise.race([
+    new Response(body).text(),
+    new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
+  ]);
+  check(result === 'Klikněte na „Upravit blok“.\n[[guide:lesson:4]]\n', `response body completes after hidden token lines (got ${JSON.stringify(result)})`);
+  check(finished.length === 1 && finished[0].status === 'succeeded' && finished[0].topic === 'edit' && finished[0].cost === 0.001,
+    'request is finished once with status, cost and topic');
+}
 
 // 3. No conversation text in the database or logs.
 const tableStart = migration.indexOf('create table if not exists public.help_assistant_requests');
