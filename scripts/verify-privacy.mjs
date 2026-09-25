@@ -42,7 +42,10 @@ requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'mark
 requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
 // LEGAL-022: Privacy Notice 1.7 matches the production infrastructure.
-requirePattern(gdpr, /Verze 1\.8/, 'Privacy Notice version 1.8 is missing.');
+requirePattern(gdpr, /Verze 1\.9/, 'Privacy Notice version 1.9 is missing.');
+requirePattern(gdpr, /Nápověda Syllonautu:/, 'Privacy Notice must describe Syllonaut Help processing.');
+requirePattern(gdpr, /Text konverzace neukládáme/, 'Privacy Notice must state that Help conversations are not stored.');
+requirePattern(gdpr, /Záznamy o použití Nápovědy Syllonautu \(bez textu konverzace\)/, 'Privacy Notice must state the Help usage-record retention.');
 requirePattern(gdpr, /__Secure-neon-auth\.session_token/, 'the Neon Auth session cookie must be listed.');
 if (/sb-…-auth-token|Supabase \{ui\('autentizační cookies'/.test(gdpr)) throw new Error('Privacy regression: the retired Supabase auth cookie must not be listed.');
 for (const needle of ['syllonaut_locale', 'syllonaut_device_v1', 'ep_participant_', 'IndexedDB', 'sessionStorage']) {

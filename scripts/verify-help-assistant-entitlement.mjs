@@ -68,7 +68,12 @@ check(allowance.includes("v_role = 'admin'") && allowance.includes('v_org_plan.m
 
 const planValues = migration.slice(migration.indexOf('from (values'), migration.indexOf(') as v(code, enabled'));
 const enabledPlans = [...planValues.matchAll(/\('([a-z_]+)', (true|false)/g)].filter((m) => m[2] === 'true').map((m) => m[1]);
-check(JSON.stringify(enabledPlans) === JSON.stringify(['admin']), 'only the admin plan has the assistant enabled for now');
+check(JSON.stringify(enabledPlans) === JSON.stringify(['admin']), 'migration 0017 enables only the admin plan');
+const paidPlans = read('neon/migrations/0018_help_assistant_paid_plans.sql');
+const enabledIn0018 = (paidPlans.match(/where code in \(([^)]*)\)/) ?? [])[1]?.match(/'([a-z_]+)'/g)?.map((code) => code.slice(1, -1)) ?? [];
+check(JSON.stringify(enabledIn0018) === JSON.stringify(['teacher', 'teacher_pro', 'school', 'campus']),
+  'migration 0018 enables Help exactly for Teacher, Teacher Pro, School and Campus (not Free or Team)');
+check(paidPlans.includes('private.recompute_current_profile_entitlements(p.id)'), 'migration 0018 recomputes profiles through apply_profile_plan');
 const applyPlan = functionBody(migration, 'private.apply_profile_plan');
 check(applyPlan.includes('help_assistant_enabled = true,') && applyPlan.includes('v_help := v_plan.help_assistant_enabled or v_org_help;'),
   'apply_profile_plan derives help_assistant_enabled (admin always true)');
