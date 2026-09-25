@@ -28,6 +28,8 @@ npm install
 npm run dev
 ```
 
+Lokální vývoj i Vercel Preview pracují s Neon větví `preview`: má schéma a katalog tarifů, ale žádná produkční data. Připojovací řetězec, Auth URL a Data API URL této větve vezmi z Neon Console a doplň je do `.env.local`. Na produkční větev se lokálně nepřipojuj. Turnstile používá testovací klíče Cloudflare z `.env.example`; testovací účet si vytvoř registrací (ověřovací kód přijde e-mailem od Neon Auth).
+
 Pro lokální AI nastav `AI_GATEWAY_API_KEY`. Model lze změnit přes `AI_MODEL`; výchozí je `openai/gpt-5.6-sol`.
 
 ## Architektura
