@@ -442,6 +442,10 @@
 .checkoutDialog {
   width: min(520px, 100%);
   max-height: calc(100dvh - 40px);
+  display: flex;
+  flex-direction: column;
+  /* Only the legal text shrinks and scrolls; the dialog itself scrolls only
+     when even its minimum height does not fit (e.g. a phone in landscape). */
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 26px;
@@ -470,6 +474,30 @@
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.checkoutDialog > * {
+  flex-shrink: 0;
+}
+
+.checkoutDialog > .checkoutLegal {
+  flex-shrink: 1;
+  min-height: 96px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #f7f6f3;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.checkoutLegal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .checkoutField {
