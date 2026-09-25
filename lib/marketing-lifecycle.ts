@@ -4,6 +4,7 @@ import { getCurrentOrganizationForUser } from '@/lib/organizations';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
 import { createNeonSql } from '@/lib/neon/server';
+import { marketingFailureOperation, recordMarketingLifecycleFailure } from '@/lib/marketing-failures';
 
 const RESEND_API_BASE = 'https://api.resend.com';
 const RESEND_REQUEST_TIMEOUT_MS = 8_000;
@@ -57,13 +58,22 @@ async function delay(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Every Resend failure is counted for the operator's daily digest (audit B6).
+async function recordedResendFailure(operation: string, code: string) {
+  await recordMarketingLifecycleFailure(operation, code);
+  return new MarketingLifecycleError(code);
+}
+
 async function resendRequest(
   path: string,
   init: RequestInit,
   options: { allowNotFound?: boolean } = {},
 ): Promise<Response | null> {
+  const operation = marketingFailureOperation(init.method, path);
+  const fail = (code: string) => recordedResendFailure(operation, code);
+
   const apiKey = resendApiKey();
-  if (!apiKey) throw new MarketingLifecycleError('resend_api_key_missing');
+  if (!apiKey) throw await fail('resend_api_key_missing');
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     let response: Response;
@@ -83,7 +93,7 @@ async function resendRequest(
         await delay(150);
         continue;
       }
-      throw new MarketingLifecycleError('resend_network_error');
+      throw await fail('resend_network_error');
     }
 
     if (options.allowNotFound && response.status === 404) return null;
@@ -94,10 +104,10 @@ async function resendRequest(
       continue;
     }
 
-    throw new MarketingLifecycleError(`resend_http_${response.status}`);
+    throw await fail(`resend_http_${response.status}`);
   }
 
-  throw new MarketingLifecycleError('resend_request_failed');
+  throw await fail('resend_request_failed');
 }
 
 async function loadMarketingContext(userId: string): Promise<MarketingContext | null> {
@@ -172,7 +182,7 @@ async function getResendContact(email: string): Promise<ResendContact | null> {
 
   const payload = await response.json().catch(() => null) as ResendContact | null;
   if (!payload || typeof payload !== 'object') {
-    throw new MarketingLifecycleError('resend_contact_response_invalid');
+    throw await recordedResendFailure('GET /contacts/:email', 'resend_contact_response_invalid');
   }
   return payload;
 }
@@ -200,7 +210,7 @@ async function createResendContact(context: MarketingContext) {
       },
     }),
   });
-  if (!response) throw new MarketingLifecycleError('resend_contact_create_failed');
+  if (!response) throw await recordedResendFailure('POST /contacts', 'resend_contact_create_failed');
 }
 
 async function ensureMarketingContact(
