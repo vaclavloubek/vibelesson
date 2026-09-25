@@ -8,7 +8,7 @@ function requireText(content, needle, label) {
   if (!content.includes(needle)) throw new Error(`onboarding guide regression: missing ${label}`);
 }
 
-const guide = read('components/SyllonautGuide.tsx');
+const guide = read('components/SyllonautGuide.tsx') + read('lib/onboarding-guide-steps.ts');
 const state = read('lib/onboarding-guide.ts');
 const workspace = read('components/LessonWorkspace.tsx');
 const preview = read('components/LessonPreview.tsx');
