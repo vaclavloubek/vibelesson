@@ -1,8 +1,11 @@
 'use server';
 
 import { after } from 'next/server';
+import { cookies } from 'next/headers';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
 import { createServerAuth } from '@/lib/neon/auth';
+import { NEON_AUTH_SESSION_DATA_COOKIE } from '@/lib/neon/auth-cookies';
+import { getVerifiedNeonSession } from '@/lib/neon/request-client';
 import { createNeonSql } from '@/lib/neon/server';
 import { verifyNeonAuthChallenge } from '@/lib/neon/turnstile';
 import { ensureTrustedDeviceCookie } from '@/lib/trusted-device-access';
@@ -14,6 +17,16 @@ type SignInResult = AuthActionResult & { needsVerification?: boolean };
 type SignupResult = AuthActionResult & { checkEmail?: boolean };
 type NeonAppUser = { id: string; email: string; name?: string };
 
+/**
+ * A sign-in replaces the session cookie, but the library's signed session_data
+ * copy is re-minted only when an extra upstream call succeeds. Dropping the old
+ * copy first means a failed re-mint cannot leave the previous account's copy
+ * next to the new session; a successful re-mint overrides this deletion.
+ */
+async function dropSessionDataCopy() {
+  (await cookies()).delete(NEON_AUTH_SESSION_DATA_COOKIE);
+}
+
 function neonAppAuthIsAvailable() {
   if (getDatabaseBackend() !== 'neon') return false;
   assertApprovedNeonCutover();
@@ -23,7 +36,7 @@ function neonAppAuthIsAvailable() {
 export async function getNeonAppUser(): Promise<NeonAppUser | null> {
   if (!neonAppAuthIsAvailable()) return null;
   try {
-    const { data } = await createServerAuth().getSession();
+    const { data } = await getVerifiedNeonSession();
     const user = data?.user;
     return user?.id && user.email
       ? { id: user.id, email: user.email, name: user.name }
@@ -37,6 +50,7 @@ export async function signInWithNeonForApp(email: string, password: string, chal
   if (!neonAppAuthIsAvailable()) return { error: 'Neon Auth is not active for this deployment.' };
   if (!(await verifyNeonAuthChallenge(challenge, 'signin'))) return { error: 'Security verification failed.' };
   try {
+    await dropSessionDataCopy();
     const { error } = await createServerAuth().signIn.email({ email, password });
     if (!error) {
       await ensureTrustedDeviceCookie();
@@ -82,6 +96,7 @@ export async function verifyNeonEmailForApp(email: string, code: string): Promis
     // only the first verification completes the signup and starts onboarding.
     const pendingUserId = await findUnverifiedNeonUserId(normalizedEmail);
     // Neon Auth limits wrong attempts per code; the user can request a new one.
+    await dropSessionDataCopy();
     const { data, error } = await createServerAuth().emailOtp.verifyEmail({ email: normalizedEmail, otp });
     if (error) return { error: 'Invalid verification code.' };
     if (pendingUserId) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerAuth } from '@/lib/neon/auth';
 import { assertApprovedNeonCutover, getDatabaseBackend } from '@/lib/neon/config';
+import { readNeonSessionTokenCookie, withHostOnlyNeonAuthCookies } from '@/lib/neon/auth-cookies';
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -39,10 +40,19 @@ async function handle(method: HandlerMethod, request: Request, context: RouteCon
     return NextResponse.json({ error: 'Use the application authentication form.' }, { status: 403 });
   }
 
+  // Two session cookies of the same name (legacy `Domain=` and host-only
+  // variants) would be forwarded upstream as whichever one the parser keeps,
+  // which may belong to an account that already signed out. proxy.ts expires
+  // the legacy variant on this response; the next request is unambiguous.
+  if (readNeonSessionTokenCookie(request.headers.get('cookie')).state === 'ambiguous') {
+    return NextResponse.json({ error: 'Session is ambiguous. Please retry.' }, { status: 401 });
+  }
+
   // Managed Neon Auth may scope its upstream cookie to the Neon hostname.
-  // Re-home proxied cookies to the exact Preview host so the browser keeps them.
-  const handlers = createServerAuth(new URL(request.url).hostname).handler();
-  return handlers[method](request, context);
+  // Re-home proxied cookies as host-only cookies, the same scope the sign-in
+  // and sign-out server actions use, so there is only ever one copy.
+  const handlers = createServerAuth().handler();
+  return withHostOnlyNeonAuthCookies(await handlers[method](request, context));
 }
 
 export function GET(request: Request, context: RouteContext) {

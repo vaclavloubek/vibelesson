@@ -1,13 +1,13 @@
 import 'server-only';
 
 import { createHash } from 'node:crypto';
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import { createClient as createNeonClient } from '@neondatabase/neon-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerAuth } from '@/lib/neon/auth';
+import { readNeonSessionTokenCookie } from '@/lib/neon/auth-cookies';
 import { createNeonSql } from '@/lib/neon/server';
 
-const SESSION_COOKIE_SUFFIX = 'neon-auth.session_token';
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 const pendingTokens = new Map<string, Promise<string | null>>();
 
@@ -22,21 +22,29 @@ function jwtExpiry(token: string) {
 }
 
 /**
+ * The session cookie exactly as Neon Auth receives it: the library reads the
+ * request Cookie header, so this must too (not the cookie store, which also
+ * reflects cookies set earlier in the same server action).
+ */
+async function requestSessionCookie() {
+  return readNeonSessionTokenCookie((await headers()).get('cookie'));
+}
+
+function sessionCacheKey(cookieValue: string) {
+  return createHash('sha256').update(cookieValue).digest('hex');
+}
+
+/**
  * One Neon Auth /token call per session until the JWT is about to expire.
  * The teacher live view polls several routes, each issuing several Data API
  * queries; minting a JWT per query made Neon Auth reject part of them.
  * Cached by a hash of the session cookie, so a token is only ever returned
- * to the session that minted it.
+ * to the session that minted it. An ambiguous cookie pair gets no token.
  */
-async function sessionCacheKey() {
-  const cookieStore = await cookies();
-  const session = cookieStore.getAll().find((cookie) => cookie.name.endsWith(SESSION_COOKIE_SUFFIX))?.value;
-  return session ? createHash('sha256').update(session).digest('hex') : null;
-}
-
 async function getSessionDataApiToken() {
-  const key = await sessionCacheKey();
-  if (!key) return null;
+  const cookie = await requestSessionCookie();
+  if (cookie.state !== 'single') return null;
+  const key = sessionCacheKey(cookie.value);
 
   const cached = tokenCache.get(key);
   if (cached && cached.expiresAt - 30_000 > Date.now()) return cached.token;
@@ -84,6 +92,36 @@ const SESSION_STALE_MS = 300_000;
 const sessionCache = new Map<string, { result: NeonSessionResult; verifiedAt: number }>();
 const pendingSessions = new Map<string, Promise<NeonSessionResult>>();
 
+const NO_SESSION = { data: null, error: null } as NeonSessionResult;
+
+function sessionTokenOf(result: NeonSessionResult) {
+  const token = (result.data?.session as { token?: unknown } | undefined)?.token;
+  return typeof token === 'string' ? token : null;
+}
+
+/**
+ * The library answers getSession() from its signed session_data cookie
+ * without checking that the copy belongs to the session cookie sent with it,
+ * so a copy left over from the previous account could name the wrong user.
+ * The copy is used only when it carries this cookie's session token;
+ * otherwise the session is verified upstream with the cookie itself.
+ */
+async function getSessionForCookie(token: string, hasSessionData: boolean): Promise<NeonSessionResult> {
+  const auth = createServerAuth();
+  if (hasSessionData) {
+    const fromCookieCache = await auth.getSession();
+    if (fromCookieCache.data?.user && sessionTokenOf(fromCookieCache) === token) return fromCookieCache;
+  }
+
+  const verified = await auth.getSession({ query: { disableCookieCache: 'true' } });
+  const verifiedToken = sessionTokenOf(verified);
+  if (verified.data?.user && verifiedToken !== null && verifiedToken !== token) {
+    console.error('Neon Auth session does not match the request session cookie');
+    return NO_SESSION;
+  }
+  return verified;
+}
+
 /**
  * The signed session_data cookie expires after sessionDataTtl and is not
  * refreshed for API requests, after which every call verified the session
@@ -91,10 +129,17 @@ const pendingSessions = new Map<string, Promise<NeonSessionResult>>();
  * Successful verifications are reused for 60 s per session (keyed by a hash
  * of the session cookie); a transient upstream failure falls back to the last
  * verification for up to 5 minutes. Signing out removes the cookie and key.
+ * Two session cookies at once (see lib/neon/auth-cookies.ts) resolve to no
+ * user; proxy.ts expires the legacy one on the same response.
  */
-async function getVerifiedNeonSession(): Promise<NeonSessionResult> {
-  const key = await sessionCacheKey();
-  if (!key) return createServerAuth().getSession();
+export async function getVerifiedNeonSession(): Promise<NeonSessionResult> {
+  const cookie = await requestSessionCookie();
+  if (cookie.state === 'ambiguous') {
+    console.warn('Neon Auth session cookie is ambiguous; treating the request as signed out');
+    return NO_SESSION;
+  }
+  if (cookie.state === 'none') return NO_SESSION;
+  const key = sessionCacheKey(cookie.value);
 
   const cached = sessionCache.get(key);
   if (cached && Date.now() - cached.verifiedAt < SESSION_CACHE_MS) return cached.result;
@@ -104,7 +149,7 @@ async function getVerifiedNeonSession(): Promise<NeonSessionResult> {
 
   const request = (async () => {
     try {
-      const result = await createServerAuth().getSession();
+      const result = await getSessionForCookie(cookie.token, cookie.hasSessionData);
       if (!result.error && result.data?.user) {
         if (sessionCache.size > 5_000) sessionCache.clear();
         sessionCache.set(key, { result, verifiedAt: Date.now() });
