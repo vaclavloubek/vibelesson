@@ -35,6 +35,6 @@ export const TERMS_PRODUCT_ACCESS_KEYS = [
 export const TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE: boolean = false;
 export const TERMS_AI_GRADING_TOPUP_TERMS_VERSION = '1.12';
 
-export const DPA_VERSION = '1.3';
-export const DPA_EFFECTIVE_DATE = '2026-09-24';
-export const DPA_ACCEPTANCE_KEY = '2026-09-24-dpa-v4';
+export const DPA_VERSION = '1.4';
+export const DPA_EFFECTIVE_DATE = '2026-09-25';
+export const DPA_ACCEPTANCE_KEY = '2026-09-25-dpa-v5';

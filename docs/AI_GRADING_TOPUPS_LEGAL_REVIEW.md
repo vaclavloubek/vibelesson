@@ -1,6 +1,6 @@
 # LEGAL-023 — Balíčky návrhů hodnocení od AI: podklad pro právní posouzení
 
-Stav: **připraveno, neaktivní** (interní verze 0.9.151). Nákup je za serverovým
+Stav: **připraveno, neaktivní** (interní verze 0.9.152). Nákup je za serverovým
 vypínačem `AI_GRADING_TOPUPS_ENABLED` (výchozí vypnuto) a zároveň ho blokuje
 `TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE = false` v `lib/legal.ts`. Dokud právník
 neposoudí body níže a vlastník projektu nepotvrdí výsledek, zůstává v produkci
