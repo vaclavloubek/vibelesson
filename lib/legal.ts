@@ -23,6 +23,6 @@ export const TERMS_PRODUCT_ACCESS_KEYS = [
   '2026-09-21-v4',
 ] as const;
 
-export const DPA_VERSION = '1.3';
-export const DPA_EFFECTIVE_DATE = '2026-09-24';
-export const DPA_ACCEPTANCE_KEY = '2026-09-24-dpa-v4';
+export const DPA_VERSION = '1.4';
+export const DPA_EFFECTIVE_DATE = '2026-09-25';
+export const DPA_ACCEPTANCE_KEY = '2026-09-25-dpa-v5';
