@@ -4,6 +4,11 @@ import { headers } from 'next/headers';
 
 type TurnstileAction = 'signin' | 'signup' | 'recovery' | 'verify';
 
+// Cloudflare's always-pass test secret, used by Vercel Preview and local
+// development. Its siteverify answer carries hostname "example.com" and no
+// action, so only `success` can be checked. Never accepted in production.
+const TURNSTILE_TEST_SECRET = '1x0000000000000000000000000000000AA';
+
 export async function verifyNeonAuthChallenge(token: string, action: TurnstileAction): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret || !token || token.length > 2048) return false;
@@ -26,6 +31,9 @@ export async function verifyNeonAuthChallenge(token: string, action: TurnstileAc
       action?: string;
       hostname?: string;
     };
+    if (secret === TURNSTILE_TEST_SECRET && process.env.VERCEL_ENV !== 'production') {
+      return result.success === true;
+    }
     return result.success === true
       && result.action === action
       && result.hostname?.toLowerCase() === expectedHost;

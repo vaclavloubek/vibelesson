@@ -175,6 +175,10 @@ requireText(neonGradingOutbox, 'security invoker', 'The grading outbox worker fu
 forbidText(neonGradingOutbox, 'net.http_post', 'Neon grading dispatch must not initiate HTTP from Postgres.');
 requireText(neonGradingWorker, 'finish_grading_job_v2', 'The Neon grading worker must retain validated grading completion.');
 requireText(neonGradingRoute, 'if (!isAuthorizedCronRequest(req))', 'The Neon grading cron route must require authorization.');
+const turnstile = read('lib/neon/turnstile.ts');
+requireText(turnstile, "if (secret === TURNSTILE_TEST_SECRET && process.env.VERCEL_ENV !== 'production') {", 'The Turnstile test secret must be accepted only outside production.');
+requireText(turnstile, "&& result.hostname?.toLowerCase() === expectedHost;", 'Real Turnstile tokens must stay bound to the request host.');
+requireText(envExample, 'DATABASE_BACKEND=neon', 'Local development must run against Neon (the preview branch), not the Supabase backup.');
 const cronAuth = read('lib/cron-auth.ts');
 requireText(cronAuth, 'timingSafeEqual(expected, actual)', 'Cron secret must be compared in constant time.');
 requireText(cronAuth, "if (!secret) return false;", 'Cron routes must fail closed without CRON_SECRET.');
