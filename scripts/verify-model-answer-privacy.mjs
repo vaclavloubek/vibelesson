@@ -34,7 +34,7 @@ const TEACHER_ONLY = ['modelAnswer', 'teacherNote', 'correctAnswer', 'gradingRub
     requireText(publicSchema, `${field}: true`, `PublicLessonBlockSchema must omit ${field}.`);
   }
 
-  for (const path of ['lib/neon/student-session-server.ts', 'lib/student-session-server.ts', 'supabase/functions/student-session/index.ts']) {
+  for (const path of ['lib/neon/student-session-server.ts', 'lib/student-session-server.ts']) {
     const text = source(path);
     const keys = text.match(/function publicBlock[\s\S]*?for \(const k(?:ey)? of \[([^\]]+)\]/)?.[1];
     if (!keys) fail(`${path} lost its publicBlock whitelist.`);
@@ -42,7 +42,7 @@ const TEACHER_ONLY = ['modelAnswer', 'teacherNote', 'correctAnswer', 'gradingRub
     for (const field of TEACHER_ONLY) {
       if (list.includes(field)) fail(`${path} publicBlock must not send ${field} to students.`);
     }
-    if (path !== 'supabase/functions/student-session/index.ts' && !list.includes('answerScaffold')) {
+    if (!list.includes('answerScaffold')) {
       fail(`${path} publicBlock must send answerScaffold to students.`);
     }
   }
@@ -71,10 +71,10 @@ const TEACHER_ONLY = ['modelAnswer', 'teacherNote', 'correctAnswer', 'gradingRub
 
 // 3. Grading: the scaffold is context, the model answer is never sent.
 {
-  for (const path of ['lib/grading.ts', 'app/api/internal/grading/jobs/route.ts', 'app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts', 'lib/neon/grading-outbox-worker.ts']) {
+  for (const path of ['lib/grading.ts', 'app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts', 'lib/neon/grading-outbox-worker.ts']) {
     forbidPattern(source(path), /modelAnswer/, `${path} must not pass the model answer into AI grading (the rubric stays the only standard).`);
   }
-  for (const path of ['app/api/internal/grading/jobs/route.ts', 'app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts', 'lib/neon/grading-outbox-worker.ts']) {
+  for (const path of ['app/api/sessions/[id]/evaluations/[evaluationId]/grade/route.ts', 'lib/neon/grading-outbox-worker.ts']) {
     requireText(source(path), 'answerScaffold: block.answerScaffold,', `${path} must pass the scaffold to grading as context.`);
   }
   requireText(source('lib/grading.ts'), 'Text osnovy není práce studenta a sám o sobě nezískává body.', 'grading prompt must say the scaffold earns no points.');

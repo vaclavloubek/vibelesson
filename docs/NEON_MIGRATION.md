@@ -152,7 +152,7 @@ Pracovní závěr: kořenem byl přechodný Auth/API stav po validaci JWT; sekve
 | `SECURITY DEFINER` výskyty v migracích | 280 | runtime metadata audit hotový; `PUBLIC EXECUTE` odstraněn, jednotlivé RPC grantovat až po kontrole actor/owner autorizace |
 | `auth.uid()` výskyty | 92 | Neon Data API / `pg_session_jwt`, ověřit typ UUID |
 | `auth.users` výskyty | 39 | přemapovat na `app_identity.users`; zachovat UUID |
-| Supabase Edge Functions | 0 volání v aplikačním runtime; 2 původní implementace zůstávají jen jako rollback reference | Vercel route/server moduly |
+| Supabase Edge Functions | 0 volání v aplikačním runtime; 2 původní implementace odstraněny 2026-09-25 (audit A3), zůstávají v historii gitu | Vercel route/server moduly |
 | Supabase Realtime klienti | 0 | Cloudflare Durable Object WebSocket + replay/polling |
 | `pg_net` / outbound HTTP | 3 aktivní dispatch cesty | soukromá DB fronta + Vercel Cron/worker |
 | Supabase Storage | nepoužívá se | žádná migrace souborů |

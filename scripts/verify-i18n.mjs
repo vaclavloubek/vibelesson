@@ -31,7 +31,7 @@ const [
   schema,
   ai,
   studentSession,
-  studentEdge,
+  neonStudentServer,
   presenterRoute,
   presenterMode,
   liveBlock,
@@ -47,7 +47,7 @@ const [
   source('lib/schema.ts'),
   source('lib/ai.ts'),
   source('components/StudentSession.tsx'),
-  source('supabase/functions/student-session/index.ts'),
+  source('lib/neon/student-session-server.ts'),
   source('app/api/sessions/[id]/presenter/route.ts'),
   source('components/PresenterMode.tsx'),
   source('components/LiveBlock.tsx'),
@@ -105,7 +105,7 @@ if (ai.includes('Jazyk výstupu je čeština')) {
   throw new Error('i18n regression: AI output must not default unconditionally to Czech.');
 }
 
-requireText(studentEdge, 'lessonLanguage: typeof lesson.language === "string" ? lesson.language : null', 'student primary state must expose lesson language.');
+requireText(neonStudentServer, "lessonLanguage: typeof lesson.language === 'string' ? lesson.language : null", 'student primary state must expose lesson language.');
 requireText(studentSession, 'lessonLanguage: string | null;', 'student live state must carry lesson language.');
 requireText(studentSession, 'contentLanguage={state.lessonLanguage}', 'student live lesson content must receive lesson language.');
 requireText(studentSession, "localizedApiError(data.error, locale, 'Hodinu se nepodařilo načíst.', 'The lesson could not be loaded.')", 'student live errors must remain localized instead of leaking server text.');

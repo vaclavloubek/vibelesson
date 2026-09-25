@@ -29,7 +29,7 @@ for (const [needle, label] of [
   requireText(lifetime.content, needle, label);
 }
 
-const studentSession = read('supabase/functions/student-session/index.ts');
+const studentSession = read('lib/neon/student-session-server.ts');
 requireText(studentSession, 'free_session_join_window_closed', 'student join maps the Free join-window error');
 requireText(studentSession, 'free_session_expired', 'student writes map the Free hard-expiry error');
 
