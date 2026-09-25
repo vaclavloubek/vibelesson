@@ -6,6 +6,7 @@ import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
+import HelpAssistant from '@/components/HelpAssistant';
 import SyllonautMark from '@/components/SyllonautMark';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
 import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
@@ -116,6 +117,7 @@ export default async function SubscriptionPage() {
         </nav>
         <div className={landing.headerActions}>
           <LocaleSwitcher />
+          <HelpAssistant userId={accountUser.id} page="subscription" />
           <PublicHeaderAccountMenu user={accountUser} />
           <Link href="/new" className={landing.headerCta}>{ui('Připravit hodinu', 'Prepare a lesson')}</Link>
           <HeaderMobileNav signedIn />

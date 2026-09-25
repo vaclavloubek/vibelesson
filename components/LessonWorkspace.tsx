@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
+import HelpAssistant from '@/components/HelpAssistant';
 import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
@@ -833,6 +834,7 @@ export default function LessonWorkspace({
         </nav>
         <div className="brand-side">
           <LocaleSwitcher />
+          <HelpAssistant userId={authUser?.id ?? null} page={lessonId ? 'lesson' : 'new'} />
           <AuthControls onAuthChange={handleAuthChange} quotaRefreshKey={quotaRefreshKey} signedInHint={signedIn || Boolean(initialOwnerId)} />
           <Link href="/new" className="primary button-link app-header-cta">{ui('Nová lekce', 'New lesson')}</Link>
         </div>

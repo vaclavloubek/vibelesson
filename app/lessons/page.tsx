@@ -7,6 +7,7 @@ import SyllonautMark from '@/components/SyllonautMark';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import SignupCompletedAnalytics from '@/components/SignupCompletedAnalytics';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
+import HelpAssistant from '@/components/HelpAssistant';
 import AiPaymentPauseBanner from '@/components/AiPaymentPauseBanner';
 import AiUsagePanel from '@/components/AiUsagePanel';
 import type { AiQuotaSnapshot } from '@/lib/ai-quota';
@@ -216,6 +217,7 @@ export default async function LessonsPage({ searchParams }: Props) {
         </nav>
         <div className="lessons-user">
           <LocaleSwitcher />
+          <HelpAssistant userId={userId} page="lessons" />
           <PublicHeaderAccountMenu
             user={{
               id: userId,
