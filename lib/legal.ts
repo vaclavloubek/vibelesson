@@ -23,6 +23,18 @@ export const TERMS_PRODUCT_ACCESS_KEYS = [
   '2026-09-21-v4',
 ] as const;
 
+// Terms 1.12 is prepared but NOT active: it adds article 5a on AI grading
+// suggestion packs (LEGAL-023). Activate only after the legal review, in the
+// same release that turns on AI_GRADING_TOPUPS_ENABLED:
+// 1. TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE = true;
+// 2. TERMS_VERSION = TERMS_AI_GRADING_TOPUP_TERMS_VERSION, a new
+//    TERMS_EFFECTIVE_DATE and TERMS_ACCEPTANCE_KEY ('<date>-v13');
+// 3. keep '2026-09-24-v12' in TERMS_PRODUCT_ACCESS_KEYS (no re-consent for
+//    ordinary product use, pending the owner's decision).
+// Until then the pack checkout refuses with topup_terms_not_active.
+export const TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE: boolean = false;
+export const TERMS_AI_GRADING_TOPUP_TERMS_VERSION = '1.12';
+
 export const DPA_VERSION = '1.3';
 export const DPA_EFFECTIVE_DATE = '2026-09-24';
 export const DPA_ACCEPTANCE_KEY = '2026-09-24-dpa-v4';

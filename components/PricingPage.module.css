@@ -600,3 +600,26 @@
     grid-template-columns: 1fr;
   }
 }
+
+.topupNote {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft, #efefff);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.topupNote strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.topupNote p {
+  margin: 0 0 6px;
+}
+
+.topupNote ul {
+  margin: 0;
+  padding-left: 18px;
+}

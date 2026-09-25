@@ -6,6 +6,7 @@ import { isPublicLiveBillingEnabled } from '@/lib/billing-launch';
 import { isPublicSchoolBillingEnabled } from '@/lib/school-billing-launch';
 import { createClient } from '@/lib/supabase/server';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import { isAiGradingTopupsEnabled } from '@/lib/ai-grading-topups';
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -124,6 +125,7 @@ export default async function Pricing({ searchParams }: PricingRouteProps) {
       checkoutResult={checkout === 'success' || checkout === 'cancelled' ? checkout : null}
       checkoutSessionId={checkoutSessionId}
       activePlanCode={activePlanCode}
+      aiGradingTopupsEnabled={isAiGradingTopupsEnabled()}
     />
   );
 }

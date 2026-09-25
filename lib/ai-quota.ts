@@ -19,6 +19,10 @@ export type AiQuotaSnapshot = {
   // without the migration still type-checks at the call sites.
   plan_code?: string | null;
   quota_scope?: 'individual' | 'organization' | null;
+  // Added in neon/migrations/0018: purchased AI grading suggestions (LIVE,
+  // valid, not revoked) and the earliest expiry among packs with units left.
+  grading_credit_remaining?: number | null;
+  grading_credit_next_expiry?: string | null;
 };
 
 export function quotaSourceLabel(source: string | null | undefined, english: boolean) {

@@ -1,10 +1,17 @@
 import { createHash } from 'node:crypto';
-import { TERMS_ACCEPTANCE_KEY, TERMS_EFFECTIVE_DATE, TERMS_VERSION } from '@/lib/legal';
+import {
+  TERMS_ACCEPTANCE_KEY,
+  TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE,
+  TERMS_AI_GRADING_TOPUP_TERMS_VERSION,
+  TERMS_EFFECTIVE_DATE,
+  TERMS_VERSION,
+} from '@/lib/legal';
 import { PROVIDER_CONTACT } from '@/lib/provider-contact';
 import { TECHNICAL_REQUIREMENTS } from '@/lib/technical-requirements';
 import {
   TERMS_ACCOUNT_DELETION_CLAUSE,
   TERMS_ACCOUNT_ELIGIBILITY_CLAUSE,
+  TERMS_AI_GRADING_TOPUP_CLAUSE,
   TERMS_AI_SCORING_PURPOSE_CLAUSE,
   TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
@@ -17,6 +24,12 @@ import {
 import { buildStatutoryWithdrawalFormHtml, WITHDRAWAL_FORM_COPY } from '@/lib/withdrawal-form';
 import type { BillingPeriod, IndividualPlanCode } from '@/lib/subscription-change-policy';
 import type { IndividualBillingCurrency } from '@/lib/individual-billing-catalog';
+import {
+  AI_GRADING_TOPUP_VALIDITY_MONTHS,
+  aiGradingTopupQuantity,
+  type AiGradingTopupPackCode,
+} from '@/lib/ai-grading-topup-catalog';
+import { AI_GRADING_TOPUP_CONSENT } from '@/lib/terms-content';
 
 export type IndividualContractLocale = 'cs' | 'en';
 
@@ -233,15 +246,32 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph
 <p>The current version of these Terms is ${TERMS_VERSION}, effective from 24 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
 </section>`;
 
+// Article 5a (Terms 1.12, AI grading suggestion packs) is part of the
+// snapshot only once it is active; see lib/legal.ts for the activation steps.
+function topupArticleHtml(locale: IndividualContractLocale) {
+  const clause = TERMS_AI_GRADING_TOPUP_CLAUSE;
+  const title = locale === 'cs' ? clause.titleCs : clause.titleEn;
+  const paragraphs = locale === 'cs' ? clause.cs : clause.en;
+  return `<section>\n<h2>${escapeHtml(title)}</h2>\n${paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('\n')}\n</section>\n`;
+}
+
 function termsCurrent(locale: IndividualContractLocale) {
-  if (
+  if (TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE) {
+    if ((TERMS_VERSION as string) !== TERMS_AI_GRADING_TOPUP_TERMS_VERSION) {
+      throw new Error('contract_terms_snapshot_version_unsupported');
+    }
+  } else if (
     TERMS_VERSION !== '1.11'
     || TERMS_EFFECTIVE_DATE !== '2026-09-24'
     || TERMS_ACCEPTANCE_KEY !== '2026-09-24-v12'
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
   }
-  return locale === 'cs' ? TERMS_CURRENT_CS : TERMS_CURRENT_EN;
+  const base = locale === 'cs' ? TERMS_CURRENT_CS : TERMS_CURRENT_EN;
+  if (!TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE) return base;
+  const marker = locale === 'cs' ? '<section>\n<h2>6. Platby' : '<section>\n<h2>6. Payments';
+  if (!base.includes(marker)) throw new Error('contract_terms_snapshot_topup_anchor_missing');
+  return base.replace(marker, topupArticleHtml(locale) + marker);
 }
 
 function technicalRequirementsHtml(locale: IndividualContractLocale) {
@@ -325,4 +355,78 @@ ${technicalRequirementsHtml('en')}
     .digest('hex');
 
   return { contractHtml, withdrawalFormHtml, contentSha256 };
+}
+
+// Snapshot accepted before a one-time AI grading suggestion pack checkout.
+// Requires Terms 1.12 (article 5a) to be active.
+export function buildAiGradingTopupContractSnapshotDocuments(input: {
+  locale: IndividualContractLocale;
+  packCode: AiGradingTopupPackCode;
+  currency: IndividualBillingCurrency;
+  amountMinor: number;
+  billingCountry: string;
+  capturedAt: string;
+}): { contractHtml: string; contentSha256: string } {
+  if (!TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE) {
+    throw new Error('topup_terms_not_active');
+  }
+  const { locale } = input;
+  const quantity = aiGradingTopupQuantity(input.packCode);
+  const price = formatMoney(input.amountMinor, input.currency, locale);
+  const capturedAt = new Intl.DateTimeFormat(locale === 'cs' ? 'cs-CZ' : 'en-GB', {
+    dateStyle: 'long',
+    timeStyle: 'medium',
+    timeZone: 'Europe/Prague',
+  }).format(new Date(input.capturedAt));
+  const cs = locale === 'cs';
+  const rows = cs
+    ? [
+        ['Poskytovatel', `${PROVIDER_CONTACT.legalName}, IČO ${PROVIDER_CONTACT.businessId}, ${PROVIDER_CONTACT.addressLine1}, ${PROVIDER_CONTACT.postalCity}, ${PROVIDER_CONTACT.countryCs}; telefon ${PROVIDER_CONTACT.phoneDisplay}; e-mail ${PROVIDER_CONTACT.email}`],
+        ['Předmět', `Jednorázový balíček ${quantity} návrhů hodnocení od AI (k tarifu Teacher Pro)`],
+        ['Cena', `${price} jednorázově, bez automatického obnovení`],
+        ['Měna', input.currency.toUpperCase()],
+        ['Fakturační země', input.billingCountry],
+        ['Platnost', `${AI_GRADING_TOPUP_VALIDITY_MONTHS} měsíců od potvrzení platby, i napříč obdobími tarifu`],
+        ['Pořadí čerpání', 'Nejprve limit tarifu Teacher Pro pro aktuální období, potom dokoupené návrhy; z více balíčků nejdříve ten, jehož platnost skončí nejdříve.'],
+        ['Podmínka čerpání', 'Aktivní tarif Teacher Pro. Po skončení předplatného se nevyčerpané návrhy zmrazí do obnovení Teacher Pro, nejdéle do konce platnosti.'],
+        ['Okamžité zpřístupnění', AI_GRADING_TOPUP_CONSENT.immediateDelivery.cs],
+        ['Právo na odstoupení', AI_GRADING_TOPUP_CONSENT.withdrawalLoss.cs],
+        ['Refundace a spor', 'Při vrácení nebo sporu platby nevyčerpané návrhy tohoto balíčku zanikají; při sporu se dočasně omezí AI funkce podle článku 6.'],
+        ['Verze obchodních podmínek', `${TERMS_VERSION} · acceptance key ${TERMS_ACCEPTANCE_KEY}`],
+      ]
+    : [
+        ['Provider', `${PROVIDER_CONTACT.legalName}, Business ID ${PROVIDER_CONTACT.businessId}, ${PROVIDER_CONTACT.addressLine1}, ${PROVIDER_CONTACT.postalCity}, ${PROVIDER_CONTACT.countryEn}; phone ${PROVIDER_CONTACT.phoneDisplay}; email ${PROVIDER_CONTACT.email}`],
+        ['Item', `One-time pack of ${quantity} AI grading suggestions (for the Teacher Pro plan)`],
+        ['Price', `${price} one-time, no automatic renewal`],
+        ['Currency', input.currency.toUpperCase()],
+        ['Billing country', input.billingCountry],
+        ['Validity', `${AI_GRADING_TOPUP_VALIDITY_MONTHS} months from payment confirmation, across plan allowance periods`],
+        ['Order of use', 'The Teacher Pro allowance for the current period first, then purchased suggestions; of several packs, the one that expires first.'],
+        ['Condition of use', 'An active Teacher Pro plan. After the subscription ends, unused suggestions are frozen until Teacher Pro is restored, at most until they expire.'],
+        ['Immediate access', AI_GRADING_TOPUP_CONSENT.immediateDelivery.en],
+        ['Right of withdrawal', AI_GRADING_TOPUP_CONSENT.withdrawalLoss.en],
+        ['Refund and dispute', 'If the payment is refunded or disputed, unused suggestions of this pack expire; a dispute also temporarily restricts AI features under section 6.'],
+        ['Terms version', `${TERMS_VERSION} · acceptance key ${TERMS_ACCEPTANCE_KEY}`],
+      ];
+  const table = `<table>${rows.map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(value)}</td></tr>`).join('\n')}</table>`;
+  const body = cs
+    ? `<h1>Potvrzení objednávky balíčku návrhů hodnocení od AI</h1>
+<p class="muted">Neměnný snapshot připravený před přesměrováním do platební brány Stripe: ${escapeHtml(capturedAt)}.</p>
+<div class="box"><strong>Tento dokument zachycuje nabídku, souhlasy a obchodní podmínky odsouhlasené před objednávkou.</strong> Návrhy se připíšou po potvrzení platby.</div>
+<h2>Shrnutí objednávky</h2>
+${table}
+<hr>
+<h1>Obchodní podmínky Syllonaut</h1>
+<p class="muted">Verze ${escapeHtml(TERMS_VERSION)}</p>${termsCurrent(locale)}`
+    : `<h1>AI grading suggestion pack order confirmation</h1>
+<p class="muted">Immutable snapshot prepared before redirecting to Stripe Checkout: ${escapeHtml(capturedAt)}.</p>
+<div class="box"><strong>This document records the offer, consents and Terms accepted before the order.</strong> Suggestions are added after payment is confirmed.</div>
+<h2>Order summary</h2>
+${table}
+<hr>
+<h1>Syllonaut Terms of Service</h1>
+<p class="muted">Version ${escapeHtml(TERMS_VERSION)}</p>${termsCurrent(locale)}`;
+  const contractHtml = documentShell(locale, cs ? 'Potvrzení objednávky balíčku návrhů hodnocení od AI' : 'AI grading suggestion pack order confirmation', body);
+  const contentSha256 = createHash('sha256').update(contractHtml, 'utf8').digest('hex');
+  return { contractHtml, contentSha256 };
 }

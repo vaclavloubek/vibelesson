@@ -79,3 +79,41 @@ export const TERMS_DPA_SCOPE_CLAUSE = {
   cs: 'Pokud učitel s individuálním účtem (Free, Teacher nebo Teacher Pro) používá Syllonaut ke zpracování osobních údajů studentů při výuce, vystupuje Syllonaut v tomto rozsahu jako zpracovatel a vztahuje se na toto zpracování zpracovatelská smlouva (DPA), která je součástí smlouvy uzavřené přijetím těchto VOP. Správcem je učitel, nebo škola či jiná organizace, pro kterou učitel výuku vede.',
   en: 'Where a teacher with an individual account (Free, Teacher or Teacher Pro) uses Syllonaut to process students’ personal data in teaching, Syllonaut acts as processor for that processing and the Data Processing Agreement (DPA) applies to it as part of the contract concluded by accepting these Terms. The controller is the teacher, or the school or other organisation for which the teacher teaches.',
 } as const;
+
+// Terms 1.12 article 5a (prepared, LEGAL-023): one-time AI grading suggestion
+// packs for individual Teacher Pro. Rendered only when
+// TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE is true (lib/legal.ts).
+export const TERMS_AI_GRADING_TOPUP_CLAUSE = {
+  titleCs: '5a. Dokupované balíčky návrhů hodnocení od AI',
+  titleEn: '5a. Additional AI grading suggestion packs',
+  cs: [
+    'Uživatel s aktivním individuálním předplatným Teacher Pro si může dokoupit jednorázový balíček návrhů hodnocení od AI. Balíčky nejsou dostupné v tarifech Free a Teacher, pro členy školních organizací ani po dobu, kdy jsou AI funkce účtu omezené podle článku 6 (platba po splatnosti, vrácená nebo reklamovaná platba). Balíček se neobnovuje a každý nákup je samostatná jednorázová objednávka.',
+    'Počet návrhů v balíčku, jeho cena a měna jsou uvedeny v Ceníku a znovu v objednávce před zaplacením. Cena v CZK je konečná, poskytovatel není plátcem DPH. U plateb v EUR a USD může platební zprostředkovatel připočíst daň podle země zákazníka; konečnou částku uvidíte před potvrzením platby.',
+    'Balíček je platný 12 měsíců od potvrzení platby, a to i napříč obdobími tarifu. Návrhy, které do konce platnosti nevyčerpáte, bez náhrady zanikají.',
+    'Nejprve se čerpá limit návrhů hodnocení zahrnutý v tarifu Teacher Pro pro aktuální období. Dokoupené návrhy se čerpají až po jeho vyčerpání; máte-li více balíčků, čerpá se nejdříve ten, jehož platnost skončí nejdříve. Návrh se započítá při zahájení AI hodnocení odpovědi. Pokud se návrh nepodaří vytvořit, započtení se vrací.',
+    'Dokoupené návrhy lze čerpat jen při aktivním tarifu Teacher Pro. Skončí-li předplatné Teacher Pro nebo přejdete-li na jiný tarif, nevyčerpané návrhy se zmrazí a můžete je znovu čerpat po obnovení Teacher Pro, nejdéle do konce jejich platnosti. Za zmrazené ani propadlé návrhy se cena nevrací, nestanoví-li zákon jinak.',
+    'Balíček je digitální obsah, který se zpřístupní ihned po potvrzení platby. Jste-li spotřebitel, před objednáním výslovně žádáte o okamžité zpřístupnění a berete na vědomí, že jím ztrácíte právo od smlouvy o balíčku odstoupit. Potvrzení objednávky včetně tohoto souhlasu obdržíte na trvalém nosiči. Toto ustanovení se netýká předplatného Teacher Pro, u něhož se odstoupení řídí článkem 7.',
+    'Bude-li platba za balíček vrácena nebo napadena u banky či platební sítě (spor), nevyčerpané návrhy z tohoto balíčku zanikají. Při sporu se navíc dočasně omezí AI funkce účtu podle článku 6, a to do vyřešení sporu. Tím nejsou dotčena práva z vadného plnění podle článku 8.',
+  ],
+  en: [
+    'A user with an active individual Teacher Pro subscription may buy a one-time pack of AI grading suggestions. Packs are not available on the Free and Teacher plans, to members of school organisations, or while the account’s AI features are restricted under section 6 (overdue, refunded or disputed payment). A pack does not renew; each purchase is a separate one-time order.',
+    'The number of suggestions in a pack, its price and currency are shown on the Pricing page and again in the order before payment. The CZK price is final; the provider is not a VAT payer. For payments in EUR and USD, the payment intermediary may add tax according to the customer’s country; you will see the final amount before confirming the payment.',
+    'A pack is valid for 12 months from payment confirmation, across plan allowance periods. Suggestions not used by the end of the validity period expire without compensation.',
+    'The grading suggestion allowance included in the Teacher Pro plan for the current period is used first. Purchased suggestions are used only after it is exhausted; if you hold several packs, the one that expires first is used first. A suggestion is counted when AI grading of a response starts. If the suggestion cannot be produced, it is returned.',
+    'Purchased suggestions can be used only while the Teacher Pro plan is active. If the Teacher Pro subscription ends or you move to another plan, unused suggestions are frozen and can be used again once Teacher Pro is restored, until the end of their validity at the latest. No price is refunded for frozen or expired suggestions unless the law provides otherwise.',
+    'A pack is digital content made available immediately after payment confirmation. If you are a consumer, before ordering you expressly request immediate access and acknowledge that you thereby lose the right to withdraw from the pack purchase. You will receive the order confirmation, including this consent, on a durable medium. This provision does not apply to the Teacher Pro subscription, where withdrawal is governed by section 7.',
+    'If the payment for a pack is refunded or disputed with a bank or payment network, unused suggestions from that pack expire. In the case of a dispute, the account’s AI features are also temporarily restricted under section 6 until the dispute is resolved. This does not affect rights arising from defective performance under section 8.',
+  ],
+} as const;
+
+// Checkout consents for a pack (Terms 1.12 article 5a).
+export const AI_GRADING_TOPUP_CONSENT = {
+  immediateDelivery: {
+    cs: 'Výslovně žádám o okamžité zpřístupnění dokoupených návrhů hodnocení od AI hned po zaplacení.',
+    en: 'I expressly request immediate access to the purchased AI grading suggestions right after payment.',
+  },
+  withdrawalLoss: {
+    cs: 'Beru na vědomí, že okamžitým zpřístupněním ztrácím právo od nákupu balíčku odstoupit.',
+    en: 'I acknowledge that with immediate access I lose the right to withdraw from the pack purchase.',
+  },
+} as const;

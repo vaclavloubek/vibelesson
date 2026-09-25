@@ -43,6 +43,7 @@ const ALLOWED_RPCS = new Set([
   'publish_service_change_for_service',
   'reconcile_individual_withdrawal_refund_for_service',
   'reconcile_service_change_termination_refund_for_service',
+  'request_ai_suggestions_for_manual_evaluations_server',
   'requeue_response_evaluation_server',
   'record_online_individual_withdrawal_confirmation_for_service',
   'record_individual_withdrawal_cancellation_for_service',

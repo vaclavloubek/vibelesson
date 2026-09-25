@@ -97,6 +97,99 @@ export function buildStripeCheckoutParams(input: Omit<CreateStripeCheckoutInput,
   return params;
 }
 
+export type CreateStripeTopupCheckoutInput = {
+  secretKey: string;
+  livemode: boolean;
+  priceId: string;
+  userId: string;
+  userEmail: string;
+  customerId?: string | null;
+  billingCountry: string;
+  managedPayments: boolean;
+  packCode: string;
+  quantity: number;
+  termsVersion: string;
+  contractSnapshotId: string;
+  locale: 'cs' | 'en';
+};
+
+// One-time AI grading suggestion pack (mode=payment). Standard Stripe (CZK)
+// creates a paid invoice via invoice_creation, like the subscription invoices.
+// Managed Payments (EUR/USD) must not send invoice_creation: Stripe as merchant
+// of record issues the invoice itself (docs.stripe.com/payments/managed-payments/update-checkout).
+export function buildStripeTopupCheckoutParams(input: Omit<CreateStripeTopupCheckoutInput, 'secretKey'>) {
+  const params = new URLSearchParams();
+  params.set('mode', 'payment');
+  params.set('line_items[0][price]', input.priceId);
+  params.set('line_items[0][quantity]', '1');
+  params.set('client_reference_id', input.userId);
+  if (input.customerId) params.set('customer', input.customerId);
+  else params.set('customer_email', input.userEmail);
+  params.set('billing_address_collection', 'required');
+  params.set('submit_type', 'pay');
+  params.set('locale', input.locale);
+  params.set('managed_payments[enabled]', input.managedPayments ? 'true' : 'false');
+  const metadata: Record<string, string> = {
+    syllonaut_purchase_kind: 'ai_grading_topup',
+    syllonaut_user_id: input.userId,
+    syllonaut_pack_code: input.packCode,
+    syllonaut_pack_quantity: String(input.quantity),
+    syllonaut_billing_country: input.billingCountry,
+    syllonaut_terms_version: input.termsVersion,
+    syllonaut_immediate_delivery: 'true',
+    syllonaut_contract_snapshot_id: input.contractSnapshotId,
+  };
+  for (const [key, value] of Object.entries(metadata)) {
+    params.set(`metadata[${key}]`, value);
+    params.set(`payment_intent_data[metadata][${key}]`, value);
+  }
+  if (!input.managedPayments) {
+    params.set('invoice_creation[enabled]', 'true');
+    params.set('invoice_creation[invoice_data][description]', input.locale === 'cs'
+      ? `Balíček ${input.quantity} návrhů hodnocení od AI (Syllonaut Teacher Pro)`
+      : `Pack of ${input.quantity} AI grading suggestions (Syllonaut Teacher Pro)`);
+    for (const [key, value] of Object.entries(metadata)) {
+      params.set(`invoice_creation[invoice_data][metadata][${key}]`, value);
+    }
+  }
+
+  const environment = input.livemode ? 'live' : 'sandbox';
+  params.set('success_url', 'https://www.syllonaut.com/' + input.locale + '/subscription?topup=success&billing_env=' + environment + '&session_id={CHECKOUT_SESSION_ID}#dokoupit');
+  params.set('cancel_url', 'https://www.syllonaut.com/' + input.locale + '/subscription?topup=cancelled&billing_env=' + environment + '#dokoupit');
+  params.set('integration_identifier', 'syllonaut_topup_' + randomIntegrationSuffix());
+  return params;
+}
+
+export async function createStripeTopupCheckout(input: CreateStripeTopupCheckoutInput) {
+  if (!hasExpectedStripeSecretMode(input.secretKey, input.livemode)) {
+    throw new Error(input.livemode ? 'stripe_live_secret_invalid' : 'stripe_test_secret_invalid');
+  }
+  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ' + input.secretKey,
+      'content-type': 'application/x-www-form-urlencoded',
+      'idempotency-key': 'syllonaut_topup_checkout_' + randomUUID(),
+      'stripe-version': '2026-07-29.dahlia',
+    },
+    body: buildStripeTopupCheckoutParams(input),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(12_000),
+  });
+  const payload = await response.json() as StripeCheckoutSessionResponse;
+  if (!response.ok) {
+    console.error('stripe topup checkout session creation failed', {
+      status: response.status, type: payload.error?.type, code: payload.error?.code, livemode: input.livemode,
+    });
+    throw new StripeCheckoutApiError(payload.error?.type ?? null, payload.error?.code ?? null, sanitizeStripeMessage(payload.error?.message));
+  }
+  const expectedPrefix = input.livemode ? 'cs_live_' : 'cs_test_';
+  if (!payload.id?.startsWith(expectedPrefix) || !payload.url?.startsWith('https://checkout.stripe.com/')) {
+    throw new Error('stripe_checkout_response_invalid');
+  }
+  return { id: payload.id, url: payload.url };
+}
+
 export class StripeCheckoutApiError extends Error {
   readonly stripeType: string | null;
   readonly stripeCode: string | null;

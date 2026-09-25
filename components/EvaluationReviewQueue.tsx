@@ -441,7 +441,7 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
   }
 
   const queueSignature = evaluations
-    .map((evaluation) => `${evaluation.id}:${evaluation.status}:${evaluation.manualReason ?? ''}`)
+    .map((evaluation) => `${evaluation.id}:${evaluation.status}:${evaluation.manualReason ?? ''}:${evaluation.teacherConfirmed ? 1 : 0}`)
     .join('|');
 
   useEffect(() => {
@@ -450,6 +450,11 @@ export default function EvaluationReviewQueue({ sessionId }: { sessionId: string
       sessionId,
       signature: queueSignature,
       manualReasons: evaluations.map((evaluation) => evaluation.manualReason ?? null),
+      pendingQuotaCount: evaluations.filter((evaluation) => (
+        evaluation.manualReason === 'quota'
+        && evaluation.status === 'needs_review'
+        && !evaluation.teacherConfirmed
+      )).length,
     };
     window.dispatchEvent(new CustomEvent<GradingQueueEventDetail>(GRADING_QUEUE_EVENT, { detail }));
     // evaluations is represented by queueSignature; re-announce only when it changes.
