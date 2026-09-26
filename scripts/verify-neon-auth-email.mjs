@@ -167,6 +167,13 @@ const authControls = await readFile(new URL('../components/AuthControls.tsx', im
 assert(authControls.includes("mode === 'verify-email'") && authControls.includes('autoComplete="one-time-code"'),
   'the auth popover must offer code entry');
 assert(authControls.includes("switchMode('verify-email')"), 'signup must switch to code entry');
+assert(/rememberPendingVerification\(normalizedEmail\);\s*switchMode\('verify-email'\)/.test(authControls)
+  && /needsVerification\) \{\s*rememberPendingVerification\(/.test(authControls),
+  'signup and unverified sign-in must remember the address waiting for its code');
+assert(/readPendingVerification\(\);[\s\S]{0,120}setMode\('verify-email'\);\s*setOpen\(true\)/.test(authControls),
+  'a remembered address must reopen code entry after a reload or closed tab');
+assert(/setVerificationCode\(''\);\s*forgetPendingVerification\(\)/.test(authControls),
+  'a confirmed email must forget the remembered address');
 const signupCode = renderNeonAuthEmail({ channel: 'code', purpose: 'email-verification', code: '123456', expiresAt: new Date(now + 15 * 60_000).toISOString() }, 'cs', new Date(now));
 assert(signupCode.subject === 'Dokončete registraci do Syllonautu' && signupCode.text.includes('Platnost vyprší za 15 minut.'),
   'signup code email must match the confirm-signup template and state the 15-minute validity');

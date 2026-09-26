@@ -42,7 +42,7 @@ requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'mark
 requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
 // LEGAL-022: Privacy Notice 1.7 matches the production infrastructure.
-requirePattern(gdpr, /Verze 1\.10/, 'Privacy Notice version 1.10 is missing.');
+requirePattern(gdpr, /Verze 1\.11/, 'Privacy Notice version 1.11 is missing.');
 requirePattern(gdpr, /Potvrzení upozornění na jedno živé použití lekce ve Free:/, 'Privacy Notice must describe the Free single live use notice acknowledgement.');
 requirePattern(gdpr, /Záznam o potvrzení upozornění na jedno živé použití lekce ve Free/, 'Privacy Notice must state the notice acknowledgement retention.');
 requirePattern(gdpr, /Nápověda Syllonautu:/, 'Privacy Notice must describe Syllonaut Help processing.');
@@ -50,8 +50,11 @@ requirePattern(gdpr, /Text konverzace neukládáme/, 'Privacy Notice must state 
 requirePattern(gdpr, /Záznamy o použití Nápovědy Syllonautu \(bez textu konverzace\)/, 'Privacy Notice must state the Help usage-record retention.');
 requirePattern(gdpr, /__Secure-neon-auth\.session_token/, 'the Neon Auth session cookie must be listed.');
 if (/sb-…-auth-token|Supabase \{ui\('autentizační cookies'/.test(gdpr)) throw new Error('Privacy regression: the retired Supabase auth cookie must not be listed.');
-for (const needle of ['syllonaut_locale', 'syllonaut_device_v1', 'ep_participant_', 'IndexedDB', 'sessionStorage']) {
+for (const needle of ['syllonaut_locale', 'syllonaut_device_v1', 'ep_participant_', 'IndexedDB', 'sessionStorage', 'syllonaut-pending-email-verification-v1']) {
   if (!gdpr.includes(needle)) throw new Error(`Privacy regression: cookie/storage table is missing ${needle}.`);
+}
+for (const key of auth.matchAll(/const \w+_KEY = '([a-z0-9-]+)'/g)) {
+  if (!gdpr.includes(key[1])) throw new Error(`Privacy regression: browser storage key ${key[1]} used by AuthControls is not listed.`);
 }
 requirePattern(gdpr, /čl\. 13 odst\. 2 písm\. f\) GDPR/, 'automated decision-making notice (Art. 13(2)(f)) is missing.');
 requirePattern(gdpr, /<section id="studenti">/, 'student section anchor #studenti is missing.');
