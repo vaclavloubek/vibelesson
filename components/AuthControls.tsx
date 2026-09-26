@@ -18,6 +18,43 @@ const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api
 const NEON_APP_AUTH = process.env.NEXT_PUBLIC_DATABASE_BACKEND === 'neon';
 const AUTH_POPOVER_ID = 'auth-popover';
 const AUTH_POPOVER_TITLE_ID = 'auth-popover-title';
+// The code form must survive a reload or a closed tab (e.g. a phone switching
+// to the mail app), so the address waiting for its code is kept for 24 hours
+// (Privacy Notice 1.11, section 5).
+const PENDING_VERIFICATION_KEY = 'syllonaut-pending-email-verification-v1';
+const PENDING_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+function rememberPendingVerification(email: string) {
+  try {
+    window.localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify({ email, savedAt: Date.now() }));
+  } catch {
+    // Without storage the code form simply does not reopen after a reload.
+  }
+}
+
+function forgetPendingVerification() {
+  try {
+    window.localStorage.removeItem(PENDING_VERIFICATION_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+}
+
+function readPendingVerification(): string | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_VERIFICATION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { email?: unknown; savedAt?: unknown };
+    const age = typeof parsed.savedAt === 'number' ? Date.now() - parsed.savedAt : -1;
+    if (typeof parsed.email === 'string' && parsed.email && age >= 0 && age < PENDING_VERIFICATION_TTL_MS) {
+      return parsed.email;
+    }
+  } catch {
+    // Corrupt or inaccessible entries are dropped below.
+  }
+  forgetPendingVerification();
+  return null;
+}
 
 type TurnstileApi = {
   render: (
@@ -179,6 +216,7 @@ export default function AuthControls({
   const termsAcceptedId = useId();
   const marketingConsentId = useId();
   const signupStartedRef = useRef(false);
+  const pendingVerificationCheckedRef = useRef(false);
 
   async function loadQuota(nextUser: User | null) {
     if (NEON_APP_AUTH) {
@@ -252,6 +290,20 @@ export default function AuthControls({
   useEffect(() => {
     if (user) void loadQuota(user);
   }, [quotaRefreshKey, user]);
+
+  useEffect(() => {
+    if (!NEON_APP_AUTH || !authResolved || pendingVerificationCheckedRef.current) return;
+    pendingVerificationCheckedRef.current = true;
+    if (user) {
+      forgetPendingVerification();
+      return;
+    }
+    const pendingEmail = readPendingVerification();
+    if (!pendingEmail) return;
+    setEmail(pendingEmail);
+    setMode('verify-email');
+    setOpen(true);
+  }, [authResolved, user]);
 
   useEffect(() => {
     if (!open) return;
@@ -418,6 +470,7 @@ export default function AuthControls({
       return;
     }
     setVerificationCode('');
+    forgetPendingVerification();
     if (result.signedIn) {
       window.location.reload();
       return;
@@ -454,6 +507,7 @@ export default function AuthControls({
       setBusy(false);
       resetCaptcha();
       if (result.needsVerification) {
+        rememberPendingVerification(email.trim());
         switchMode('verify-email');
         setMessage(english ? 'Your email is not confirmed yet. We sent you a new code.' : 'E-mail ještě není potvrzený. Poslali jsme ti nový kód.');
         return;
@@ -462,6 +516,7 @@ export default function AuthControls({
         setMessage(english ? 'Sign-in failed. Check your email and password.' : 'Přihlášení se nepodařilo. Zkontroluj e-mail a heslo.');
         return;
       }
+      forgetPendingVerification();
       trackEvent('login_completed');
       window.location.reload();
       return;
@@ -535,6 +590,7 @@ export default function AuthControls({
         window.location.reload();
         return;
       }
+      rememberPendingVerification(normalizedEmail);
       switchMode('verify-email');
       return;
     }
@@ -774,7 +830,7 @@ export default function AuthControls({
               <TurnstileChallenge key={`verify-${captchaVersion}`} ready={turnstileReady} unavailable={turnstileUnavailable} action="verify" onToken={setCaptchaToken} />
               <button type="button" className="auth-link auth-signup" onClick={resendEmailCode} disabled={busy || !captchaToken}>{english ? 'Send a new code' : 'Poslat nový kód' }</button>
               <span aria-hidden="true"> · </span>
-              <button type="button" className="auth-link" onClick={() => switchMode('signin')} disabled={busy}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>
+              <button type="button" className="auth-link" onClick={() => { forgetPendingVerification(); switchMode('signin'); }} disabled={busy}>{english ? 'Back to sign in' : 'Zpět k přihlášení' }</button>
             </>
           ) : null}
 
