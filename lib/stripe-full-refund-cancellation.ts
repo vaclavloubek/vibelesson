@@ -3,7 +3,8 @@ import { z } from 'zod';
 // A full refund of the current paid period of an individual subscription ends
 // the subscription immediately (no next charge, account falls back to Free).
 // Exceptions that never cancel here:
-// - refund reason 'duplicate' (a double payment was returned, the period stays paid),
+// - refund reason 'duplicate' (a double payment was returned, the period stays paid;
+//   the webhook then releases the refund AI pause when another payment covers it),
 // - refunds created by the in-app withdrawal or service-change flows (they cancel
 //   the subscription on their own path),
 // - partial, failed or reversed refunds, and refunds of an older invoice.
@@ -51,6 +52,7 @@ export type FullRefundSkipReason =
   | 'refund_not_effective'
   | 'app_managed_refund'
   | 'duplicate'
+  | 'mixed_refund_reasons'
   | 'subscription_not_live'
   | 'invoice_unresolved'
   | 'not_current_invoice';
@@ -114,8 +116,9 @@ export async function cancelSubscriptionAfterFullRefund(
   }
 
   const effective = refunds.data.filter((refund) => !INEFFECTIVE_REFUND_STATUSES.has(refund.status ?? ''));
-  if (effective.some((refund) => refund.reason === 'duplicate')) {
-    return { action: 'skipped', reason: 'duplicate' };
+  const duplicates = effective.filter((refund) => refund.reason === 'duplicate').length;
+  if (duplicates > 0) {
+    return { action: 'skipped', reason: duplicates === effective.length ? 'duplicate' : 'mixed_refund_reasons' };
   }
 
   const subscription = await deps.stripeGet(

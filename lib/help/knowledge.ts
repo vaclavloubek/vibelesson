@@ -86,7 +86,7 @@ U1 · Kolik mi zbývá. Odpověď bere čísla a datum obnovy z KONTEXTU UŽIVAT
 
 U2 · Došel mi limit. Uvést datum obnovy z kontextu. Do té doby funguje ruční úprava aktivity a v placených tarifech opakované spouštění hotových lekcí. Vyšší tarif zmínit jednou větou, bez nátlaku. U školních tarifů je limit společný pro celou organizaci. · Akce: [[link:pricing]]
 
-U3 · AI nejde kvůli platbě. Při nezaplacené obnově, reklamaci platby nebo plném vrácení platby jsou AI funkce dočasně pozastavené. Uložené lekce a živá výuka zůstávají dostupné. Po potvrzení platby Stripem se AI odemkne automaticky. U školního tarifu platbu řeší správce školy. Nápověda s AI je v té době také pozastavená, takže se tahle odpověď zobrazuje jako pevný text, ne od AI. · Akce: [[link:subscription]]
+U3 · AI nejde kvůli platbě. Při nezaplacené obnově nebo reklamaci platby jsou AI funkce dočasně pozastavené. Uložené lekce a živá výuka zůstávají dostupné. Vrátíme-li celou platbu za aktuální období, předplatné končí a účet přejde na Free (AI pak podle limitů Free); vrácení dvojité platby předplatné neukončí. Po potvrzení platby Stripem se AI odemkne automaticky. U školního tarifu platbu řeší správce školy. Nápověda s AI je v té době také pozastavená, takže se tahle odpověď zobrazuje jako pevný text, ne od AI. · Akce: [[link:subscription]]
 
 U4 · Změna tarifu, faktury, zrušení. Stránka Předplatné: tarif a fakturační období se mění v Syllonautu; platební metodu, fakturační údaje, historii faktur a zrušení ke konci období řeší zákaznický portál Stripe. Po zrušení zůstávají uložené lekce. · Akce: [[link:subscription]]
 
@@ -182,7 +182,7 @@ U1 · How much is left. The answer takes the numbers and the renewal date from t
 
 U2 · The allowance ran out. Give the renewal date from the context. Until then manual activity editing works, and on paid plans finished lessons can be run again. Mention a higher plan in one sentence, without pressure. On school plans the allowance is shared by the whole organisation. · Action: [[link:pricing]]
 
-U3 · AI does not work because of a payment. After an unpaid renewal, a payment dispute or a full refund, AI features are temporarily paused. Saved lessons and live teaching remain available. AI unlocks automatically once Stripe confirms the payment. On a school plan the school administrator resolves the payment. Help with AI is also paused during that time, so this answer is shown as fixed text, not by AI. · Action: [[link:subscription]]
+U3 · AI does not work because of a payment. After an unpaid renewal or a payment dispute, AI features are temporarily paused. Saved lessons and live teaching remain available. If we refund the full payment for the current period, the subscription ends and the account moves to Free (AI then follows the Free limits); refunding a duplicate payment does not end the subscription. AI unlocks automatically once Stripe confirms the payment. On a school plan the school administrator resolves the payment. Help with AI is also paused during that time, so this answer is shown as fixed text, not by AI. · Action: [[link:subscription]]
 
 U4 · Changing the plan, invoices, cancellation. The Subscription page: the plan and billing period are changed in Syllonaut; the payment method, billing details, invoice history and cancellation at the end of the period are handled in the Stripe customer portal. Saved lessons remain after cancellation. · Action: [[link:subscription]]
 

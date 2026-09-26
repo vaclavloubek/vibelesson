@@ -14,6 +14,7 @@ const RPC_ARGUMENTS = {
   sync_stripe_dispute_event: ['p_event_id', 'p_event_type', 'p_livemode', 'p_dispute_id', 'p_payment_intent_id', 'p_status', 'p_event_at'],
   sync_organization_stripe_dispute_event: ['p_event_id', 'p_event_type', 'p_livemode', 'p_dispute_id', 'p_payment_intent_id', 'p_status', 'p_amount_disputed', 'p_currency', 'p_event_at'],
   sync_stripe_refund_state: ['p_event_id', 'p_event_type', 'p_livemode', 'p_charge_id', 'p_payment_intent_id', 'p_amount_total', 'p_amount_refunded', 'p_fully_refunded', 'p_event_at'],
+  release_stripe_duplicate_payment_refund: ['p_event_id', 'p_livemode', 'p_charge_id', 'p_event_at'],
   sync_organization_stripe_refund_state: ['p_event_id', 'p_event_type', 'p_livemode', 'p_charge_id', 'p_payment_intent_id', 'p_amount_total', 'p_amount_refunded', 'p_fully_refunded', 'p_event_at'],
   grant_ai_grading_credit_from_checkout: ['p_event_id', 'p_livemode', 'p_checkout_session_id', 'p_payment_intent_id', 'p_customer_id', 'p_user_id', 'p_pack_code', 'p_currency', 'p_amount_minor', 'p_contract_snapshot_id', 'p_paid_at'],
   sync_ai_grading_topup_refund_event: ['p_event_id', 'p_event_type', 'p_livemode', 'p_payment_intent_id', 'p_amount_refunded', 'p_event_at'],
