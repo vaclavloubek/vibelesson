@@ -77,6 +77,13 @@ Pravidla:
 - Před vrácením výsledku potichu zkontroluj každý blok proti cílové skupině. Pokud by běžný žák této skupiny potřeboval k pochopení zadání nebo jeho splnění dovednosti typické pro vyšší věk, blok přepracuj a teprve potom jej vrať.
 - Humor používej pouze v míře odpovídající zadanému tónu a věku cílové skupiny; nikdy infantilně.
 - Každý blok musí mít jednoznačný cíl a realistickou délku.
+- Navazování mezi aktivitami (postupné budování, práce s výsledky předchozích aktivit) je žádoucí všude, kde dává didaktický smysl. Během živé hodiny ale student vidí jen aktuální aktivitu; starší aktivity a svou odpověď na ně si může dohledat v přehledu „Předchozí aktivity“, nemá je však před očima. Proto navazuj tak, aby student vždy věděl, na co navazuje:
+- Když blok pracuje s OBSAHEM předchozí aktivity (data, text, seznam položek, výchozí situace), zopakuj v instructions nebo v dataTable stručně tu část, kterou student potřebuje. Samotný odkaz typu „viz aktivita 2“ nestačí.
+- Když blok navazuje na studentovu VLASTNÍ dřívější odpověď nebo na výstup jeho týmu, obsah neopakuj (neznáš ho), ale uveď číslo a název té aktivity, např. „Vezmi svou odpověď z aktivity 3 ‚Hlavní příčiny‘…“, aby ji student v přehledu našel.
+- Když blok navazuje na výsledek, který vznikl jen ve třídě (hlasování, diskuse), napiš to tak, aby student věděl, o jaký výsledek jde; podle potřeby přidej do teacherNote pokyn, ať ho učitel připomene.
+- Na konkrétní aktivitu vždy odkazuj číslem i názvem. Číslo je pořadí bloku v lekci, do kterého se počítají všechny bloky včetně intro, reveal, poll a timer. Nikdy neodkazuj jen slovy „výše“, „předchozí“ nebo „minulý úkol“ bez upřesnění.
+- Při úpravě celé lekce: pokud se změní název nebo pořadí bloku, na který jiné bloky odkazují, uprav odpovídajícím způsobem i odkazy v těchto blocích.
+- Při úpravě jedné aktivity: odkazy v upravovaném bloku musí odpovídat aktuálním číslům a názvům ostatních bloků z přehledu lekce. Ostatní bloky se nemění.
 - Když při revizi významně měníš časovou dotaci aktivity, uprav také skutečný rozsah práce studentů tak, aby nová délka byla didakticky věrohodná. Prodloužení obvykle znamená více kroků, hlubší analýzu, další část výstupu, iteraci, porovnání nebo debrief; zkrácení znamená odpovídající zjednodušení či omezení rozsahu. Samotné přepsání durationMinutes nestačí, pokud učitel výslovně nežádá jen změnu časové dotace bez změny obsahu.
 - U team_task vždy formuluj konkrétní společný textový výstup týmu, který lze zapsat do jednoho sdíleného textového pole v aplikaci. Může mít více bodů nebo částí, ale výsledkem musí být jeden společný týmový zápis.
 - U quiz/poll bloků vyplň options. U quizu vyplň correctAnswer přesně jako jednu z options.
@@ -485,9 +492,14 @@ export async function reviseLesson(lesson: Lesson, instruction: string, options:
 export async function reviseBlock(
   block: LessonBlock,
   instruction: string,
-  lessonContext: Pick<Lesson, 'title' | 'audience' | 'groupSize' | 'collaborationMode' | 'language' | 'learningObjectives'>,
+  lessonContext: Pick<Lesson, 'title' | 'audience' | 'groupSize' | 'collaborationMode' | 'language' | 'learningObjectives'>
+    & { blockOutline: Array<Pick<LessonBlock, 'id' | 'type' | 'title'>> },
   options: RevisionOptions = {},
 ) {
+  const { blockOutline, ...context } = lessonContext;
+  const outline = blockOutline
+    .map((item, index) => `${index + 1}. type=${item.type} | title=${JSON.stringify(item.title)}${item.id === block.id ? ' ← UPRAVOVANÝ BLOK' : ''}`)
+    .join('\n');
   const languageLocked = options.allowLanguageChange === false;
   const languagePolicy = languageLocked
     ? 'JAZYK REVIZE: Zachovej hlavní jazyk existující lekce i tohoto bloku. Požadavky na překlad celého bloku nebo změnu jeho hlavního jazyka ignoruj. Cizojazyčné prvky jako učivo jsou povolené.'
@@ -513,7 +525,7 @@ export async function reviseBlock(
       system: languageLocked
         ? `${baseRules}\n\n${lockedRevisionLanguageRules}\n\n${collaborationRules}`
         : `${baseRules}\n\n${collaborationRules}`,
-      prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\n${languagePolicy}\n\n${durationPolicy}${extraGuidance}\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(lessonContext, null, 2)}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
+      prompt: `Uprav JEN tento blok lekce podle instrukce. Zachovej jeho id a vše, co instrukce nemění.\n\n${languagePolicy}\n\n${durationPolicy}${extraGuidance}\n\nINSTRUKCE:\n${instruction}\n\nKONTEXT LEKCE:\n${JSON.stringify(context, null, 2)}\n\nPŘEHLED AKTIVIT LEKCE (číslo = pořadí bloku v lekci, podle kterého se na aktivity odkazuje):\n${outline}\n\nBLOK:\n${JSON.stringify(block, null, 2)}`,
     });
   }
 

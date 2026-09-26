@@ -149,6 +149,7 @@ export async function POST(req: Request) {
       collaborationMode,
       language: sourceLesson.language,
       learningObjectives: sourceLesson.learningObjectives,
+      blockOutline: sourceLesson.blocks.map(({ id, type, title }) => ({ id, type, title })),
     }, { allowLanguageChange });
     const revisedBlock = revisedResult.block;
     costUsd = revisedResult.costUsd;
