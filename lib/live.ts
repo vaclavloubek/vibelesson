@@ -79,6 +79,15 @@ export const StudentAnswerSchema = z.union([
 ]);
 export type StudentAnswer = z.infer<typeof StudentAnswerSchema>;
 
+// Read-only "Předchozí aktivity" entry: a block before the active one with only
+// the student's own answer or their own team's text.
+export type StudentPreviousActivity = {
+  index: number;
+  block: PublicLessonBlock;
+  myAnswer: StudentAnswer | null;
+  myTeamAnswer: string | null;
+};
+
 export const TeamAnswerSchema = z.object({
   text: z.string().trim().min(1).max(4000),
 }).strict();
