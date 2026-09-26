@@ -101,6 +101,8 @@ requirePattern(presenter, /fetchLiveControlState\(sessionId, 'presenter'\)/, 'Pr
 requirePattern(presenter, /live-control\?role=presenter/, 'Presenter capability acquisition must explicitly request the presenter role.');
 requirePattern(liveControlRoute, /requestedRole\(req\)/, 'live-control capability route must derive the requested read role.');
 requirePattern(liveControlRoute, /searchParams\.get\('role'\) === 'presenter' \? 'presenter' : 'teacher'/, 'live-control route must restrict browser roles to teacher or presenter.');
+requirePattern(presenter, /connectLiveControl\(sessionId, 'presenter', \(\) => \{\s*void loadFallback\('push'\)/, 'Presenter WebSocket wake-ups must use the push path, not the backup-connection path.');
+requirePattern(presenter, /if \(source === 'fallback'\) setConnectionMode\('fallback'\)/, 'only a failed primary presenter API may switch the projector to the backup connection label.');
 requirePattern(presenter, /connectionMode === 'fallback'/, 'Presenter must expose degraded connection state.');
 requirePattern(gradingWorker, /claim_next_grading_outbox_job/, 'AI grading must have a server-driven capability claim path.');
 requirePattern(gradingWorker, /finish_grading_job/, 'server-driven AI grading must finish through the scoped capability.');
