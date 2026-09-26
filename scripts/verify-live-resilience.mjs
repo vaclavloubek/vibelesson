@@ -91,6 +91,8 @@ requirePattern(worker, /timer: idleTimerFor\(target\)/, 'moving to a timer block
   requirePattern(nextConfig, /const connectSources = \[[\s\S]*`https:\/\/\$\{LIVE_CONTROL_HOST\}`[\s\S]*`wss:\/\/\$\{LIVE_CONTROL_HOST\}`[\s\S]*\];/, 'CSP connect-src must allow the Live Control Worker over https and wss.');
 }
 requirePattern(worker, /protocolVersion: LIVE_PROTOCOL_VERSION/, 'Worker health must expose its live protocol version.');
+requirePattern(studentSession, /connectLiveControl\(sessionId, 'student', \(\) => \{\s*void refreshFromLiveControl\('push'\)/, 'student WebSocket wake-ups must use the silent push path, not the fallback path.');
+requirePattern(studentSession, /if \(source === 'fallback'\) \{\s*disconnectedRef\.current = true;\s*setConnectionStatus\('reconnecting'\);/, 'only a failed primary API may switch the student page to reconnecting; a push wake-up must not insert the banner above the task.');
 requirePattern(studentSession, /myTeamResponse: teamResponse\s*\?\s*\{[^}]*submittedText: teamResponse\.submittedText/, 'student fallback team answer must carry submittedText so an edited draft is not shown as submitted.');
 if (/myTeamResponse: teamResponse\s*\?\s*\{[^}]*submitted: Boolean\(teamResponse\.submitted\)/.test(studentSession)) {
   throw new Error('Live resilience regression: the sticky snapshot submitted flag must not mark an edited team draft as submitted.');
@@ -99,6 +101,8 @@ requirePattern(presenter, /fetchLiveControlState\(sessionId, 'presenter'\)/, 'Pr
 requirePattern(presenter, /live-control\?role=presenter/, 'Presenter capability acquisition must explicitly request the presenter role.');
 requirePattern(liveControlRoute, /requestedRole\(req\)/, 'live-control capability route must derive the requested read role.');
 requirePattern(liveControlRoute, /searchParams\.get\('role'\) === 'presenter' \? 'presenter' : 'teacher'/, 'live-control route must restrict browser roles to teacher or presenter.');
+requirePattern(presenter, /connectLiveControl\(sessionId, 'presenter', \(\) => \{\s*void loadFallback\('push'\)/, 'Presenter WebSocket wake-ups must use the push path, not the backup-connection path.');
+requirePattern(presenter, /if \(source === 'fallback'\) setConnectionMode\('fallback'\)/, 'only a failed primary presenter API may switch the projector to the backup connection label.');
 requirePattern(presenter, /connectionMode === 'fallback'/, 'Presenter must expose degraded connection state.');
 requirePattern(gradingWorker, /claim_next_grading_outbox_job/, 'AI grading must have a server-driven capability claim path.');
 requirePattern(gradingWorker, /finish_grading_job/, 'server-driven AI grading must finish through the scoped capability.');

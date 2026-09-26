@@ -420,7 +420,7 @@ function assertStudentProjection(body, { activeIndex, label }) {
 
   const student = read('components/StudentSession.tsx');
   assert.ok(!/\blive\.events\b|\.events\b/.test(student), 'StudentSession must not depend on the Worker event log');
-  assert.match(student, /connectLiveControl\(sessionId, 'student', \(\) => \{\s*void refreshFromLiveControl\(\);/, 'any WebSocket message must trigger a /state refresh');
+  assert.match(student, /connectLiveControl\(sessionId, 'student', \(\) => \{\s*void refreshFromLiveControl\('push'\);/, 'any WebSocket message must trigger a silent /state refresh');
   assert.match(student, /typeof team\.memberCount === 'number' \? team\.memberCount : counts\.get\(team\.id\)/, 'fallback must use the server memberCount and stay compatible with older Workers');
   assert.match(student, /typeof snapshot\.lessonSnapshot\?\.totalBlocks === 'number'/, 'fallback must use totalBlocks from the projection');
 

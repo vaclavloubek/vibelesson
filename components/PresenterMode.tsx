@@ -211,7 +211,12 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
     }
   }, [sessionId]);
 
-  const loadFallback = useCallback(async () => {
+  // `fallback`: the primary presenter API failed, so the Live Control snapshot
+  // replaces it and the projector says it runs on the backup connection.
+  // `push`: a WebSocket wake-up (every student save broadcasts one) while the
+  // primary API may be healthy — show the fresher snapshot without claiming a
+  // backup connection.
+  const loadFallback = useCallback(async (source: 'fallback' | 'push' = 'fallback') => {
     const accessReady = getLiveControlAccess(sessionId, 'presenter') || await ensureLiveAccess();
     if (!accessReady) return false;
 
@@ -224,7 +229,7 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
       trackEvent('presenter_opened', { session_state: recoveredData.status });
     }
     setData(recoveredData);
-    setConnectionMode('fallback');
+    if (source === 'fallback') setConnectionMode('fallback');
     setError('');
     return true;
   }, [english, ensureLiveAccess, sessionId]);
@@ -269,7 +274,7 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
 
   useEffect(() => {
     const socket = connectLiveControl(sessionId, 'presenter', () => {
-      void loadFallback();
+      void loadFallback('push');
     });
     if (!socket) return;
     return () => socket.close(1000, 'Presenter page closed');
