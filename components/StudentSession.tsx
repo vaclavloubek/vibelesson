@@ -74,6 +74,8 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       : null;
     const activeBlock = rawActive as PublicLessonBlock | null;
     const participant = snapshot.participants.find((row) => row.id === access.subject);
+    // Worker 0.8.17+ sends the student only their own participant row and a
+    // server-side memberCount; older Workers send every participant.
     const counts = new Map<string, number>();
     for (const row of snapshot.participants) {
       if (row.teamId) counts.set(row.teamId, (counts.get(row.teamId) ?? 0) + 1);
@@ -81,7 +83,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     const teams = snapshot.teams.map((team) => ({
       id: team.id,
       name: team.name,
-      memberCount: counts.get(team.id) ?? 0,
+      memberCount: typeof team.memberCount === 'number' ? team.memberCount : counts.get(team.id) ?? 0,
     }));
     const myTeam = participant?.teamId ? teams.find((team) => team.id === participant.teamId) ?? null : null;
     const response = snapshot.responses.find((row) => row.participantId === access.subject && row.blockId === snapshot.activeBlockId);
@@ -115,7 +117,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       participantDisplayName: participant?.displayName ?? current?.participantDisplayName ?? 'Student',
       activeBlock,
       activeBlockIndex: activeBlockIndex >= 0 ? activeBlockIndex : null,
-      totalBlocks: blocks.length || current?.totalBlocks || 0,
+      totalBlocks: (typeof snapshot.lessonSnapshot?.totalBlocks === 'number' ? snapshot.lessonSnapshot.totalBlocks : blocks.length) || current?.totalBlocks || 0,
       realtimeKey: current?.realtimeKey ?? '',
       myResponse: (response?.answer as StudentAnswer | undefined) ?? current?.myResponse ?? null,
       myResponseSubmitted: response?.submitted ?? current?.myResponseSubmitted ?? false,

@@ -27,8 +27,8 @@ The Next.js application must use the same capability signing secret when minting
 
 - `GET /health`
 - `POST /v1/sessions/:id/bootstrap` — server-only, bootstrap/update durable snapshot
-- `GET /v1/sessions/:id/state?after=<revision>` — capability-authenticated snapshot + replay
+- `GET /v1/sessions/:id/state?after=<revision>` — capability-authenticated snapshot + replay; a student capability gets only its own projection (own participant row and answers, own team's answer, blocks up to the active one, `totalBlocks`, team `memberCount`) and no events
 - `POST /v1/sessions/:id/events` — capability-authenticated idempotent event
-- `GET /v1/sessions/:id/ws` — capability-authenticated Hibernation WebSocket
+- `GET /v1/sessions/:id/ws` — capability-authenticated Hibernation WebSocket; student sockets get only `{ type: 'wake', revision }`, teacher and presenter sockets the full message
 
 This directory is intentionally deployable independently from Vercel.

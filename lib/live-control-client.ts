@@ -22,8 +22,11 @@ export type LiveControlState = {
       title?: string;
       language?: string;
       blocks?: Array<Record<string, unknown>>;
+      // Worker 0.8.17+: a student sees only blocks up to the active one, so the
+      // lesson length comes separately.
+      totalBlocks?: number;
     };
-    teams: Array<{ id: string; name: string; sortOrder?: number }>;
+    teams: Array<{ id: string; name: string; sortOrder?: number; memberCount?: number }>;
     participants: Array<{ id: string; displayName: string; teamId: string | null }>;
     responses: Array<{
       participantId: string;

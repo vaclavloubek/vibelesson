@@ -67,7 +67,7 @@ type LiveEvent = {
 
 const encoder = new TextEncoder();
 const LIVE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const WORKER_VERSION = '0.8.16';
+const WORKER_VERSION = '0.8.17';
 const LIVE_PROTOCOL_VERSION = 2;
 
 function json(value: unknown, status = 200) {
@@ -382,6 +382,55 @@ function applyEvent(snapshot: SessionSnapshot, event: LiveEvent): SessionSnapsho
   return { ...snapshot, revision: event.revision, updatedAt: event.createdAt };
 }
 
+// A student capability sees only what the primary student API would show:
+// their own participant row and answers, their own team's answer, the blocks
+// up to the active one and aggregate team sizes. Other participants' names,
+// IDs and answers and the content of future blocks never leave the object.
+function projectSnapshotForStudent(snapshot: SessionSnapshot, participantId: string) {
+  const lesson = snapshot.lessonSnapshot && typeof snapshot.lessonSnapshot === 'object'
+    ? snapshot.lessonSnapshot as { title?: unknown; language?: unknown; blocks?: Array<Record<string, unknown>> }
+    : {};
+  const blocks = Array.isArray(lesson.blocks) ? lesson.blocks : [];
+  const activeIndex = snapshot.status !== 'lobby' && snapshot.activeBlockId
+    ? blocks.findIndex((block) => block.id === snapshot.activeBlockId)
+    : -1;
+  const me = snapshot.participants.find((participant) => participant.id === participantId) ?? null;
+  const myTeamId = me?.teamId ?? null;
+  const memberCounts = new Map<string, number>();
+  for (const participant of snapshot.participants) {
+    if (participant.teamId) memberCounts.set(participant.teamId, (memberCounts.get(participant.teamId) ?? 0) + 1);
+  }
+
+  return {
+    sessionId: snapshot.sessionId,
+    joinCode: snapshot.joinCode,
+    revision: snapshot.revision,
+    status: snapshot.status,
+    activeBlockId: snapshot.activeBlockId,
+    lessonSnapshot: {
+      title: lesson.title,
+      language: lesson.language,
+      blocks: activeIndex >= 0 ? blocks.slice(0, activeIndex + 1) : [],
+      totalBlocks: blocks.length,
+    },
+    teams: snapshot.teams.map((team) => ({ ...team, memberCount: memberCounts.get(team.id) ?? 0 })),
+    participants: me ? [me] : [],
+    responses: snapshot.responses.filter((row) => row.participantId === participantId),
+    teamResponses: myTeamId
+      ? (snapshot.teamResponses ?? [])
+          .filter((row) => row.teamId === myTeamId)
+          .map((row) => ({
+            ...row,
+            updatedByParticipantId: row.updatedByParticipantId === participantId ? participantId : null,
+          }))
+      : [],
+    revealedBlockIds: snapshot.revealedBlockIds,
+    scoreboardRevealed: snapshot.scoreboardRevealed,
+    timer: snapshot.timer,
+    updatedAt: snapshot.updatedAt,
+  };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -505,11 +554,15 @@ export class LiveSession extends DurableObject<Env> {
     } : null;
   }
 
-  private broadcast(message: unknown) {
+  // Student sockets get only a payload-free wake-up and re-read their own
+  // projection through /state; teacher and presenter sockets get the message.
+  private broadcast(message: unknown, revision: number) {
     const serialized = JSON.stringify(message);
+    const wake = JSON.stringify({ type: 'wake', revision });
     for (const socket of this.ctx.getWebSockets()) {
       try {
-        socket.send(serialized);
+        const attachment = socket.deserializeAttachment() as { role?: unknown } | null;
+        socket.send(attachment?.role === 'teacher' || attachment?.role === 'presenter' ? serialized : wake);
       } catch {
         // Broken sockets are cleaned up by the runtime close/error handlers.
       }
@@ -530,13 +583,18 @@ export class LiveSession extends DurableObject<Env> {
 
       this.writeSnapshot({ ...body, updatedAt: new Date().toISOString() });
       await this.extendRetention();
-      this.broadcast({ type: 'snapshot', revision: body.revision });
+      this.broadcast({ type: 'snapshot', revision: body.revision }, body.revision);
       return json({ ok: true, revision: body.revision });
     }
 
     if (url.pathname.endsWith('/state') && request.method === 'GET') {
       const snapshot = this.readSnapshot();
       if (!snapshot) return json({ error: 'Live session is not bootstrapped.' }, 404);
+      const readerRole = request.headers.get('x-syllonaut-role');
+      if (readerRole !== 'teacher' && readerRole !== 'presenter') {
+        const participantId = request.headers.get('x-syllonaut-sub') ?? '';
+        return json({ snapshot: projectSnapshotForStudent(snapshot, participantId), events: [] });
+      }
       const afterRevision = Number(url.searchParams.get('after') ?? '-1');
       const events = Number.isFinite(afterRevision) && afterRevision >= 0
         ? [...this.ctx.storage.sql.exec<{
@@ -578,7 +636,11 @@ export class LiveSession extends DurableObject<Env> {
       }
 
       const existing = this.operationResult(body.operationId);
-      if (existing) return json({ ok: true, event: existing, duplicate: true });
+      if (existing) {
+        // Never echo another actor's event (and its payload) back to the caller.
+        if (existing.actorId !== actorId) return json({ ok: true, duplicate: true });
+        return json({ ok: true, event: existing, duplicate: true });
+      }
 
       const snapshot = this.readSnapshot();
       if (!snapshot) return json({ error: 'Live session is not bootstrapped.' }, 409);
@@ -768,7 +830,7 @@ export class LiveSession extends DurableObject<Env> {
       });
 
       await this.extendRetention();
-      this.broadcast({ type: 'event', event });
+      this.broadcast({ type: 'event', event }, event.revision);
       return json({ ok: true, event });
     }
 
