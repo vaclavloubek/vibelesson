@@ -71,7 +71,7 @@ export async function loadTeacherScoreboard(
 ): Promise<TeacherScoreboardLoadResult> {
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
-    .select('status, active_block_id, lesson_snapshot, realtime_key, scoreboard_revealed')
+    .select('status, active_block_id, lesson_snapshot, realtime_key, scoreboard_revealed, revealed_block_ids')
     .eq('id', sessionId)
     .eq('teacher_id', userId)
     .maybeSingle();
@@ -134,6 +134,7 @@ export async function loadTeacherScoreboard(
     }
   }
 
+  const revealedBlockIds = (session.revealed_block_ids ?? []) as string[];
   const activeIndex = session.status === 'ended'
     ? lesson.data.blocks.length - 1
     : lesson.data.blocks.findIndex((block) => block.id === session.active_block_id);
@@ -149,6 +150,15 @@ export async function loadTeacherScoreboard(
       || index <= activeIndex
       || activeResponseBlocks.has(block.id)
       || activeEvaluationBlocks.has(block.id)
+    ))
+    // The active quiz counts only after its results are revealed (as in the
+    // student scoreboard RPC); the projector would otherwise show who is right
+    // while answers can still change.
+    .filter(({ block }) => !(
+      session.status === 'live'
+      && block.type === 'quiz'
+      && block.id === session.active_block_id
+      && !revealedBlockIds.includes(block.id)
     ));
 
   const availableMaxPoints = scoredBlocks.reduce((sum, { block }) => sum + (block.points ?? 0), 0);
