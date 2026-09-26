@@ -1,0 +1,121 @@
+/*
+ * Inline-size containment: the table's min-width can no longer widen the
+ * lesson card or the page (a 4-column table made the layout viewport 580 px on a
+ * 375 px phone, so the phone zoomed the whole page out). It also lets the
+ * container query below react to the block's width, not the window's.
+ */
+.root {
+  container-type: inline-size;
+  margin: 14px 0;
+}
+
+.caption {
+  margin: 0 0 8px;
+  font-weight: 700;
+  overflow-wrap: break-word;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.table th {
+  background: var(--panel-soft);
+}
+
+/* Narrow blocks: one card per row, cells as label + value, body-size text. */
+.cards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 8px;
+}
+
+.card {
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #faf9f6;
+}
+
+.card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.field dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.field dd {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.lead,
+.wide {
+  grid-column: 1 / -1;
+}
+
+.lead dd {
+  font-weight: 700;
+}
+
+@container (max-width: 559px) {
+  .tableWrap {
+    display: none;
+  }
+
+  .cards {
+    display: grid;
+  }
+}
+
+:global(.teacher-live-shell) .table th,
+:global(.teacher-live-shell) .table td,
+:global(.teacher-live-shell) .card {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global(.teacher-live-shell) .table th {
+  background: #171c28;
+}
+
+:global(.teacher-live-shell) .card {
+  background: #171c28;
+  color: #eef0f6;
+}
+
+:global(.teacher-live-shell) .field dt {
+  color: #a6acb8;
+}
