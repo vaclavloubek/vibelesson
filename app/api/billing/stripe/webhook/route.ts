@@ -21,7 +21,13 @@ import { isStripeLiveSecretKey, verifyStripeCheckoutBillingCountry } from '@/lib
 import { canonicalStripeSubscriptionState, retrieveStripeSubscription } from '@/lib/stripe-subscription-management';
 import { listStripePaidInvoicePayments } from '@/lib/stripe-invoice-payments';
 import { retrieveStripeChargeRefundState } from '@/lib/stripe-refunds';
-import { reconcileServiceChangeRefundEvent, reconcileWithdrawalRefundEvent } from '@/lib/stripe-withdrawal';
+import {
+  cancelWithdrawnSubscription,
+  reconcileServiceChangeRefundEvent,
+  reconcileWithdrawalRefundEvent,
+  withdrawalStripeRequest,
+} from '@/lib/stripe-withdrawal';
+import { cancelSubscriptionAfterFullRefund, type FullRefundCancellationOutcome } from '@/lib/stripe-full-refund-cancellation';
 import {
   configuredStripeWebhookSecrets,
   normalizeStripeDisputeEvent,
@@ -749,6 +755,7 @@ export async function POST(request: Request) {
       });
 
       let refundResult = data;
+      let individualSubscriptionId: string | null = null;
       if (error?.message?.includes('stripe_refund_payment_mapping_missing')) {
         const organizationResult = await syncStripeBillingRpc('sync_organization_stripe_refund_state', {
           p_event_id: refundSync.eventId,
@@ -795,6 +802,9 @@ export async function POST(request: Request) {
           code: error.code,
         });
         return jsonError(500, 'refund_sync_failed');
+      } else {
+        const subscriptionId = (data as { subscriptionId?: unknown } | null)?.subscriptionId;
+        individualSubscriptionId = typeof subscriptionId === 'string' ? subscriptionId : null;
       }
 
       if (refundSync.livemode && secretKey) {
@@ -802,10 +812,68 @@ export async function POST(request: Request) {
         await reconcileServiceChangeRefundEvent(secretKey, event.data.object);
       }
 
+      // A full refund of the current paid period ends an individual subscription
+      // immediately; customer.subscription.deleted then sends the existing
+      // "subscription ended" email and marketing event.
+      let subscriptionCancellation: FullRefundCancellationOutcome | null = null;
+      if (individualSubscriptionId && refundSync.livemode && refundState.fullyRefunded) {
+        const liveKey = secretKey ?? '';
+        try {
+          subscriptionCancellation = await cancelSubscriptionAfterFullRefund({
+            stripeGet: (path, schema) => withdrawalStripeRequest(liveKey, path, schema),
+            cancelSubscription: (subscriptionId) => cancelWithdrawnSubscription(
+              liveKey,
+              subscriptionId,
+              'syllonaut-full-refund-cancel-' + subscriptionId,
+            ),
+          }, {
+            livemode: refundSync.livemode,
+            eventType: refundSync.eventType,
+            eventObject: event.data.object,
+            chargeId: refundState.chargeId,
+            paymentIntentId: refundState.paymentIntentId,
+            fullyRefunded: refundState.fullyRefunded,
+            subscriptionId: individualSubscriptionId,
+          });
+        } catch (cancelError) {
+          console.error('stripe full refund subscription cancellation failed', {
+            eventId: refundSync.eventId,
+            eventType: refundSync.eventType,
+            livemode: refundSync.livemode,
+            code: cancelError instanceof Error ? cancelError.message : 'unknown',
+          });
+          return jsonError(500, 'full_refund_subscription_cancel_failed');
+        }
+
+        if (subscriptionCancellation.action === 'canceled') {
+          console.info('stripe full refund canceled subscription', {
+            eventId: refundSync.eventId,
+            eventType: refundSync.eventType,
+          });
+        } else if (
+          subscriptionCancellation.reason === 'not_current_invoice'
+          || subscriptionCancellation.reason === 'invoice_unresolved'
+        ) {
+          console.warn('stripe full refund left subscription running', {
+            eventId: refundSync.eventId,
+            eventType: refundSync.eventType,
+            reason: subscriptionCancellation.reason,
+          });
+        } else if (subscriptionCancellation.reason === 'duplicate') {
+          console.info('stripe duplicate-payment refund kept subscription', {
+            eventId: refundSync.eventId,
+            eventType: refundSync.eventType,
+          });
+        }
+      }
+
       return NextResponse.json({
         received: true,
         refundEvent: refundSync.eventType,
         fullRefund: refundState.fullyRefunded,
+        subscriptionCancellation: subscriptionCancellation
+          ? (subscriptionCancellation.action === 'canceled' ? 'canceled' : subscriptionCancellation.reason)
+          : null,
         result: refundResult,
       }, {
         status: 200,

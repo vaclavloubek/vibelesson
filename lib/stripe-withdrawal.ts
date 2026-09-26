@@ -117,11 +117,13 @@ export async function findServiceChangeStripeRefund(key: string, requestId: stri
   return matching[0] ?? null;
 }
 
-export async function cancelWithdrawnSubscription(key: string, subscriptionId: string) {
+// Immediate cancellation without a final invoice or proration. Also used after a
+// full refund of the current period; that caller passes an idempotency key.
+export async function cancelWithdrawnSubscription(key: string, subscriptionId: string, idempotencyKey?: string) {
   if (!/^sub_[A-Za-z0-9_]+$/.test(subscriptionId)) throw new Error('withdrawal_subscription_invalid');
   const canceled = await withdrawalStripeRequest(key, 'subscriptions/' + subscriptionId,
     z.object({ id: Id, status: z.literal('canceled'), livemode: z.literal(true), canceled_at:z.number().int().positive() }), 'DELETE',
-    new URLSearchParams({ invoice_now: 'false', prorate: 'false' }));
+    new URLSearchParams({ invoice_now: 'false', prorate: 'false' }), idempotencyKey);
   if (canceled.id !== subscriptionId) throw new Error('withdrawal_cancellation_mismatch');
   return { canceledAt: new Date(canceled.canceled_at * 1000).toISOString() };
 }
