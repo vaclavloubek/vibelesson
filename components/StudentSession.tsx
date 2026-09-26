@@ -15,12 +15,13 @@ import LiveBlock from '@/components/LiveBlock';
 import LiveTimer from '@/components/LiveTimer';
 import StudentResponseInput from '@/components/StudentResponseInput';
 import StudentEvaluationCard from '@/components/StudentEvaluationCard';
+import StudentPreviousActivities from '@/components/StudentPreviousActivities';
 import StudentRevealedResults from '@/components/StudentRevealedResults';
 import SyllonautMark from '@/components/SyllonautMark';
 import TeamPicker from '@/components/TeamPicker';
 import TeamTaskResponseInput from '@/components/TeamTaskResponseInput';
 import VisuallyHidden from '@/components/VisuallyHidden';
-import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer, StudentEvaluation } from '@/lib/live';
+import type { LiveTimerState, PublicLessonBlock, PublicScoreboardState, RevealedChoiceResults, SessionStatus, StudentAnswer, StudentEvaluation, StudentPreviousActivity } from '@/lib/live';
 import { localizedApiError } from '@/lib/i18n';
 import { studentSolutionsFilename } from '@/lib/student-solutions-pdf';
 
@@ -46,6 +47,7 @@ type StudentState = {
   scoreboard: PublicScoreboardState | null;
   myEvaluation?: StudentEvaluation | null;
   myEvaluations?: StudentEvaluation[];
+  previousBlocks?: StudentPreviousActivity[];
 };
 
 export default function StudentSession({ sessionId }: { sessionId: string }) {
@@ -93,6 +95,18 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
     const activeBlockIndex = snapshot.activeBlockId
       ? blocks.findIndex((block) => block.id === snapshot.activeBlockId)
       : -1;
+    const previousBlocks: StudentPreviousActivity[] = snapshot.status === 'live' && activeBlockIndex > 0
+      ? blocks.slice(0, activeBlockIndex).map((block, index) => {
+          const own = snapshot.responses.find((row) => row.participantId === access.subject && row.blockId === block.id);
+          const team = myTeam ? snapshot.teamResponses?.find((row) => row.teamId === myTeam.id && row.blockId === block.id) : null;
+          return {
+            index,
+            block: block as PublicLessonBlock,
+            myAnswer: block.type === 'team_task' ? null : ((own?.submittedAnswer ?? own?.answer ?? null) as StudentAnswer | null),
+            myTeamAnswer: block.type === 'team_task' ? team?.submittedText ?? team?.text ?? null : null,
+          };
+        })
+      : [];
     const rawTimer = snapshot.timer && typeof snapshot.timer === 'object'
       ? snapshot.timer as { status?: unknown; startedAt?: unknown; remainingSeconds?: unknown }
       : null;
@@ -132,6 +146,7 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       scoreboard: current?.scoreboard ?? null,
       myEvaluation: current?.myEvaluation ?? null,
       myEvaluations: current?.myEvaluations ?? [],
+      previousBlocks,
     }));
     hasLoadedRef.current = true;
     disconnectedRef.current = true;
@@ -377,6 +392,8 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
               ) : null}
             </>
           ) : <div className="error" role="status">{ui('Čekám na aktivní blok…', 'Waiting for the active block…')}</div>}
+
+          <StudentPreviousActivities activities={state.previousBlocks ?? []} contentLanguage={state.lessonLanguage} />
         </div>
       ) : null}
 

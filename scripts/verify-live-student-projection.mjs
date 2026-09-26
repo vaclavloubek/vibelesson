@@ -6,9 +6,16 @@
 // Runs the real cloudflare/live-control/src/index.ts (Node type stripping)
 // with a stubbed `cloudflare:workers`, node:sqlite behind ctx.storage.sql and
 // fake hibernated sockets. No network, no Cloudflare account.
+//
+// "Předchozí aktivity": the real student state() of both backends (Neon and
+// Supabase) runs against in-memory tables behind a fake Neon SQL tag and a fake
+// Supabase query builder. previousBlocks must contain only blocks before the
+// active one, without teacher-only fields, with only the student's own answer
+// and their own team's text, loaded with one query per table.
 import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -21,6 +28,15 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === 'cloudflare:workers') {
       return stub('export class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }');
+    }
+    if (specifier === 'server-only') return stub('export {};');
+    if (specifier === '@/lib/neon/server') return stub('export const createNeonSql = () => globalThis.__neonSql;');
+    if (specifier === '@/lib/neon/grading-outbox-worker') return stub('export function scheduleNeonGradingDrain() {}');
+    if (specifier === '@/lib/supabase/admin') return stub('export const createAdminClient = () => globalThis.__supabase;');
+    if (specifier.startsWith('@/')) {
+      const base = `${repoRoot}${specifier.slice(2)}`;
+      const file = ['.ts', '.tsx', '/index.ts'].map((suffix) => `${base}${suffix}`).find(existsSync);
+      if (file) return { url: pathToFileURL(file).href, shortCircuit: true };
     }
     return nextResolve(specifier, context);
   },
@@ -253,7 +269,149 @@ function assertStudentProjection(body, { activeIndex, label }) {
   assertStudentProjection(await response.json(), { activeIndex: 1, label: 'entry worker' });
 }
 
-// --- 4. Client and source guards -------------------------------------------
+// --- 4. Server "Předchozí aktivity" in both state() implementations -------
+
+{
+  const TOKEN_ALICE = 'alice-token-'.padEnd(40, 'a');
+  const TOKEN_BOB = 'bob-token-'.padEnd(40, 'b');
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const TEACHER_ONLY = { teacherNote: 'SECRET_TEACHER_NOTE', correctAnswer: 'SECRET_CORRECT', gradingRubric: [{ id: 'r', title: 'SECRET_RUBRIC', description: 'x', maxPoints: 1 }], modelAnswer: 'SECRET_MODEL' };
+  const lessonBlocks = [
+    { id: 'p1', type: 'poll', title: 'Hlasování', durationMinutes: 2, instructions: 'Vyber.', options: ['Ano', 'Ne'], ...TEACHER_ONLY },
+    { id: 'p2', type: 'open_text', title: 'Hlavní příčiny', durationMinutes: 5, instructions: 'Napiš.', dataTable: { caption: 'Data', columns: ['a', 'b'], rows: [['1', '2']] }, ...TEACHER_ONLY },
+    { id: 'p3', type: 'team_task', title: 'Týmový plán', durationMinutes: 8, instructions: 'Plán.', ...TEACHER_ONLY },
+    { id: 'p4', type: 'quiz', title: 'Kvíz', durationMinutes: 2, instructions: 'Kvíz.', options: ['A', 'B'], ...TEACHER_ONLY },
+    { id: 'p5', type: 'reveal', title: 'FUTURE_P5_TITLE', durationMinutes: 2, instructions: 'FUTURE_P5_INSTRUCTIONS', revealText: 'FUTURE_P5_REVEAL', ...TEACHER_ONLY },
+  ];
+  const tables = {
+    sessions: [],
+    participants: [
+      { id: ALICE, session_id: SESSION, display_name: 'Alice', team_id: TEAM_1, participant_token_hash: hash(TOKEN_ALICE) },
+      { id: BOB, session_id: SESSION, display_name: 'BOB_NAME', team_id: TEAM_1, participant_token_hash: hash(TOKEN_BOB) },
+      { id: CYRIL, session_id: SESSION, display_name: 'CYRIL_NAME', team_id: TEAM_2, participant_token_hash: hash('cyril') },
+    ],
+    teams: [
+      { id: TEAM_1, session_id: SESSION, name: 'Sovy', sort_order: 0 },
+      { id: TEAM_2, session_id: SESSION, name: 'Lišky', sort_order: 1 },
+    ],
+    responses: [
+      { session_id: SESSION, participant_id: ALICE, block_id: 'p1', answer: { choice: 'Ano' }, submitted_answer: null, submitted_at: null },
+      { session_id: SESSION, participant_id: ALICE, block_id: 'p2', answer: { text: 'ALICE_SAVED_AFTER_SUBMIT' }, submitted_answer: { text: 'ALICE_SUBMITTED' }, submitted_at: '2026-09-26T08:00:00Z' },
+      { session_id: SESSION, participant_id: ALICE, block_id: 'p5', answer: { text: 'ALICE_FUTURE_ROW' }, submitted_answer: null, submitted_at: null },
+      { session_id: SESSION, participant_id: BOB, block_id: 'p1', answer: { choice: 'Ne' }, submitted_answer: null, submitted_at: null },
+      { session_id: SESSION, participant_id: BOB, block_id: 'p2', answer: { text: 'BOB_ANSWER' }, submitted_answer: { text: 'BOB_ANSWER' }, submitted_at: '2026-09-26T08:00:00Z' },
+      { session_id: SESSION, participant_id: CYRIL, block_id: 'p2', answer: { text: 'CYRIL_ANSWER' }, submitted_answer: null, submitted_at: null },
+    ],
+    team_responses: [
+      { session_id: SESSION, team_id: TEAM_1, block_id: 'p3', answer: { text: 'TEAM1_TEXT' }, submitted_answer: null, submitted_at: null, updated_by_participant_id: BOB },
+      { session_id: SESSION, team_id: TEAM_2, block_id: 'p3', answer: { text: 'TEAM2_TEXT' }, submitted_answer: { text: 'TEAM2_TEXT' }, submitted_at: '2026-09-26T08:00:00Z', updated_by_participant_id: CYRIL },
+    ],
+  };
+  const setSession = (status, activeBlockId) => {
+    tables.sessions = [{
+      id: SESSION, status, active_block_id: activeBlockId, realtime_key: 'rk',
+      lesson_snapshot: { title: 'Lekce', language: 'cs', blocks: lessonBlocks },
+      revealed_block_ids: [], timer_status: 'idle', timer_started_at: null, timer_remaining_seconds: null,
+    }];
+  };
+  const matches = (row, filters) => filters.every(([column, value, op]) => (
+    op === 'in' ? value.map(String).includes(String(row[column])) : String(row[column]) === String(value)
+  ));
+  const queryLog = [];
+
+  // Neon: a tagged template that applies every `column = ${value}` and
+  // `column = any(${values})` of the real query to in-memory tables.
+  globalThis.__neonSql = async (strings, ...values) => {
+    const text = strings.join('?');
+    const table = text.match(/from public\.(\w+)/)?.[1];
+    queryLog.push({ backend: 'neon', table, text });
+    if (table === 'response_evaluations') return [];
+    if (table === 'teams') {
+      return tables.teams.map((team) => ({ ...team, member_count: tables.participants.filter((row) => row.team_id === team.id).length }));
+    }
+    const filters = [];
+    strings.forEach((part, index) => {
+      if (index >= values.length) return;
+      const any = part.match(/(\w+) = any\($/);
+      const eq = part.match(/(\w+) = $/);
+      if (any) filters.push([any[1] === 'id' ? 'id' : any[1], values[index], 'in']);
+      else if (eq) filters.push([eq[1], values[index], 'eq']);
+    });
+    return (tables[table] ?? []).filter((row) => matches(row, filters));
+  };
+
+  // Supabase: a minimal query builder with eq/in/gt/order/maybeSingle/single.
+  globalThis.__supabase = {
+    from(table) {
+      const filters = [];
+      const builder = {
+        select() { return builder; },
+        eq(column, value) { filters.push([column, value, 'eq']); return builder; },
+        in(column, values) { filters.push([column, values, 'in']); queryLog.push({ backend: 'supabase', table, text: `in ${column}` }); return builder; },
+        gt() { return builder; },
+        order() { return builder; },
+        result() { return (tables[table] ?? []).filter((row) => matches(row, filters)); },
+        maybeSingle() { return Promise.resolve({ data: builder.result()[0] ?? null, error: null }); },
+        single() { return builder.maybeSingle(); },
+        then(resolve, reject) { return Promise.resolve({ data: builder.result(), error: null }).then(resolve, reject); },
+      };
+      return builder;
+    },
+    rpc: async () => ({ data: null, error: null }),
+  };
+
+  const { handleStudentSessionAction } = await import(pathToFileURL(`${repoRoot}lib/student-session-server.ts`).href);
+  const backends = [['neon', 'neon'], ['supabase', undefined]];
+  const readStudent = async (backend, token) => {
+    if (backend === undefined) delete process.env.DATABASE_BACKEND; else process.env.DATABASE_BACKEND = backend;
+    const response = await handleStudentSessionAction({ action: 'state', sessionId: SESSION, participantToken: token });
+    assert.equal(response.status, 200, 'student state loads');
+    return response.json();
+  };
+
+  for (const [label, backend] of backends) {
+    setSession('live', 'p4');
+    queryLog.length = 0;
+    const alice = await readStudent(backend, TOKEN_ALICE);
+    const text = JSON.stringify(alice);
+    assert.deepEqual(alice.previousBlocks.map((item) => [item.index, item.block.id]), [[0, 'p1'], [1, 'p2'], [2, 'p3']], `${label}: only blocks before the active one, numbered like the counter`);
+    for (const item of alice.previousBlocks) {
+      for (const field of Object.keys(TEACHER_ONLY)) assert.equal(item.block[field], undefined, `${label}: previousBlocks must not carry ${field}`);
+    }
+    for (const needle of ['SECRET_TEACHER_NOTE', 'SECRET_CORRECT', 'SECRET_RUBRIC', 'SECRET_MODEL', 'BOB_NAME', 'CYRIL_NAME', 'BOB_ANSWER', 'CYRIL_ANSWER', 'TEAM2_TEXT', 'ALICE_FUTURE_ROW', 'FUTURE_P5_TITLE', 'FUTURE_P5_INSTRUCTIONS', 'FUTURE_P5_REVEAL']) {
+      assert.ok(!text.includes(needle), `${label}: student state must not contain ${needle}`);
+    }
+    const byId = Object.fromEntries(alice.previousBlocks.map((item) => [item.block.id, item]));
+    assert.deepEqual(byId.p1.myAnswer, { choice: 'Ano' }, `${label}: last saved answer when nothing was submitted`);
+    assert.deepEqual(byId.p2.myAnswer, { text: 'ALICE_SUBMITTED' }, `${label}: submitted answer wins over a later save`);
+    assert.deepEqual(byId.p2.block.dataTable?.columns, ['a', 'b'], `${label}: dataTable is part of the previous block`);
+    assert.equal(byId.p3.myAnswer, null, `${label}: team task has no individual answer`);
+    assert.equal(byId.p3.myTeamAnswer, 'TEAM1_TEXT', `${label}: own team text`);
+    assert.equal(byId.p1.myTeamAnswer, null, `${label}: no team text on individual blocks`);
+    const previousQueries = queryLog.filter((entry) => entry.backend === label && /any\(|^in block_id/.test(entry.text));
+    assert.deepEqual(previousQueries.map((entry) => entry.table).sort(), ['responses', 'team_responses'], `${label}: one IN query per table, not one per block`);
+
+    const bob = await readStudent(backend, TOKEN_BOB);
+    const bobText = JSON.stringify(bob);
+    assert.equal(bob.previousBlocks.find((item) => item.block.id === 'p2').myAnswer.text, 'BOB_ANSWER', `${label}: Bob sees his own answer`);
+    for (const needle of ['ALICE_SUBMITTED', 'ALICE_SAVED_AFTER_SUBMIT', 'CYRIL_ANSWER', 'TEAM2_TEXT']) {
+      assert.ok(!bobText.includes(needle), `${label}: Bob must not see ${needle}`);
+    }
+
+    // Teacher went back ("Předchozí") → the list shrinks.
+    setSession('live', 'p2');
+    assert.deepEqual((await readStudent(backend, TOKEN_ALICE)).previousBlocks.map((item) => item.block.id), ['p1'], `${label}: previous shrinks the list`);
+    setSession('live', 'p1');
+    assert.deepEqual((await readStudent(backend, TOKEN_ALICE)).previousBlocks, [], `${label}: first block has no previous activities`);
+    for (const status of ['lobby', 'ended']) {
+      setSession(status, 'p4');
+      assert.deepEqual((await readStudent(backend, TOKEN_ALICE)).previousBlocks, [], `${label}: no previous activities when ${status}`);
+    }
+  }
+  delete process.env.DATABASE_BACKEND;
+}
+
+// --- 5. Client and source guards -------------------------------------------
 
 {
   const workerSource = read('cloudflare/live-control/src/index.ts');
@@ -265,6 +423,25 @@ function assertStudentProjection(body, { activeIndex, label }) {
   assert.match(student, /connectLiveControl\(sessionId, 'student', \(\) => \{\s*void refreshFromLiveControl\(\);/, 'any WebSocket message must trigger a /state refresh');
   assert.match(student, /typeof team\.memberCount === 'number' \? team\.memberCount : counts\.get\(team\.id\)/, 'fallback must use the server memberCount and stay compatible with older Workers');
   assert.match(student, /typeof snapshot\.lessonSnapshot\?\.totalBlocks === 'number'/, 'fallback must use totalBlocks from the projection');
+
+  // Fallback previousBlocks come from the projection and only from own rows.
+  const fallback = student.match(/const previousBlocks: StudentPreviousActivity\[\] = [\s\S]*?: \[\];/)?.[0] ?? '';
+  assert.ok(fallback.includes("snapshot.status === 'live' && activeBlockIndex > 0"), 'fallback previousBlocks only while live and after the first block');
+  assert.ok(fallback.includes('blocks.slice(0, activeBlockIndex)'), 'fallback previousBlocks stop before the active block');
+  assert.ok(fallback.includes('row.participantId === access.subject'), 'fallback previousBlocks use only own answers');
+  assert.ok(fallback.includes('row.teamId === myTeam.id'), 'fallback previousBlocks use only own team text');
+  assert.match(student, /<StudentPreviousActivities activities=\{state\.previousBlocks \?\? \[\]\} contentLanguage=\{state\.lessonLanguage\} \/>/, 'StudentSession renders the overview below the current task');
+  assert.ok(student.indexOf('<StudentPreviousActivities') > student.indexOf('<StudentResponseInput'), 'the current task stays first on screen');
+
+  const overview = read('components/StudentPreviousActivities.tsx');
+  for (const forbidden of ['<input', '<textarea', '<button', '<form', 'StudentResponseInput', 'TeamTaskResponseInput', 'role="dialog"', 'fetch(']) {
+    assert.ok(!overview.includes(forbidden), `the previous-activities overview must stay read-only (${forbidden})`);
+  }
+  for (const needle of ["ui('Předchozí aktivity', 'Previous activities')", "ui('Tvoje odpověď', 'Your answer')", "ui('Tvoje týmová odpověď', \"Your team's answer\")", "ui('Bez odpovědi', 'No answer')", '<summary', '{activity.index + 1}. <span lang={lang} dir={dir}>', '<LiveBlock block={activity.block} contentLanguage={contentLanguage} />']) {
+    assert.ok(overview.includes(needle), `previous-activities overview must contain ${needle}`);
+  }
+  assert.ok(overview.includes('const [open, setOpen] = useState(false);'), 'the overview starts collapsed');
+  assert.ok(!/<details\b[^]*?\sopen(?=[\s>/])/.test(overview.replace(/=>/g, '')), 'no <details> is hard-coded open');
 }
 
 console.log('Live student projection checks passed.');

@@ -54,6 +54,28 @@ function publicBlock(block: Block) {
   return result;
 }
 
+type PreviousBlock = { index: number; block: Record<string, unknown>; myAnswer: Answer | null; myTeamAnswer: string | null };
+type PreviousAnswerRow = { block_id: unknown; answer: unknown; submitted_answer: unknown };
+
+function answerText(value: unknown) {
+  const text = value && typeof value === 'object' ? (value as { text?: unknown }).text : undefined;
+  return typeof text === 'string' ? text : null;
+}
+
+// "Předchozí aktivity": public content of the blocks before the active one and
+// only this participant's own answer (submitted, otherwise last saved) or their
+// own team's text. Future blocks and other participants' answers never leave.
+function buildPreviousBlocks(previous: Block[], responses: PreviousAnswerRow[], teamResponses: PreviousAnswerRow[]): PreviousBlock[] {
+  const mine = new Map(responses.map((row) => [String(row.block_id), (row.submitted_answer ?? row.answer ?? null) as Answer | null]));
+  const team = new Map(teamResponses.map((row) => [String(row.block_id), answerText(row.submitted_answer) ?? answerText(row.answer)]));
+  return previous.map((block, index) => ({
+    index,
+    block: publicBlock(block),
+    myAnswer: block.type === 'team_task' ? null : mine.get(String(block.id)) ?? null,
+    myTeamAnswer: block.type === 'team_task' ? team.get(String(block.id)) ?? null : null,
+  }));
+}
+
 function remainingSeconds(
   session: { timer_status?: unknown; timer_started_at?: unknown; timer_remaining_seconds?: unknown },
   now: number,
@@ -266,6 +288,34 @@ async function state(body: Record<string, unknown>) {
     }
   }
 
+  const previousRaw = session.status === 'live' && activeIndex > 0 ? allBlocks.slice(0, activeIndex) : [];
+  let previousBlocks: PreviousBlock[] = [];
+  if (previousRaw.length) {
+    const blockIds = previousRaw.map((block) => String(block.id));
+    const teamTaskIds = previousRaw.filter((block) => block.type === 'team_task').map((block) => String(block.id));
+    const [{ data: previousResponses, error: previousError }, { data: previousTeamResponses, error: previousTeamError }] = await Promise.all([
+      db.from('responses')
+        .select('block_id,answer,submitted_answer')
+        .eq('session_id', sessionId)
+        .eq('participant_id', participant.id)
+        .in('block_id', blockIds),
+      typeof participant.team_id === 'string' && teamTaskIds.length
+        ? db.from('team_responses')
+            .select('block_id,answer,submitted_answer')
+            .eq('session_id', sessionId)
+            .eq('team_id', participant.team_id)
+            .in('block_id', teamTaskIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    // The overview is read-only context; it must never break the live view.
+    if (previousError || previousTeamError) console.error('student previous activities read failed', previousError ?? previousTeamError);
+    previousBlocks = buildPreviousBlocks(
+      previousRaw,
+      previousError ? [] : (previousResponses ?? []) as PreviousAnswerRow[],
+      previousTeamError ? [] : (previousTeamResponses ?? []) as PreviousAnswerRow[],
+    );
+  }
+
   const syncedAt = new Date().toISOString();
   const timer = rawBlock?.type === 'timer'
     ? {
@@ -292,6 +342,7 @@ async function state(body: Record<string, unknown>) {
     teams,
     myTeam,
     myTeamResponse,
+    previousBlocks,
   });
 }
 
