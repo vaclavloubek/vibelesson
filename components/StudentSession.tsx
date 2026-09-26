@@ -26,6 +26,9 @@ import { localizedApiError } from '@/lib/i18n';
 import { studentSolutionsFilename } from '@/lib/student-solutions-pdf';
 
 type Team = { id: string; name: string; memberCount: number };
+
+const PUSH_PRIMARY_REFRESH_DELAY_MS = 3_000;
+
 type StudentState = {
   sessionId: string;
   status: SessionStatus;
@@ -62,8 +65,14 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   const disconnectedRef = useRef(false);
   const previousBlockIdRef = useRef<string | null>(null);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const pushRefreshTimerRef = useRef<number | null>(null);
 
-  const refreshFromLiveControl = useCallback(async () => {
+  // `fallback`: the primary API failed, so the snapshot replaces it and the UI
+  // says the connection is being restored. `push`: a Live Control WebSocket
+  // wake-up (any participant's save broadcasts one) while the primary API may be
+  // perfectly healthy — apply the snapshot silently, without the reconnecting
+  // banner that shifted the page while students were typing.
+  const refreshFromLiveControl = useCallback(async (source: 'fallback' | 'push' = 'fallback') => {
     const access = getLiveControlAccess(sessionId, 'student');
     if (!access?.subject) return false;
     const live = await fetchLiveControlState(sessionId, 'student');
@@ -149,9 +158,11 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
       previousBlocks,
     }));
     hasLoadedRef.current = true;
-    disconnectedRef.current = true;
     setError('');
-    setConnectionStatus('reconnecting');
+    if (source === 'fallback') {
+      disconnectedRef.current = true;
+      setConnectionStatus('reconnecting');
+    }
     return true;
   }, [english, sessionId]);
 
@@ -198,12 +209,30 @@ export default function StudentSession({ sessionId }: { sessionId: string }) {
   useEffect(() => { void refresh(); }, [refresh]);
 
   useEffect(() => {
+    const clearPushRefresh = () => {
+      if (pushRefreshTimerRef.current !== null) {
+        window.clearTimeout(pushRefreshTimerRef.current);
+        pushRefreshTimerRef.current = null;
+      }
+    };
     const socket = connectLiveControl(sessionId, 'student', () => {
-      void refreshFromLiveControl();
+      void refreshFromLiveControl('push');
+      // Fields the snapshot does not carry (revealed results, scoreboard,
+      // evaluations) come from the primary API; one coalesced refresh per burst
+      // of wake-ups keeps them as fresh as before without a request per push.
+      if (pushRefreshTimerRef.current === null) {
+        pushRefreshTimerRef.current = window.setTimeout(() => {
+          pushRefreshTimerRef.current = null;
+          void refresh();
+        }, PUSH_PRIMARY_REFRESH_DELAY_MS);
+      }
     });
-    if (!socket) return;
-    return () => socket.close(1000, 'Student page closed');
-  }, [refreshFromLiveControl, sessionId]);
+    if (!socket) return clearPushRefresh;
+    return () => {
+      clearPushRefresh();
+      socket.close(1000, 'Student page closed');
+    };
+  }, [refresh, refreshFromLiveControl, sessionId]);
 
   useEffect(() => {
     if (connectionStatus !== 'restored') return;
