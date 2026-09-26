@@ -17,6 +17,7 @@ import {
   TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_DPA_SCOPE_CLAUSE,
+  TERMS_FULL_REFUND_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
   TERMS_TECHNICAL_REQUIREMENTS_CLAUSE,
@@ -87,8 +88,8 @@ export default async function TermsPage() {
             'These Terms govern use of Syllonaut, including Free accounts and paid plans for individuals and organizations.'
           )}</p>
           <div className={styles.meta}>{ui(
-            `Verze ${TERMS_VERSION} · účinná od 25. 9. 2026`,
-            `Version ${TERMS_VERSION} · effective 25 September 2026`
+            `Verze ${TERMS_VERSION} · účinná od 26. 9. 2026`,
+            `Version ${TERMS_VERSION} · effective 26 September 2026`
           )}</div>
         </div>
 
@@ -177,6 +178,7 @@ export default async function TermsPage() {
             'Pokud platba není potvrzena, je po splatnosti, je vrácena nebo je předmětem sporu, může Syllonaut dočasně omezit nové placené AI operace nebo po uplynutí oznámené lhůty pozastavit placená oprávnění. Existující obsah je zachován v rozsahu popsaném v aplikaci.',
             'If payment is unconfirmed, overdue, refunded or disputed, Syllonaut may temporarily restrict new paid AI operations or suspend paid entitlements after the stated grace period. Existing content remains available to the extent described in the application.'
           )}</p>
+          <p>{ui(TERMS_FULL_REFUND_CLAUSE.cs, TERMS_FULL_REFUND_CLAUSE.en)}</p>
         </section>
 
         <section>
@@ -276,7 +278,7 @@ export default async function TermsPage() {
           )} <Link href={`/${locale}/dpa`}>{ui('zpracovatelskou smlouvou (DPA)', 'Data Processing Agreement (DPA)')}</Link>.</p>
           <p>{ui(
             `Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od ${new Intl.DateTimeFormat('cs-CZ').format(new Date(TERMS_EFFECTIVE_DATE + 'T12:00:00Z'))}. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.`,
-            `The current version of these Terms is ${TERMS_VERSION}, effective from 25 September 2026. For a specific order, the version accepted when the order was placed is retained.`
+            `The current version of these Terms is ${TERMS_VERSION}, effective from 26 September 2026. For a specific order, the version accepted when the order was placed is retained.`
           )}</p>
         </section>
       </article>

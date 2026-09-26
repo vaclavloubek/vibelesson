@@ -15,6 +15,7 @@ import {
   TERMS_ONLINE_WITHDRAWAL_NOTICE,
   TERMS_COMPLAINT_CLAUSE,
   TERMS_DPA_SCOPE_CLAUSE,
+  TERMS_FULL_REFUND_CLAUSE,
   TERMS_PLAN_PRICING_CLAUSE,
   TERMS_SERVICE_CHANGE_CLAUSE,
   TERMS_TECHNICAL_REQUIREMENTS_CLAUSE,
@@ -119,6 +120,7 @@ const TERMS_CURRENT_CS = `
 <p>Individuální placené tarify hrazené kartou se obnovují automaticky po zvoleném měsíčním nebo ročním období, dokud uživatel automatické obnovení nezruší. Správa předplatného, faktur a zrušení je dostupná v části Předplatné a prostřednictvím zákaznického portálu Stripe.</p>
 <p>U školních tarifů se režim obnovení řídí zvoleným způsobem platby. Kartové předplatné se může obnovovat automaticky; objednávky na fakturu se obnovují až novou objednávkou nebo fakturou. Zrušení automatického obnovení neukončuje již zaplacené období.</p>
 <p>Pokud platba není potvrzena, je po splatnosti, je vrácena nebo je předmětem sporu, může Syllonaut dočasně omezit nové placené AI operace nebo po uplynutí oznámené lhůty pozastavit placená oprávnění. Existující obsah je zachován v rozsahu popsaném v aplikaci.</p>
+<p>${escapeHtml(TERMS_FULL_REFUND_CLAUSE.cs)}</p>
 </section>
 <section>
 <h2>7. Spotřebitelé: právo odstoupit do 14 dnů</h2>
@@ -159,7 +161,7 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.cs.map((paragraph) => `<p>${escapeHtml(paragraph
 <h2>14. Ochrana osobních údajů a závěrečná ustanovení</h2>
 <p>Zpracování osobních údajů upravuje samostatná stránka Ochrana osobních údajů (GDPR) na syllonaut.com.</p>
 <p>V rozsahu, v němž Syllonaut zpracovává osobní údaje jménem organizace Team / School / Campus nebo učitele s individuálním účtem při výuce (čl. 2), je závaznou součástí smlouvy také zpracovatelská smlouva (DPA) na syllonaut.com/cs/dpa.</p>
-<p>Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od 25. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
+<p>Aktuální verze těchto podmínek je ${TERMS_VERSION} a je účinná od 26. 9. 2026. U konkrétní objednávky se uchovává verze podmínek odsouhlasená při objednání.</p>
 </section>`;
 
 const TERMS_CURRENT_EN = `
@@ -202,6 +204,7 @@ const TERMS_CURRENT_EN = `
 <p>Individual paid plans purchased by card renew automatically for the selected monthly or annual billing period until automatic renewal is cancelled. Subscription, invoices and cancellation can be managed in the Subscription area and through the Stripe customer portal.</p>
 <p>For school plans, renewal depends on the selected payment method. Card subscriptions may renew automatically; invoice-based plans renew only through a new order or invoice. Cancelling automatic renewal does not end a period that has already been paid for.</p>
 <p>If payment is unconfirmed, overdue, refunded or disputed, Syllonaut may temporarily restrict new paid AI operations or suspend paid entitlements after the stated grace period. Existing content remains available to the extent described in the application.</p>
+<p>${escapeHtml(TERMS_FULL_REFUND_CLAUSE.en)}</p>
 </section>
 <section>
 <h2>7. Consumers: 14-day withdrawal right</h2>
@@ -242,7 +245,7 @@ ${TERMS_ACCOUNT_DELETION_CLAUSE.en.map((paragraph) => `<p>${escapeHtml(paragraph
 <h2>14. Privacy and final provisions</h2>
 <p>Personal-data processing is described in the separate Privacy Notice on syllonaut.com.</p>
 <p>To the extent Syllonaut processes personal data on behalf of a Team / School / Campus organisation or of a teacher with an individual account in teaching (section 2), that processing is additionally governed by the binding Data Processing Agreement (DPA) at syllonaut.com/en/dpa.</p>
-<p>The current version of these Terms is ${TERMS_VERSION}, effective from 25 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
+<p>The current version of these Terms is ${TERMS_VERSION}, effective from 26 September 2026. For a specific order, the version accepted when the order was placed is retained.</p>
 </section>`;
 
 // Article 5a (Terms 1.12, AI grading suggestion packs) is part of the
@@ -256,9 +259,9 @@ function topupArticleHtml(locale: IndividualContractLocale) {
 
 function termsCurrent(locale: IndividualContractLocale) {
   if (
-    TERMS_VERSION !== '1.12'
-    || TERMS_EFFECTIVE_DATE !== '2026-09-25'
-    || TERMS_ACCEPTANCE_KEY !== '2026-09-25-v13'
+    TERMS_VERSION !== '1.13'
+    || TERMS_EFFECTIVE_DATE !== '2026-09-26'
+    || TERMS_ACCEPTANCE_KEY !== '2026-09-26-v14'
     || !TERMS_AI_GRADING_TOPUP_ARTICLE_ACTIVE
   ) {
     throw new Error('contract_terms_snapshot_version_unsupported');
@@ -321,7 +324,7 @@ export function buildIndividualContractSnapshotDocuments(input: {
 ${technicalRequirementsHtml('cs')}
 <hr>
 <h1>Obchodní podmínky Syllonaut</h1>
-<p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 25. 9. 2026</p>${termsCurrent(locale)}`
+<p class="muted">Verze ${escapeHtml(TERMS_VERSION)} · účinná od 26. 9. 2026</p>${termsCurrent(locale)}`
     : `<h1>Syllonaut contract information confirmation</h1>
 <p class="muted">Immutable snapshot prepared before redirecting to Stripe Checkout: ${escapeHtml(capturedAt)}.</p>
 <div class="box"><strong>This document records the offer and Terms accepted before the order.</strong> Paid entitlements activate after payment is confirmed.</div>
@@ -340,7 +343,7 @@ ${technicalRequirementsHtml('cs')}
 ${technicalRequirementsHtml('en')}
 <hr>
 <h1>Syllonaut Terms of Service</h1>
-<p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 25 September 2026</p>${termsCurrent(locale)}`;
+<p class="muted">Version ${escapeHtml(TERMS_VERSION)} · effective 26 September 2026</p>${termsCurrent(locale)}`;
 
   const contractHtml = documentShell(locale, locale === 'cs' ? 'Potvrzení smluvních informací Syllonaut' : 'Syllonaut contract information confirmation', summary);
   const withdrawalFormHtml = buildWithdrawalForm(locale);

@@ -816,6 +816,7 @@ export async function POST(request: Request) {
       // immediately; customer.subscription.deleted then sends the existing
       // "subscription ended" email and marketing event.
       let subscriptionCancellation: FullRefundCancellationOutcome | null = null;
+      let duplicateRelease: unknown = null;
       if (individualSubscriptionId && refundSync.livemode && refundState.fullyRefunded) {
         const liveKey = secretKey ?? '';
         try {
@@ -853,6 +854,7 @@ export async function POST(request: Request) {
         } else if (
           subscriptionCancellation.reason === 'not_current_invoice'
           || subscriptionCancellation.reason === 'invoice_unresolved'
+          || subscriptionCancellation.reason === 'mixed_refund_reasons'
         ) {
           console.warn('stripe full refund left subscription running', {
             eventId: refundSync.eventId,
@@ -860,9 +862,28 @@ export async function POST(request: Request) {
             reason: subscriptionCancellation.reason,
           });
         } else if (subscriptionCancellation.reason === 'duplicate') {
+          // The period stays paid by the other payment: release the refund AI
+          // pause now instead of waiting for the next renewal. Every duplicate
+          // event re-applies it, because sync_stripe_refund_state reopens it.
+          const release = await syncStripeBillingRpc('release_stripe_duplicate_payment_refund', {
+            p_event_id: refundSync.eventId,
+            p_livemode: refundSync.livemode,
+            p_charge_id: refundState.chargeId,
+            p_event_at: refundSync.eventAt,
+          });
+          if (release.error) {
+            console.error('stripe duplicate-payment refund release failed', {
+              eventId: refundSync.eventId,
+              eventType: refundSync.eventType,
+              code: release.error.code,
+            });
+            return jsonError(500, 'duplicate_refund_release_failed');
+          }
+          duplicateRelease = release.data;
           console.info('stripe duplicate-payment refund kept subscription', {
             eventId: refundSync.eventId,
             eventType: refundSync.eventType,
+            released: (release.data as { released?: unknown } | null)?.released === true,
           });
         }
       }
@@ -874,6 +895,7 @@ export async function POST(request: Request) {
         subscriptionCancellation: subscriptionCancellation
           ? (subscriptionCancellation.action === 'canceled' ? 'canceled' : subscriptionCancellation.reason)
           : null,
+        duplicateRelease,
         result: refundResult,
       }, {
         status: 200,

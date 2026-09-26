@@ -59,8 +59,8 @@ if (!individualApi.includes('create_and_link_individual_contract_snapshot')) fai
 if (!individualApi.includes('contract_snapshot_store_failed')) fail('individual checkout must fail closed when immutable contract evidence cannot be stored');
 if (!individualApi.includes('contractSnapshotId: snapshotId')) fail('Stripe checkout must carry the immutable contract snapshot ID');
 if (!school.includes('termsAccepted') || !schoolApi.includes('termsAccepted: z.literal(true)')) fail('school ordering must require Terms on client and server');
-if (!legal.includes("TERMS_VERSION = '1.12'") || !legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-25-v13'")) fail('shared Terms version/key is missing');
-if (!legal.includes('TERMS_PRODUCT_ACCESS_KEYS') || !legal.includes("'2026-09-23-v11'") || !legal.includes("'2026-09-23-v10'") || !legal.includes("'2026-09-23-v9'") || !legal.includes("'2026-09-23-v8'") || !legal.includes("'2026-09-23-v7'") || !legal.includes("'2026-09-21-v6'") || !legal.includes("'2026-09-21-v5'") || !legal.includes("'2026-09-21-v4'")) fail('Terms 1.10 to 1.3 must remain sufficient for ordinary product access');
+if (!legal.includes("TERMS_VERSION = '1.13'") || !legal.includes("TERMS_ACCEPTANCE_KEY = '2026-09-26-v14'")) fail('shared Terms version/key is missing');
+if (!legal.includes('TERMS_PRODUCT_ACCESS_KEYS') || !legal.includes("'2026-09-25-v13'") || !legal.includes("'2026-09-24-v12'") || !legal.includes("'2026-09-23-v11'") || !legal.includes("'2026-09-23-v10'") || !legal.includes("'2026-09-23-v9'") || !legal.includes("'2026-09-23-v8'") || !legal.includes("'2026-09-23-v7'") || !legal.includes("'2026-09-21-v6'") || !legal.includes("'2026-09-21-v5'") || !legal.includes("'2026-09-21-v4'")) fail('Terms 1.10 to 1.3 must remain sufficient for ordinary product access');
 if (!auth.includes('TERMS_ACCEPTANCE_KEY') || !pricing.includes('TERMS_ACCEPTANCE_KEY') || !school.includes('TERMS_ACCEPTANCE_KEY')) fail('client flows must use the shared Terms acceptance key');
 if (!individualApi.includes('TERMS_ACCEPTANCE_KEY') || !schoolApi.includes('TERMS_ACCEPTANCE_KEY')) fail('server flows must use the shared Terms acceptance key');
 if (!schoolApi.includes('acceptedByUserId: userId')) fail('school Terms acceptance must record the accepting account');
@@ -75,9 +75,11 @@ if (!terms11Migration.includes("current_terms_version constant text := '1.1'") |
 if (!termsRolloutGuardMigration.includes("current_terms_version constant text := '1.0'") || !termsRolloutGuardMigration.includes("current_terms_acceptance_key constant text := '2026-09-21-v1'")) fail('rollout guard must preserve the still-running Terms 1.0 build');
 if (!versionedTermsMigration.includes("when '2026-09-21-v1' then '1.0'") || !versionedTermsMigration.includes("when '2026-09-21-v2' then '1.1'")) fail('versioned signup audit must map exact acceptance keys to exact Terms versions');
 if (!termsAuditMigration.includes('requested_terms_acceptance and requested_terms_acceptance_key = current_terms_acceptance_key')) fail('signup audit must only mirror explicit acceptance of the active Terms key');
-if (!contractSnapshot.includes("TERMS_VERSION !== '1.12'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-25-v13'")) fail('immutable contract builder must hard-pin the supported Terms version');
+if (!contractSnapshot.includes("TERMS_VERSION !== '1.13'") || !contractSnapshot.includes("TERMS_ACCEPTANCE_KEY !== '2026-09-26-v14'")) fail('immutable contract builder must hard-pin the supported Terms version');
 // LEGAL-022: minimum teacher-account age and DPA for individual accounts in teaching, in the Terms and the contract snapshot.
-for (const clause of ['TERMS_ACCOUNT_ELIGIBILITY_CLAUSE', 'TERMS_DPA_SCOPE_CLAUSE']) {
+// LEGAL-024 (Terms 1.13): a full refund of the current period ends an individual subscription.
+if (!termsContent.includes('předplatné tím končí ke dni vrácení platby a účet přejde na tarif Free') || !termsContent.includes('To neplatí pro vrácení duplicitní platby') || !termsContent.includes('the subscription ends on the date of the refund and the account moves to the Free plan')) fail('article 6 must state that a full refund ends the subscription, except a duplicate payment');
+for (const clause of ['TERMS_ACCOUNT_ELIGIBILITY_CLAUSE', 'TERMS_DPA_SCOPE_CLAUSE', 'TERMS_FULL_REFUND_CLAUSE']) {
   if (!terms.includes(clause) || !contractSnapshot.includes(clause)) fail('public Terms and immutable contract snapshot must share ' + clause);
 }
 if (!termsContent.includes('alespoň 18 let') || !termsContent.includes('aged 18 or over')) fail('Terms must set the minimum teacher-account age of 18');

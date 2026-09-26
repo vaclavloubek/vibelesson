@@ -31,6 +31,36 @@ const order = ["then null", "then 'dispute'", "then 'refund'", "then 'past_due'"
 assert.ok(order.every((index, i) => index > 0 && (i === 0 || index > order[i - 1])), '0022 keeps the branch order');
 assert.ok(!/\b(update|delete|insert)\b[^;]*individual_billing_refunds/i.test(migration), '0022 does not touch refund rows');
 
+// 1b. Migration 0024 (static): the refund pause follows the refunded
+// subscription, and a refunded duplicate payment can be released.
+const followUp = read('neon/migrations/0024_refund_pause_same_subscription_and_duplicate_release.sql');
+const followUpRefund = followUp.slice(followUp.indexOf('from private.individual_billing_refunds r\n      join public.billing_subscriptions bs'), followUp.indexOf("then 'refund'"));
+for (const needle of [
+  'and bs.external_subscription_id = r.external_subscription_id',
+  'and bs.user_id = r.user_id',
+  "and bs.status in ('trialing', 'active', 'past_due')",
+  "and bp.audience = 'individual'",
+  'and r.released_at is null',
+]) assert.ok(followUpRefund.includes(needle), `0024 refund branch: ${needle}`);
+const followUpOrder = ["then null", "then 'dispute'", "then 'refund'", "then 'past_due'"].map((needle) => followUp.indexOf(needle));
+assert.ok(followUpOrder.every((index, i) => index > 0 && (i === 0 || index > followUpOrder[i - 1])), '0024 keeps the branch order');
+const release = followUp.slice(followUp.indexOf('create or replace function public.release_stripe_duplicate_payment_refund'));
+for (const needle of [
+  'security definer',
+  "set search_path to ''",
+  'and o.external_subscription_id = v_refund.external_subscription_id',
+  'and o.external_payment_intent_id <> v_refund.external_payment_intent_id',
+  'and o.currency = v_original.currency',
+  'and o.amount_paid >= v_refund.amount_refunded',
+  "and o.paid_at between v_original.paid_at - interval '7 days'",
+  'and x.full_refund',
+  "release_reason = 'duplicate_payment'",
+  "'released', false, 'reason', 'no_covering_payment'",
+  'from anon, anonymous, authenticated, authenticator, service_role;',
+]) assert.ok(release.includes(needle), `0024 duplicate release guard: ${needle}`);
+assert.ok(followUp.includes("array['subsequent_payment', 'refund_reversed', 'duplicate_payment']"), '0024 allows the duplicate_payment release reason');
+assert.ok(read('lib/neon/billing-rpc.ts').includes("release_stripe_duplicate_payment_refund: ['p_event_id', 'p_livemode', 'p_charge_id', 'p_event_at'],"), 'duplicate release RPC is allowlisted');
+
 // 2. Webhook route with a fake Stripe.
 const LIVE_SECRET = 'whsec_verify_full_refund';
 process.env.STRIPE_WEBHOOK_SECRET_LIVE = LIVE_SECRET;
@@ -94,7 +124,13 @@ function resetStripe(overrides = {}) {
 }
 
 let rpcMode = 'individual';
-globalThis.__rpc = async (name) => {
+let releaseCalls = [];
+let releaseFails = false;
+globalThis.__rpc = async (name, args) => {
+  if (name === 'release_stripe_duplicate_payment_refund') {
+    releaseCalls.push(args);
+    return releaseFails ? { data: null, error: { code: 'XX000', message: 'boom' } } : { data: { released: true }, error: null };
+  }
   if (name === 'sync_ai_grading_topup_refund_event') {
     return rpcMode === 'topup'
       ? { data: { revoked: true }, error: null }
@@ -190,14 +226,36 @@ try {
   }
   assert.equal(stripe.deletes.length, 1, 'repeated events cancel only once');
 
-  // Refund reason 'duplicate' keeps the subscription.
+  assert.equal(releaseCalls.length, 0, 'an ordinary full refund never releases the pause');
+
+  // Refund reason 'duplicate' keeps the subscription and releases the pause.
   resetStripe({ refunds: [{ id: 're_3Full', status: 'succeeded', reason: 'duplicate', metadata: {} }] });
+  releaseCalls = [];
   result = await deliver('refund.created');
   assert.equal(result.body.subscriptionCancellation, 'duplicate');
+  assert.deepEqual(result.body.duplicateRelease, { released: true });
   result = await deliver('charge.refunded');
   assert.equal(result.body.subscriptionCancellation, 'duplicate');
   assert.equal(stripe.deletes.length, 0, 'duplicate-payment refund never cancels');
   assert.equal(stripe.subscriptionGets, 0, 'duplicate is decided before touching the subscription');
+  assert.equal(releaseCalls.length, 2, 'every duplicate event re-applies the release');
+  assert.deepEqual(Object.keys(releaseCalls[0]).sort(), ['p_charge_id', 'p_event_at', 'p_event_id', 'p_livemode']);
+  assert.equal(releaseCalls[0].p_charge_id, CHARGE);
+  releaseFails = true;
+  result = await deliver('refund.updated');
+  assert.equal(result.status, 500, 'a failed duplicate release makes Stripe retry');
+  assert.equal(result.body.error, 'duplicate_refund_release_failed');
+  releaseFails = false;
+
+  // Duplicate mixed with another reason on the same charge: no cancel, no release.
+  resetStripe({ charge: { amount: 32900, amount_refunded: 32900 }, refunds: [
+    { id: 're_3Full', status: 'succeeded', reason: 'duplicate', metadata: {} },
+    { id: 're_3Other', status: 'succeeded', reason: 'requested_by_customer', metadata: {} },
+  ] });
+  releaseCalls = [];
+  result = await deliver('charge.refunded');
+  assert.equal(result.body.subscriptionCancellation, 'mixed_refund_reasons');
+  assert.equal(stripe.deletes.length + releaseCalls.length, 0, 'mixed reasons neither cancel nor release');
 
   // Partial refund keeps the subscription.
   resetStripe({ charge: { amount: 32900, amount_refunded: 10000 } });
