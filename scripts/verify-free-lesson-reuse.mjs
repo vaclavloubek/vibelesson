@@ -39,8 +39,19 @@ requireText(generatedLessonWriter, "createAdminClient().from('lessons')", 'Supab
 const lessonPage = read('app/lessons/[id]/page.tsx');
 requireText(lessonPage, 'readLessonLiveUsage(supabase, userId, id)', 'lesson detail reads owner-scoped live-use history');
 requireText(lessonPage, 'liveLocked={liveLocked}', 'lesson detail disables repeat Free live use');
-requireText(lessonPage, 'freeSingleUse={!reusableLessons && !liveLocked && !licenseLocked}', 'lesson detail warns Free teachers before the single live use');
-requireText(read('components/StartSessionButton.tsx'), 'i tvůj vlastní telefon na zkoušku', 'Free single-use notice explains that a test join counts');
+requireText(lessonPage, 'const freeSingleUse = !reusableLessons && !liveLocked && !licenseLocked;', 'lesson detail warns Free teachers before the single live use');
+requireText(read('lib/free-single-use-notice.ts'), 'i tvůj vlastní telefon na zkoušku', 'Free single-use notice explains that a test join counts');
+
+// Closing the notice ("OK, rozumím" or ×) leaves server evidence of the exact text shown.
+const startButton = read('components/StartSessionButton.tsx');
+requireText(startButton, "dismissNotice('ok')", 'Free single-use notice has an OK button');
+requireText(startButton, "dismissNotice('close')", 'Free single-use notice has a close button');
+requireText(startButton, '/free-single-use-notice`', 'closing the notice records the acknowledgement on the server');
+const noticeAck = read('lib/free-single-use-notice-ack.ts');
+requireText(noticeAck, "import 'server-only'", 'notice acknowledgement stays server-only');
+requireText(noticeAck, 'insert into private.free_single_use_notice_acknowledgements', 'notice acknowledgement is stored in the append-only table');
+requireText(noticeAck, '${FREE_SINGLE_USE_NOTICE[input.locale]}', 'stored notice text comes from the server constant, not the request');
+requireText(read('neon/migrations/0023_free_single_use_notice_acknowledgements.sql'), 'append-only', 'notice acknowledgements cannot be changed or deleted');
 
 const library = read('app/lessons/LessonLibrary.tsx');
 requireText(library, 'Archivované lekce', 'Free library exposes the archive');
