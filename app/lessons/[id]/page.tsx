@@ -10,6 +10,7 @@ import { LessonDetailReadError, readLessonDetail } from '@/lib/lesson-detail-rea
 import { LessonSchema } from '@/lib/schema';
 import { getLessonOrganizationOriginAccess } from '@/lib/organization-origin-access';
 import { createClient } from '@/lib/supabase/server';
+import { hasAcknowledgedFreeSingleUseNotice } from '@/lib/free-single-use-notice-ack';
 import { requireCurrentTermsForPage } from '@/lib/terms-page-gate';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,8 @@ export default async function LessonPage({ params }: Props) {
     });
     liveLocked = usage.length > 0;
   }
+  const freeSingleUse = !reusableLessons && !liveLocked && !licenseLocked;
+  const freeSingleUseAcknowledged = freeSingleUse && await hasAcknowledgedFreeSingleUseNotice(userId);
 
   return (
     <>
@@ -70,7 +73,8 @@ export default async function LessonPage({ params }: Props) {
         userId={userId}
         liveLocked={liveLocked}
         licenseLocked={licenseLocked}
-        freeSingleUse={!reusableLessons && !liveLocked && !licenseLocked}
+        freeSingleUse={freeSingleUse}
+        freeSingleUseAcknowledged={freeSingleUseAcknowledged}
         organizationName={originAccess?.organizationName ?? null}
       />
       <LessonWorkspace

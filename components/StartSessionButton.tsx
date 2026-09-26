@@ -7,11 +7,7 @@ import { trackEvent } from '@/lib/analytics';
 import { useUiLocale } from '@/components/LocaleProvider';
 import { signalSyllonautGuideAction } from '@/lib/onboarding-guide';
 import GuideHelpButton from '@/components/GuideHelpButton';
-
-export const FREE_SINGLE_USE_NOTICE = {
-  cs: 'Ve Free můžeš každou lekci živě použít jednou. Použití se započítá, jakmile se připojí první student – i tvůj vlastní telefon na zkoušku. Jak lekci uvidí studenti, si vyzkoušej přes „Studentský režim“ v náhledu.',
-  en: 'On Free, each lesson can be used live once. The use counts as soon as the first student joins – including your own phone as a test. To see what students will see, use “Student view” in the preview.',
-};
+import { FREE_SINGLE_USE_NOTICE } from '@/lib/free-single-use-notice';
 
 type Props = {
   lessonId: string;
@@ -19,6 +15,7 @@ type Props = {
   liveLocked?: boolean;
   licenseLocked?: boolean;
   freeSingleUse?: boolean;
+  freeSingleUseAcknowledged?: boolean;
   organizationName?: string | null;
   compact?: boolean;
 };
@@ -29,6 +26,7 @@ export default function StartSessionButton({
   liveLocked = false,
   licenseLocked = false,
   freeSingleUse = false,
+  freeSingleUseAcknowledged = false,
   organizationName = null,
   compact = false,
 }: Props) {
@@ -39,6 +37,19 @@ export default function StartSessionButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [noticeOpen, setNoticeOpen] = useState(!freeSingleUseAcknowledged);
+
+  function dismissNotice(dismissedVia: 'ok' | 'close') {
+    setNoticeOpen(false);
+    // The server records who closed which notice text and when. Without that
+    // record the notice shows again on the next visit.
+    void fetch(`/api/lessons/${lessonId}/free-single-use-notice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dismissedVia, locale: english ? 'en' : 'cs' }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
 
   async function start() {
     if (busy || liveLocked || licenseLocked) return;
@@ -134,11 +145,15 @@ export default function StartSessionButton({
 
   return (
     <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 40, display: 'grid', justifyItems: 'end', gap: 8 }}>
-      {freeSingleUse ? (
-        <div className="panel" style={{ padding: 16, boxShadow: '0 12px 30px rgba(24,24,23,.14)', maxWidth: 'min(360px, calc(100vw - 48px))' }}>
+      {freeSingleUse && noticeOpen ? (
+        <div className="panel" role="status" style={{ position: 'relative', padding: '16px 44px 16px 16px', boxShadow: '0 12px 30px rgba(24,24,23,.14)', maxWidth: 'min(360px, calc(100vw - 48px))' }}>
+          <button type="button" className="free-single-use-notice-close" onClick={() => dismissNotice('close')} aria-label={ui('Zavřít upozornění', 'Close notice')}>×</button>
           <p style={{ margin: 0 }}>
             {english ? FREE_SINGLE_USE_NOTICE.en : FREE_SINGLE_USE_NOTICE.cs}
           </p>
+          <button type="button" className="secondary" onClick={() => dismissNotice('ok')} style={{ marginTop: 12 }}>
+            {ui('OK, rozumím', 'OK, got it')}
+          </button>
         </div>
       ) : null}
       {error ? <div className="error" style={{ maxWidth: 320 }}>{error}</div> : null}

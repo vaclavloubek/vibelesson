@@ -424,6 +424,21 @@ button:active:not(:disabled), .button-link:active { transform: translateY(1px); 
 .primary:hover:not(:disabled) { background: var(--accent-hover); }
 .secondary, .quick-edits button { background: #f4f3ef; color: var(--ink); border: 1px solid var(--line); }
 .secondary:hover:not(:disabled), .quick-edits button:hover:not(:disabled) { border-color: var(--line-strong); background: #efeee9; }
+.free-single-use-notice-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+}
+.free-single-use-notice-close:hover { background: rgba(21, 23, 33, .06); color: var(--ink); }
 .button-link {
   display: inline-flex;
   align-items: center;
