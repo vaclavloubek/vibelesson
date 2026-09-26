@@ -178,8 +178,19 @@ function presenterFromLiveControl(live: LiveControlState, english: boolean): Pre
 export default function PresenterMode({ sessionId, userId }: { sessionId: string; userId: string | null }) {
   const locale = useUiLocale();
   const english = locale === 'en';
-  const ui = (cs: string, en: string) => english ? en : cs;
-  const [data, setData] = useState<PresenterData | null>(null);
+  // Stable across renders: `load` depends on it, and a per-render `ui` made the
+  // load effect re-run after every setData — a ~3 requests/s polling loop.
+  const ui = useCallback((cs: string, en: string) => english ? en : cs, [english]);
+  const [data, setDataState] = useState<PresenterData | null>(null);
+  const endedRef = useRef(false);
+  // A session never leaves `ended`. A primary or push response that was already
+  // in flight when the teacher ended the lesson must not flip the projector back
+  // to "Mise probíhá" (and remount the final scoreboard).
+  const setData = useCallback((next: PresenterData) => {
+    if (endedRef.current && next.status !== 'ended') return;
+    if (next.status === 'ended') endedRef.current = true;
+    setDataState(next);
+  }, []);
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -232,7 +243,7 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
     if (source === 'fallback') setConnectionMode('fallback');
     setError('');
     return true;
-  }, [english, ensureLiveAccess, sessionId]);
+  }, [english, ensureLiveAccess, sessionId, setData]);
 
   const load = useCallback(async () => {
     try {
@@ -256,7 +267,7 @@ export default function PresenterMode({ sessionId, userId }: { sessionId: string
         setError(ui('Projekci se nepodařilo spojit s primární ani záložní live službou. Syllonaut to zkusí znovu automaticky.', 'The projection could not connect to either the primary or backup live service. Syllonaut will retry automatically.'));
       }
     }
-  }, [loadFallback, sessionId, ui]);
+  }, [loadFallback, sessionId, setData, ui]);
 
   useEffect(() => {
     setOrigin(window.location.origin);
