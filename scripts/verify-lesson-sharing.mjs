@@ -132,6 +132,6 @@ requirePattern(startButton, /Otevřít rozběhnutou hodinu/, 'the UI must offer 
 
 requirePattern(pricing, /Samostatný účet pro každého učitele/, 'school pricing must state separate teacher accounts.');
 requirePattern(pricing, /pracovního prostoru školy/, 'school pricing must describe a workspace rather than a shared login.');
-requirePattern(version, /APP_VERSION = '0\.9\.150'/, 'the current public release must publish dashboard version 0.9.150.');
+requirePattern(version, /APP_VERSION = '0\.9\.170'/, 'the current public release must publish dashboard version 0.9.170.');
 
 console.log('Lesson-sharing and account-concurrency checks passed.');
