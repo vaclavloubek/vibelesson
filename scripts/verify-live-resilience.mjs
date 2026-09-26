@@ -104,6 +104,20 @@ requirePattern(liveControlRoute, /searchParams\.get\('role'\) === 'presenter' \?
 requirePattern(presenter, /connectLiveControl\(sessionId, 'presenter', \(\) => \{\s*void loadFallback\('push'\)/, 'Presenter WebSocket wake-ups must use the push path, not the backup-connection path.');
 requirePattern(presenter, /if \(source === 'fallback'\) setConnectionMode\('fallback'\)/, 'only a failed primary presenter API may switch the projector to the backup connection label.');
 requirePattern(presenter, /connectionMode === 'fallback'/, 'Presenter must expose degraded connection state.');
+{
+  // A plain arrow function declared in the component body is new on every
+  // render; in a hook dependency list it re-runs the load effect after each
+  // setData (0.9.171 production: ~3 presenter API requests per second).
+  const perRenderFunctions = [...presenter.matchAll(/^ {2}const (\w+) = (?:async )?\(/gm)].map((match) => match[1]);
+  const dependencyLists = [...presenter.matchAll(/\}, \[([^\]]*)\]\);/g)].map((match) => match[1].split(',').map((item) => item.trim()));
+  for (const name of perRenderFunctions) {
+    if (dependencyLists.some((deps) => deps.includes(name))) {
+      throw new Error(`Live resilience regression: Presenter hook dependencies include per-render function ${name}; wrap it in useCallback so the load effect does not loop.`);
+    }
+  }
+}
+requirePattern(presenter, /const ui = useCallback\(/, 'Presenter ui() must be stable because load() depends on it.');
+requirePattern(presenter, /if \(endedRef\.current && next\.status !== 'ended'\) return;/, 'a late live response must not move an ended Presenter back to "Mise probíhá".');
 requirePattern(gradingWorker, /claim_next_grading_outbox_job/, 'AI grading must have a server-driven capability claim path.');
 requirePattern(gradingWorker, /finish_grading_job/, 'server-driven AI grading must finish through the scoped capability.');
 requirePattern(gradingWorker, /fail_grading_job/, 'server-driven AI grading must fail closed through the scoped capability.');

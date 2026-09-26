@@ -107,7 +107,9 @@ export default function PresenterScoreboard({ sessionId }: { sessionId: string }
     };
   }, [load]);
 
-  const phaseLabel = data?.status === 'ended' ? ui('Mise dokončena', 'Lesson completed') : data?.status === 'live' ? ui('Mise probíhá', 'Lesson in progress') : ui('Startovní zóna', 'Starting area');
+  // PresenterMode mounts the scoreboard only for an ended session, so while the
+  // first response loads the header already says the mission is completed.
+  const phaseLabel = data?.status === 'live' ? ui('Mise probíhá', 'Lesson in progress') : data?.status === 'lobby' ? ui('Startovní zóna', 'Starting area') : ui('Mise dokončena', 'Lesson completed');
   const boardTitle = data?.status === 'ended' ? ui('Konečné pořadí', 'Final ranking') : ui('Závod k Měsíci', 'Race to the Moon');
   const participantCount = data?.rows.length ?? 0;
   const raceLimit = participantCount <= 12 ? participantCount : participantCount <= 24 ? 10 : 5;
