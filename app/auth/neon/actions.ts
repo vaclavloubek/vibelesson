@@ -58,8 +58,11 @@ export async function signInWithNeonForApp(email: string, password: string, chal
     }
     // Neon Auth checks the password first and only then refuses an unverified
     // address; with "send on sign-in" it has already emailed a fresh code.
+    // The SDK normalizes Better Auth's EMAIL_NOT_VERIFIED to email_not_confirmed.
     const code = (error as { code?: unknown }).code;
-    if (code === 'EMAIL_NOT_VERIFIED') return { error: 'Email not verified.', needsVerification: true };
+    if (code === 'email_not_confirmed' || code === 'EMAIL_NOT_VERIFIED') {
+      return { error: 'Email not verified.', needsVerification: true };
+    }
     return { error: error.message || 'Sign-in failed.' };
   } catch {
     return { error: 'Sign-in failed.' };
