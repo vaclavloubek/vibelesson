@@ -1,5 +1,5 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import {
   neonAuthEmailAction,
   NeonAuthEmailPayloadError,
@@ -147,8 +147,17 @@ const actionsSource = await readFile(new URL('../app/auth/neon/actions.ts', impo
 const profileInsert = actionsSource.indexOf('insert into public.profiles');
 const signupSend = actionsSource.indexOf("sendVerificationOtp({ email, type: 'email-verification' })");
 assert(profileInsert > 0 && signupSend > profileInsert, 'signup code must be sent after the profile (and its locale) exists');
-assert(actionsSource.includes("code === 'EMAIL_NOT_VERIFIED'") && actionsSource.includes('needsVerification: true'),
-  'unverified sign-in must lead to code entry');
+// The server SDK normalizes Better Auth error codes, so the sign-in check must
+// match the code the installed SDK actually returns, not the upstream one.
+const sdkDist = new URL('../node_modules/@neondatabase/auth/dist/', import.meta.url);
+const sdkHelpers = (await readdir(sdkDist)).filter((name) => name.startsWith('better-auth-helpers-') && name.endsWith('.mjs'));
+assert(sdkHelpers.length === 1, 'expected one Neon Auth SDK error helper chunk');
+const sdkHelperSource = await readFile(new URL(sdkHelpers[0], sdkDist), 'utf8');
+const unverifiedKey = sdkHelperSource.match(/"EMAIL_NOT_VERIFIED":\s*AuthErrorCode\.(\w+)/)?.[1];
+const unverifiedCode = unverifiedKey && sdkHelperSource.match(new RegExp(`\\b${unverifiedKey}:\\s*"([a-z_]+)"`))?.[1];
+assert(unverifiedCode, 'could not resolve the SDK code for an unverified email');
+assert(actionsSource.includes(`code === '${unverifiedCode}'`) && actionsSource.includes('needsVerification: true'),
+  `unverified sign-in (SDK code ${unverifiedCode}) must lead to code entry`);
 assert(/verifyNeonAuthChallenge\(challenge, 'verify'\)[\s\S]*sendVerificationOtp/.test(actionsSource), 'resending a code must require Turnstile');
 assert(/\^\\d\{6\}\$/.test(actionsSource), 'only 6-digit codes may reach Neon Auth');
 const authProxy = await readFile(new URL('../app/api/auth/[...path]/route.ts', import.meta.url), 'utf8');
