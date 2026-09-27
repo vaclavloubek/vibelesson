@@ -295,6 +295,9 @@ export default function PublicHeaderAccountMenu({ user, quota: controlledQuota, 
             <Link role="menuitem" href={`/${locale}/subscription`} className="auth-account-item" onClick={() => setOpen(false)}>
               {english ? 'Subscription' : 'Předplatné'}
             </Link>
+            <Link role="menuitem" href={`/${locale}/subscription#emaily`} className="auth-account-item" onClick={() => setOpen(false)}>
+              {english ? 'Email settings' : 'Nastavení e-mailů'}
+            </Link>
             {hasOrganization ? (
               <Link role="menuitem" href="/school" className="auth-account-item" onClick={() => setOpen(false)}>
                 {english ? 'My school' : 'Moje škola'}

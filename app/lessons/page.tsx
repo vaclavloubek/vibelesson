@@ -263,6 +263,7 @@ export default async function LessonsPage({ searchParams }: Props) {
           <h2>{ui('Zatím tu nic není', 'Nothing here yet')}</h2>
           <p>{ui('Vytvoř první lekci. Jakmile ji Syllonaut dokončí, uloží se sem automaticky.', 'Create your first lesson. Syllonaut will save it here automatically when generation is complete.')}</p>
           <Link href="/new" className="primary button-link">{ui('Vytvořit první lekci', 'Create your first lesson')}</Link>
+          <p><Link href="/new?ukazka=1" className="auth-link">{ui('Prohlédnout ukázkovou lekci', 'See an example lesson')}</Link></p>
         </section>
       ) : null}
 

@@ -9,6 +9,7 @@ import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import HelpAssistant from '@/components/HelpAssistant';
 import SyllonautMark from '@/components/SyllonautMark';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
+import MarketingEmailPreferences from '@/components/MarketingEmailPreferences';
 import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -17,6 +18,7 @@ import { getAiGradingTopupOffer, type AiGradingTopupOffer } from '@/lib/ai-gradi
 import { getServiceChangeNotices, type ServiceChangeNotice } from '@/lib/service-change-state';
 import { getOnlineWithdrawalOpportunity, type OnlineWithdrawalOpportunity } from '@/lib/online-withdrawal';
 import landing from '@/components/LandingPage.module.css';
+import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,6 +160,12 @@ export default async function SubscriptionPage() {
         accountEmail={accountUser.email ?? ''}
         topupOffer={topupOffer}
       />}
+
+      {/* Outside SubscriptionManagement so it stays available when billing state fails to load. */}
+      <section id="emaily" className={loadError ? styles.emailSection : `${styles.emailSection} ${styles.afterManagement}`}>
+        <h2>{ui('E-mailové novinky', 'Email updates')}</h2>
+        <MarketingEmailPreferences />
+      </section>
     </main>
   );
 }
