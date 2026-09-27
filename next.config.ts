@@ -33,10 +33,16 @@ const fontSources = [
 // the browser. Must match SYLLONAUT_LIVE_CONTROL_URL.
 const LIVE_CONTROL_HOST = 'syllonaut-live-control.vaclav-loubek.workers.dev';
 
+// Neon Data API: browser RPC and table reads (lib/neon/client.ts). Without it the
+// browser blocks every call ("TypeError: Load failed").
+const neonDataApiUrl = process.env.NEXT_PUBLIC_NEON_DATA_API_URL;
+const neonDataApiOrigin = neonDataApiUrl ? new URL(neonDataApiUrl).origin : null;
+
 const connectSources = [
   "'self'",
   'https://*.supabase.co',
   'wss://*.supabase.co',
+  ...(neonDataApiOrigin ? [neonDataApiOrigin] : []),
   `https://${LIVE_CONTROL_HOST}`,
   `wss://${LIVE_CONTROL_HOST}`,
   'https://challenges.cloudflare.com',
