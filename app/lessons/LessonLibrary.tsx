@@ -21,6 +21,7 @@ export type LessonListItem = {
   updatedAt: string;
   folderId: string | null;
   archived: boolean;
+  readyToTeach: boolean;
   licenseLocked: boolean;
   organizationName: string | null;
 };
@@ -138,6 +139,13 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
       <p style={{ margin: 0 }}>{english ? FREE_SINGLE_USE_NOTICE.en : FREE_SINGLE_USE_NOTICE.cs}</p>
     </div>
   ) : null;
+  const readyBadge = <span className={styles.readyBadge}>{ui('Připraveno k odučení', 'Ready to teach')}</span>;
+  const readyHint = (
+    <p className={styles.readyHint}>{ui(
+      'Stačí kliknout na „Otevřít hodinu pro studenty“ – studenti se připojí kódem nebo QR.',
+      'Just click “Open lesson for students” – students join with a code or QR code.',
+    )}</p>
+  );
   const visibleLessons = useMemo(() => {
     if (!canManageFolders || scope === 'all') return accessibleLessons;
     if (scope === 'unfiled') return accessibleLessons.filter((lesson) => !lesson.folderId);
@@ -415,6 +423,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
   if (!canManageFolders) {
     const activeLessons = accessibleLessons.filter((lesson) => !lesson.archived);
     const archivedLessons = accessibleLessons.filter((lesson) => lesson.archived);
+    const firstReadyLessonId = activeLessons.find((lesson) => lesson.readyToTeach)?.id ?? null;
     const renderCards = (items: LessonListItem[]) => (
       <section className="lesson-grid">
         {items.map((lesson) => (
@@ -424,10 +433,12 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
                 <Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>
                 {lesson.subtitle ? <p>{lesson.subtitle}</p> : null}
                 {lesson.archived ? <span className="beta">{ui('ARCHIV', 'ARCHIVED')}</span> : null}
+                {lesson.readyToTeach ? readyBadge : null}
               </div>
               <LessonActions lessonId={lesson.id} title={lesson.title} />
             </div>
             <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
+            {lesson.id === firstReadyLessonId ? readyHint : null}
             <div className="lesson-card-footer">
               <span>{lesson.archived ? ui('První živé použití dokončeno', 'First live use completed') : `${ui('Upraveno', 'Updated')} ${formatUpdatedAt(lesson.updatedAt, locale)}`}</span>
               {lesson.archived ? <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link> : (
@@ -465,6 +476,8 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
       </>
     );
   }
+
+  const firstReadyLessonId = selectionMode ? null : visibleLessons.find((lesson) => lesson.readyToTeach && !lesson.archived)?.id ?? null;
 
   return (
     <section className={styles.libraryLayout} aria-busy={busy}>
@@ -517,11 +530,12 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
                 <div className="lesson-card-top">
                   <div className={styles.cardTitleWrap}>
                     {selectionMode ? <input type="checkbox" checked={selectedLessonIds.includes(lesson.id)} onChange={() => toggleLesson(lesson.id)} aria-label={english ? `Select lesson ${lesson.title}` : `Vybrat lekci ${lesson.title}`} /> : null}
-                    <div><Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>{lesson.subtitle ? <p>{lesson.subtitle}</p> : null}</div>
+                    <div><Link href={`/lessons/${lesson.id}`} className="lesson-title-link"><h2>{lesson.title}</h2></Link>{lesson.subtitle ? <p>{lesson.subtitle}</p> : null}{lesson.readyToTeach ? readyBadge : null}</div>
                   </div>
                   <LessonActions lessonId={lesson.id} title={lesson.title} onMove={() => openSingleMove(lesson)} moveDisabled={selectionMode || busy} />
                 </div>
                 <div className="lesson-card-meta"><span>{lesson.audience}</span><span>{lesson.totalMinutes} min</span><span>{lesson.blockCount} {english ? 'activities' : 'aktivit'}</span></div>
+                {lesson.id === firstReadyLessonId ? readyHint : null}
                 <div className={`lesson-card-footer ${styles.cardFooter}`}>
                   <span>{ui('Upraveno', 'Updated')} {formatUpdatedAt(lesson.updatedAt, locale)}</span>
                   {selectionMode || lesson.archived ? <Link href={`/lessons/${lesson.id}`} className="auth-link">{ui('Otevřít', 'Open')}</Link> : (

@@ -10,6 +10,7 @@ import { getLessonFolderEntitlement } from '@/lib/lesson-folders';
 import { currentFreeDeviceBudgetHash, freeDeviceBudgetMessage } from '@/lib/free-device-budget';
 import { AI_BILLING_PAYMENT_REQUIRED_CODE, aiBillingPausedMessage, getEffectiveAiBillingPauseState } from '@/lib/individual-ai-billing';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
+import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import { emitFirstLessonCreatedIfNeeded, emitFreeLessonQuotaLifecycle } from '@/lib/marketing-lifecycle';
 import {
   MATERIAL_MAX_FILES,
@@ -191,12 +192,25 @@ export async function POST(req: Request) {
         }, { status: reservation.denial_code === 'free_device_cookie_required' ? 409 : 429 });
       }
 
+      // Reset date from the same source as the account menu (get_ai_quota).
+      let resetsAt: string | null = null;
+      try {
+        const { data: quotaData, error: quotaError } = await supabase.rpc('get_ai_quota');
+        if (quotaError) console.error('load lesson quota reset date failed', { code: quotaError.code });
+        const quotaRow = (Array.isArray(quotaData) ? quotaData[0] : quotaData) as AiQuotaSnapshot | null | undefined;
+        resetsAt = quotaRow?.quota_window_end ?? null;
+      } catch {
+        console.error('load lesson quota reset date failed');
+      }
+
       return NextResponse.json({
         error: `Měsíční limit ${reservation.monthly_limit ?? 3} lekcí je vyčerpaný. Další lekci můžeš vytvořit příští měsíc.`,
+        code: 'monthly_lesson_quota_reached',
         quota: {
           used: reservation.used,
           monthlyLimit: reservation.monthly_limit,
           remaining: 0,
+          resetsAt,
         },
       }, { status: 429 });
     }
