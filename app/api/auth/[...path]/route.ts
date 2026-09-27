@@ -48,11 +48,24 @@ async function handle(method: HandlerMethod, request: Request, context: RouteCon
     return NextResponse.json({ error: 'Session is ambiguous. Please retry.' }, { status: 401 });
   }
 
+  // The library answers get-session from its session_data cookie cache without
+  // the `set-auth-jwt` header. The browser client (lib/neon/client.ts) then sends
+  // the opaque session token to the Data API, which rejects it ("Provided
+  // authentication token is not a valid JWT encoding"). Always go upstream.
+  let proxiedRequest = request;
+  if (method === 'GET' && path.join('/') === 'get-session') {
+    const url = new URL(request.url);
+    if (url.searchParams.get('disableCookieCache') !== 'true') {
+      url.searchParams.set('disableCookieCache', 'true');
+      proxiedRequest = new Request(url, request);
+    }
+  }
+
   // Managed Neon Auth may scope its upstream cookie to the Neon hostname.
   // Re-home proxied cookies as host-only cookies, the same scope the sign-in
   // and sign-out server actions use, so there is only ever one copy.
   const handlers = createServerAuth().handler();
-  return withHostOnlyNeonAuthCookies(await handlers[method](request, context));
+  return withHostOnlyNeonAuthCookies(await handlers[method](proxiedRequest, context));
 }
 
 export function GET(request: Request, context: RouteContext) {
