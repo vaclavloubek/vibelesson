@@ -128,7 +128,7 @@ export default async function SubscriptionPage() {
 
   return (
     <main className={landing.page}>
-      <header className={landing.header}>
+      <header className={`${landing.header} ${landing.headerCrowded}`}>
         <Link href={`/${locale}`} className={landing.brand} aria-label={ui('Syllonaut – domů', 'Syllonaut – home')}>
           <SyllonautMark />
           <span>Syllonaut</span>
