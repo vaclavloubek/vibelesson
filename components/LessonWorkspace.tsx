@@ -46,7 +46,11 @@ type LessonApiResponse = {
   lesson?: Lesson;
   lessonId?: string | null;
   error?: string;
+  code?: string;
+  quota?: { resetsAt?: string | null };
 };
+
+type MonthlyLessonQuotaNotice = { resetsAt: string | null };
 
 type GenerationStreamEvent =
   | { type: 'progress'; stage: Exclude<GenerationStage, 'requesting'> }
@@ -115,6 +119,7 @@ export default function LessonWorkspace({
   const [blockEditMode, setBlockEditMode] = useState<'ai' | 'manual'>('ai');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [monthlyLessonQuotaNotice, setMonthlyLessonQuotaNotice] = useState<MonthlyLessonQuotaNotice | null>(null);
   const [view, setView] = useState<'teacher' | 'student'>('teacher');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(initialLessonId ? 'saved' : 'idle');
@@ -541,6 +546,7 @@ export default function LessonWorkspace({
 
     setBusy(true);
     setError('');
+    setMonthlyLessonQuotaNotice(null);
     setUndoLesson(null);
     setRecentlyChangedBlockIds([]);
     setSelectedBlockId(null);
@@ -548,6 +554,7 @@ export default function LessonWorkspace({
     setGenerationStage('requesting');
 
     let failureStage: GenerationFailureStage = 'materials';
+    let quotaNotice: MonthlyLessonQuotaNotice | null = null;
 
     try {
       const materials = await extractMaterialsInBrowser(files);
@@ -561,6 +568,9 @@ export default function LessonWorkspace({
       const contentType = res.headers.get('content-type') ?? '';
       if (!res.ok || !contentType.includes('application/x-ndjson')) {
         const data = await res.json() as LessonApiResponse;
+        if (res.status === 429 && data.code === 'monthly_lesson_quota_reached') {
+          quotaNotice = { resetsAt: data.quota?.resetsAt ?? null };
+        }
         if (!res.ok) throw new Error(localizedApiError(data.error, locale, 'Generování selhalo.', 'Lesson generation failed.'));
         failureStage = 'result';
         applyLessonResponse(data, operationOwnerId);
@@ -631,6 +641,10 @@ export default function LessonWorkspace({
         failure_stage: failureStage,
         error_code: generationErrorCode(err, failureStage),
       });
+      if (quotaNotice) {
+        setMonthlyLessonQuotaNotice(quotaNotice);
+        return;
+      }
       const rawMessage = err instanceof Error ? err.message : '';
       const isTransportError = /string did not match|failed to fetch|load failed|network|connection/i.test(rawMessage);
       setError(isTransportError
@@ -1063,6 +1077,18 @@ export default function LessonWorkspace({
               ) : null}
             </div>
           </> : null}
+          {monthlyLessonQuotaNotice ? (
+            <div className="revision-plan-notice" role="alert">
+              <strong>{ui('Měsíční limit lekcí je vyčerpaný.', 'Your monthly lesson limit has been reached.')}</strong>
+              {monthlyLessonQuotaNotice.resetsAt ? (
+                <p>{ui('Limit se obnoví', 'The limit resets on')} {new Intl.DateTimeFormat(english ? 'en-GB' : 'cs-CZ', {
+                  dateStyle: 'medium',
+                  timeZone: 'Europe/Prague',
+                }).format(new Date(monthlyLessonQuotaNotice.resetsAt))}.</p>
+              ) : null}
+              <Link href={`/${locale}/pricing`}>{ui('Zobrazit tarify', 'View plans')}</Link>
+            </div>
+          ) : null}
           {error ? <div className="error" role="alert">{error}</div> : null}
         </section>
 

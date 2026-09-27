@@ -136,15 +136,15 @@ export default async function LessonsPage({ searchParams }: Props) {
       return [];
     })
     : Promise.resolve([]);
-  const usagePromise = reusableLessons
-    ? Promise.resolve([])
-    : readLessonLiveUsage(supabase, userId).catch((usageError) => {
-      console.error(
-        'load lesson live usage failed',
-        usageError instanceof LessonReuseReadError ? usageError.code : 'LESSON_LIVE_USAGE_QUERY_FAILED',
-      );
-      return [];
-    });
+  // Read for every plan: Free archives used lessons, and all plans mark lessons
+  // that have not had a live lesson yet. null = unknown, so no badge is shown.
+  const usagePromise = readLessonLiveUsage(supabase, userId).catch((usageError) => {
+    console.error(
+      'load lesson live usage failed',
+      usageError instanceof LessonReuseReadError ? usageError.code : 'LESSON_LIVE_USAGE_QUERY_FAILED',
+    );
+    return null;
+  });
 
   const [folderRows, usageRows, originAccess, aiQuota] = await Promise.all([
     folderPromise,
@@ -157,7 +157,7 @@ export default async function LessonsPage({ searchParams }: Props) {
   if (sessionsError) console.error('load ended sessions failed', sessionsError.code);
 
   const usedLessonIds = new Set<string>();
-  for (const usage of usageRows) {
+  for (const usage of usageRows ?? []) {
     usedLessonIds.add(usage.lesson_id);
   }
 
@@ -174,6 +174,7 @@ export default async function LessonsPage({ searchParams }: Props) {
       updatedAt: row.updated_at as string,
       folderId: typeof row.folder_id === 'string' ? row.folder_id : null,
       archived: !reusableLessons && usedLessonIds.has(row.id as string),
+      readyToTeach: usageRows !== null && !usedLessonIds.has(row.id as string),
       licenseLocked: typeof row.organization_origin_id === 'string'
         ? Boolean(originAccess.get(row.organization_origin_id)?.locked)
         : false,
