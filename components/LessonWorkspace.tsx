@@ -71,6 +71,7 @@ type Props = {
   initialOwnerId?: string | null;
   initialPrompt?: string | null;
   initialFolderId?: string | null;
+  initialDemo?: boolean;
   licenseLocked?: boolean;
   organizationName?: string | null;
   signedIn?: boolean;
@@ -82,6 +83,7 @@ export default function LessonWorkspace({
   initialOwnerId = null,
   initialPrompt = null,
   initialFolderId = null,
+  initialDemo = false,
   licenseLocked = false,
   organizationName = null,
   signedIn = false,
@@ -779,6 +781,11 @@ export default function LessonWorkspace({
       setBusy(false);
     }
   }
+
+  // /new?ukazka=1: open the example lesson once after load, same as the button.
+  useEffect(() => {
+    if (initialDemo) loadDemo();
+  }, [initialDemo]);
 
   function loadDemo() {
     const nextDemo = english ? demoLessonEn : demoLesson;

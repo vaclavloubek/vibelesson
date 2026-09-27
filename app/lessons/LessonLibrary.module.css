@@ -232,6 +232,11 @@
   color: var(--muted);
 }
 
+.exampleLessonLink {
+  display: inline-block;
+  margin-top: 10px;
+}
+
 .mobileFolders {
   display: none;
 }

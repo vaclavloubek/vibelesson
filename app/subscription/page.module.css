@@ -1,0 +1,25 @@
+.emailSection {
+  width: min(960px, calc(100% - 40px));
+  margin: 18px auto 84px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 10px 34px rgba(21,23,33,.05);
+  scroll-margin-top: 24px;
+}
+
+/* SubscriptionManagement's layout ends with an 84px bottom margin; keep the usual 18px gap. */
+.afterManagement {
+  margin-top: -66px;
+}
+
+.emailSection h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -.04em;
+}
+
+@media (max-width: 720px) {
+  .emailSection { width: min(100% - 24px, 960px); padding: 22px; }
+}

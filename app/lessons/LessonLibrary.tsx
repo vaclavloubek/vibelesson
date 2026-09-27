@@ -516,6 +516,7 @@ export default function LessonLibrary({ lessons, folders, canManageFolders, reus
           <div className={`panel ${styles.emptyFolder}`}>
             <h3>{lessons.length === 0 ? ui('Zatím tu není žádná lekce', 'No lessons yet') : ui('Tahle složka je zatím prázdná', 'This folder is empty')}</h3>
             <p>{lessons.length === 0 ? ui('Vytvoř první lekci nebo si nejdřív připrav strukturu složek.', 'Create your first lesson or prepare your folder structure first.') : ui('Přesuň sem existující lekce nebo vytvoř novou rovnou v této složce.', 'Move existing lessons here or create a new one directly in this folder.')}</p>
+            {lessons.length === 0 ? <Link href="/new?ukazka=1" className={`auth-link ${styles.exampleLessonLink}`}>{ui('Prohlédnout ukázkovou lekci', 'See an example lesson')}</Link> : null}
           </div>
         ) : (
           <div className="lesson-grid">

@@ -230,8 +230,6 @@ async function ensureMarketingContact(
         unsubscribed: true,
         properties: {
           marketing_status: 'opt_out',
-          ui_locale: context.locale,
-          plan: context.plan,
         },
       });
     }
