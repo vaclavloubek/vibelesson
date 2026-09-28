@@ -9,16 +9,21 @@
   scroll-margin-top: 24px;
 }
 
-/* SubscriptionManagement's layout ends with an 84px bottom margin; keep the usual 18px gap. */
-.afterManagement {
-  margin-top: -66px;
-}
-
 .emailSection h2,
 .referralSection h2 {
   margin: 0;
   font-size: 28px;
   letter-spacing: -.04em;
+}
+
+/* The withdrawal block follows the email section as the last block. */
+.beforeWithdrawal {
+  margin-bottom: 0;
+}
+
+.withdrawalSection {
+  width: min(960px, calc(100% - 40px));
+  margin: 18px auto 84px;
 }
 
 /* Referral program (REFERRALS_ENABLED): same card as the email section, directly above it. */
@@ -90,7 +95,14 @@
   margin: 18px 0 0;
 }
 
+/* SubscriptionManagement's layout ends with an 84px bottom margin; keep the usual 18px gap.
+   Declared after the section rules so their margin shorthand cannot override it. */
+.afterManagement {
+  margin-top: -66px;
+}
+
 @media (max-width: 720px) {
   .emailSection,
   .referralSection { width: min(100% - 24px, 960px); padding: 22px; }
+  .withdrawalSection { width: min(100% - 24px, 960px); }
 }
