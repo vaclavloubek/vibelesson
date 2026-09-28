@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import CopyableJoinLink from '@/components/CopyableJoinLink';
-import { REFERRAL_PROGRAM } from '@/lib/referral-program-config';
+import { bonusLessonsCs, bonusLessonsEn, REFERRAL_PROGRAM } from '@/lib/referral-program-config';
 import type { ReferralSection } from '@/lib/referral-program';
 import type { UiLocale } from '@/lib/i18n';
 import styles from '@/app/subscription/page.module.css';
@@ -10,12 +10,6 @@ function formatDate(value: string, english: boolean) {
     dateStyle: 'long',
     timeZone: 'Europe/Prague',
   }).format(new Date(value));
-}
-
-function bonusLessonsCs(count: number) {
-  if (count === 1) return '1 bonusovou lekci';
-  if (count >= 2 && count <= 4) return `${count} bonusové lekce`;
-  return `${count} bonusových lekcí`;
 }
 
 // Numbers only: never names or emails of invited colleagues.
@@ -38,8 +32,8 @@ export default function ReferralProgramSection({
       <h2 id="referral-heading">{ui('Doporuč Syllonaut kolegům', 'Recommend Syllonaut to colleagues')}</h2>
       <p className={styles.referralLead}>
         {ui(
-          `Za každého kolegu, který se zaregistruje přes tvůj odkaz a do ${p.qualifyWindowDays} dnů odučí živou hodinu, ve které aspoň ${p.minSubmittingParticipants} studentů odešle odpověď, nebo si předplatí placený tarif, získáš ${p.rewardUnits} bonusové lekce s platností ${p.rewardValidMonths} měsíců.`,
-          `For every colleague who signs up through your link and, within ${p.qualifyWindowDays} days, either teaches a live lesson in which at least ${p.minSubmittingParticipants} students submit an answer or subscribes to a paid plan, you get ${p.rewardUnits} bonus lessons valid for ${p.rewardValidMonths} months.`,
+          `Za každého kolegu, který se zaregistruje přes tvůj odkaz a do ${p.qualifyWindowDays} dnů odučí živou hodinu, ve které aspoň ${p.minSubmittingParticipants} studentů odešle odpověď, nebo si předplatí placený tarif, získáš ${bonusLessonsCs(p.rewardUnits)} s platností ${p.rewardValidMonths} měsíců.`,
+          `For every colleague who signs up through your link and, within ${p.qualifyWindowDays} days, either teaches a live lesson in which at least ${p.minSubmittingParticipants} students submit an answer or subscribes to a paid plan, you get ${bonusLessonsEn(p.rewardUnits)} valid for ${p.rewardValidMonths} months.`,
         )}
         {' '}
         {ui(
@@ -58,10 +52,10 @@ export default function ReferralProgramSection({
         <strong className={styles.referralBonusCount}>{section.bonusRemaining}</strong>
         <p>
           {english
-            ? `You have ${section.bonusRemaining} bonus ${section.bonusRemaining === 1 ? 'lesson' : 'lessons'} for recommending Syllonaut.`
+            ? `You have ${bonusLessonsEn(section.bonusRemaining)} for recommending Syllonaut.`
             : `Za doporučení Syllonautu máš ${bonusLessonsCs(section.bonusRemaining)}.`}
           {section.bonusNextExpiry && section.bonusRemaining > 0
-            ? ` ${ui('Nejbližší vyprší', 'The next ones expire on')} ${formatDate(section.bonusNextExpiry, english)}.`
+            ? ` ${ui('Nejbližší vyprší', 'The earliest expires on')} ${formatDate(section.bonusNextExpiry, english)}.`
             : ''}
         </p>
       </div>

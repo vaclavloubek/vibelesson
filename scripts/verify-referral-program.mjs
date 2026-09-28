@@ -24,10 +24,19 @@ const authControls = read('components/AuthControls.tsx');
 const actions = read('app/auth/neon/actions.ts');
 
 // 1. One place for the constants: the DB settings row equals the TS mirror.
-const { REFERRAL_PROGRAM, normalizeReferralCodeInput } = await import('../lib/referral-program-config.ts');
+const { REFERRAL_PROGRAM, normalizeReferralCodeInput, bonusLessonsCs, bonusLessonsEn } = await import('../lib/referral-program-config.ts');
 const settings = migration.match(/values \(true, (\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\)/);
 assert.ok(settings, 'settings row is inserted by 0027');
-assert.deepEqual(settings.slice(1).map(Number), [
+// Later migrations change the row with "set <column> = <value>".
+const settingColumns = ['reward_units', 'reward_valid_months', 'qualify_window_days', 'min_submitting_participants', 'monthly_cap', 'total_cap', 'retention_months'];
+const current = settings.slice(1).map(Number);
+const rewardUpdate = read('neon/migrations/0028_referral_reward_one_lesson.sql');
+for (const [, column, value] of rewardUpdate.matchAll(/(\w+) = (\d+)/g)) {
+  const index = settingColumns.indexOf(column);
+  if (index >= 0) current[index] = Number(value);
+}
+has(rewardUpdate, 'update private.referral_program_settings', '0028 updates the settings row');
+assert.deepEqual(current, [
   REFERRAL_PROGRAM.rewardUnits,
   REFERRAL_PROGRAM.rewardValidMonths,
   REFERRAL_PROGRAM.qualifyWindowDays,
@@ -37,11 +46,21 @@ assert.deepEqual(settings.slice(1).map(Number), [
   REFERRAL_PROGRAM.retentionMonths,
 ], 'private.referral_program_settings equals lib/referral-program-config.ts');
 assert.deepEqual({ ...REFERRAL_PROGRAM }, {
-  rewardUnits: 3, rewardValidMonths: 12, qualifyWindowDays: 60,
+  rewardUnits: 1, rewardValidMonths: 12, qualifyWindowDays: 60,
   minSubmittingParticipants: 5, monthlyCap: 3, totalCap: 10, retentionMonths: 12,
 }, 'owner-decided constants (2026-09-28)');
 for (const name of ['reward_units', 'reward_valid_months', 'qualify_window_days', 'min_submitting_participants', 'monthly_cap', 'total_cap']) {
   has(migration.slice(migration.indexOf('create or replace function private.process_referral_qualifications')), `v_settings.${name}`, `qualification reads ${name} from the settings row`);
+}
+
+// Reward texts decline with the number (owner decision 2026-09-28: 1 lesson).
+assert.equal(bonusLessonsCs(1), '1 bonusovou lekci', 'CS singular');
+assert.equal(bonusLessonsCs(3), '3 bonusové lekce', 'CS 2-4');
+assert.equal(bonusLessonsCs(7), '7 bonusových lekcí', 'CS 5+');
+assert.equal(bonusLessonsEn(1), '1 bonus lesson', 'EN singular');
+assert.equal(bonusLessonsEn(0), '0 bonus lessons', 'EN plural');
+for (const [label, text] of [['section', read('components/ReferralProgramSection.tsx')], ['rules', read('app/referral/page.tsx')]]) {
+  assert.ok(!/\$\{p\.rewardUnits\} bonus/.test(text), `${label}: reward count goes through the declension helpers`);
 }
 
 // 2. Codes: random, no confusable characters, not derived from id or email.
