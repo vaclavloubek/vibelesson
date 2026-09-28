@@ -9,7 +9,7 @@ import SiteFooter from '@/components/SiteFooter';
 import SyllonautMark from '@/components/SyllonautMark';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { isReferralsEnabled } from '@/lib/referral-program';
-import { REFERRAL_PROGRAM } from '@/lib/referral-program-config';
+import { bonusLessonsCs, bonusLessonsEn, REFERRAL_PROGRAM } from '@/lib/referral-program-config';
 import { createClient } from '@/lib/supabase/server';
 import landing from '@/components/LandingPage.module.css';
 import styles from '@/app/gdpr/GdprPage.module.css';
@@ -67,7 +67,7 @@ function rules(english: boolean): RulesSection[] {
       {
         title: 'The reward',
         items: [
-          `${p.rewardUnits} bonus AI lesson generations for each qualified colleague, valid for ${p.rewardValidMonths} months from the day they are credited.`,
+          `For each qualified colleague you get ${bonusLessonsEn(p.rewardUnits)} (a bonus AI lesson generation), valid for ${p.rewardValidMonths} months from the day it is credited.`,
           'Bonus lessons are used only after the monthly lesson limit of your plan runs out, starting with those that expire first. A failed generation does not use a bonus lesson.',
           'Bonus lessons are not a discount, cannot be exchanged for money and cannot be transferred to another account.',
           'Bonus lessons can be used only while your account is individual. As a member of a school or organization they stay frozen; their validity is not extended.',
@@ -133,7 +133,7 @@ function rules(english: boolean): RulesSection[] {
     {
       title: 'Odměna',
       items: [
-        `Za každého kvalifikovaného kolegu ${p.rewardUnits} bonusová generování AI lekce s platností ${p.rewardValidMonths} měsíců ode dne připsání.`,
+        `Za každého kvalifikovaného kolegu získáte ${bonusLessonsCs(p.rewardUnits)} (bonusové generování AI lekce) s platností ${p.rewardValidMonths} měsíců ode dne připsání.`,
         'Bonusové lekce se čerpají až po vyčerpání měsíčního limitu lekcí vašeho tarifu, nejdřív ty s nejbližší expirací. Neúspěšné generování bonusovou lekci nespotřebuje.',
         'Bonusové lekce nejsou sleva, nelze je směnit za peníze ani převést na jiný účet.',
         'Bonusové lekce lze čerpat jen s individuálním účtem. Po dobu členství ve škole nebo organizaci zůstávají zmrazené; jejich platnost se neprodlužuje.',
