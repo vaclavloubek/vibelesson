@@ -10,6 +10,7 @@ import HelpAssistant from '@/components/HelpAssistant';
 import SyllonautMark from '@/components/SyllonautMark';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
 import MarketingEmailPreferences from '@/components/MarketingEmailPreferences';
+import ReferralProgramSection from '@/components/ReferralProgramSection';
 import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
@@ -17,6 +18,7 @@ import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import { getAiGradingTopupOffer, type AiGradingTopupOffer } from '@/lib/ai-grading-topups';
 import { getServiceChangeNotices, type ServiceChangeNotice } from '@/lib/service-change-state';
 import { getOnlineWithdrawalOpportunity, type OnlineWithdrawalOpportunity } from '@/lib/online-withdrawal';
+import { getReferralSection, type ReferralSection } from '@/lib/referral-program';
 import landing from '@/components/LandingPage.module.css';
 import styles from './page.module.css';
 
@@ -118,6 +120,18 @@ export default async function SubscriptionPage() {
     });
   }
 
+  // Referral program (REFERRALS_ENABLED): individual accounts only; the code is
+  // created on the first view of this section.
+  let referralSection: ReferralSection | null = null;
+  try {
+    referralSection = await getReferralSection(userId);
+  } catch (error) {
+    console.error('load referral section failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+      userId,
+    });
+  }
+
   const accountUser = {
     id: userId,
     email: typeof claimsData?.claims?.email === 'string' ? claimsData.claims.email : undefined,
@@ -161,8 +175,16 @@ export default async function SubscriptionPage() {
         topupOffer={topupOffer}
       />}
 
+      {referralSection ? (
+        <ReferralProgramSection
+          section={referralSection}
+          locale={locale}
+          className={loadError ? styles.referralSection : `${styles.referralSection} ${styles.afterManagement}`}
+        />
+      ) : null}
+
       {/* Outside SubscriptionManagement so it stays available when billing state fails to load. */}
-      <section id="emaily" className={loadError ? styles.emailSection : `${styles.emailSection} ${styles.afterManagement}`}>
+      <section id="emaily" className={loadError || referralSection ? styles.emailSection : `${styles.emailSection} ${styles.afterManagement}`}>
         <h2>{ui('E-mailové novinky', 'Email updates')}</h2>
         <MarketingEmailPreferences />
       </section>

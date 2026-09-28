@@ -122,4 +122,18 @@ requireText(evaluationReviewQueue, "ui('Připravit novou verzi k hodnocení', 'P
 requireText(evaluationReviewQueue, "ui('Potvrzeno učitelem.', 'Confirmed by teacher.')", 'evaluation review states must remain localized.');
 requireText(evaluationReviewQueue, "ui('b.', 'pts')", 'grading criterion point suffix must remain localized.');
 
+const [referralSection, referralRules, authControls] = await Promise.all([
+  source('components/ReferralProgramSection.tsx'),
+  source('app/referral/page.tsx'),
+  source('components/AuthControls.tsx'),
+]);
+requireText(referralSection, "ui('Doporuč Syllonaut kolegům', 'Recommend Syllonaut to colleagues')", 'referral section heading must exist in Czech and English.');
+requireText(referralSection, "ui('Bonusové lekce', 'Bonus lessons')", 'referral bonus field must exist in Czech and English.');
+requireText(referralSection, "ui('Pravidla doporučování', 'Referral rules')", 'referral rules link must exist in Czech and English.');
+requireText(referralSection, 'href={`/${locale}/referral`}', 'referral rules link must keep the UI locale.');
+requireText(referralRules, "ui('Pravidla doporučování', 'Referral rules')", 'referral rules page title must exist in Czech and English.');
+requireText(referralRules, "title: 'Kdy vzniká nárok na odměnu'", 'Czech referral rules are missing.');
+requireText(referralRules, "title: 'When you get a reward'", 'English referral rules are missing.');
+requireText(authControls, "english ? 'Referral code (optional)' : 'Kód doporučení (nepovinné)'", 'signup referral code field must exist in Czech and English.');
+
 console.log('i18n source checks passed.');
