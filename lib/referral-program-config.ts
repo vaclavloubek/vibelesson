@@ -8,6 +8,9 @@ export const REFERRAL_PROGRAM = {
   minSubmittingParticipants: 5,
   monthlyCap: 3,
   totalCap: 10,
+  // Privacy Notice 1.12: months an attribution is kept after it closed (after
+  // the reward expired for a rewarded one).
+  retentionMonths: 12,
 } as const;
 
 // 8 characters without 0/O, 1/I/L.

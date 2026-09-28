@@ -6,7 +6,7 @@ import {
 import { drainAiGradingQuotaNotices } from '@/lib/marketing-lifecycle';
 import { createNeonSql } from '@/lib/neon/server';
 import { isAuthorizedCronRequest } from '@/lib/cron-auth';
-import { isReferralsEnabled, processReferralQualifications } from '@/lib/referral-program';
+import { isReferralsEnabled, processReferralQualifications, purgeReferralData } from '@/lib/referral-program';
 
 export const maxDuration = 60;
 
@@ -14,8 +14,9 @@ export const maxDuration = 60;
 // retention cleanup). Submissions drain the grading queue immediately; this
 // runs sparsely so the Neon compute can scale to zero between lessons.
 // It also ends time-limited manual plan grants (neon/migrations/0013) and
-// retries AI grading quota notices (neon/migrations/0016) and, only with
-// REFERRALS_ENABLED, evaluates pending referrals (neon/migrations/0027).
+// retries AI grading quota notices (neon/migrations/0016). Only with
+// REFERRALS_ENABLED it evaluates pending referrals; the referral retention
+// purge (neon/migrations/0027, Privacy Notice 1.12) runs regardless.
 export async function GET(req: Request) {
   if (!isAuthorizedCronRequest(req)) {
     return new NextResponse(null, { status: 401 });
@@ -48,6 +49,14 @@ export async function GET(req: Request) {
       });
     }
   }
+  let referralRetention: Awaited<ReturnType<typeof purgeReferralData>> = null;
+  try {
+    referralRetention = await purgeReferralData();
+  } catch (error) {
+    console.error('cron referral retention purge failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+    });
+  }
   return NextResponse.json({
     ok: true,
     expiredEntitlementOverrides: Number(expiredOverrides?.count ?? 0),
@@ -56,5 +65,6 @@ export async function GET(req: Request) {
     ...grading,
     quotaNoticeRetry,
     referrals,
+    referralRetention,
   });
 }

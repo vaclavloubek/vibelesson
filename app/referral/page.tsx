@@ -25,8 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
     description: english
       ? 'Rules of the Syllonaut referral program: who takes part, when a reward is granted and its limits.'
       : 'Pravidla doporučovacího programu Syllonaut: kdo se může zapojit, kdy vzniká odměna a jaké má limity.',
-    // Draft for the owner's review: not indexed until the program starts.
-    robots: { index: false, follow: false },
+    alternates: {
+      canonical: `/${locale}/referral`,
+      languages: { cs: '/cs/referral', en: '/en/referral', 'x-default': '/en/referral' },
+    },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -89,7 +92,7 @@ function rules(english: boolean): RulesSection[] {
         title: 'Personal data',
         items: [
           'To run the program, Syllonaut records which account referred which, and a one-way hash of the device identifier used to prevent misuse. You never see the names or email addresses of the colleagues you referred, only the numbers.',
-          'Details will be described in a supplement to the Privacy Notice before the program starts.',
+          `The link between the accounts is deleted at the latest ${p.retentionMonths} months after the referral closed, or after the reward expired; details are in the Privacy Notice.`,
         ],
       },
       {
@@ -155,7 +158,7 @@ function rules(english: boolean): RulesSection[] {
       title: 'Osobní údaje',
       items: [
         'Kvůli programu Syllonaut eviduje, který účet doporučil který, a jednosměrný hash identifikátoru zařízení kvůli ochraně proti zneužití. Jména ani e-maily doporučených kolegů neuvidíte, jen počty.',
-        'Podrobnosti popíše doplněk Zásad ochrany osobních údajů před spuštěním programu.',
+        `Vazbu mezi účty smažeme nejpozději ${p.retentionMonths} měsíců po uzavření doporučení, u odměny po skončení její platnosti; podrobnosti jsou v informacích o ochraně osobních údajů.`,
       ],
     },
     {
@@ -212,14 +215,6 @@ export default async function ReferralRulesPage() {
           <p>{ui(
             'Doporučte Syllonaut kolegům a za každého, kdo ho začne opravdu používat, získáte bonusové lekce.',
             'Recommend Syllonaut to colleagues and get bonus lessons for everyone who actually starts using it.',
-          )}</p>
-        </div>
-
-        <div className={styles.notice} role="note">
-          <strong>{ui('Návrh k revizi', 'Draft for review')}</strong>
-          <p>{ui(
-            'Tato pravidla jsou návrh a zatím neplatí. Nejsou součástí obchodních podmínek.',
-            'These rules are a draft and are not yet in effect. They are not part of the Terms of Service.',
           )}</p>
         </div>
 

@@ -15,6 +15,10 @@
 --   min_submitting_participants distinct participants submitted an individual
 --   answer, without sharing a device with the referrer.
 -- * At most monthly_cap rewards per UTC calendar month and total_cap in total.
+-- * Retention (Privacy Notice 1.12): an attribution (link between the accounts,
+--   signup device hash, outcome) is deleted retention_months after it closed;
+--   a rewarded one retention_months after its reward expired. The grant then
+--   stays without invitee_user_id so the total cap still counts it.
 -- * All numeric constants live in private.referral_program_settings and are
 --   mirrored in lib/referral-program-config.ts (checked by
 --   scripts/verify-referral-program.mjs).
@@ -27,7 +31,7 @@
 --    monthly limit, reserve from the valid bonus grant expiring first. The plan
 --    count ignores bonus rows; the Free device budget applies unchanged.
 -- 4. Server-only functions: code, attribution at signup, summary, hourly
---    qualification. public.get_ai_quota is unchanged.
+--    qualification and retention purge. public.get_ai_quota is unchanged.
 --
 -- No function called through the Data API changes signature, so no schema
 -- cache refresh is needed. Apply statement by statement (PL/pgSQL bodies).
@@ -40,14 +44,15 @@ create table if not exists private.referral_program_settings (
   min_submitting_participants integer not null check (min_submitting_participants > 0),
   monthly_cap integer not null check (monthly_cap > 0),
   total_cap integer not null check (total_cap > 0),
+  retention_months integer not null check (retention_months > 0),
   updated_at timestamptz not null default now()
 );
 
 insert into private.referral_program_settings (
   id, reward_units, reward_valid_months, qualify_window_days,
-  min_submitting_participants, monthly_cap, total_cap
+  min_submitting_participants, monthly_cap, total_cap, retention_months
 )
-values (true, 3, 12, 60, 5, 3, 10)
+values (true, 3, 12, 60, 5, 3, 10, 12)
 on conflict (id) do nothing;
 
 create table if not exists private.referral_codes (
@@ -69,6 +74,9 @@ create table if not exists private.referral_attributions (
   qualified_at timestamptz,
   qualifying_session_id uuid,
   qualified_by text check (qualified_by is null or qualified_by in ('live_lesson', 'paid_plan')),
+  -- When the attribution left 'pending'; retention counts from here.
+  resolved_at timestamptz,
+  check ((status = 'pending') = (resolved_at is null)),
   check ((status = 'rejected') = (reject_reason is not null)),
   check ((status in ('rewarded', 'capped')) = (qualified_at is not null))
 );
@@ -109,7 +117,8 @@ create table if not exists private.lesson_credit_grants (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   source text not null check (source in ('referral')),
-  -- One grant per invitee: the idempotence key of the reward.
+  -- One grant per invitee: the idempotence key of the reward. Cleared by the
+  -- retention purge; the row stays so the total cap still counts it.
   invitee_user_id uuid unique,
   units_granted integer not null check (units_granted > 0),
   units_used integer not null default 0,
@@ -118,8 +127,7 @@ create table if not exists private.lesson_credit_grants (
   revoked_at timestamptz,
   created_at timestamptz not null default now(),
   check (units_used >= 0 and units_used <= units_granted),
-  check (expires_at > granted_at),
-  check (source <> 'referral' or invitee_user_id is not null)
+  check (expires_at > granted_at)
 );
 
 create index if not exists lesson_credit_grants_user_valid_idx
@@ -393,9 +401,12 @@ begin
   v_status := case when v_reason is null then 'pending' else 'rejected' end;
 
   insert into private.referral_attributions (
-    invitee_user_id, referrer_user_id, signup_device_hash, status, reject_reason
+    invitee_user_id, referrer_user_id, signup_device_hash, status, reject_reason, resolved_at
   )
-  values (p_invitee_user_id, v_referrer, v_device, v_status, v_reason)
+  values (
+    p_invitee_user_id, v_referrer, v_device, v_status, v_reason,
+    case when v_status = 'pending' then null else now() end
+  )
   on conflict (invitee_user_id) do nothing;
 
   if not found then
@@ -509,7 +520,7 @@ begin
             on r.token_hash = i.token_hash
         ) then
           update private.referral_attributions
-          set status = 'rejected', reject_reason = 'shared_device'
+          set status = 'rejected', reject_reason = 'shared_device', resolved_at = now()
           where invitee_user_id = v_row.invitee_user_id;
           v_rejected := v_rejected + 1;
           continue;
@@ -521,7 +532,7 @@ begin
     if v_by is null then
       if now() > v_window_end then
         update private.referral_attributions
-        set status = 'expired'
+        set status = 'expired', resolved_at = now()
         where invitee_user_id = v_row.invitee_user_id;
         v_expired := v_expired + 1;
       else
@@ -542,7 +553,7 @@ begin
 
     if v_total >= v_settings.total_cap or v_month >= v_settings.monthly_cap then
       update private.referral_attributions
-      set status = 'capped', qualified_at = now(),
+      set status = 'capped', qualified_at = now(), resolved_at = now(),
           qualifying_session_id = v_session_id, qualified_by = v_by
       where invitee_user_id = v_row.invitee_user_id;
       v_capped := v_capped + 1;
@@ -560,7 +571,7 @@ begin
     on conflict (invitee_user_id) do nothing;
 
     update private.referral_attributions
-    set status = 'rewarded', qualified_at = now(),
+    set status = 'rewarded', qualified_at = now(), resolved_at = now(),
         qualifying_session_id = v_session_id, qualified_by = v_by
     where invitee_user_id = v_row.invitee_user_id;
     v_rewarded := v_rewarded + 1;
@@ -573,6 +584,58 @@ begin
     'expired', v_expired,
     'pending', v_pending
   );
+end;
+$function$;
+
+-- Retention (Privacy Notice 1.12), hourly from /api/cron/neon-grading even
+-- with the flag off. Closed attributions go retention_months after closing;
+-- rewarded ones retention_months after the reward expired, and their grant
+-- loses the link to the invitee. Pending attributions that never closed (flag
+-- switched off) go retention_months after their qualification window.
+create or replace function private.purge_referral_data()
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to ''
+as $function$
+declare
+  v_settings private.referral_program_settings%rowtype;
+  v_cutoff timestamptz;
+  v_unlinked integer := 0;
+  v_deleted integer := 0;
+begin
+  select * into v_settings from private.referral_program_settings where id;
+  if not found then
+    raise exception 'referral_program_settings_missing' using errcode = 'P0001';
+  end if;
+  v_cutoff := now() - make_interval(months => v_settings.retention_months);
+
+  update private.lesson_credit_grants g
+  set invitee_user_id = null
+  where g.invitee_user_id is not null
+    and g.expires_at < v_cutoff;
+  get diagnostics v_unlinked = row_count;
+
+  delete from private.referral_attributions a
+  where (
+      a.status in ('rejected', 'expired', 'capped')
+      and a.resolved_at < v_cutoff
+    )
+    or (
+      a.status = 'rewarded'
+      and not exists (
+        select 1 from private.lesson_credit_grants g
+        where g.invitee_user_id = a.invitee_user_id
+      )
+      and a.resolved_at < v_cutoff
+    )
+    or (
+      a.status = 'pending'
+      and a.created_at + make_interval(days => v_settings.qualify_window_days) < v_cutoff
+    );
+  get diagnostics v_deleted = row_count;
+
+  return jsonb_build_object('grants_unlinked', v_unlinked, 'attributions_deleted', v_deleted);
 end;
 $function$;
 
@@ -745,6 +808,7 @@ revoke all on function private.get_or_create_referral_code_server(uuid) from pub
 revoke all on function private.record_referral_attribution_server(uuid, text, text, boolean) from public;
 revoke all on function private.get_referral_summary_server(uuid) from public;
 revoke all on function private.process_referral_qualifications() from public;
+revoke all on function private.purge_referral_data() from public;
 revoke all on function public.reserve_lesson_generation_server(uuid, text) from public;
 
 revoke all on function private.referral_attributions_immutable_parties() from anon, anonymous, authenticated, authenticator;
@@ -756,4 +820,5 @@ revoke all on function private.get_or_create_referral_code_server(uuid) from ano
 revoke all on function private.record_referral_attribution_server(uuid, text, text, boolean) from anon, anonymous, authenticated, authenticator;
 revoke all on function private.get_referral_summary_server(uuid) from anon, anonymous, authenticated, authenticator;
 revoke all on function private.process_referral_qualifications() from anon, anonymous, authenticated, authenticator;
+revoke all on function private.purge_referral_data() from anon, anonymous, authenticated, authenticator;
 revoke all on function public.reserve_lesson_generation_server(uuid, text) from anon, anonymous, authenticated, authenticator;

@@ -73,6 +73,19 @@ export async function recordReferralAttributionSafely(input: {
   }
 }
 
+// Retention (Privacy Notice 1.12), hourly even with the flag off, so data from
+// a program that was switched off is still deleted on time. Skipped until
+// migration 0027 exists in the database.
+export async function purgeReferralData() {
+  if (getDatabaseBackend() !== 'neon') return null;
+  assertApprovedNeonCutover();
+  const sql = createNeonSql();
+  const [ready] = await sql`select to_regprocedure('private.purge_referral_data()') is not null as ready`;
+  if (!ready?.ready) return null;
+  const [row] = await sql`select private.purge_referral_data() as result`;
+  return (row?.result ?? null) as Record<string, number> | null;
+}
+
 // Hourly from /api/cron/neon-grading. Records outcomes only; notifies nobody.
 export async function processReferralQualifications() {
   if (!referralDatabaseAvailable()) return null;

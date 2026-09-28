@@ -25,7 +25,7 @@ const actions = read('app/auth/neon/actions.ts');
 
 // 1. One place for the constants: the DB settings row equals the TS mirror.
 const { REFERRAL_PROGRAM, normalizeReferralCodeInput } = await import('../lib/referral-program-config.ts');
-const settings = migration.match(/values \(true, (\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\)/);
+const settings = migration.match(/values \(true, (\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\)/);
 assert.ok(settings, 'settings row is inserted by 0027');
 assert.deepEqual(settings.slice(1).map(Number), [
   REFERRAL_PROGRAM.rewardUnits,
@@ -34,10 +34,11 @@ assert.deepEqual(settings.slice(1).map(Number), [
   REFERRAL_PROGRAM.minSubmittingParticipants,
   REFERRAL_PROGRAM.monthlyCap,
   REFERRAL_PROGRAM.totalCap,
+  REFERRAL_PROGRAM.retentionMonths,
 ], 'private.referral_program_settings equals lib/referral-program-config.ts');
 assert.deepEqual({ ...REFERRAL_PROGRAM }, {
   rewardUnits: 3, rewardValidMonths: 12, qualifyWindowDays: 60,
-  minSubmittingParticipants: 5, monthlyCap: 3, totalCap: 10,
+  minSubmittingParticipants: 5, monthlyCap: 3, totalCap: 10, retentionMonths: 12,
 }, 'owner-decided constants (2026-09-28)');
 for (const name of ['reward_units', 'reward_valid_months', 'qualify_window_days', 'min_submitting_participants', 'monthly_cap', 'total_cap']) {
   has(migration.slice(migration.indexOf('create or replace function private.process_referral_qualifications')), `v_settings.${name}`, `qualification reads ${name} from the settings row`);
@@ -121,7 +122,21 @@ assert.ok(!/grant execute/i.test(migration), 'no function is granted to API role
 has(lib, "process.env.REFERRALS_ENABLED === 'true'", 'flag is opt-in');
 has(cron, 'if (isReferralsEnabled()) {\n    try {\n      referrals = await processReferralQualifications();', 'cron evaluates only with the flag');
 has(rulesPage, 'if (!isReferralsEnabled()) notFound();', 'rules page is 404 without the flag');
-has(rulesPage, 'robots: { index: false, follow: false }', 'draft rules are not indexed');
+assert.ok(!/Návrh k revizi|Draft for review/.test(rulesPage), 'rules are published (owner approval 2026-09-28)');
+
+// 6b. Retention (Privacy Notice 1.12).
+const purgeFn = migration.slice(migration.indexOf('create or replace function private.purge_referral_data'), migration.indexOf('create or replace function public.reserve_lesson_generation_server'));
+has(purgeFn, 'make_interval(months => v_settings.retention_months)', 'retention period comes from the settings row');
+has(purgeFn, "a.status in ('rejected', 'expired', 'capped')\n      and a.resolved_at < v_cutoff", 'closed attributions are deleted after the retention period');
+has(purgeFn, 'set invitee_user_id = null\n  where g.invitee_user_id is not null\n    and g.expires_at < v_cutoff', 'rewarded: link removed after reward expiry + retention, grant kept for the total cap');
+assert.ok(!/delete from private\.lesson_credit_grants/.test(purgeFn), 'grants are never deleted (total cap keeps counting)');
+has(migration, "check ((status = 'pending') = (resolved_at is null))", 'every closed attribution has resolved_at');
+has(cron, 'referralRetention = await purgeReferralData();', 'cron runs the retention purge');
+assert.ok(!cron.slice(cron.indexOf('let referralRetention')).startsWith('let referralRetention: Awaited<ReturnType<typeof purgeReferralData>> = null;\n  if (isReferralsEnabled'), 'retention purge does not depend on the flag');
+has(lib, "to_regprocedure('private.purge_referral_data()') is not null", 'purge is skipped until 0027 exists');
+const gdpr = read('app/gdpr/page.tsx');
+has(gdpr, 'Verze 1.12', 'Privacy Notice 1.12 describes the program');
+has(gdpr, 'nejdéle 12 měsíců po uzavření doporučení', 'Privacy Notice retention matches the settings row');
 has(subscriptionPage, 'referralSection = await getReferralSection(userId);', 'subscription page reads the section on the server');
 has(authControls, 'isReferralSignupEnabled().then((enabled) => {\n      if (!enabled) return;', 'signup field only with the flag');
 has(authControls, "new URLSearchParams(window.location.search).get('ref')", 'field prefilled from ?ref');
