@@ -8,9 +8,10 @@ import { NEON_AUTH_SESSION_DATA_COOKIE } from '@/lib/neon/auth-cookies';
 import { getVerifiedNeonSession } from '@/lib/neon/request-client';
 import { createNeonSql } from '@/lib/neon/server';
 import { verifyNeonAuthChallenge } from '@/lib/neon/turnstile';
-import { ensureTrustedDeviceCookie } from '@/lib/trusted-device-access';
+import { ensureTrustedDeviceCookie, hashTrustedDeviceToken } from '@/lib/trusted-device-access';
 import { TERMS_ACCEPTANCE_KEY, TERMS_VERSION } from '@/lib/legal';
 import { startMarketingOnboarding } from '@/lib/marketing-lifecycle';
+import { isReferralsEnabled, recordReferralAttributionSafely } from '@/lib/referral-program';
 
 type AuthActionResult = { error?: string };
 type SignInResult = AuthActionResult & { needsVerification?: boolean };
@@ -141,6 +142,7 @@ export async function signUpWithNeonForApp(input: {
   marketingConsent: boolean;
   locale: 'cs' | 'en';
   challenge: string;
+  referralCode?: string;
 }): Promise<SignupResult> {
   if (!neonAppAuthIsAvailable()) return { error: 'Neon Auth is not active for this deployment.' };
   const email = input.email.trim().toLowerCase();
@@ -198,13 +200,27 @@ export async function signUpWithNeonForApp(input: {
         // The verification form offers "send a new code".
       }
     }
-    await ensureTrustedDeviceCookie();
+    const deviceToken = await ensureTrustedDeviceCookie();
+    // Needs the device hash, so only after the cookie exists. Never throws and
+    // ignores unknown codes, so the response is the same with or without a code.
+    await recordReferralAttributionSafely({
+      inviteeUserId: userId,
+      referralCode: input.referralCode,
+      signupDeviceHash: hashTrustedDeviceToken(deviceToken),
+      email,
+    });
     return { checkEmail: !result.data.token };
   } catch {
     // A failed audit write cannot be reported as a completed registration.
     // The product Terms gate remains fail-closed for any such account.
     return { error: 'Registration could not be completed.' };
   }
+}
+
+// Lets the signup form show the optional referral code field only when the
+// program is on.
+export async function isReferralSignupEnabled(): Promise<boolean> {
+  return isReferralsEnabled();
 }
 
 export async function requestNeonPasswordResetForApp(email: string, challenge: string): Promise<AuthActionResult> {

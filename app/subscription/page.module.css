@@ -14,12 +14,83 @@
   margin-top: -66px;
 }
 
-.emailSection h2 {
+.emailSection h2,
+.referralSection h2 {
   margin: 0;
   font-size: 28px;
   letter-spacing: -.04em;
 }
 
+/* Referral program (REFERRALS_ENABLED): same card as the email section, directly above it. */
+.referralSection {
+  width: min(960px, calc(100% - 40px));
+  margin: 18px auto 0;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 10px 34px rgba(21,23,33,.05);
+  scroll-margin-top: 24px;
+}
+
+.referralLead {
+  margin: 10px 0 0;
+  max-width: 72ch;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.referralLink,
+.referralBonus {
+  display: grid;
+  gap: 6px;
+  margin-top: 20px;
+  min-width: 0;
+}
+
+.referralLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.referralBonusCount {
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.referralBonus p {
+  margin: 0;
+}
+
+.referralStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin: 20px 0 0;
+}
+
+.referralStats div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.referralStats dt {
+  color: var(--muted);
+}
+
+.referralStats dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.referralRules {
+  margin: 18px 0 0;
+}
+
 @media (max-width: 720px) {
-  .emailSection { width: min(100% - 24px, 960px); padding: 22px; }
+  .emailSection,
+  .referralSection { width: min(100% - 24px, 960px); padding: 22px; }
 }

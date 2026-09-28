@@ -10,7 +10,7 @@ import type { AiQuotaSnapshot } from '@/lib/ai-quota';
 import PasswordField from '@/components/PasswordField';
 import PublicHeaderAccountMenu from '@/components/PublicHeaderAccountMenu';
 import { useUiLocale } from '@/components/LocaleProvider';
-import { getNeonAppUser, requestNeonPasswordResetForApp, resendNeonEmailVerificationForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp, verifyNeonEmailForApp } from '@/app/auth/neon/actions';
+import { getNeonAppUser, isReferralSignupEnabled, requestNeonPasswordResetForApp, resendNeonEmailVerificationForApp, signInWithNeonForApp, signOutFromNeonApp, signUpWithNeonForApp, verifyNeonEmailForApp } from '@/app/auth/neon/actions';
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAAE53q_PQeEBM9Y2o';
 // Loaded only while the sign-in / registration popover is open (LEGAL-022).
@@ -203,6 +203,8 @@ export default function AuthControls({
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
+  const [referralEnabled, setReferralEnabled] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -215,6 +217,8 @@ export default function AuthControls({
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const termsAcceptedId = useId();
   const marketingConsentId = useId();
+  const referralCodeId = useId();
+  const referralCheckedRef = useRef(false);
   const signupStartedRef = useRef(false);
   const pendingVerificationCheckedRef = useRef(false);
 
@@ -290,6 +294,19 @@ export default function AuthControls({
   useEffect(() => {
     if (user) void loadQuota(user);
   }, [quotaRefreshKey, user]);
+
+  // Referral program (server flag): the optional code field is prefilled from
+  // ?ref in the address. Nothing is stored in cookies or localStorage.
+  useEffect(() => {
+    if (!NEON_APP_AUTH || mode !== 'signup' || referralCheckedRef.current) return;
+    referralCheckedRef.current = true;
+    void isReferralSignupEnabled().then((enabled) => {
+      if (!enabled) return;
+      setReferralEnabled(true);
+      const fromUrl = new URLSearchParams(window.location.search).get('ref');
+      if (fromUrl) setReferralCode((current) => current || fromUrl.trim().slice(0, 32));
+    }).catch(() => {});
+  }, [mode]);
 
   useEffect(() => {
     if (!NEON_APP_AUTH || !authResolved || pendingVerificationCheckedRef.current) return;
@@ -578,6 +595,7 @@ export default function AuthControls({
         marketingConsent,
         locale,
         challenge: token,
+        ...(referralEnabled && referralCode.trim() ? { referralCode: referralCode.trim() } : {}),
       });
       setBusy(false);
       resetCaptcha();
@@ -769,6 +787,21 @@ export default function AuthControls({
                 <label>{english ? 'Email' : 'E-mail'}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
                 <PasswordField label={english ? 'Password' : 'Heslo'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={8} required />
                 <PasswordField label={english ? 'Password again' : 'Heslo znovu'} value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+                {referralEnabled ? (
+                  <label htmlFor={referralCodeId}>
+                    {english ? 'Referral code (optional)' : 'Kód doporučení (nepovinné)'}
+                    <input
+                      id={referralCodeId}
+                      type="text"
+                      value={referralCode}
+                      onChange={(event) => setReferralCode(event.target.value)}
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      maxLength={32}
+                    />
+                  </label>
+                ) : null}
                 <div className="auth-marketing-consent">
                   <input
                     id={termsAcceptedId}

@@ -42,7 +42,10 @@ requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'mark
 requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
 // LEGAL-022: Privacy Notice 1.7 matches the production infrastructure.
-requirePattern(gdpr, /Verze 1\.11/, 'Privacy Notice version 1.11 is missing.');
+requirePattern(gdpr, /Verze 1\.12/, 'Privacy Notice version 1.12 is missing.');
+requirePattern(gdpr, /Doporučovací program:/, 'Privacy Notice must describe the referral program data.');
+requirePattern(gdpr, /Oprávněný zájem na férovém fungování doporučovacího programu/, 'Privacy Notice must state the referral legal basis.');
+requirePattern(gdpr, /Vazbu z doporučovacího programu/, 'Privacy Notice must state the referral retention.');
 requirePattern(gdpr, /Potvrzení upozornění na jedno živé použití lekce ve Free:/, 'Privacy Notice must describe the Free single live use notice acknowledgement.');
 requirePattern(gdpr, /Záznam o potvrzení upozornění na jedno živé použití lekce ve Free/, 'Privacy Notice must state the notice acknowledgement retention.');
 requirePattern(gdpr, /Nápověda Syllonautu:/, 'Privacy Notice must describe Syllonaut Help processing.');
