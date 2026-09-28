@@ -10,6 +10,7 @@ import HelpAssistant from '@/components/HelpAssistant';
 import SyllonautMark from '@/components/SyllonautMark';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
 import MarketingEmailPreferences from '@/components/MarketingEmailPreferences';
+import OnlineWithdrawalPanel from '@/components/OnlineWithdrawalPanel';
 import ReferralProgramSection from '@/components/ReferralProgramSection';
 import { getLiveSubscriptionManagementState } from '@/lib/billing-subscription-state';
 import { LOCALE_REQUEST_HEADER, normalizeUiLocale } from '@/lib/i18n';
@@ -170,8 +171,6 @@ export default async function SubscriptionPage() {
         state={state}
         quotaWindow={quotaWindow}
         serviceChangeNotices={serviceChangeNotices}
-        withdrawalOpportunity={withdrawalOpportunity}
-        accountEmail={accountUser.email ?? ''}
         topupOffer={topupOffer}
       />}
 
@@ -184,10 +183,24 @@ export default async function SubscriptionPage() {
       ) : null}
 
       {/* Outside SubscriptionManagement so it stays available when billing state fails to load. */}
-      <section id="emaily" className={loadError || referralSection ? styles.emailSection : `${styles.emailSection} ${styles.afterManagement}`}>
+      <section id="emaily" className={[
+        styles.emailSection,
+        !loadError && !referralSection ? styles.afterManagement : '',
+        !loadError ? styles.beforeWithdrawal : '',
+      ].filter(Boolean).join(' ')}>
         <h2>{ui('E-mailové novinky', 'Email updates')}</h2>
         <MarketingEmailPreferences />
       </section>
+
+      {/* Order: plan, referral, emails, withdrawal from contract (owner decision 2026-09-28). */}
+      {loadError ? null : (
+        <div className={styles.withdrawalSection}>
+          <OnlineWithdrawalPanel
+            withdrawalOpportunity={withdrawalOpportunity}
+            accountEmail={accountUser.email ?? ''}
+          />
+        </div>
+      )}
     </main>
   );
 }
