@@ -47,7 +47,7 @@ export type GenerationErrorCode =
 export type RevisionErrorCode = 'network_error' | 'request_failed' | 'invalid_result' | 'unknown';
 
 type AnalyticsEventParameters = {
-  prepare_lesson_cta_click: { location: 'hero' | 'header' | 'pricing' | 'other' };
+  prepare_lesson_cta_click: { location: 'hero' | 'header' | 'pricing' | 'other' | 'mobile_sticky' };
   pricing_view: { segment: 'teacher' | 'school'; billing_period: 'monthly' | 'annual' };
   pricing_segment_change: { segment: 'teacher' | 'school' };
   pricing_billing_period_change: { billing_period: 'monthly' | 'annual' };

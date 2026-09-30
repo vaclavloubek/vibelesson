@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import AuthControls from '@/components/AuthControls';
 import HeaderMobileNav from '@/components/HeaderMobileNav';
 import LandingContactForm from '@/components/LandingContactForm';
+import LandingMobileCta from '@/components/LandingMobileCta';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useUiLocale } from '@/components/LocaleProvider';
 import SyllonautMark from '@/components/SyllonautMark';
@@ -171,7 +172,7 @@ export default function LandingPage() {
   const t = copy[locale];
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${styles.pageWithMobileCta}`}>
       <header className={styles.header}>
         <Link href={`/${locale}`} className={styles.brand} aria-label={t.brandHome}>
           <SyllonautMark />
@@ -197,7 +198,7 @@ export default function LandingPage() {
           <h1>{t.heroTitle}</h1>
           <p className={styles.lead}>{t.heroLead}</p>
           <div className={styles.heroActions}>
-            <Link href="/new" className={styles.primaryCta} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'hero' })}>{t.prepare}</Link>
+            <Link href="/new" id="hero-cta" className={styles.primaryCta} onClick={() => trackEvent('prepare_lesson_cta_click', { location: 'hero' })}>{t.prepare}</Link>
             <a href="#jak-to-funguje" className={styles.secondaryCta}>{t.how}</a>
           </div>
           <p className={styles.microcopy}>{t.microcopy}</p>
@@ -321,6 +322,8 @@ export default function LandingPage() {
       <LandingContactForm />
 
       <SiteFooter />
+
+      <LandingMobileCta label={t.prepare} />
     </main>
   );
 }
