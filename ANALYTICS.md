@@ -75,7 +75,7 @@ Pro DebugView přes Preview se má použít samostatná **testovací GA4 propert
 
 | Event | Kdy se spustí | Implementace | Povolené parametry | Účel |
 | --- | --- | --- | --- | --- |
-| `prepare_lesson_cta_click` | Kliknutí na CTA vedoucí do přípravy lekce | Landing, Pricing, mobile header | `location`: hero/header/pricing/other | Acquisition → creation intent |
+| `prepare_lesson_cta_click` | Kliknutí na CTA vedoucí do přípravy lekce | Landing, Pricing, mobile header, mobile sticky bar | `location`: hero/header/pricing/other/mobile_sticky | Acquisition → creation intent |
 | `pricing_view` | První načtení Pricing klienta | `PricingPage` | `segment`, `billing_period` | Výchozí Pricing kontext |
 | `pricing_segment_change` | Uživatel skutečně změní učitel/škola | `PricingPage` | `segment` | Zájem o individuální vs. školní nabídku |
 | `pricing_billing_period_change` | Uživatel změní měsíčně/ročně | `PricingPage` | `billing_period` | Citlivost na roční nabídku |

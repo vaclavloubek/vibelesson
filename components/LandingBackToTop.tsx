@@ -5,6 +5,7 @@ import { useUiLocale } from '@/components/LocaleProvider';
 
 export default function LandingBackToTop() {
   const [visible, setVisible] = useState(false);
+  const [aboveMobileCta, setAboveMobileCta] = useState(false);
   const locale = useUiLocale();
   const english = locale === 'en';
 
@@ -17,6 +18,15 @@ export default function LandingBackToTop() {
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
+  }, []);
+
+  // On mobile the landing page shows a sticky CTA bar (LandingMobileCta, 70px + safe area); sit 12px above it.
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 720px)');
+    const update = () => setAboveMobileCta(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
   }, []);
 
   function goTop() {
@@ -33,7 +43,7 @@ export default function LandingBackToTop() {
       style={{
         position: 'fixed',
         right: 22,
-        bottom: 22,
+        bottom: aboveMobileCta ? 'calc(82px + env(safe-area-inset-bottom, 0px))' : 22,
         zIndex: 30,
         display: 'inline-flex',
         alignItems: 'center',

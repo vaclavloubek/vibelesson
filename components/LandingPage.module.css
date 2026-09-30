@@ -557,6 +557,8 @@
   .lead { font-size: 17px; }
   .heroActions { display: grid; grid-template-columns: 1fr; }
   .primaryCta, .secondaryCta { width: 100%; min-height: 50px; }
+  /* Room for the sticky LandingMobileCta bar so it never covers the footer. */
+  .pageWithMobileCta { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
   .microcopy { text-align: center; }
   .heroVisual { min-height: 590px; align-items: flex-start; padding-top: 20px; }
   .productWindow { width: 100%; margin: 0; }

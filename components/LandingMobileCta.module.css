@@ -1,0 +1,40 @@
+.bar {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Below the cookie banner (1000) and the back-to-top button (30). */
+    z-index: 25;
+    display: block;
+    padding: 9px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(216,215,210,.96);
+    background: rgba(246,245,241,.84);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 -10px 30px rgba(21,23,33,.06);
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  .visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .cta {
+    width: 100%;
+    min-height: 50px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar { transition: none; }
+}
