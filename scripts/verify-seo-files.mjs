@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 
@@ -45,5 +45,31 @@ for (const locale of ['cs', 'en']) {
   }
 }
 if (entries.length !== paths.length * 2) fail(`sitemap must contain exactly ${paths.length * 2} URLs, found ${entries.length}.`);
+
+// Every page under app/[locale] is either in the sitemap or disallowed for
+// both locales, so a new private localized page can't slip into the index.
+const robotsRunnable = robots
+  .replace(/^import type .*$/m, '')
+  .replace(/\): MetadataRoute\.Robots/, ')');
+const { default: robotsConfig } = await import(`data:text/javascript,${encodeURIComponent(robotsRunnable)}`);
+const disallow = [robotsConfig().rules.disallow].flat();
+const isDisallowed = (url) => disallow.some((rule) => url.startsWith(rule));
+
+for (const required of ['/lessons', '/lessons/1', '/join', '/school', '/subscription', '/cs/subscription', '/en/terms/accept']) {
+  if (!isDisallowed(required)) fail(`robots.txt must disallow ${required}.`);
+}
+
+const localeDir = new URL('app/[locale]/', root);
+const localePages = (await readdir(localeDir, { recursive: true }))
+  .filter((file) => file === 'page.tsx' || file.endsWith('/page.tsx'))
+  .map((file) => (file === 'page.tsx' ? '' : `/${file.slice(0, -'/page.tsx'.length)}`));
+for (const pagePath of localePages) {
+  for (const locale of ['cs', 'en']) {
+    const path = `/${locale}${pagePath}`;
+    const inSitemap = urls.has(`${metadataBase}${path}`);
+    if (inSitemap && isDisallowed(path)) fail(`${path} is in the sitemap but disallowed in robots.txt.`);
+    if (!inSitemap && !isDisallowed(path)) fail(`${path} is neither in the sitemap nor disallowed in robots.txt.`);
+  }
+}
 
 console.log('SEO files checks passed.');
