@@ -2,7 +2,7 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { detectCopyArtifacts } from './ai-copy-artifacts';
 import { stripScaffoldFromAnswer } from './answer-scaffold';
-import { ANSWER_SCAFFOLD_MAX_LENGTH, GradingCriterionSchema, GradingStrictnessSchema, type GradingCriterion, type GradingStrictness } from './schema';
+import { ANSWER_SCAFFOLD_MAX_LENGTH, DataTableSchema, GradingCriterionSchema, GradingStrictnessSchema, type GradingCriterion, type GradingStrictness } from './schema';
 
 const gradingModel = process.env.AI_GRADING_MODEL || process.env.AI_MODEL || 'openai/gpt-5.6-sol';
 
@@ -29,6 +29,7 @@ const GradingInputSchema = z.object({
   maxPoints: z.number().int().min(1).max(20),
   strictness: GradingStrictnessSchema.default('neutral'),
   answerScaffold: z.string().trim().max(ANSWER_SCAFFOLD_MAX_LENGTH).optional(),
+  dataTable: DataTableSchema.optional(),
 });
 
 const CriterionRationaleSchema = z.string().trim().min(1).max(500);
@@ -110,6 +111,7 @@ Bezpečnost a férovost:
 - Neodměňuj délku odpovědi samu o sobě. Jazyk, pravopis a styl posuzuj jen tehdy, když je výslovně požaduje rubrika.
 - Pokud odpověď nebo zadání neposkytují dost podkladů pro spolehlivý verdikt, sniž confidence a vysvětli nejistotu.
 - Pole answerScaffold (pokud je vyplněné) obsahuje osnovu nebo začátky vět, které aplikace studentovi nabídla a které si mohl vložit do odpovědi. Text osnovy není práce studenta a sám o sobě nezískává body. Hodnoť jen to, čím student osnovu doplnil.
+- Pole task.dataTable (pokud je vyplněné) je podklad od učitele, který měli studenti k dispozici u zadání; použij ho k ověření věcné správnosti odpovědi, není to práce studenta a sám o sobě nezískává body.
 - overallRationale má být stručné a věcné, typicky 1–3 věty.
 - rationale u každého kritéria má stručně vysvětlit přidělené body.
 - confidence je číslo 0 až 1 vyjadřující jistotu hodnocení, nikoli kvalitu odpovědi.
@@ -131,6 +133,7 @@ ${gradingStrictnessInstructions[input.strictness]}`,
         audience: input.audience,
         maxPoints: input.maxPoints,
         gradingStrictness: input.strictness,
+        dataTable: input.dataTable ?? null,
       },
       rubric: input.rubric,
       answerScaffold: input.answerScaffold ?? null,
