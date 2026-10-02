@@ -42,7 +42,7 @@ requirePattern(auth, /type="checkbox"[\s\S]*checked=\{marketingConsent\}/, 'mark
 requirePattern(marketingPreferences, /set_marketing_email_consent/, 'marketing-email consent must have a self-service withdrawal path.');
 requirePattern(gdpr, /_ga_\*/, 'GDPR page must describe GA4 cookies and retention.');
 // LEGAL-022: Privacy Notice 1.7 matches the production infrastructure.
-requirePattern(gdpr, /Verze 1\.12/, 'Privacy Notice version 1.12 is missing.');
+requirePattern(gdpr, /Verze 1\.13/, 'Privacy Notice version 1.13 is missing.');
 requirePattern(gdpr, /Doporučovací program:/, 'Privacy Notice must describe the referral program data.');
 requirePattern(gdpr, /Oprávněný zájem na férovém fungování doporučovacího programu/, 'Privacy Notice must state the referral legal basis.');
 requirePattern(gdpr, /Vazbu z doporučovacího programu/, 'Privacy Notice must state the referral retention.');
@@ -64,6 +64,7 @@ requirePattern(gdpr, /<section id="studenti">/, 'student section anchor #student
 requirePattern(gdpr, /první lekce, spuštění první živé hodiny a čerpání AI kvóty/, 'behaviour-triggered marketing email notice is missing.');
 requirePattern(gdpr, /<strong>Neon<\/strong>/, 'Neon must be listed as a service provider.');
 requirePattern(gdpr, /<strong>Stripe<\/strong>/, 'Stripe must be listed as a service provider.');
+requirePattern(gdpr, /<strong>Zoho<\/strong>/, 'Zoho (syllonaut.com mailboxes) must be listed as a service provider.');
 requirePattern(gdpr, /jen u formulářů přihlášení a registrace/, 'Turnstile scope must be limited to sign-in and registration forms.');
 if (layout.includes('challenges.cloudflare.com')) throw new Error('Privacy regression: Turnstile must not load on every page from the root layout.');
 requirePattern(auth, /\{open \? <Script id="syllonaut-turnstile"/, 'Turnstile must load only while the sign-in/registration popover is open.');

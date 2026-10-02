@@ -95,7 +95,7 @@ async function deliverInquiryEmail(email: string, message: string, idempotencyKe
       },
       body: JSON.stringify({
         from: 'Syllonaut <info@syllonaut.com>',
-        to: ['vaclav@syllonaut.com', 'vaclav.loubek@gmail.com'],
+        to: ['vaclav@syllonaut.com'],
         reply_to: email,
         subject: 'Nový dotaz z titulní stránky Syllonautu',
         text,

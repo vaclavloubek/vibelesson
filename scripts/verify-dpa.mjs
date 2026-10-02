@@ -14,8 +14,10 @@ const gdpr = read('app/gdpr/page.tsx');
 const school = read('components/SchoolAdmin.tsx');
 const schoolApi = read('app/api/organizations/route.ts');
 
-if (!legal.includes("DPA_VERSION = '1.4'")) fail('active DPA version is missing');
-if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-09-25-dpa-v5'")) fail('active DPA acceptance key is missing');
+if (!legal.includes("DPA_VERSION = '1.5'")) fail('active DPA version is missing');
+if (!legal.includes("DPA_ACCEPTANCE_KEY = '2026-10-02-dpa-v6'")) fail('active DPA acceptance key is missing');
+// DPA 1.5: Zoho Mail (EU) hosts the syllonaut.com mailboxes that receive DPA notices and requests.
+if (!dpa.includes('Mailboxes are hosted in Zoho’s EU data centre') || !dpa.includes('Schránky jsou hostované v datovém centru Zoho v EU')) fail('DPA must state that Zoho Mail is hosted in the EU');
 // DPA 1.4: Syllonaut Help is a purpose of processing and an OpenAI purpose.
 if (!dpa.includes('Nápovědy Syllonautu (odpovědi AI na dotazy učitelů') || !dpa.includes('Syllonaut Help (AI answers to teachers’ questions')) fail('DPA section 2 must list Syllonaut Help as a purpose of processing');
 if (!dpa.includes('odpovědi Nápovědy Syllonautu na cestách, které používají OpenAI') || !dpa.includes('Syllonaut Help answers on routes that use OpenAI')) fail('DPA must list Syllonaut Help as an OpenAI sub-processor purpose');
@@ -44,6 +46,7 @@ for (const provider of [
   'Vercel',
   'Cloudflare',
   'Resend',
+  'Zoho Mail',
   'OpenAI',
   'Amazon Web Services (Bedrock)',
   'Microsoft Azure',
@@ -74,6 +77,9 @@ for (const identity of [
   'Plus Five Five, Inc.',
   '2261 Market Street #5039, San Francisco, CA 94114, United States',
   'privacy@resend.com',
+  'Zoho Corporation B.V.',
+  'Beneluxlaan 4B, 3527 HT Utrecht, the Netherlands',
+  'privacy@zohocorp.com',
   'OpenAI Ireland Limited',
   '117–126 Sheriff Street Upper',
   'privacy@openai.com',

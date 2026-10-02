@@ -154,7 +154,7 @@ has(cron, 'referralRetention = await purgeReferralData();', 'cron runs the reten
 assert.ok(!cron.slice(cron.indexOf('let referralRetention')).startsWith('let referralRetention: Awaited<ReturnType<typeof purgeReferralData>> = null;\n  if (isReferralsEnabled'), 'retention purge does not depend on the flag');
 has(lib, "to_regprocedure('private.purge_referral_data()') is not null", 'purge is skipped until 0027 exists');
 const gdpr = read('app/gdpr/page.tsx');
-has(gdpr, 'Verze 1.12', 'Privacy Notice 1.12 describes the program');
+has(gdpr, 'Doporučovací program:', 'Privacy Notice (1.12+) describes the program');
 has(gdpr, 'nejdéle 12 měsíců po uzavření doporučení', 'Privacy Notice retention matches the settings row');
 has(subscriptionPage, 'referralSection = await getReferralSection(userId);', 'subscription page reads the section on the server');
 has(authControls, 'isReferralSignupEnabled().then((enabled) => {\n      if (!enabled) return;', 'signup field only with the flag');
