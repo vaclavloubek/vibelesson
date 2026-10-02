@@ -1015,6 +1015,13 @@ export default function LessonWorkspace({
                         <option value="inspiration">{ui('Použít jako inspiraci', 'Use as inspiration')}</option>
                       </select>
                     </label>
+                    <p className="muted-copy" style={{ marginTop: 8 }}>
+                      {materialMode === 'strict'
+                        ? ui('AI má pokyn nepřidávat nová fakta. Obsah podkladů jen vybere, uspořádá a převede do aktivit.', 'The AI is instructed not to add new facts. It only selects, organises and turns the materials into activities.')
+                        : materialMode === 'inspiration'
+                          ? ui('Podklady slouží jako kontext. AI může obsah i strukturu sama doplnit.', 'The materials serve as context. The AI may add content and structure of its own.')
+                          : ui('Podklady jsou hlavní zdroj. AI je přizpůsobí třídě a doplní jen nezbytné propojení.', 'The materials are the main source. The AI adapts them to the class and adds only the necessary links.')}
+                    </p>
                     <p className="muted-copy" style={{ marginTop: 8 }}>{ui('Originální soubory zůstávají ve vašem zařízení. Syllonaut v prohlížeči získá jejich text a na server odešle pouze tento text; podklady ani extrahovaný obsah trvale neukládá.', 'Original files stay on your device. Syllonaut extracts their text in the browser and sends only that text to the server; neither the files nor extracted content are stored permanently.')}</p>
                   </div>
                 </details>
