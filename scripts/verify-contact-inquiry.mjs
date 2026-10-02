@@ -44,7 +44,8 @@ requirePattern(route, /createHmac\('sha256'/, 'privacy-preserving HMAC client ha
 requirePattern(route, /reserve_contact_form_rate_limit_server/, 'persistent rate-limit reservation must use the server-only RPC boundary.');
 requirePattern(route, /typeof reservationId !== 'string' \|\| !reservationId/, 'rate-limit rejection on duplicate reservation is missing.');
 requirePattern(route, /reply_to: email/, 'inquiry email must remain directly replyable.');
-requirePattern(route, /to: \['vaclav@syllonaut\.com', 'vaclav\.loubek@gmail\.com'\]/, 'inquiry must be delivered to both configured inboxes.');
+requirePattern(route, /to: \['vaclav@syllonaut\.com'\]/, 'inquiry must be delivered only to the provider mailbox (Zoho, EU).');
+forbidPattern(route, /gmail\.com/, 'inquiries must not be copied to a Gmail mailbox (Privacy Notice 1.13).');
 requirePattern(route, /escapeHtml\(message\)/, 'message HTML escaping is missing.');
 requirePattern(route, /release_contact_form_rate_limit_server/, 'failed delivery must release the rate-limit reservation.');
 forbidPattern(route, /client_ip|ip_address|raw_ip/, 'raw IP addresses must not be stored.');

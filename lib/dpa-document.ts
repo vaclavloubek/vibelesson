@@ -82,6 +82,15 @@ export function getDpaDocument(locale: DpaLocale) {
       transfer: 'Where processing occurs outside the EEA, the provider’s applicable GDPR transfer safeguards are used.',
     },
     {
+      provider: 'Zoho Mail',
+      legalEntity: 'Zoho Corporation B.V.',
+      address: 'Beneluxlaan 4B, 3527 HT Utrecht, the Netherlands',
+      contact: 'privacy@zohocorp.com',
+      purpose: 'Mailboxes for the syllonaut.com domain: receiving contact-form enquiries, support and data-protection requests, notices under this DPA and replies to operational emails.',
+      dataScope: 'Email addresses, names and the content of emails that teachers, administrators or the Controller send to the Processor, including any attachments. Student answers are not intentionally sent by email.',
+      transfer: 'Mailboxes are hosted in Zoho’s EU data centre. Any access from outside the EEA (e.g. provider support) is covered by the Standard Contractual Clauses in the Zoho Data Processing Addendum.',
+    },
+    {
       provider: 'OpenAI',
       legalEntity: 'OpenAI Ireland Limited',
       address: '1st Floor, The Liffey Trust Centre, 117–126 Sheriff Street Upper, Dublin 1, D01 YC43, Ireland',
@@ -155,6 +164,15 @@ export function getDpaDocument(locale: DpaLocale) {
       purpose: 'Transakční e-maily, pozvánky do organizace a provozní notifikace.',
       dataScope: 'E-mailové adresy učitelů/adminů a obsah příslušného provozního e-mailu. Studentské odpovědi nejsou přes Resend záměrně odesílány.',
       transfer: 'Pokud zpracování probíhá mimo EHP, použijí se odpovídající záruky dodavatele podle GDPR.',
+    },
+    {
+      provider: 'Zoho Mail',
+      legalEntity: 'Zoho Corporation B.V.',
+      address: 'Beneluxlaan 4B, 3527 HT Utrecht, the Netherlands',
+      contact: 'privacy@zohocorp.com',
+      purpose: 'E-mailové schránky domény syllonaut.com: příjem dotazů z kontaktního formuláře, žádostí o podporu a ochranu osobních údajů, oznámení podle této smlouvy a odpovědí na provozní e-maily.',
+      dataScope: 'E-mailové adresy, jména a obsah e-mailů, které učitelé, administrátoři nebo správce zašlou zpracovateli, včetně případných příloh. Studentské odpovědi nejsou e-mailem záměrně zasílány.',
+      transfer: 'Schránky jsou hostované v datovém centru Zoho v EU. Případný přístup z míst mimo EHP (např. podpora dodavatele) kryjí standardní smluvní doložky v Data Processing Addendum společnosti Zoho.',
     },
     {
       provider: 'OpenAI',
