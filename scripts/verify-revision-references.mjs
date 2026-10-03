@@ -22,11 +22,15 @@ requireText('${visibleBlockNumberingContext(lesson, instruction)}', 'numbering c
 
 // Chained activities: the rule lives in baseRules, which lesson generation and
 // both AI revisions use as their system prompt. It must keep chaining welcome
-// and only change how a block refers back to earlier activities.
+// and only change how a block refers back to earlier activities. The rules for
+// keeping references in sync during edits live in revisionRules, which only
+// the two revisions use.
 const baseRules = ai.match(/const baseRules = `([\s\S]*?)\n`;/)?.[1] ?? '';
 if (!baseRules) throw new Error('revision reference regression: baseRules is missing.');
+const revisionRules = ai.match(/const revisionRules = `([\s\S]*?)\n`;/)?.[1] ?? '';
+if (!revisionRules) throw new Error('revision reference regression: revisionRules is missing.');
 const chainingStart = baseRules.indexOf('- Navazování mezi aktivitami');
-const chainingEnd = baseRules.indexOf('- Při úpravě jedné aktivity:', chainingStart);
+const chainingEnd = baseRules.indexOf('- Na konkrétní aktivitu vždy odkazuj', chainingStart);
 if (chainingStart < 0 || chainingEnd < 0) throw new Error('revision reference regression: baseRules must contain the chained-activities rule.');
 const chainingRule = baseRules.slice(chainingStart, baseRules.indexOf('\n', chainingEnd));
 for (const [snippet, message] of [
@@ -37,10 +41,14 @@ for (const [snippet, message] of [
   ['do teacherNote pokyn, ať ho učitel připomene', 'class-only results may ask the teacher to remind students.'],
   ['vždy odkazuj číslem i názvem', 'references must name both number and title.'],
   ['do kterého se počítají všechny bloky včetně intro, reveal, poll a timer', 'reference numbers must match the student counter (all blocks).'],
+]) {
+  if (!chainingRule.includes(snippet)) throw new Error(`revision reference regression: ${message}`);
+}
+for (const [snippet, message] of [
   ['Při úpravě celé lekce: pokud se změní název nebo pořadí bloku', 'whole-lesson revision must keep references in sync.'],
   ['Při úpravě jedné aktivity: odkazy v upravovaném bloku musí odpovídat aktuálním číslům a názvům', 'block revision must keep references current.'],
 ]) {
-  if (!chainingRule.includes(snippet)) throw new Error(`revision reference regression: ${message}`);
+  if (!revisionRules.includes(snippet)) throw new Error(`revision reference regression: ${message}`);
 }
 if (/nenavazuj|nepropojuj|vyhn\w* se navazování|omez\w* navazování|nesmí navazovat|nenavazovat|bez návaznosti|samostatn\w+ bez vazby/i.test(chainingRule)) {
   throw new Error('revision reference regression: the chained-activities rule must not discourage or forbid chaining.');
@@ -54,6 +62,11 @@ for (const [name, start, end] of [
   const section = ai.slice(from, end ? ai.indexOf(end) : undefined);
   if (from < 0 || !/system: (?:languageLocked\s*\?\s*`\$\{baseRules\}[^`]*`\s*:\s*)?`\$\{baseRules\}/.test(section)) {
     throw new Error(`revision reference regression: ${name} must use baseRules as its system prompt.`);
+  }
+  const systemPrompts = section.match(/system: [\s\S]*?,\n\s*prompt:/)?.[0] ?? '';
+  const revisionRulesUses = systemPrompts.split('${revisionRules}').length - 1;
+  if (name === 'lesson generation' ? revisionRulesUses !== 0 : revisionRulesUses !== 2) {
+    throw new Error(`revision reference regression: ${name} must ${name === 'lesson generation' ? 'not ' : ''}use revisionRules in every system prompt variant.`);
   }
 }
 
