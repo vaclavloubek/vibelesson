@@ -368,6 +368,47 @@ function normalizeLesson(
   });
 }
 
+type LessonDraft = {
+  output: z.infer<typeof AILessonSchema>;
+  providerMetadata?: unknown;
+};
+
+function lessonValidationGuidance(error: z.ZodError, heading: string) {
+  const problems = error.issues.slice(0, 8).map((issue) => {
+    if (issue.code === 'too_big' && issue.path.length === 1 && issue.path[0] === 'blocks') {
+      return `- Lekce má příliš mnoho bloků; aplikace povoluje nejvýše ${issue.maximum}. Spoj krátké navazující kroky do jednoho bloku s více částmi, aby lekce měla nejvýše 14 bloků včetně přestávek a stále odpovídala požadované délce.`;
+    }
+    return `- ${issue.path.map(String).join('.') || 'lekce'}: ${issue.message}`;
+  });
+  return `\n\n${heading} — ZÁVAZNÉ: předchozí návrh neprošel technickou kontrolou aplikace a nedá se uložit:\n${problems.join('\n')}\nVytvoř celý návrh znovu, zachovej jeho didaktickou stavbu a oprav uvedené problémy.`;
+}
+
+// A draft that fails LessonSchema (e.g. more than the allowed number of
+// blocks) would fail an already paid generation. Ask once for a corrected
+// draft; the shared budget keeps it to one validation retry per operation.
+async function normalizeDraftWithValidationRetry(
+  draft: (extraGuidance: string) => Promise<LessonDraft>,
+  normalize: (output: LessonDraft['output']) => Lesson,
+  budget: { validationRetries: number },
+  heading: string,
+  extraGuidance = '',
+) {
+  const first = await draft(extraGuidance);
+  const firstCost = getGatewayCost(first.providerMetadata);
+  try {
+    return { lesson: normalize(first.output), costUsd: firstCost };
+  } catch (error) {
+    if (!(error instanceof z.ZodError) || budget.validationRetries < 1) throw error;
+    budget.validationRetries -= 1;
+    console.warn('AI lesson draft failed validation; retrying once', {
+      issues: error.issues.slice(0, 8).map((issue) => ({ code: issue.code, path: issue.path.map(String).join('.') })),
+    });
+    const retry = await draft(`${extraGuidance}${lessonValidationGuidance(error, heading)}`);
+    const retryCost = combineCosts(firstCost, getGatewayCost(retry.providerMetadata));
+    return { lesson: normalize(retry.output), costUsd: retryCost };
+  }
+}
+
 type VisibleBlockReference = {
   position: number;
   blockId: string;
@@ -498,14 +539,23 @@ export async function createLesson(
     });
   }
 
-  const firstResult = await generateDraft();
-  let lesson = normalizeLesson(firstResult.output, input.gradingStrictness ?? 'neutral', input.collaborationMode);
-  let costUsd = getGatewayCost(firstResult.providerMetadata);
+  const validationBudget = { validationRetries: 1 };
+  const draftLesson = (extraGuidance = '') => normalizeDraftWithValidationRetry(
+    generateDraft,
+    (output) => normalizeLesson(output, input.gradingStrictness ?? 'neutral', input.collaborationMode),
+    validationBudget,
+    'OPRAVA PŘEDCHOZÍHO NÁVRHU',
+    extraGuidance,
+  );
+
+  const first = await draftLesson();
+  let lesson = first.lesson;
+  let costUsd = first.costUsd;
 
   if (collaborationModeViolation(lesson, input.collaborationMode)) {
-    const retryResult = await generateDraft(`\n\nOPRAVA PŘEDCHOZÍHO NÁVRHU — ZÁVAZNÉ: předchozí návrh porušil zvolený režim práce. Vygeneruj celý návrh znovu a přesně dodrž pravidla režimu ${input.collaborationMode === 'individual' ? 'INDIVIDUÁLNÍ práce bez team_task' : 'TÝMOVÉ práce s alespoň jedním team_task'}.`);
-    lesson = normalizeLesson(retryResult.output, input.gradingStrictness ?? 'neutral', input.collaborationMode);
-    costUsd = combineCosts(costUsd, getGatewayCost(retryResult.providerMetadata));
+    const retry = await draftLesson(`\n\nOPRAVA PŘEDCHOZÍHO NÁVRHU — ZÁVAZNÉ: předchozí návrh porušil zvolený režim práce. Vygeneruj celý návrh znovu a přesně dodrž pravidla režimu ${input.collaborationMode === 'individual' ? 'INDIVIDUÁLNÍ práce bez team_task' : 'TÝMOVÉ práce s alespoň jedním team_task'}.`);
+    lesson = retry.lesson;
+    costUsd = combineCosts(costUsd, retry.costUsd);
     if (collaborationModeViolation(lesson, input.collaborationMode)) {
       throw new Error('Generated lesson violates the explicit collaboration mode.');
     }
@@ -536,14 +586,23 @@ export async function reviseLesson(lesson: Lesson, instruction: string, options:
     });
   }
 
-  const firstResult = await generateRevision();
-  let revised = normalizeLesson(firstResult.output, lesson.gradingStrictness ?? 'neutral', collaborationMode);
-  let costUsd = getGatewayCost(firstResult.providerMetadata);
+  const validationBudget = { validationRetries: 1 };
+  const draftRevision = (extraGuidance = '') => normalizeDraftWithValidationRetry(
+    generateRevision,
+    (output) => normalizeLesson(output, lesson.gradingStrictness ?? 'neutral', collaborationMode),
+    validationBudget,
+    'OPRAVA PŘEDCHOZÍ REVIZE',
+    extraGuidance,
+  );
+
+  const first = await draftRevision();
+  let revised = first.lesson;
+  let costUsd = first.costUsd;
 
   if (collaborationModeViolation(revised, collaborationMode)) {
-    const retryResult = await generateRevision(`\n\nOPRAVA PŘEDCHOZÍ REVIZE — ZÁVAZNÉ: předchozí návrh porušil explicitní režim práce lekce. Režim se touto volnou AI instrukcí nesmí měnit. Zachovej režim ${collaborationMode === 'individual' ? 'INDIVIDUÁLNÍ bez team_task' : 'TÝMOVÝ s alespoň jedním team_task'}.`);
-    revised = normalizeLesson(retryResult.output, lesson.gradingStrictness ?? 'neutral', collaborationMode);
-    costUsd = combineCosts(costUsd, getGatewayCost(retryResult.providerMetadata));
+    const retry = await draftRevision(`\n\nOPRAVA PŘEDCHOZÍ REVIZE — ZÁVAZNÉ: předchozí návrh porušil explicitní režim práce lekce. Režim se touto volnou AI instrukcí nesmí měnit. Zachovej režim ${collaborationMode === 'individual' ? 'INDIVIDUÁLNÍ bez team_task' : 'TÝMOVÝ s alespoň jedním team_task'}.`);
+    revised = retry.lesson;
+    costUsd = combineCosts(costUsd, retry.costUsd);
     if (collaborationModeViolation(revised, collaborationMode)) {
       throw new Error('Revised lesson violates the explicit collaboration mode.');
     }
