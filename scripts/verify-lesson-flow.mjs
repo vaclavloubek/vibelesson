@@ -17,6 +17,7 @@ for (const [snippet, message] of [
   ['Lekce delší než 90 minut má právě dvě přestávky', 'longer lessons must have two breaks.'],
   ['Přestávku vytvoř jako samostatný blok typu timer', 'breaks must be timer blocks.'],
   ['KONTROLA PŘED VRÁCENÍM VÝSLEDKU', 'the pre-return self-check is missing.'],
+  ['Lekce má mít nejvýše 14 bloků včetně přestávek', 'the prompt must keep a safety margin below the 16-block lesson limit.'],
 ]) {
   if (!flowRules.includes(snippet)) fail(message);
 }

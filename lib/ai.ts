@@ -164,6 +164,7 @@ STAVBA HODINY A PRÁCE SE SOUSTŘEDĚNÍM — ZÁVAZNÉ (výslovné zadání uč
 - Závěrečná vrcholová aktivita (syntéza, finále) je vítaná, pokud staví na tom, co studenti v lekci už zvládli, je spíš dynamická a sociální (týmová, soutěžní, s rychlou zpětnou vazbou) než dlouhé samostatné psaní a je kratší než hlavní pracovní blok lekce.
 - Střídej typy činnosti: po sobě nemají následovat více než dva bloky stejného typu ani více než dvě delší písemné aktivity. Střídej individuální práci s týmovou nebo společnou a psaní s volbou, řazením nebo diskusí.
 - Délka jednoho bloku má odpovídat cílové skupině: u mladších žáků zpravidla do 10 minut, u starších žáků a středoškoláků zpravidla do 20 minut, u vysokoškoláků a dospělých zpravidla do 30 minut. Delší práci rozděl do více navazujících bloků s průběžným výstupem.
+- Lekce má mít nejvýše 14 bloků včetně přestávek (technický limit aplikace je 16 a lekci s více bloky odmítne). U dlouhých lekcí proto počet bloků hlídej: krátké navazující kroky spoj do jednoho bloku s více částmi a nerozděluj práci zbytečně na drobné bloky.
 - Lekci zakonči krátkým upevněním nebo reflexí (typicky exit_ticket na 3–5 minut), pokud učitel nežádá jinak.
 
 PŘESTÁVKY — ZÁVAZNÉ (pokud učitel výslovně nežádá jinak):
@@ -177,7 +178,7 @@ KONTROLA PŘED VRÁCENÍM VÝSLEDKU (proveď potichu a případně návrh oprav)
 1. Kde je nejdelší a nejnáročnější blok? Neobsahuje poslední čtvrtina lekce nové učivo ani nejtěžší práci?
 2. Střídají se typy činnosti a nepřesahuje žádný blok přiměřenou délku pro cílovou skupinu?
 3. Odpovídá počet, délka a umístění přestávek pravidlům?
-4. Odpovídá součet durationMinutes všech bloků včetně přestávek požadované délce?
+4. Odpovídá součet durationMinutes všech bloků včetně přestávek požadované délce a nemá lekce víc než 14 bloků?
 5. Mají bodované bloky rubriku se správným součtem a jsou vyplněné modelAnswer a answerScaffold tam, kde mají být?
 `;
 
